@@ -8,7 +8,7 @@ import {
   useMap,
 } from '@vis.gl/react-google-maps';
 import { FactItem, GREAT_KURDISTAN_POLYGON, ERAS } from '../data/kurdishHistoryData';
-import { Layers, Compass, Maximize2, ShieldCheck, MapPin, Satellite, Mountain, Navigation } from 'lucide-react';
+import { Layers, Compass, Maximize2, Minimize2, ShieldCheck, MapPin, Satellite, Mountain, Navigation } from 'lucide-react';
 
 interface Props {
   facts: FactItem[];
@@ -103,6 +103,7 @@ export const KurdishGoogleMap: React.FC<Props> = ({
   const [mapTypeId, setMapTypeId] = useState<'roadmap' | 'satellite' | 'terrain' | 'hybrid'>('terrain');
   const [infoWindowFact, setInfoWindowFact] = useState<FactItem | null>(selectedFact);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExpandedMobile, setIsExpandedMobile] = useState(false);
 
   // Sync info window with selected fact
   useEffect(() => {
@@ -129,78 +130,83 @@ export const KurdishGoogleMap: React.FC<Props> = ({
   }, []);
 
   return (
-    <div className="relative w-full h-[470px] lg:h-[590px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 flex flex-col">
+    <div className={`relative w-full ${isExpandedMobile ? 'h-[340px]' : 'h-[210px] sm:h-[250px]'} lg:h-[480px] rounded-xl overflow-hidden border border-slate-800 shadow-md bg-slate-950 flex flex-col transition-all duration-300`}>
       {/* Floating Map Controls at Top */}
-      <div className="absolute top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+      <div className="absolute top-2 left-2 right-2 z-30 flex items-center justify-between gap-1.5 pointer-events-none">
         {/* Map Type Switcher */}
-        <div className="flex items-center gap-1.5 pointer-events-auto bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-700/60 shadow-lg text-xs">
-          <div className="flex items-center gap-1 text-slate-300 font-medium pl-1">
-            <Layers className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">گووگڵ ماپس:</span>
-          </div>
-
+        <div className="flex items-center gap-0.5 pointer-events-auto bg-slate-950/90 backdrop-blur-md px-1.5 py-1 rounded-lg border border-slate-800 shadow text-[10px]">
           <button
             onClick={() => setMapTypeId('terrain')}
-            className={`px-2 py-1 rounded-lg transition-all font-medium flex items-center gap-1 ${
+            className={`px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 ${
               mapTypeId === 'terrain'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                ? 'bg-amber-500 text-slate-950 font-bold'
                 : 'text-slate-300 hover:bg-slate-800'
             }`}
           >
-            <Mountain className="w-3 h-3" />
-            <span>چیاکان</span>
+            <Mountain className="w-2.5 h-2.5" />
+            <span>چیا</span>
           </button>
 
           <button
             onClick={() => setMapTypeId('satellite')}
-            className={`px-2 py-1 rounded-lg transition-all font-medium flex items-center gap-1 ${
+            className={`px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 ${
               mapTypeId === 'satellite'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                ? 'bg-amber-500 text-slate-950 font-bold'
                 : 'text-slate-300 hover:bg-slate-800'
             }`}
           >
-            <Satellite className="w-3 h-3" />
-            <span>مانگی دەستکرد</span>
+            <Satellite className="w-2.5 h-2.5" />
+            <span>ساتەلایت</span>
           </button>
 
           <button
             onClick={() => setMapTypeId('roadmap')}
-            className={`px-2 py-1 rounded-lg transition-all font-medium ${
+            className={`px-2 py-0.5 rounded transition-all font-medium ${
               mapTypeId === 'roadmap'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                ? 'bg-amber-500 text-slate-950 font-bold'
                 : 'text-slate-300 hover:bg-slate-800'
             }`}
           >
-            ئاسایی
+            نەخشە
           </button>
         </div>
 
         {/* Right side quick action buttons */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1 pointer-events-auto">
+          {/* Mobile Expand / Shrink Button */}
+          <button
+            onClick={() => setIsExpandedMobile(!isExpandedMobile)}
+            title={isExpandedMobile ? 'بچووککردنەوە' : 'گەورەکردن'}
+            className="lg:hidden flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-[10px] shadow active:scale-95 transition-all"
+          >
+            {isExpandedMobile ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+            <span>{isExpandedMobile ? 'بچووک' : 'گەورە'}</span>
+          </button>
+
           <button
             onClick={() => setShowPolygon(!showPolygon)}
-            title="نیشاندان یان شاردنەوەی سنووری کوردستانی گەورە"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border backdrop-blur-md shadow-lg transition-all ${
+            title="سنووری کوردستانی گەورە"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border backdrop-blur-md shadow transition-all ${
               showPolygon
                 ? 'bg-amber-500/20 border-amber-500/60 text-amber-300'
-                : 'bg-slate-900/90 border-slate-700/60 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950/90 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">سنووری کوردستان</span>
+            <ShieldCheck className="w-3 h-3" />
+            <span>سنوور</span>
           </button>
 
           <button
             onClick={() => setShowAllMarkers(!showAllMarkers)}
-            title="گشت ٢٠٠ مارکەر یان تەنها فلتەرکراوەکان"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border backdrop-blur-md shadow-lg transition-all ${
+            title="گشت مارکەرەکان"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border backdrop-blur-md shadow transition-all ${
               showAllMarkers
-                ? 'bg-blue-600/30 border-blue-500/60 text-blue-300'
-                : 'bg-slate-900/90 border-slate-700/60 text-slate-400 hover:text-slate-200'
+                ? 'bg-amber-500/20 border-amber-500/60 text-amber-300'
+                : 'bg-slate-950/90 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{showAllMarkers ? 'هەموو ٢٠٠ شوێنەکە' : 'فلتەرکراو'}</span>
+            <MapPin className="w-3 h-3" />
+            <span>٢٠٠</span>
           </button>
         </div>
       </div>

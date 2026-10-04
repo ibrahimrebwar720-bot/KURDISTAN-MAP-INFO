@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ALL_FACTS, FactItem } from './data/kurdishHistoryData';
 import { KurdishGoogleMap } from './components/KurdishGoogleMap';
 import { FactsList } from './components/FactsList';
 import { Navbar } from './components/Navbar';
 import { FactDetailModal } from './components/FactDetailModal';
-import { AutoTourBanner } from './components/AutoTourBanner';
+import { FeaturedFactCard } from './components/FeaturedFactCard';
 
 export default function App() {
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(ALL_FACTS[0]);
@@ -13,13 +13,6 @@ export default function App() {
 
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
-
-  // Auto Tour State & 10-Second Countdown
-  const [isAutoTourActive, setIsAutoTourActive] = useState(false);
-  const [autoTourIndex, setAutoTourIndex] = useState(0);
-  const [isAutoTourPlaying, setIsAutoTourPlaying] = useState(false);
-  const [tourDuration, setTourDuration] = useState(10); // default 10 seconds
-  const [countdownSeconds, setCountdownSeconds] = useState(10);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -35,65 +28,17 @@ export default function App() {
     setSelectedFact(fact);
   };
 
-  // Auto Tour 10-Second Countdown Logic
-  useEffect(() => {
-    if (!isAutoTourActive || !isAutoTourPlaying) return;
-
-    const timer = setInterval(() => {
-      setCountdownSeconds((prev) => {
-        if (prev <= 1) {
-          // Transition to next fact
-          setAutoTourIndex((prevIdx) => {
-            const nextIdx = (prevIdx + 1) % ALL_FACTS.length;
-            setSelectedFact(ALL_FACTS[nextIdx]);
-            return nextIdx;
-          });
-          return tourDuration; // Reset to 10 seconds
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isAutoTourActive, isAutoTourPlaying, tourDuration]);
-
-  const handleStartAutoTour = () => {
-    setIsAutoTourActive(true);
-    setIsAutoTourPlaying(true);
-    setCountdownSeconds(tourDuration);
-    const startIdx = selectedFact ? ALL_FACTS.findIndex((f) => f.id === selectedFact.id) : 0;
-    const finalStart = startIdx >= 0 ? startIdx : 0;
-    setAutoTourIndex(finalStart);
-    setSelectedFact(ALL_FACTS[finalStart]);
-  };
-
-  const handleStopAutoTour = () => {
-    setIsAutoTourActive(false);
-    setIsAutoTourPlaying(false);
-    setCountdownSeconds(tourDuration);
-  };
-
-  const handleNextTourFact = useCallback(() => {
-    const nextIdx = (autoTourIndex + 1) % ALL_FACTS.length;
-    setAutoTourIndex(nextIdx);
+  // Next / Prev Fact navigation for Featured Fact Card
+  const handleNextFact = () => {
+    const currentIdx = ALL_FACTS.findIndex((f) => f.id === selectedFact?.id);
+    const nextIdx = (currentIdx + 1) % ALL_FACTS.length;
     setSelectedFact(ALL_FACTS[nextIdx]);
-    setCountdownSeconds(tourDuration);
-  }, [autoTourIndex, tourDuration]);
-
-  const handlePrevTourFact = useCallback(() => {
-    const prevIdx = (autoTourIndex - 1 + ALL_FACTS.length) % ALL_FACTS.length;
-    setAutoTourIndex(prevIdx);
-    setSelectedFact(ALL_FACTS[prevIdx]);
-    setCountdownSeconds(tourDuration);
-  }, [autoTourIndex, tourDuration]);
-
-  const handleChangeDuration = (newDur: number) => {
-    setTourDuration(newDur);
-    setCountdownSeconds(newDur);
   };
 
-  const handleResetTimer = () => {
-    setCountdownSeconds(tourDuration);
+  const handlePrevFact = () => {
+    const currentIdx = ALL_FACTS.findIndex((f) => f.id === selectedFact?.id);
+    const prevIdx = (currentIdx - 1 + ALL_FACTS.length) % ALL_FACTS.length;
+    setSelectedFact(ALL_FACTS[prevIdx]);
   };
 
   // Detail Modal Navigation
@@ -124,7 +69,7 @@ export default function App() {
               rel="noopener noreferrer"
               className="underline font-semibold text-amber-950 hover:text-amber-800"
             >
-              maps developer site
+              Google Maps Platform documentation
             </a>{' '}
             for instructions to update your account.
           </span>
@@ -132,19 +77,18 @@ export default function App() {
       )}
 
       {/* Top Navbar */}
-      <Navbar
-        onStartAutoTour={handleStartAutoTour}
-      />
+      <Navbar />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 flex flex-col gap-3">
         {/* Unified Integrated Container: Map and Facts List together in one place */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* Map Column */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
+          {/* Map & Featured Card Column */}
           <div
             ref={mapContainerRef}
             className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3"
           >
+            {/* The Map (Compact & balanced on mobile, expandable on demand) */}
             <KurdishGoogleMap
               facts={ALL_FACTS}
               selectedFact={selectedFact}
@@ -157,10 +101,26 @@ export default function App() {
               showPolygon={showPolygon}
               setShowPolygon={setShowPolygon}
             />
+
+            {/* Featured Fact Card - Compact, Sleek, Professional Details */}
+            {selectedFact && (
+              <FeaturedFactCard
+                fact={selectedFact}
+                currentIndex={ALL_FACTS.findIndex((f) => f.id === selectedFact.id)}
+                totalFacts={ALL_FACTS.length}
+                onOpenDetail={(fact) => setDetailFact(fact)}
+                onNext={handleNextFact}
+                onPrev={handlePrevFact}
+                onFlyToMap={(fact) => {
+                  setSelectedFact(fact);
+                  mapContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              />
+            )}
           </div>
 
-          {/* Facts List Column - always together with the map */}
-          <div className="lg:col-span-5 xl:col-span-5 h-[560px] lg:h-[650px]">
+          {/* Facts List Column - Clean professional list */}
+          <div className="lg:col-span-5 xl:col-span-5 h-[480px] lg:h-[680px]">
             <FactsList
               facts={ALL_FACTS}
               selectedFact={selectedFact}
@@ -171,24 +131,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Enhanced Auto Tour Floating Bar with 10-Second Countdown */}
-      <AutoTourBanner
-        isActive={isAutoTourActive}
-        onStop={handleStopAutoTour}
-        currentFact={ALL_FACTS[autoTourIndex] || ALL_FACTS[0]}
-        currentIndex={autoTourIndex}
-        totalFacts={ALL_FACTS.length}
-        onNext={handleNextTourFact}
-        onPrev={handlePrevTourFact}
-        isPlaying={isAutoTourPlaying}
-        onTogglePlay={() => setIsAutoTourPlaying(!isAutoTourPlaying)}
-        onOpenDetail={(fact) => setDetailFact(fact)}
-        countdownSeconds={countdownSeconds}
-        totalDuration={tourDuration}
-        onChangeDuration={handleChangeDuration}
-        onResetTimer={handleResetTimer}
-      />
-
       {/* Fact Detail Modal */}
       <FactDetailModal
         fact={detailFact}
@@ -196,22 +138,6 @@ export default function App() {
         onNavigate={handleModalNavigate}
         onFlyToMap={(fact) => handleSelectFact(fact)}
       />
-
-      {/* Footer */}
-      <footer className="mt-12 border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-500 font-bold">نەخشە و ئینسایکلۆپیدیای مێژووی کورد</span>
-            <span>-</span>
-            <span>بەستراوەتەوە بە گووگڵ ماپس (Google Maps Platform)</span>
-          </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <button onClick={handleStartAutoTour} className="hover:text-amber-400 transition-colors">
-              گەشتی خودکار (١٠ چرکە)
-            </button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
