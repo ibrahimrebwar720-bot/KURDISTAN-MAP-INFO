@@ -3,12 +3,10 @@ import { Play } from 'lucide-react';
 
 interface Props {
   onStartAutoTour: () => void;
-  onOpenAbout: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
   onStartAutoTour,
-  onOpenAbout,
 }) => {
   return (
     <header className="relative bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-amber-500/20 text-slate-100 shadow-2xl">
@@ -48,13 +46,6 @@ export const Navbar: React.FC<Props> = ({
           >
             <Play className="w-4 h-4 fill-current" />
             <span>دەستپێکردنی گەشتی خودکار (١٠ چرکە)</span>
-          </button>
-
-          <button
-            onClick={onOpenAbout}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-colors font-medium text-xs"
-          >
-            دەربارەی پڕۆژە
           </button>
         </div>
       </div>
