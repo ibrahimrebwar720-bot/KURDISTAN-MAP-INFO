@@ -33,8 +33,8 @@ export const ERAS: EraInfo[] = [
     color: 'from-amber-600 to-amber-700',
     accent: '#d97706',
     icon: 'Landmark',
-    description: 'شارستانیەتەکانی گوتی، لولوبی، هۆری، کاشی، میتانی، ئۆرارتۆ، نائیری و ماناییەکان.',
-    count: 35
+    description: 'شارستانیەتەکانی گوتی، لولوبی، هۆری، کاشی، میتانی، ئۆرارتۆ، نائیری، مانایی و ئیلام.',
+    count: 43
   },
   {
     id: 2,
@@ -53,8 +53,8 @@ export const ERAS: EraInfo[] = [
     color: 'from-cyan-600 to-blue-700',
     accent: '#0284c7',
     icon: 'Shield',
-    description: 'دەوڵەتەکانی ئاترۆپاتین، کاردۆخ، ئادیابین (حودەیب لە هەولێر)، کەیۆسییەکان و بەڵگەنامەکانی هەورامان.',
-    count: 35
+    description: 'دەوڵەتەکانی ئاترۆپاتین، کاردۆخ، ئادیابین (حودەیب لە هەولێر)، ئەلیماسی، کەیۆسییەکان و بەڵگەنامەکانی هەورامان.',
+    count: 38
   },
   {
     id: 4,
@@ -63,8 +63,8 @@ export const ERAS: EraInfo[] = [
     color: 'from-purple-600 to-indigo-700',
     accent: '#7c3aed',
     icon: 'Castle',
-    description: 'میرنشینەکانی هەزەبانی، شەدادی، مەڕوانی، حەسەنوەیهی، ئەییووبی، بادینان، سۆران، بابان، بۆتان و ئەردەڵان.',
-    count: 65
+    description: 'ئەتابەگەکانی لوڕستان، شوانکارە، حەسەنوەیهی، ئەییووبی، چەمیشگەزەک، پاڵوو، ئەگیل، بابان، سۆران و بۆتان.',
+    count: 140
   },
   {
     id: 5,
@@ -73,8 +73,8 @@ export const ERAS: EraInfo[] = [
     color: 'from-rose-600 to-red-700',
     accent: '#e11d48',
     icon: 'Flag',
-    description: 'ئەیالەتی کوردستان، شانشینی کوردستان، کۆماری ئارارات، کۆماری مەهاباد، شۆڕشەکان و هەرێمی کوردستان.',
-    count: 30
+    description: 'دەوڵەتی زەند، والیانی فەیلی، شۆڕشی دێرسیم، شانشینی کوردستان، کۆماری مەهاباد، کۆماری ئارارات و بزووتنەوەی ڕزگاریخوازی.',
+    count: 94
   }
 ];
 
@@ -1701,9 +1701,18 @@ export const RAW_FACTS_DATA: { [key: number]: { name: string; lat: number; lng: 
   }
 };
 
-export const ALL_FACTS: FactItem[] = Object.keys(RAW_FACTS_DATA).map((key) => {
+import { FACTS_201_TO_275 } from './facts201to275';
+import { FACTS_276_TO_350 } from './facts276to350';
+
+const MERGED_FACTS: Record<number, { name: string; lat: number; lng: number; zoom: number; desc: string; text: string; tag?: 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture' }> = {
+  ...RAW_FACTS_DATA,
+  ...FACTS_201_TO_275,
+  ...FACTS_276_TO_350,
+};
+
+export const ALL_FACTS: FactItem[] = Object.keys(MERGED_FACTS).map((key) => {
   const num = parseInt(key, 10);
-  const raw = RAW_FACTS_DATA[num];
+  const raw = MERGED_FACTS[num];
   let eraId = 1;
   let eraName = 'پێش ماد';
   let eraPeriod = '٣٠٠٠ - ٧٠٠ پ.ز';
@@ -1724,10 +1733,38 @@ export const ALL_FACTS: FactItem[] = Object.keys(RAW_FACTS_DATA).map((key) => {
     eraId = 4;
     eraName = 'دەوڵەت و میرنشینە ئیسلامییەکان';
     eraPeriod = 'سەدەی ٩ - ١٩ ز';
-  } else {
+  } else if (num <= 200) {
     eraId = 5;
     eraName = 'سەردەمی مۆدێرن و کیانەکان';
     eraPeriod = '١٨٤٦ ز تا ئێستا';
+  } else {
+    // Custom mapping for 201-350 based on historical context
+    if ([201, 202, 203, 228, 258, 265, 279, 296].includes(num)) {
+      eraId = 1;
+      eraName = 'دەسەڵاتە دێرینەکانی پێش ماد';
+      eraPeriod = '٣٠٠٠ - ٧٠٠ پ.ز';
+    } else if ([230, 243, 244].includes(num)) {
+      eraId = 3;
+      eraName = 'سەردەمی دوای ماد تا ئیسلام';
+      eraPeriod = 'سەدەی ٤ پ.ز - ٧ ز';
+    } else if (
+      (num >= 204 && num <= 208) ||
+      (num >= 213 && num <= 216) ||
+      (num >= 232 && num <= 234) ||
+      (num >= 276 && num <= 288) ||
+      (num >= 301 && num <= 313) ||
+      (num >= 328 && num <= 337) ||
+      (num >= 343 && num <= 348) ||
+      [263, 264, 266, 272, 274].includes(num)
+    ) {
+      eraId = 4;
+      eraName = 'دەوڵەت و میرنشینە ئیسلامییەکان';
+      eraPeriod = 'سەدەی ٩ - ١٩ ز';
+    } else {
+      eraId = 5;
+      eraName = 'سەردەمی مۆدێرن و کیانەکان';
+      eraPeriod = 'سەدەی ١٨ تا ئەمڕۆ';
+    }
   }
 
   return {
@@ -1742,6 +1779,6 @@ export const ALL_FACTS: FactItem[] = Object.keys(RAW_FACTS_DATA).map((key) => {
     lat: raw.lat,
     lng: raw.lng,
     zoom: raw.zoom,
-    tag: getTag(num),
+    tag: raw.tag || getTag(num),
   };
 });

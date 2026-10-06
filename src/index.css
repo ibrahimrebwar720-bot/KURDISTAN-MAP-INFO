@@ -26,16 +26,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: #000000;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: #1e1b4b;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d97706;
+  background: #4338ca;
 }
 
 /* Custom leaflet styling for dark theme and popups */
@@ -95,3 +95,13 @@
   animation: pulse-ring 2s infinite ease-out;
   pointer-events: none;
 }
+
+/* Esri Dark Canvas & Satellite Filters: 100% Free, NO Watermarks, NO API Keys */
+.esri-dark-canvas {
+  filter: brightness(0.68) contrast(1.35) hue-rotate(205deg) saturate(0.65);
+}
+
+.esri-dark-satellite {
+  filter: brightness(0.52) contrast(1.25) saturate(0.5);
+}
+

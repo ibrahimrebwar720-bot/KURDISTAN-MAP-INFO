@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { FactItem, ERAS } from '../data/kurdishHistoryData';
-import { Search, X, ChevronLeft, MapPin } from 'lucide-react';
+import { FactItem } from '../data/kurdishHistoryData';
+import { Search, X, ChevronLeft } from 'lucide-react';
 
 interface Props {
   facts: FactItem[];
@@ -16,87 +16,60 @@ export const FactsList: React.FC<Props> = ({
   onOpenDetail,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEraId, setSelectedEraId] = useState<number | 'all'>('all');
 
   const filteredFacts = useMemo(() => {
+    if (!searchTerm.trim()) return facts;
+    const q = searchTerm.toLowerCase().trim();
+
     return facts.filter((fact) => {
-      const matchesSearch =
-        searchTerm === '' ||
-        fact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        fact.desc.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        fact.fullText.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (fact.region && fact.region.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        fact.num.toString() === searchTerm;
-
-      const matchesEra = selectedEraId === 'all' || fact.eraId === selectedEraId;
-
-      return matchesSearch && matchesEra;
+      return (
+        fact.name.toLowerCase().includes(q) ||
+        fact.desc.toLowerCase().includes(q) ||
+        fact.fullText.toLowerCase().includes(q) ||
+        (fact.region && fact.region.toLowerCase().includes(q)) ||
+        fact.num.toString() === q
+      );
     });
-  }, [facts, searchTerm, selectedEraId]);
+  }, [facts, searchTerm]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-900/90 rounded-xl border border-slate-800 overflow-hidden shadow-lg">
-      {/* Search and Era Segmented Filter */}
-      <div className="p-2.5 border-b border-slate-800 bg-slate-950/60 space-y-2">
-        {/* Compact Search Input */}
+    <div className="flex flex-col h-full bg-black rounded-lg border border-indigo-950/80 overflow-hidden shadow-2xl">
+      {/* Search Header */}
+      <div className="p-2 border-b border-indigo-950/80 bg-black/90 space-y-1.5">
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-3 h-3 text-indigo-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="گەڕان بەپێی ناو، شوێن یان ژمارە..."
-            className="w-full bg-slate-900 text-slate-100 placeholder-slate-500 text-xs pr-8 pl-7 py-1.5 rounded-lg border border-slate-700/70 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all text-right"
+            placeholder="گەڕان لە ٣٥٠ دەسەڵات و وێستگە بەپێی ناو، شوێن یان ژمارە..."
+            className="w-full bg-[#030712] text-slate-100 placeholder-indigo-300/40 text-[10px] pr-7 pl-7 py-1.5 rounded-md border border-indigo-900/40 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 focus:outline-none transition-all text-right h-7"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-0.5 text-indigo-400 hover:text-white"
+              title="سڕینەوە"
             >
-              <X className="w-3 h-3" />
+              <X className="w-2.5 h-2.5" />
             </button>
           )}
         </div>
 
-        {/* Compact Segmented Control for Eras */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[11px] scrollbar-none">
-          <button
-            onClick={() => setSelectedEraId('all')}
-            className={`px-2 py-0.5 rounded-md font-medium shrink-0 transition-colors ${
-              selectedEraId === 'all'
-                ? 'bg-amber-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-800/60'
-            }`}
-          >
-            هەموو ({facts.length})
-          </button>
-          {ERAS.map((era) => (
-            <button
-              key={era.id}
-              onClick={() => setSelectedEraId(era.id)}
-              className={`px-2 py-0.5 rounded-md font-medium shrink-0 transition-colors border ${
-                selectedEraId === era.id
-                  ? 'border-amber-500/80 bg-amber-500/10 text-amber-300 font-bold'
-                  : 'border-transparent text-slate-400 hover:text-slate-200 bg-slate-800/60'
-              }`}
-            >
-              {era.title.split(' ')[0]} ({era.count})
-            </button>
-          ))}
+        {/* Count & Status bar */}
+        <div className="flex items-center justify-between text-[9px] px-0.5 text-indigo-300/70">
+          <span className="font-medium">پێڕستی مێژوویی</span>
+          <span className="font-mono text-indigo-400 font-semibold">
+            {filteredFacts.length} لە {facts.length} وێستگە
+          </span>
         </div>
       </div>
 
-      {/* List Count Status */}
-      <div className="px-3 py-1 bg-slate-950/40 border-b border-slate-800/40 text-[10px] text-slate-400 flex items-center justify-between">
-        <span>دەسەڵات و وێستگەکان</span>
-        <span>{filteredFacts.length} لە {facts.length} شوێن</span>
-      </div>
-
-      {/* Facts Scroll Area - High-Density Professional List Items */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-800/50 min-h-[300px] max-h-[520px] lg:max-h-[640px]">
+      {/* Facts Scroll Area - High-Density Modern Black & Indigo List */}
+      <div className="flex-1 overflow-y-auto divide-y divide-indigo-950/40 min-h-0 bg-black">
         {filteredFacts.length === 0 ? (
-          <div className="py-8 text-center text-slate-500 text-xs">
-            هیچ وێستگەیەک نەدۆزرایەوە
+          <div className="py-8 text-center text-indigo-300/50 text-[10px]">
+            هیچ دەسەڵات یان وێستگەیەک بەم ناوە نەدۆزرایەوە
           </div>
         ) : (
           filteredFacts.map((fact) => {
@@ -106,19 +79,19 @@ export const FactsList: React.FC<Props> = ({
               <div
                 key={fact.id}
                 onClick={() => onSelectFact(fact)}
-                className={`group flex items-center justify-between gap-2.5 px-3 py-2 cursor-pointer transition-colors text-right ${
+                className={`group flex items-center justify-between gap-2 px-2.5 py-1.5 cursor-pointer transition-all text-right ${
                   isSelected
-                    ? 'bg-amber-500/10 border-r-2 border-amber-500'
-                    : 'hover:bg-slate-850'
+                    ? 'bg-indigo-950/60 border-r-2 border-indigo-500 shadow-[inset_0_0_16px_rgba(79,70,229,0.18)]'
+                    : 'hover:bg-indigo-950/25 hover:border-r hover:border-indigo-800/40'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  {/* Number Badge */}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {/* Number Badge with Indigo Accent */}
                   <span
-                    className={`w-6 h-6 rounded flex items-center justify-center font-mono text-[10px] font-bold shrink-0 ${
+                    className={`w-5 h-5 rounded flex items-center justify-center font-mono text-[9px] font-bold shrink-0 transition-all ${
                       isSelected
-                        ? 'bg-amber-500 text-slate-950'
-                        : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                        ? 'bg-indigo-600 text-white shadow-[0_0_10px_rgba(79,70,229,0.6)]'
+                        : 'bg-[#030712] text-indigo-300/80 border border-indigo-900/40 group-hover:border-indigo-600/50 group-hover:text-indigo-200'
                     }`}
                   >
                     {fact.num}
@@ -127,14 +100,18 @@ export const FactsList: React.FC<Props> = ({
                   {/* Fact Title & Location */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-semibold truncate ${isSelected ? 'text-amber-300' : 'text-slate-200 group-hover:text-white'}`}>
+                      <span
+                        className={`text-[11px] font-semibold truncate ${
+                          isSelected
+                            ? 'text-white'
+                            : 'text-slate-200 group-hover:text-indigo-200'
+                        }`}
+                      >
                         {fact.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate">
+                    <div className="flex items-center gap-1 text-[9px] text-indigo-300/60 truncate leading-tight mt-0.5">
                       <span className="truncate">{fact.desc}</span>
-                      <span>·</span>
-                      <span className="shrink-0">{fact.eraName}</span>
                     </div>
                   </div>
                 </div>
@@ -146,7 +123,11 @@ export const FactsList: React.FC<Props> = ({
                     onOpenDetail(fact);
                   }}
                   title="وردەکاری"
-                  className="p-1 rounded text-slate-500 hover:text-amber-400 hover:bg-slate-800 transition-colors shrink-0"
+                  className={`p-1 rounded transition-colors shrink-0 ${
+                    isSelected
+                      ? 'text-indigo-300 hover:text-white bg-indigo-900/40'
+                      : 'text-indigo-400/50 hover:text-indigo-200 hover:bg-indigo-950/40'
+                  }`}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
