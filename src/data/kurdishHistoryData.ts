@@ -12,6 +12,9 @@ export interface FactItem {
   zoom: number;
   tag: 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture';
   region?: string;
+  collectionId?: string;
+  additionalNotes?: string;
+  isCustom?: boolean;
 }
 
 export interface EraInfo {

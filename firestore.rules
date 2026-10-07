@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Facts collection: Publicly readable by all users worldwide
+    match /facts/{factId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Collections: Publicly readable by all users worldwide
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

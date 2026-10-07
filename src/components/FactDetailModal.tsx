@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { X, MapPin, Copy, Check, ChevronRight, ChevronLeft, Compass, ExternalLink, BookOpen, Loader2, Landmark, Calendar, ShieldCheck } from 'lucide-react';
+import {
+  X,
+  MapPin,
+  Copy,
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  Compass,
+  BookOpen,
+  Loader2,
+  Landmark,
+  Calendar,
+  ShieldCheck,
+  FileText,
+  Edit3,
+  Save,
+  Layers,
+} from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 
 interface Props {
@@ -8,6 +25,10 @@ interface Props {
   onClose: () => void;
   onNavigate: (dir: 'next' | 'prev') => void;
   onFlyToMap: (fact: FactItem) => void;
+  isAdmin?: boolean;
+  onEditFact?: (fact: FactItem) => void;
+  onSaveNotes?: (factId: number, notes: string) => void;
+  totalFactsCount?: number;
 }
 
 export const FactDetailModal: React.FC<Props> = ({
@@ -15,11 +36,20 @@ export const FactDetailModal: React.FC<Props> = ({
   onClose,
   onNavigate,
   onFlyToMap,
+  isAdmin = false,
+  onEditFact,
+  onSaveNotes,
+  totalFactsCount = 350,
 }) => {
   const [copied, setCopied] = useState(false);
   const [wikiData, setWikiData] = useState<WikipediaResult | null>(null);
   const [wikiLoading, setWikiLoading] = useState(false);
   const [showEnglishText, setShowEnglishText] = useState(false);
+
+  // Additional Notes Inline Editing state for Admin
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesContent, setNotesContent] = useState('');
+  const [notesSaved, setNotesSaved] = useState(false);
 
   // Fetch Wikipedia or Scholarly Dossier information when fact changes
   useEffect(() => {
@@ -29,6 +59,8 @@ export const FactDetailModal: React.FC<Props> = ({
     setWikiLoading(true);
     setWikiData(null);
     setShowEnglishText(false);
+    setIsEditingNotes(false);
+    setNotesContent(fact.additionalNotes || '');
 
     fetchWikipediaFactInfo(fact.id, fact.name, fact.desc, fact.fullText)
       .then((res) => {
@@ -50,16 +82,29 @@ export const FactDetailModal: React.FC<Props> = ({
 
   if (!fact) return null;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`${fact.name}\n${fact.fullText}\nشوێن: ${fact.desc}\nسەرچاوە: ئینسایکلۆپیدیای مێژووی کوردستان`);
+  const handleCopyFact = () => {
+    navigator.clipboard.writeText(
+      `${fact.name}\n${fact.fullText}\nشوێن: ${fact.desc}${
+        fact.additionalNotes ? `\nزانیاری زیادە: ${fact.additionalNotes}` : ''
+      }\nسەرچاوە: ئینسایکلۆپیدیای دەسەڵاتە کوردییەکان`
+    );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSaveNotesInline = () => {
+    if (onSaveNotes) {
+      onSaveNotes(fact.id, notesContent);
+      setNotesSaved(true);
+      setIsEditingNotes(false);
+      setTimeout(() => setNotesSaved(false), 2500);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-2 sm:p-3 bg-black/80 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-2 sm:p-3 bg-black/85 backdrop-blur-xs animate-fade-in">
       <div
-        className="relative w-full max-w-lg bg-black border border-indigo-950 rounded-xl p-3.5 sm:p-4 shadow-[0_0_60px_rgba(15,10,40,0.95)] overflow-y-auto max-h-[90vh] text-right"
+        className="relative w-full max-w-lg bg-black border border-indigo-950 rounded-xl p-3.5 sm:p-4 shadow-[0_0_60px_rgba(15,10,40,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header row */}
@@ -71,18 +116,34 @@ export const FactDetailModal: React.FC<Props> = ({
             <div>
               <div className="flex items-center gap-1 text-[10px] text-indigo-300 font-mono">
                 <MapPin className="w-2.5 h-2.5 text-indigo-400" />
-                <span>{fact.lat.toFixed(2)}° N, {fact.lng.toFixed(2)}° E</span>
+                <span>
+                  {Number.isFinite(fact.lat) ? fact.lat.toFixed(2) : '36.80'}° N,{' '}
+                  {Number.isFinite(fact.lng) ? fact.lng.toFixed(2) : '44.50'}° E
+                </span>
               </div>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-indigo-400 hover:text-white hover:bg-indigo-950/60 transition-all"
-            title="داخستن"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {isAdmin && onEditFact && (
+              <button
+                onClick={() => onEditFact(fact)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-200 text-[10px] font-bold transition-all cursor-pointer"
+                title="دەستکاریکردنی ئەم دەسەڵاتە لەلایەن ئەدمینەوە"
+              >
+                <Edit3 className="w-3 h-3 text-indigo-400" />
+                <span>دەستکاریی ئەدمین</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-indigo-400 hover:text-white hover:bg-indigo-950/60 transition-all cursor-pointer"
+              title="داخستن"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
@@ -98,7 +159,9 @@ export const FactDetailModal: React.FC<Props> = ({
           </div>
 
           {/* Historical Meta Badges if available */}
-          {(wikiData?.historicalDates || wikiData?.historicalCapital || wikiData?.historicalDynasty) && (
+          {(wikiData?.historicalDates ||
+            wikiData?.historicalCapital ||
+            wikiData?.historicalDynasty) && (
             <div className="flex flex-wrap gap-1.5 py-1 text-[10px]">
               {wikiData.historicalDynasty && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/40">
@@ -130,28 +193,28 @@ export const FactDetailModal: React.FC<Props> = ({
             <p>{fact.fullText}</p>
           </div>
 
-          {/* Verified Encyclopedia & Multi-Source Section */}
-          <div className="p-2.5 rounded-lg bg-black border border-indigo-950/90">
-            <div className="flex items-center justify-between gap-1.5 border-b border-indigo-950/80 pb-1.5 mb-2">
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-4 h-4 rounded bg-indigo-950 text-indigo-300 flex items-center justify-center font-serif font-bold text-[9px] border border-indigo-800/40">
-                    {wikiData?.sourceType === 'academic_encyclopedia' ? '📜' : 'W'}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-200">
-                    {wikiData?.sourceName || 'ئینسایکلۆپیدیای مێژووی کوردستان'}
-                  </span>
-                </div>
-                {wikiData && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/40">
-                    {wikiData.sourceType === 'academic_encyclopedia' ? 'سەرچاوەی مێژوویی' : wikiData.lang.toUpperCase()}
-                  </span>
-                )}
+          {/* Encyclopedia Text Section */}
+          <div className="p-2.5 rounded-lg bg-black border border-indigo-950/90 space-y-2">
+            <div className="flex items-center justify-between gap-1.5 border-b border-indigo-950/80 pb-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded bg-indigo-950 text-indigo-300 flex items-center justify-center font-serif font-bold text-[9px] border border-indigo-800/40">
+                  {wikiData?.sourceType === 'academic_encyclopedia' ? '📜' : 'W'}
+                </span>
+                <span className="text-[10px] font-bold text-slate-200">
+                  {wikiData?.sourceName || 'ئینسایکلۆپیدیای مێژووی کوردستان'}
+                </span>
               </div>
+              {wikiData && (
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/40">
+                  {wikiData.sourceType === 'academic_encyclopedia'
+                    ? 'بەڵگەنامە'
+                    : wikiData.lang.toUpperCase()}
+                </span>
+              )}
             </div>
 
             {wikiLoading ? (
-              <div className="flex items-center justify-center py-4 gap-1.5 text-[10px] text-indigo-400">
+              <div className="flex items-center justify-center py-3 gap-1.5 text-[10px] text-indigo-400">
                 <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />
                 <span>داتای مێژوویی دەهێنرێت...</span>
               </div>
@@ -177,9 +240,14 @@ export const FactDetailModal: React.FC<Props> = ({
 
                 {/* Original English Text Toggle if available */}
                 {wikiData.englishExtract && (
-                  <div className="p-2 rounded bg-[#030712] border border-indigo-950 text-left" dir="ltr">
+                  <div
+                    className="p-2 rounded bg-[#030712] border border-indigo-950 text-left"
+                    dir="ltr"
+                  >
                     <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 mb-1 border-b border-indigo-950">
-                      <span className="font-mono text-indigo-400">English Wikipedia Source Article</span>
+                      <span className="font-mono text-indigo-400">
+                        English Wikipedia Source
+                      </span>
                       <button
                         onClick={() => setShowEnglishText(!showEnglishText)}
                         className="text-[9px] text-indigo-300 hover:text-white underline cursor-pointer"
@@ -187,41 +255,101 @@ export const FactDetailModal: React.FC<Props> = ({
                         {showEnglishText ? 'Hide' : 'Show full English text'}
                       </button>
                     </div>
-                    <p className={`text-[10px] text-slate-400 font-serif leading-relaxed ${showEnglishText ? '' : 'line-clamp-2'}`}>
+                    <p
+                      className={`text-[10px] text-slate-400 font-serif leading-relaxed ${
+                        showEnglishText ? '' : 'line-clamp-2'
+                      }`}
+                    >
                       {wikiData.englishExtract}
                     </p>
                   </div>
                 )}
-
-                {/* Bibliographic References */}
-                {wikiData.references && wikiData.references.length > 0 && (
-                  <div className="pt-1.5 border-t border-indigo-950 text-[10px]">
-                    <span className="font-bold text-indigo-400 block mb-1">سەرچاوە و بەڵگەنامە باوەڕپێکراوەکان:</span>
-                    <ul className="list-disc list-inside text-indigo-200/70 space-y-0.5 text-[9px]">
-                      {wikiData.references.map((ref, idx) => (
-                        <li key={idx}>{ref}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* External Research Links (Kurdipedia, Iranica, Wikipedia) */}
-                <div className="pt-1.5 border-t border-indigo-950 flex flex-wrap gap-1.5 justify-end">
-                  {wikiData.externalLinks?.map((link, idx) => (
-                    <a
-                      key={idx}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black hover:bg-indigo-950 text-indigo-300 text-[9px] font-medium border border-indigo-900/50 hover:border-indigo-500 transition-all"
-                    >
-                      <span>{link.name}</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  ))}
-                </div>
               </div>
             ) : null}
+          </div>
+
+          {/* NEW: بۆکسی زانیاریی زیادە (Additional Information Box - Replaced Gemini) */}
+          <div className="p-3 rounded-xl bg-gradient-to-b from-[#060a1c] to-black border border-indigo-900/70 shadow-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
+                <FileText className="w-4 h-4 text-amber-400" />
+                <span>بۆکسی زانیاریی زیادە</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {notesSaved && (
+                  <span className="text-[9px] text-emerald-400 font-medium">
+                    پاشەکەوتکرا! ✓
+                  </span>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => setIsEditingNotes(!isEditingNotes)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-950 hover:bg-indigo-900 text-indigo-300 hover:text-white text-[9px] border border-indigo-800/50 transition-colors cursor-pointer"
+                  >
+                    <Edit3 className="w-2.5 h-2.5" />
+                    <span>{isEditingNotes ? 'داخستنی دەستکاری' : 'دەستکاریی تێبینی'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Editing state for Admin */}
+            {isEditingNotes ? (
+              <div className="space-y-2 pt-1">
+                <textarea
+                  rows={4}
+                  value={notesContent}
+                  onChange={(e) => setNotesContent(e.target.value)}
+                  placeholder="وەک ئەدمین، لێرە زانیاریی زیادە، سەرچاوەی دەستنووس، کورتەی کتێب یان شیکاری بۆ ئەم دەسەڵاتە بنووسە..."
+                  className="w-full bg-[#030712] text-slate-100 placeholder:text-indigo-400/40 p-2.5 rounded-lg border border-indigo-700/60 focus:border-amber-400 focus:outline-none text-xs leading-relaxed"
+                />
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    onClick={() => {
+                      setIsEditingNotes(false);
+                      setNotesContent(fact.additionalNotes || '');
+                    }}
+                    className="px-2.5 py-1 rounded-md bg-black text-indigo-300 text-[10px]"
+                  >
+                    هەڵوەشاندنەوە
+                  </button>
+                  <button
+                    onClick={handleSaveNotesInline}
+                    className="flex items-center gap-1 px-3 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] shadow-sm transition-all cursor-pointer"
+                  >
+                    <Save className="w-3 h-3" />
+                    <span>پاشەکەوتکردن</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Display state */
+              <div>
+                {fact.additionalNotes && fact.additionalNotes.trim() ? (
+                  <div className="p-2.5 rounded-lg bg-black/80 border border-indigo-950/80 text-indigo-100 text-xs leading-relaxed whitespace-pre-line font-sans">
+                    {fact.additionalNotes}
+                  </div>
+                ) : (
+                  <div className="py-2.5 px-3 rounded-lg bg-black/60 border border-indigo-950/60 text-indigo-300/60 text-[11px] leading-relaxed">
+                    {isAdmin ? (
+                      <div className="flex items-center justify-between">
+                        <span>هێشتا زانیاریی زیادە بۆ ئەم بابەتە نەنووسراوە.</span>
+                        <button
+                          onClick={() => setIsEditingNotes(true)}
+                          className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
+                        >
+                          تۆمارکردنی زانیاری زیادە
+                        </button>
+                      </div>
+                    ) : (
+                      <span>
+                        زانیارییە سەرەکییەکان لە بەشەکانی سەرەوە خراونەتەڕوو. ئەدمین دەتوانێت لەم بەشەدا بەڵگەنامە و تێبینی نوێ تۆمار بکات.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -233,37 +361,41 @@ export const FactDetailModal: React.FC<Props> = ({
                 onFlyToMap(fact);
                 onClose();
               }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] shadow-[0_0_12px_rgba(79,70,229,0.3)] transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] shadow-[0_0_12px_rgba(79,70,229,0.3)] transition-all cursor-pointer"
             >
               <MapPin className="w-3 h-3" />
               <span>نیشاندان لە نەخشە</span>
             </button>
 
             <button
-              onClick={handleCopy}
-              className="p-1 rounded-md bg-black hover:bg-indigo-950 text-indigo-300 border border-indigo-950 transition-all flex items-center gap-1 text-[10px]"
+              onClick={handleCopyFact}
+              className="p-1 rounded-md bg-black hover:bg-indigo-950 text-indigo-300 border border-indigo-950 transition-all flex items-center gap-1 text-[10px] cursor-pointer"
               title="لەبەرگرتنەوە"
             >
-              {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              {copied ? (
+                <Check className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
               <span className="hidden sm:inline">{copied ? 'کۆپیکرا' : 'کۆپی'}</span>
             </button>
           </div>
 
-          {/* Prev / Next Navigation with total count 350 */}
+          {/* Prev / Next Navigation with total count */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => onNavigate('prev')}
-              className="flex items-center gap-0.5 px-2 py-1 rounded-md bg-black hover:bg-indigo-950 text-indigo-300 border border-indigo-950 text-[10px] font-medium transition-all"
+              className="flex items-center gap-0.5 px-2 py-1 rounded-md bg-black hover:bg-indigo-950 text-indigo-300 border border-indigo-950 text-[10px] font-medium transition-all cursor-pointer"
             >
               <ChevronRight className="w-3 h-3" />
               <span>پێشوو</span>
             </button>
             <span className="text-[10px] text-indigo-400/80 font-mono px-0.5 font-bold">
-              {fact.num}/350
+              {fact.num}/{totalFactsCount}
             </span>
             <button
               onClick={() => onNavigate('next')}
-              className="flex items-center gap-0.5 px-2 py-1 rounded-md bg-black hover:bg-indigo-950 text-indigo-300 border border-indigo-950 text-[10px] font-medium transition-all"
+              className="flex items-center gap-0.5 px-2 py-1 rounded-md bg-black hover:bg-indigo-950 text-indigo-300 border border-indigo-950 text-[10px] font-medium transition-all cursor-pointer"
             >
               <span>دواتر</span>
               <ChevronLeft className="w-3 h-3" />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { MapPin, ChevronRight, ChevronLeft, BookOpen, X } from 'lucide-react';
+import { MapPin, ChevronRight, ChevronLeft, BookOpen, X, Edit3 } from 'lucide-react';
 
 interface Props {
   fact: FactItem;
@@ -12,6 +12,8 @@ interface Props {
   onFlyToMap?: (fact: FactItem) => void;
   onClose?: () => void;
   onOpenMenu?: () => void;
+  isAdmin?: boolean;
+  onOpenEditFact?: (fact: FactItem) => void;
 }
 
 export const FeaturedFactCard: React.FC<Props> = ({
@@ -22,6 +24,8 @@ export const FeaturedFactCard: React.FC<Props> = ({
   onPrev,
   onFlyToMap,
   onClose,
+  isAdmin = false,
+  onOpenEditFact,
 }) => {
   return (
     <div className="rounded-xl bg-black border border-indigo-950/90 p-2.5 sm:p-3 shadow-2xl flex flex-col gap-2 text-right">
@@ -88,6 +92,17 @@ export const FeaturedFactCard: React.FC<Props> = ({
           <BookOpen className="w-3 h-3" />
           <span>وردەکاریی تەواو و بەڵگەنامە</span>
         </button>
+
+        {isAdmin && onOpenEditFact && (
+          <button
+            onClick={() => onOpenEditFact(fact)}
+            className="flex items-center justify-center gap-1 py-1 px-2 rounded-md bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-amber-300 text-[10px] transition-all"
+            title="دەستکاریکردنی ئەم دەسەڵاتە"
+          >
+            <Edit3 className="w-3 h-3" />
+            <span className="hidden sm:inline">دەستکاری</span>
+          </button>
+        )}
 
         {onFlyToMap && (
           <button

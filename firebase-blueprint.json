@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "Fact": {
+      "title": "Fact",
+      "description": "Historical power, station, or landmark in Kurdish history",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "number",
+          "description": "Unique identifier of the historical station"
+        },
+        "num": {
+          "type": "number",
+          "description": "Station number"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the power or ruler",
+          "maxLength": 300
+        },
+        "desc": {
+          "type": "string",
+          "description": "Geographical location or brief description",
+          "maxLength": 500
+        },
+        "fullText": {
+          "type": "string",
+          "description": "Full historical details and summary",
+          "maxLength": 5000
+        },
+        "additionalNotes": {
+          "type": "string",
+          "description": "Extra historical manuscripts and admin notes",
+          "maxLength": 10000
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude coordinate on map"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Longitude coordinate on map"
+        },
+        "zoom": {
+          "type": "number",
+          "description": "Map zoom level"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Category tag of the fact",
+          "enum": ["empire", "principality", "capital", "battle", "figure", "culture"]
+        },
+        "collectionId": {
+          "type": "string",
+          "description": "Associated collection ID",
+          "maxLength": 100
+        },
+        "isCustom": {
+          "type": "boolean",
+          "description": "Whether this was added by an admin"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of last update"
+        }
+      },
+      "required": ["id", "num", "name", "desc", "lat", "lng", "tag"]
+    },
+    "Collection": {
+      "title": "Collection",
+      "description": "Historical collection categorization for facts",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique collection identifier",
+          "maxLength": 100
+        },
+        "name": {
+          "type": "string",
+          "description": "Collection display name",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Collection description",
+          "maxLength": 1000
+        },
+        "color": {
+          "type": "string",
+          "description": "Badge color code",
+          "maxLength": 50
+        },
+        "isCustom": {
+          "type": "boolean",
+          "description": "Whether this collection was created by admin"
+        }
+      },
+      "required": ["id", "name", "color"]
+    }
+  },
+  "firestore": {
+    "/facts/{factId}": {
+      "schema": "Fact",
+      "description": "Historical facts and places accessible to all users and editable by admin"
+    },
+    "/collections/{collectionId}": {
+      "schema": "Collection",
+      "description": "Menu collections available to all users and editable by admin"
+    }
+  }
+}
