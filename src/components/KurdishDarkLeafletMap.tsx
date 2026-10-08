@@ -1030,26 +1030,75 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 5. Bottom Center Floating Capsule Dock */}
-      <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2 max-w-xl w-full">
+      {/* 5. Bottom Center Floating Capsule & Century Timeline Dock */}
+      <div className="absolute bottom-2.5 left-2 right-2 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center gap-1.5 max-w-2xl w-full">
+        {/* Horizontal Century Timeline: ONLY CENTURIES, NO EMPIRE/KINGDOM NAMES */}
+        <div className="w-full bg-black/92 border border-purple-950/80 rounded-2xl px-2 py-1.5 backdrop-blur-xl shadow-[0_0_35px_rgba(25,10,45,0.85)] flex items-center gap-1.5 text-right">
+          <div className="flex items-center gap-1 shrink-0 text-purple-400 pl-1.5 border-l border-purple-900/60">
+            <Hourglass className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <span className="text-[10px] font-bold text-white hidden sm:inline">سەدەکان</span>
+          </div>
+
+          {/* Scrollable Century Buttons (Pure Century names only) */}
+          <div className="flex-1 flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 px-0.5">
+            {CENTURY_OPTIONS.map((c) => {
+              const isSelected = currentCenturyId === c.id;
+              const count = centuryCounts[c.id] || 0;
+
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectCentury(c.id)}
+                  title={`${c.label} (${c.range || ''}) - ${count} وێستگە`}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl whitespace-nowrap text-[10px] font-medium transition-all cursor-pointer shrink-0 ${
+                    isSelected
+                      ? 'bg-purple-600 text-white font-bold shadow-[0_0_15px_rgba(168,85,247,0.55)] border border-purple-400'
+                      : 'bg-[#030712] text-slate-300 hover:text-white hover:bg-purple-950/60 border border-purple-950/70'
+                  }`}
+                >
+                  <span>{c.shortLabel}</span>
+                  {count > 0 && (
+                    <span
+                      className={`text-[8px] font-mono px-1 py-0.1 rounded-full ${
+                        isSelected
+                          ? 'bg-black/40 text-white'
+                          : 'bg-purple-950 text-purple-300'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Fact Capsule */}
         {selectedFact && (
           <div
             onClick={() => onOpenDetail && onOpenDetail(selectedFact)}
-            className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-black/95 border border-indigo-950 hover:border-indigo-500/60 backdrop-blur-xl shadow-[0_0_30px_rgba(15,10,40,0.9)] cursor-pointer transition-all active:scale-98"
+            className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-black/95 border border-indigo-950 hover:border-indigo-500/60 backdrop-blur-xl shadow-lg cursor-pointer transition-all active:scale-98"
           >
-            <span className="text-[10px] font-mono font-bold text-indigo-400/80 tracking-wider">
+            <span className="text-[9px] font-mono font-bold text-indigo-400/80 tracking-wider">
               KUR
             </span>
 
             {/* Kurdish Flag Icon in Center */}
-            <div className="w-5 h-3.5 rounded-sm bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs">
-              <span className="text-[7px] text-amber-500 font-bold leading-none select-none">☀️</span>
+            <div className="w-4 h-3 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs">
+              <span className="text-[6px] text-amber-500 font-bold leading-none select-none">☀️</span>
             </div>
 
             {/* Selected Location Name */}
             <div className="flex items-center gap-1.5 text-xs font-bold text-white tracking-wide">
               <span>{selectedFact.name}</span>
             </div>
+
+            {(selectedFact.century || selectedFact.year) && (
+              <span className="text-[9px] font-mono text-purple-300 bg-purple-950/80 px-1.5 py-0.2 rounded border border-purple-800/40">
+                {selectedFact.century || selectedFact.year}
+              </span>
+            )}
           </div>
         )}
       </div>
