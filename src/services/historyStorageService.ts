@@ -1,5 +1,6 @@
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
 import { CollectionItem, DEFAULT_COLLECTIONS, ADMIN_SECRET_CODE } from '../types/history';
+import { inferCenturyAndYearForFact } from '../utils/centuryUtils';
 
 const STORAGE_KEYS = {
   FACTS: 'kurdish_history_facts_v1',
@@ -109,11 +110,16 @@ export function saveStoredCollections(collections: CollectionItem[]): void {
 export function sanitizeFact(fact: any): FactItem {
   const latNum = Number(fact?.lat);
   const lngNum = Number(fact?.lng);
+  const dateInfo = inferCenturyAndYearForFact(fact);
+
   return {
     ...fact,
-    lat: Number.isFinite(latNum) ? latNum : 36.8,
-    lng: Number.isFinite(lngNum) ? lngNum : 44.5,
+    lat: Number.isFinite(latNum) && latNum >= -90 && latNum <= 90 ? latNum : 36.8,
+    lng: Number.isFinite(lngNum) && lngNum >= -180 && lngNum <= 180 ? lngNum : 44.5,
     collectionId: fact?.collectionId || inferCollectionForFact(fact),
+    year: fact?.year || dateInfo.year,
+    century: fact?.century || dateInfo.century,
+    centuryNumber: typeof fact?.centuryNumber === 'number' ? fact.centuryNumber : dateInfo.centuryNumber,
   };
 }
 

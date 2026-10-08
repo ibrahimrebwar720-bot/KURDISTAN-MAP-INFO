@@ -4,12 +4,12 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// CRITICAL: Initialize Firestore with experimentalAutoDetectLongPolling
-// to prevent 10s backend connection timeouts in preview iframes and proxy networks.
+// CRITICAL: Initialize Firestore with experimentalForceLongPolling: true
+// to connect immediately without 10s WebSockets auto-detect timeouts in preview iframes and proxy networks.
 export const db = initializeFirestore(
   app,
   {
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
   },
   firebaseConfig.firestoreDatabaseId
 );

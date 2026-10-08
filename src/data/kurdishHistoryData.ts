@@ -15,6 +15,9 @@ export interface FactItem {
   collectionId?: string;
   additionalNotes?: string;
   isCustom?: boolean;
+  year?: string;
+  century?: string;
+  centuryNumber?: number;
 }
 
 export interface EraInfo {

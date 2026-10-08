@@ -1,6 +1,6 @@
 import React from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { MapPin, ChevronRight, ChevronLeft, BookOpen, X, Edit3 } from 'lucide-react';
+import { MapPin, ChevronRight, ChevronLeft, BookOpen, X, Edit3, Calendar, Hourglass } from 'lucide-react';
 
 interface Props {
   fact: FactItem;
@@ -72,10 +72,29 @@ export const FeaturedFactCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Meta Row: Geographic Location */}
-      <div className="flex items-center gap-1 text-[9px] text-indigo-300/80">
-        <MapPin className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
-        <span className="truncate">{fact.desc}</span>
+      {/* Meta Row: Geographic Location & Century / Year */}
+      <div className="flex flex-wrap items-center justify-between gap-1 text-[9px]">
+        <div className="flex items-center gap-1 text-indigo-300/80 min-w-0">
+          <MapPin className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+          <span className="truncate">{fact.desc}</span>
+        </div>
+
+        {(fact.century || fact.year) && (
+          <div className="flex items-center gap-1 shrink-0 font-medium">
+            {fact.century && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-950/90 border border-purple-700/60 text-purple-200">
+                <Hourglass className="w-2.5 h-2.5 text-purple-400" />
+                <span>{fact.century}</span>
+              </span>
+            )}
+            {fact.year && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-950/90 border border-amber-700/60 text-amber-200 font-mono">
+                <Calendar className="w-2.5 h-2.5 text-amber-400" />
+                <span>{fact.year}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Summary Text (Compact, legible) */}

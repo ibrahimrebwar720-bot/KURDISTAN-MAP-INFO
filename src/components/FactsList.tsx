@@ -243,9 +243,16 @@ export const FactsList: React.FC<Props> = ({
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="خاوەنی زانیاری زیادەیە" />
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-[9px] text-indigo-300/60 truncate leading-tight mt-0.5">
-                      <MapPin className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
-                      <span className="truncate">{fact.desc}</span>
+                    <div className="flex items-center justify-between gap-1 text-[9px] text-indigo-300/60 leading-tight mt-0.5">
+                      <div className="flex items-center gap-1 min-w-0 truncate">
+                        <MapPin className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                        <span className="truncate">{fact.desc}</span>
+                      </div>
+                      {(fact.century || fact.year) && (
+                        <span className="font-mono text-[8px] text-purple-300 bg-purple-950/70 border border-purple-800/40 px-1 py-0.2 rounded shrink-0">
+                          {fact.century ? fact.century.split(' ')[0] + ' ' + (fact.century.split(' ')[1] || '') : fact.year}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

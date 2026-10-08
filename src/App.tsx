@@ -42,6 +42,7 @@ export default function App() {
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
   const [activeTagFilter, setActiveTagFilter] = useState('all');
+  const [activeCenturyFilter, setActiveCenturyFilter] = useState('all');
   const [selectedCollectionId, setSelectedCollectionId] = useState('all');
 
   // Admin Modals state
@@ -304,6 +305,8 @@ export default function App() {
           onOpenMenu={() => setIsMenuOpen(true)}
           activeTagFilter={activeTagFilter}
           setActiveTagFilter={setActiveTagFilter}
+          activeCenturyFilter={activeCenturyFilter}
+          setActiveCenturyFilter={setActiveCenturyFilter}
           isAdmin={isAdmin}
           onTriggerAdminPin={() => setIsAdminPinModalOpen(true)}
           onOpenAddFact={handleOpenAddFact}

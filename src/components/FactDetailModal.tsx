@@ -17,6 +17,7 @@ import {
   Edit3,
   Save,
   Layers,
+  Hourglass,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 
@@ -155,6 +156,27 @@ export const FactDetailModal: React.FC<Props> = ({
             <div className="flex items-center gap-1 mt-0.5 text-[11px] text-indigo-300/80">
               <Compass className="w-3 h-3 shrink-0 text-indigo-400" />
               <span>پێگەی جوگرافی: {fact.desc}</span>
+            </div>
+
+            {/* Century & Year Historical Time Badges */}
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+              {fact.century && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-950/90 border border-purple-600/70 text-purple-200 font-bold shadow-[0_0_15px_rgba(168,85,247,0.25)]">
+                  <Hourglass className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{fact.century}</span>
+                </div>
+              )}
+              {fact.year && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/90 border border-amber-600/70 text-amber-200 font-mono font-bold shadow-[0_0_15px_rgba(245,158,11,0.25)]">
+                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{fact.year}</span>
+                </div>
+              )}
+              {fact.eraName && (
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-950/80 border border-indigo-800/50 text-indigo-300 text-[10px]">
+                  <span>{fact.eraName}</span>
+                </div>
+              )}
             </div>
           </div>
 

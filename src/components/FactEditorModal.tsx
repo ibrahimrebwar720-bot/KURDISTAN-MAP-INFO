@@ -12,7 +12,11 @@ import {
   Layers,
   Sparkles,
   Check,
+  Calendar,
+  Hourglass,
+  AlertCircle,
 } from 'lucide-react';
+import { CENTURY_OPTIONS, inferCenturyAndYearForFact } from '../utils/centuryUtils';
 
 interface Props {
   isOpen: boolean;
@@ -45,6 +49,10 @@ export const FactEditorModal: React.FC<Props> = ({
   const [lng, setLng] = useState<number>(44.5);
   const [tag, setTag] = useState<FactItem['tag']>('principality');
   const [collectionId, setCollectionId] = useState<string>('powers');
+  const [year, setYear] = useState('');
+  const [century, setCentury] = useState('سەدەی ١٢ی زایینی');
+  const [centuryNumber, setCenturyNumber] = useState<number>(12);
+  const [centuryError, setCenturyError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasLocationPicked, setHasLocationPicked] = useState(false);
 
@@ -59,12 +67,19 @@ export const FactEditorModal: React.FC<Props> = ({
         setLng(factToEdit.lng);
         setTag(factToEdit.tag);
         setCollectionId(factToEdit.collectionId || 'powers');
+        const dateInfo = inferCenturyAndYearForFact(factToEdit);
+        setYear(factToEdit.year || dateInfo.year);
+        setCentury(factToEdit.century || dateInfo.century);
+        setCenturyNumber(factToEdit.centuryNumber ?? dateInfo.centuryNumber);
         setHasLocationPicked(true);
       } else {
         setName('');
         setDesc('');
         setFullText('');
         setAdditionalNotes('');
+        setYear('');
+        setCentury('سەدەی ١٢ی زایینی');
+        setCenturyNumber(12);
         if (pickedCoords) {
           setLat(pickedCoords.lat);
           setLng(pickedCoords.lng);
@@ -77,6 +92,7 @@ export const FactEditorModal: React.FC<Props> = ({
         setTag('principality');
         setCollectionId('powers');
       }
+      setCenturyError(null);
       setConfirmDelete(false);
     }
   }, [isOpen, factToEdit]);
@@ -96,6 +112,11 @@ export const FactEditorModal: React.FC<Props> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
+    if (!year.trim() && !century.trim()) {
+      setCenturyError('تکایە ساڵ یان سەدە دیاری بکە بۆ ئەوەی لە فلتەری سەدەکان لەسەر نەخشەکە دەربکەوێت.');
+      return;
+    }
+
     const item: FactItem = {
       id: factToEdit ? factToEdit.id : Date.now(),
       num: factToEdit ? factToEdit.num : totalFactsCount + 1,
@@ -106,8 +127,11 @@ export const FactEditorModal: React.FC<Props> = ({
       desc: desc.trim() || 'کوردستان',
       fullText: fullText.trim(),
       additionalNotes: additionalNotes.trim(),
-      lat: Number(lat),
-      lng: Number(lng),
+      year: year.trim() || 'مێژووی کوردستان',
+      century: century.trim(),
+      centuryNumber: centuryNumber,
+      lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
+      lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
       zoom: factToEdit ? factToEdit.zoom : 8,
       tag: tag,
       collectionId: collectionId,
@@ -225,6 +249,77 @@ export const FactEditorModal: React.FC<Props> = ({
                   </span>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* ⏳ ساڵ و سەدە (پێویست بۆ بینینی نەخشە بەپێی سەدە) */}
+          <div className="p-3 rounded-xl bg-gradient-to-b from-[#080d24] to-black border border-indigo-700/60 shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between border-b border-indigo-950 pb-1.5">
+              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-amber-400" />
+                <span>ساڵ و سەدە (پێویستە بۆ بینینی نەخشە بەپێی سەدە) *</span>
+              </span>
+              <span className="text-[10px] text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded font-mono">
+                خشتەی کاتی
+              </span>
+            </div>
+
+            {centuryError && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-950/80 border border-rose-500/80 text-rose-200 text-[11px]">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span>{centuryError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Century selection */}
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
+                  <Hourglass className="w-3 h-3 text-indigo-400" />
+                  سەدە *
+                </label>
+                <select
+                  value={centuryNumber}
+                  onChange={(e) => {
+                    const cNum = Number(e.target.value);
+                    const opt = CENTURY_OPTIONS.find((c) => c.centuryNumber === cNum);
+                    setCenturyNumber(cNum);
+                    if (opt) {
+                      setCentury(opt.label);
+                      if (!year.trim() && opt.range) {
+                        setYear(opt.range);
+                      }
+                    }
+                    setCenturyError(null);
+                  }}
+                  className="w-full bg-[#030712] text-amber-200 px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 text-xs font-medium cursor-pointer"
+                >
+                  {CENTURY_OPTIONS.filter((c) => c.id !== 'all').map((c) => (
+                    <option key={c.id} value={c.centuryNumber}>
+                      {c.label} ({c.range})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Year or Year Range input */}
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-amber-400" />
+                  ساڵ یان ماوەی ساڵ *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={year}
+                  onChange={(e) => {
+                    setYear(e.target.value);
+                    setCenturyError(null);
+                  }}
+                  placeholder="بۆ نموونە: ١١٧٤ - ١١٩٣ ز، ١٥١٤ ز، ٦١٢ پ.ز..."
+                  className="w-full bg-[#030712] text-white px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs"
+                />
+              </div>
             </div>
           </div>
 

@@ -55,6 +55,20 @@
           "description": "Associated collection ID",
           "maxLength": 100
         },
+        "year": {
+          "type": "string",
+          "description": "Historical year or date range",
+          "maxLength": 100
+        },
+        "century": {
+          "type": "string",
+          "description": "Historical century in Kurdish",
+          "maxLength": 100
+        },
+        "centuryNumber": {
+          "type": "number",
+          "description": "Numeric century code for chronological filtering"
+        },
         "isCustom": {
           "type": "boolean",
           "description": "Whether this was added by an admin"
