@@ -13,10 +13,25 @@ import {
   Sparkles,
   Check,
   Calendar,
-  Hourglass,
   AlertCircle,
+  Search,
+  Loader2,
+  Clock,
+  User,
+  Shield,
 } from 'lucide-react';
-import { CENTURY_OPTIONS, inferCenturyAndYearForFact } from '../utils/centuryUtils';
+import {
+  getFactYearSpan,
+  formatKurdishYearRange,
+  normalizeYearString,
+  toKurdishDigits,
+  formatKurdishYear,
+} from '../utils/yearUtils';
+import {
+  searchPlacesOnMap,
+  PlaceSearchResult,
+  loadGoogleMapsScript,
+} from '../services/googleMapsSearchService';
 
 interface Props {
   isOpen: boolean;
@@ -49,37 +64,66 @@ export const FactEditorModal: React.FC<Props> = ({
   const [lng, setLng] = useState<number>(44.5);
   const [tag, setTag] = useState<FactItem['tag']>('principality');
   const [collectionId, setCollectionId] = useState<string>('powers');
-  const [year, setYear] = useState('');
-  const [century, setCentury] = useState('سەدەی ١٢ی زایینی');
-  const [centuryNumber, setCenturyNumber] = useState<number>(12);
-  const [centuryError, setCenturyError] = useState<string | null>(null);
+  const [startYearInput, setStartYearInput] = useState('');
+  const [endYearInput, setEndYearInput] = useState('');
+  const [isBC, setIsBC] = useState(false);
+  const [yearError, setYearError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasLocationPicked, setHasLocationPicked] = useState(false);
 
+  // Is this fact a historical person / figure?
+  const isPerson = tag === 'figure' || tag === 'scholar' || tag === 'minister' || tag === 'official';
+
+  // Google Maps Place Search state
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
+  const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
+
   useEffect(() => {
     if (isOpen) {
+      loadGoogleMapsScript().catch(() => {});
+      setPlaceSearchQuery('');
+      setPlaceSearchResults([]);
+
       if (factToEdit) {
         setName(factToEdit.name);
         setDesc(factToEdit.desc);
+        setSelectedPlaceName(factToEdit.desc || null);
         setFullText(factToEdit.fullText);
         setAdditionalNotes(factToEdit.additionalNotes || '');
         setLat(factToEdit.lat);
         setLng(factToEdit.lng);
         setTag(factToEdit.tag);
         setCollectionId(factToEdit.collectionId || 'powers');
-        const dateInfo = inferCenturyAndYearForFact(factToEdit);
-        setYear(factToEdit.year || dateInfo.year);
-        setCentury(factToEdit.century || dateInfo.century);
-        setCenturyNumber(factToEdit.centuryNumber ?? dateInfo.centuryNumber);
+        if (typeof factToEdit.birthYear === 'number') {
+          setStartYearInput(Math.abs(factToEdit.birthYear).toString());
+          setIsBC(factToEdit.birthYear < 0);
+          setEndYearInput(typeof factToEdit.deathYear === 'number' ? Math.abs(factToEdit.deathYear).toString() : '');
+        } else if (typeof factToEdit.startYear === 'number') {
+          setStartYearInput(Math.abs(factToEdit.startYear).toString());
+          setIsBC(factToEdit.startYear < 0);
+          setEndYearInput(
+            typeof factToEdit.endYear === 'number' && factToEdit.endYear !== factToEdit.startYear
+              ? Math.abs(factToEdit.endYear).toString()
+              : ''
+          );
+        } else {
+          const span = getFactYearSpan(factToEdit);
+          setStartYearInput(Math.abs(span.startYear).toString());
+          setEndYearInput(span.isRange && span.endYear !== span.startYear ? Math.abs(span.endYear).toString() : '');
+          setIsBC(span.startYear < 0 || Boolean(factToEdit.isBC));
+        }
         setHasLocationPicked(true);
       } else {
         setName('');
         setDesc('');
+        setSelectedPlaceName(null);
         setFullText('');
         setAdditionalNotes('');
-        setYear('');
-        setCentury('سەدەی ١٢ی زایینی');
-        setCenturyNumber(12);
+        setStartYearInput('');
+        setEndYearInput('');
+        setIsBC(false);
         if (pickedCoords) {
           setLat(pickedCoords.lat);
           setLng(pickedCoords.lng);
@@ -92,10 +136,41 @@ export const FactEditorModal: React.FC<Props> = ({
         setTag('principality');
         setCollectionId('powers');
       }
-      setCenturyError(null);
+      setYearError(null);
       setConfirmDelete(false);
     }
   }, [isOpen, factToEdit]);
+
+  const handlePlaceSearch = async (query: string) => {
+    setPlaceSearchQuery(query);
+    if (query.trim().length < 2) {
+      setPlaceSearchResults([]);
+      setIsSearchingPlaces(false);
+      return;
+    }
+
+    setIsSearchingPlaces(true);
+    try {
+      const results = await searchPlacesOnMap(query);
+      setPlaceSearchResults(results);
+    } catch {
+      setPlaceSearchResults([]);
+    } finally {
+      setIsSearchingPlaces(false);
+    }
+  };
+
+  const handleSelectSearchedPlace = (place: PlaceSearchResult) => {
+    setLat(place.lat);
+    setLng(place.lng);
+    setHasLocationPicked(true);
+    setSelectedPlaceName(place.name);
+    if (!desc.trim()) {
+      setDesc(place.formattedAddress.split(',').slice(0, 2).join('، '));
+    }
+    setPlaceSearchResults([]);
+    setPlaceSearchQuery('');
+  };
 
   // Update coords if picked from map
   useEffect(() => {
@@ -112,10 +187,28 @@ export const FactEditorModal: React.FC<Props> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (!year.trim() && !century.trim()) {
-      setCenturyError('تکایە ساڵ یان سەدە دیاری بکە بۆ ئەوەی لە فلتەری سەدەکان لەسەر نەخشەکە دەربکەوێت.');
+    const normStart = normalizeYearString(startYearInput.trim());
+    const normEnd = normalizeYearString(endYearInput.trim());
+    const startNum = normStart ? parseInt(normStart, 10) : NaN;
+    const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
+
+    if (isNaN(startNum)) {
+      setYearError(
+        isPerson
+          ? 'تکایە ساڵی لەدایکبوون بنووسە.'
+          : 'تکایە ساڵی دەستپێک / دامەزراندن بنووسە.'
+      );
       return;
     }
+
+    const actualStart = isBC ? -Math.abs(startNum) : Math.abs(startNum);
+    const actualEnd = !isNaN(endNum)
+      ? (isBC ? -Math.abs(endNum) : Math.abs(endNum))
+      : actualStart;
+
+    const finalStart = Math.min(actualStart, actualEnd);
+    const finalEnd = Math.max(actualStart, actualEnd);
+    const formattedYear = formatKurdishYearRange(finalStart, finalEnd);
 
     const item: FactItem = {
       id: factToEdit ? factToEdit.id : Date.now(),
@@ -127,9 +220,14 @@ export const FactEditorModal: React.FC<Props> = ({
       desc: desc.trim() || 'کوردستان',
       fullText: fullText.trim(),
       additionalNotes: additionalNotes.trim(),
-      year: year.trim() || 'مێژووی کوردستان',
-      century: century.trim(),
-      centuryNumber: centuryNumber,
+      year: formattedYear,
+      startYear: finalStart,
+      endYear: !isNaN(endNum) ? finalEnd : (isPerson ? Math.min(2026, finalStart + 75) : finalStart),
+      birthYear: isPerson ? finalStart : undefined,
+      deathYear: isPerson && !isNaN(endNum) ? finalEnd : undefined,
+      isBC: isBC,
+      century: `${Math.ceil(Math.abs(finalStart) / 100)}`,
+      centuryNumber: Math.ceil(finalStart / 100),
       lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
       lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
       zoom: factToEdit ? factToEdit.zoom : 8,
@@ -206,12 +304,12 @@ export const FactEditorModal: React.FC<Props> = ({
             />
           </div>
 
-          {/* 100% Visual Map Location Picker (NO Coordinate Numbers!) */}
-          <div className="p-3 rounded-xl bg-gradient-to-b from-[#060a1c] to-black border border-indigo-900/80 space-y-2">
+          {/* 100% Visual Map Location Picker with Google Maps Search */}
+          <div className="p-3 rounded-xl bg-gradient-to-b from-[#060a1c] to-black border border-indigo-900/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-amber-400" />
-                <span>دیاریکردنی شوێن لەسەر نەخشە</span>
+                <span>دیاریکردنی شوێن (بە نەخشە یان گۆگڵ ماپس)</span>
               </span>
 
               <button
@@ -222,22 +320,104 @@ export const FactEditorModal: React.FC<Props> = ({
                 <Crosshair className="w-3.5 h-3.5 text-white" />
                 <span>
                   {hasLocationPicked
-                    ? 'گۆڕینی شوێن لەسەر نەخشە'
-                    : 'کلیک بکە بۆ دیاریکردن لەسەر نەخشە'}
+                    ? 'گۆڕینی شوێن بە دەست لەسەر نەخشە'
+                    : 'کلیک لەسەر نەخشە بۆ دەستنیشانکردن'}
                 </span>
               </button>
+            </div>
+
+            {/* Google Maps Search Bar */}
+            <div className="space-y-1.5 pt-1.5 border-t border-indigo-950/80">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="font-bold text-amber-300 flex items-center gap-1">
+                  <Search className="w-3.5 h-3.5 text-amber-400" />
+                  <span>گەڕان بە یارمەتی گۆگڵ ماپ (Google Maps Search):</span>
+                </span>
+                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800/50">
+                  Google Maps Connected
+                </span>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={placeSearchQuery}
+                  onChange={(e) => handlePlaceSearch(e.target.value)}
+                  placeholder="ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوندێک بنووسە (بۆ نموونە: سلێمانی، ڕواندز، ئامێدی، سنە، قەڵای هەولێر...)"
+                  className="w-full bg-[#030712] text-white pl-8 pr-3 py-2 rounded-xl border border-indigo-900/90 focus:border-amber-500 focus:outline-none text-xs placeholder:text-slate-500"
+                />
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {isSearchingPlaces ? (
+                    <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                  ) : placeSearchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaceSearchQuery('');
+                        setPlaceSearchResults([]);
+                      }}
+                      className="text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <Search className="w-3.5 h-3.5 text-slate-500" />
+                  )}
+                </div>
+              </div>
+
+              {/* Search Results Dropdown List */}
+              {placeSearchResults.length > 0 && (
+                <div className="bg-[#030712] border border-amber-600/70 rounded-xl overflow-hidden shadow-2xl divide-y divide-indigo-950 max-h-56 overflow-y-auto animate-fade-in z-20">
+                  <div className="p-1.5 bg-black/80 text-[9px] text-amber-300 font-bold flex items-center justify-between px-2.5">
+                    <span>کلیک لە ناوی شوێنەکە بکە بۆ دیاریکردنی دەستبەجێ:</span>
+                    <span className="font-mono text-slate-400">{placeSearchResults.length} ئەنجام دۆزرایەوە</span>
+                  </div>
+                  {placeSearchResults.map((place) => (
+                    <button
+                      key={place.id}
+                      type="button"
+                      onClick={() => handleSelectSearchedPlace(place)}
+                      className="w-full text-right p-2.5 hover:bg-amber-950/50 transition-colors flex items-start gap-2.5 cursor-pointer group"
+                    >
+                      <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:scale-125 transition-transform" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-white group-hover:text-amber-300 truncate">
+                          {place.name}
+                        </div>
+                        <div className="text-[10px] text-slate-300/80 truncate mt-0.5">
+                          {place.formattedAddress}
+                        </div>
+                        <div className="text-[9px] font-mono text-indigo-400/80 mt-0.5">
+                          {place.lat.toFixed(4)}° N, {place.lng.toFixed(4)}° E
+                        </div>
+                      </div>
+                      <span className="text-[9px] px-2 py-0.5 rounded-lg bg-indigo-950 text-indigo-300 border border-indigo-800/40 shrink-0 font-bold group-hover:bg-amber-500 group-hover:text-black transition-colors">
+                        دەستنیشانکردن
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Visual confirmation badge */}
             <div className="flex items-center justify-between p-2 rounded-lg bg-black border border-indigo-950 text-[11px]">
               {hasLocationPicked ? (
-                <div className="flex items-center gap-2 text-emerald-400">
+                <div className="flex items-center gap-2 text-emerald-400 min-w-0">
                   <div className="w-5 h-5 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center shrink-0">
                     <Check className="w-3 h-3 text-emerald-400" />
                   </div>
-                  <span className="font-medium">
-                    شوێنی ئەم دەسەڵاتە لەسەر نەخشەی کوردستان دیاریکراوە.
-                  </span>
+                  <div className="min-w-0">
+                    <span className="font-bold truncate block">
+                      {selectedPlaceName
+                        ? `شوێن دیاریکراوە: ${selectedPlaceName}`
+                        : 'شوێنی ئەم دەسەڵاتە لەسەر نەخشەی کوردستان دیاریکراوە.'}
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-300/80">
+                      پۆوتان: {lat.toFixed(3)}° N, {lng.toFixed(3)}° E
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-amber-300">
@@ -245,85 +425,14 @@ export const FactEditorModal: React.FC<Props> = ({
                     <MapPin className="w-3 h-3 text-amber-400 animate-bounce" />
                   </div>
                   <span>
-                    تکایە دوگمەی سەرەوە دابگرە تا بە کلیک شوێنەکەی لەسەر نەخشە دەستنیشان بکەیت.
+                    دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە یان بە دوگمەی دەستنیشانکردن لەسەر نەخشە خاڵەکە دابنێیت.
                   </span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* ⏳ ساڵ و سەدە (پێویست بۆ بینینی نەخشە بەپێی سەدە) */}
-          <div className="p-3 rounded-xl bg-gradient-to-b from-[#080d24] to-black border border-indigo-700/60 shadow-lg space-y-2.5">
-            <div className="flex items-center justify-between border-b border-indigo-950 pb-1.5">
-              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-amber-400" />
-                <span>ساڵ و سەدە (پێویستە بۆ بینینی نەخشە بەپێی سەدە) *</span>
-              </span>
-              <span className="text-[10px] text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded font-mono">
-                خشتەی کاتی
-              </span>
-            </div>
-
-            {centuryError && (
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-950/80 border border-rose-500/80 text-rose-200 text-[11px]">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                <span>{centuryError}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Century selection */}
-              <div>
-                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-                  <Hourglass className="w-3 h-3 text-indigo-400" />
-                  سەدە *
-                </label>
-                <select
-                  value={centuryNumber}
-                  onChange={(e) => {
-                    const cNum = Number(e.target.value);
-                    const opt = CENTURY_OPTIONS.find((c) => c.centuryNumber === cNum);
-                    setCenturyNumber(cNum);
-                    if (opt) {
-                      setCentury(opt.label);
-                      if (!year.trim() && opt.range) {
-                        setYear(opt.range);
-                      }
-                    }
-                    setCenturyError(null);
-                  }}
-                  className="w-full bg-[#030712] text-amber-200 px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 text-xs font-medium cursor-pointer"
-                >
-                  {CENTURY_OPTIONS.filter((c) => c.id !== 'all').map((c) => (
-                    <option key={c.id} value={c.centuryNumber}>
-                      {c.label} ({c.range})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Year or Year Range input */}
-              <div>
-                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-amber-400" />
-                  ساڵ یان ماوەی ساڵ *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={year}
-                  onChange={(e) => {
-                    setYear(e.target.value);
-                    setCenturyError(null);
-                  }}
-                  placeholder="بۆ نموونە: ١١٧٤ - ١١٩٣ ز، ١٥١٤ ز، ٦١٢ پ.ز..."
-                  className="w-full bg-[#030712] text-white px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Collection & Tag Selection */}
+          {/* Collection & Tag Selection (First so year inputs adapt dynamically) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
@@ -346,22 +455,141 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-indigo-300 mb-1">
+              <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
+                {isPerson ? (
+                  <User className="w-3 h-3 text-amber-400" />
+                ) : (
+                  <Shield className="w-3 h-3 text-blue-400" />
+                )}
                 جۆر / پۆلێن
               </label>
               <select
                 value={tag}
                 onChange={(e) => setTag(e.target.value as FactItem['tag'])}
-                className="w-full bg-[#030712] text-indigo-200 px-2.5 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 text-xs"
+                className="w-full bg-[#030712] text-indigo-200 px-2.5 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 text-xs font-bold"
               >
                 <option value="principality">میرنشین و دەسەڵات</option>
                 <option value="empire">ئیمپراتۆریەت و دەوڵەت</option>
+                <option value="minister">وەزیر (وەزیرەکان)</option>
+                <option value="official">کاربەدەست (کاربەدەستان و بەڕێوەبەران)</option>
+                <option value="scholar">زانا (زانایان و فەیلەسوفان)</option>
+                <option value="figure">کەسایەتی و پێشەوا</option>
                 <option value="capital">قەڵا و پایتەخت</option>
-                <option value="figure">کەسایەتی و فەرمانڕەوا</option>
                 <option value="battle">جەنگ و ڕووداو</option>
-                <option value="culture">کولتوور و زانست</option>
+                <option value="culture">کولتوور و شوێنەوار</option>
               </select>
             </div>
+          </div>
+
+          {/* ⏳ ساڵی سەرەتا و کۆتایی / لەدایکبوون و مردن بۆ سکرۆڵی تایملاین */}
+          <div className="p-3 rounded-xl bg-gradient-to-b from-[#080d24] to-black border border-indigo-700/60 shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between border-b border-indigo-950 pb-1.5">
+              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span>
+                  {isPerson
+                    ? 'ساڵانی ژیان (لەدایکبوون و کۆچی دوایی) بۆ تایملاین *'
+                    : 'ساڵانی دەسەڵات (سەرەتا و کۆتایی) بۆ تایملاین *'}
+                </span>
+              </span>
+
+              {/* BC / AD Toggle */}
+              <div className="flex items-center gap-1 bg-black p-0.5 rounded-lg border border-indigo-900 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setIsBC(false)}
+                  className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer font-bold ${
+                    !isBC
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  زایینی (ز)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBC(true)}
+                  className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer font-bold ${
+                    isBC
+                      ? 'bg-amber-600 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  پێش زایین (پ.ز)
+                </button>
+              </div>
+            </div>
+
+            {yearError && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-950/80 border border-rose-500/80 text-rose-200 text-[11px]">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span>{yearError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Field 1: Birth year or Start year */}
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-emerald-400" />
+                  {isPerson ? 'ساڵی لەدایکبوون *' : 'ساڵی سەرەتا / دامەزراندن *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={startYearInput}
+                  onChange={(e) => {
+                    setStartYearInput(e.target.value);
+                    setYearError(null);
+                  }}
+                  placeholder={
+                    isPerson
+                      ? isBC
+                        ? 'بۆ نموونە: 400'
+                        : 'بۆ نموونە: 1890'
+                      : isBC
+                      ? 'بۆ نموونە: 700'
+                      : 'بۆ نموونە: 1514'
+                  }
+                  className="w-full bg-[#030712] text-white px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
+                />
+              </div>
+
+              {/* Field 2: Death year or End year */}
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-rose-400" />
+                  {isPerson
+                    ? 'ساڵی کۆچی دوایی / وەفات'
+                    : 'ساڵی کۆتایی / ڕووخان (ئەگەر هەبێت)'}
+                </label>
+                <input
+                  type="text"
+                  value={endYearInput}
+                  onChange={(e) => {
+                    setEndYearInput(e.target.value);
+                    setYearError(null);
+                  }}
+                  placeholder={
+                    isPerson
+                      ? isBC
+                        ? 'بۆ نموونە: 340'
+                        : 'بۆ نموونە: 1960'
+                      : isBC
+                      ? 'بۆ نموونە: 550'
+                      : 'بۆ نموونە: 1851'
+                  }
+                  className="w-full bg-[#030712] text-white px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Explanatory helper text */}
+            <p className="text-[10px] text-amber-300/80 leading-relaxed bg-black/60 p-2 rounded-lg border border-indigo-950">
+              {isPerson
+                ? '💡 بۆ نموونە: ئەگەر ١٨٩٠ بۆ لەدایکبوون و ١٩٦٠ بۆ مردن بنووسیت، کاتێک لە تایملایندا سکرۆڵەکە بچێتە سەر ساڵی ١٩٤٠ ئەم کەسایەتییە لەسەر نەخشەکە دەردەکەوێت چونکە لە ژیاندا بووە.'
+                : '💡 بۆ نموونە: ئەگەر دەوڵەتێک لە ١٥١٤ دەستی پێکردبێت و ١٨٥١ کۆتایی هاتبێت، کاتێک لە سکرۆڵدا ساڵەکە لەنێوان ئەو دوو ساڵەدا بێت ئەم دەسەڵاتە لەسەر نەخشە دەردەکەوێت.'}
+            </p>
           </div>
 
           {/* Full Historical Text */}
@@ -379,17 +607,17 @@ export const FactEditorModal: React.FC<Props> = ({
             />
           </div>
 
-          {/* Additional Information Box (بۆکسی زانیاری زیادە) */}
+          {/* Additional Information Box (زانیاری زیاتر) */}
           <div className="p-2.5 rounded-xl bg-gradient-to-b from-[#050714] to-black border border-indigo-900/70 space-y-1.5">
             <label className="block text-[11px] font-bold text-amber-300 flex items-center gap-1">
               <FileText className="w-3.5 h-3.5 text-amber-400" />
-              بۆکسی زانیاریی زیادە (بەڵگەنامە، دەستنووس و تێبینی تایبەت)
+              زانیاری زیاتر (بەڵگەنامە، دەستنووس و تێبینی تایبەت)
             </label>
             <textarea
               rows={3}
               value={additionalNotes}
               onChange={(e) => setAdditionalNotes(e.target.value)}
-              placeholder="لێرە زانیاری و سەرچاوەی زیادە، دەقی دەستنووس، وتەی مێژوونووسان یان تێبینی بنووسە..."
+              placeholder="لێرە زانیاری زیاتر و سەرچاوەکان، دەقی دەستنووس، وتەی مێژوونووسان یان تێبینی بنووسە..."
               className="w-full bg-black text-indigo-100 placeholder:text-indigo-400/30 px-3 py-2 rounded-lg border border-indigo-950 focus:border-amber-500/80 focus:outline-none text-xs leading-relaxed"
             />
           </div>

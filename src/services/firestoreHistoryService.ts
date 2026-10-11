@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
+import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
 import { CollectionItem, DEFAULT_COLLECTIONS } from '../types/history';
 import {
   loadStoredFacts,
@@ -20,36 +21,17 @@ import {
 const FACTS_COLLECTION = 'facts';
 const COLLECTIONS_COLLECTION = 'collections';
 
-// Helper: Merge Firestore facts with default ALL_FACTS
+// Helper: Merge Firestore facts with all 46 Kurdish Provinces and Cities from the map image
 function mergeFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
-  const cloudMap = new Map<number, FactItem>();
+  const map = new Map<number, FactItem>();
+  KURDISH_PROVINCES_CITIES.forEach((city) => map.set(city.id, city));
   cloudFacts.forEach((cf) => {
-    cloudMap.set(cf.id, sanitizeFact(cf));
-  });
-
-  // Base facts: apply any cloud updates/overrides
-  const mergedBase = ALL_FACTS.map((baseFact) => {
-    if (cloudMap.has(baseFact.id)) {
-      const updated = cloudMap.get(baseFact.id)!;
-      cloudMap.delete(baseFact.id);
-      return sanitizeFact({
-        ...baseFact,
-        ...updated,
-        collectionId: updated.collectionId || baseFact.collectionId || inferCollectionForFact(baseFact),
-      });
+    if (cf && typeof cf.id === 'number') {
+      map.set(cf.id, sanitizeFact(cf));
     }
-    return sanitizeFact({
-      ...baseFact,
-      collectionId: baseFact.collectionId || inferCollectionForFact(baseFact),
-    });
   });
 
-  // Remaining cloud facts are new additions added by admins
-  const newAdditions: FactItem[] = Array.from(cloudMap.values()).map(sanitizeFact);
-
-  // Filter out any explicitly marked deleted facts if needed
-  const finalFacts = [...newAdditions, ...mergedBase];
-  return finalFacts;
+  return Array.from(map.values());
 }
 
 // Helper: Merge Firestore collections with default collections
@@ -110,10 +92,16 @@ export function subscribeToCloudFacts(onUpdate: (facts: FactItem[]) => void): ()
  */
 export async function saveFactToCloud(fact: FactItem): Promise<void> {
   const docRef = doc(db, FACTS_COLLECTION, String(fact.id));
-  const payload = {
+  const payload: Record<string, any> = {
     ...fact,
     updatedAt: Date.now(),
   };
+  // Remove any undefined keys to prevent Firestore validation errors
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
 
   await setDoc(docRef, payload, { merge: true });
 

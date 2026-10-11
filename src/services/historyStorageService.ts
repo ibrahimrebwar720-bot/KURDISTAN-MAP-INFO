@@ -1,4 +1,5 @@
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
+import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
 import { CollectionItem, DEFAULT_COLLECTIONS, ADMIN_SECRET_CODE } from '../types/history';
 import { inferCenturyAndYearForFact } from '../utils/centuryUtils';
 
@@ -31,6 +32,29 @@ export function inferCollectionForFact(fact: FactItem): string {
   }
 
   if (
+    fact.tag === 'minister' ||
+    n.includes('وەزیر') ||
+    n.includes('وزیر') ||
+    n.includes('ڕاوێژکار') ||
+    d.includes('وەزیر')
+  ) {
+    return 'ministers';
+  }
+
+  if (
+    fact.tag === 'official' ||
+    n.includes('کاربەدەست') ||
+    n.includes('دەستەڵاتدار') ||
+    n.includes('فەرمانڕەوا') ||
+    n.includes('والی') ||
+    n.includes('حاکم') ||
+    n.includes('سەردار')
+  ) {
+    return 'officials';
+  }
+
+  if (
+    fact.tag === 'scholar' ||
     n.includes('زانا') ||
     n.includes('فەیلەسوف') ||
     n.includes('شاعیر') ||
@@ -91,7 +115,13 @@ export function loadStoredCollections(): CollectionItem[] {
     if (!raw) return DEFAULT_COLLECTIONS;
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      // Merge with default collections to ensure new built-in categories (ministers, officials, scholars) are present
+      const map = new Map<string, CollectionItem>();
+      DEFAULT_COLLECTIONS.forEach((dc) => map.set(dc.id, dc));
+      parsed.forEach((pc: CollectionItem) => {
+        if (pc && pc.id) map.set(pc.id, pc);
+      });
+      return Array.from(map.values());
     }
   } catch (e) {
     console.warn('Failed to load collections from storage:', e);
@@ -127,18 +157,28 @@ export function loadStoredFacts(): FactItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FACTS);
     if (!raw) {
-      // Return default facts enriched with default inferred collectionId
-      return ALL_FACTS.map(sanitizeFact);
+      saveStoredFacts(KURDISH_PROVINCES_CITIES);
+      return KURDISH_PROVINCES_CITIES;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map(sanitizeFact);
+    if (Array.isArray(parsed)) {
+      const map = new Map<number, FactItem>();
+      // 1. Seed all 46 Kurdish provinces and cities from image.png
+      KURDISH_PROVINCES_CITIES.forEach((p) => map.set(p.id, p));
+      // 2. Overlay any custom facts or user modifications
+      parsed.forEach((f) => {
+        if (f && typeof f.id === 'number') {
+          map.set(f.id, sanitizeFact(f));
+        }
+      });
+      const merged = Array.from(map.values());
+      return merged;
     }
   } catch (e) {
     console.warn('Failed to load facts from storage:', e);
   }
 
-  return ALL_FACTS.map(sanitizeFact);
+  return KURDISH_PROVINCES_CITIES;
 }
 
 export function saveStoredFacts(facts: FactItem[]): void {

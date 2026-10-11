@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   Compass,
   BookOpen,
-  Loader2,
   Landmark,
   Calendar,
   ShieldCheck,
@@ -18,6 +17,7 @@ import {
   Save,
   Layers,
   Hourglass,
+  Crown,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 
@@ -44,8 +44,6 @@ export const FactDetailModal: React.FC<Props> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [wikiData, setWikiData] = useState<WikipediaResult | null>(null);
-  const [wikiLoading, setWikiLoading] = useState(false);
-  const [showEnglishText, setShowEnglishText] = useState(false);
 
   // Additional Notes Inline Editing state for Admin
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -57,9 +55,7 @@ export const FactDetailModal: React.FC<Props> = ({
     if (!fact) return;
 
     let isMounted = true;
-    setWikiLoading(true);
     setWikiData(null);
-    setShowEnglishText(false);
     setIsEditingNotes(false);
     setNotesContent(fact.additionalNotes || '');
 
@@ -67,14 +63,9 @@ export const FactDetailModal: React.FC<Props> = ({
       .then((res) => {
         if (isMounted) {
           setWikiData(res);
-          setWikiLoading(false);
         }
       })
-      .catch(() => {
-        if (isMounted) {
-          setWikiLoading(false);
-        }
-      });
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -86,7 +77,7 @@ export const FactDetailModal: React.FC<Props> = ({
   const handleCopyFact = () => {
     navigator.clipboard.writeText(
       `${fact.name}\n${fact.fullText}\nشوێن: ${fact.desc}${
-        fact.additionalNotes ? `\nزانیاری زیادە: ${fact.additionalNotes}` : ''
+        fact.additionalNotes ? `\nزانیاری زیاتر: ${fact.additionalNotes}` : ''
       }\nسەرچاوە: ئینسایکلۆپیدیای دەسەڵاتە کوردییەکان`
     );
     setCopied(true);
@@ -215,87 +206,12 @@ export const FactDetailModal: React.FC<Props> = ({
             <p>{fact.fullText}</p>
           </div>
 
-          {/* Encyclopedia Text Section */}
-          <div className="p-2.5 rounded-lg bg-black border border-indigo-950/90 space-y-2">
-            <div className="flex items-center justify-between gap-1.5 border-b border-indigo-950/80 pb-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded bg-indigo-950 text-indigo-300 flex items-center justify-center font-serif font-bold text-[9px] border border-indigo-800/40">
-                  {wikiData?.sourceType === 'academic_encyclopedia' ? '📜' : 'W'}
-                </span>
-                <span className="text-[10px] font-bold text-slate-200">
-                  {wikiData?.sourceName || 'ئینسایکلۆپیدیای مێژووی کوردستان'}
-                </span>
-              </div>
-              {wikiData && (
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/40">
-                  {wikiData.sourceType === 'academic_encyclopedia'
-                    ? 'بەڵگەنامە'
-                    : wikiData.lang.toUpperCase()}
-                </span>
-              )}
-            </div>
-
-            {wikiLoading ? (
-              <div className="flex items-center justify-center py-3 gap-1.5 text-[10px] text-indigo-400">
-                <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />
-                <span>داتای مێژوویی دەهێنرێت...</span>
-              </div>
-            ) : wikiData ? (
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row gap-2 items-start">
-                  {wikiData.thumbnail && (
-                    <img
-                      src={wikiData.thumbnail}
-                      alt={wikiData.title}
-                      className="w-full sm:w-24 h-20 object-cover rounded border border-indigo-950 shrink-0"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0 text-right" dir="rtl">
-                    <h5 className="font-bold text-xs text-white mb-0.5">
-                      {wikiData.title}
-                    </h5>
-                    <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line">
-                      {wikiData.extract}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Original English Text Toggle if available */}
-                {wikiData.englishExtract && (
-                  <div
-                    className="p-2 rounded bg-[#030712] border border-indigo-950 text-left"
-                    dir="ltr"
-                  >
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 mb-1 border-b border-indigo-950">
-                      <span className="font-mono text-indigo-400">
-                        English Wikipedia Source
-                      </span>
-                      <button
-                        onClick={() => setShowEnglishText(!showEnglishText)}
-                        className="text-[9px] text-indigo-300 hover:text-white underline cursor-pointer"
-                      >
-                        {showEnglishText ? 'Hide' : 'Show full English text'}
-                      </button>
-                    </div>
-                    <p
-                      className={`text-[10px] text-slate-400 font-serif leading-relaxed ${
-                        showEnglishText ? '' : 'line-clamp-2'
-                      }`}
-                    >
-                      {wikiData.englishExtract}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          {/* NEW: بۆکسی زانیاریی زیادە (Additional Information Box - Replaced Gemini) */}
+          {/* زانیاری زیاتر (Additional Information Box) */}
           <div className="p-3 rounded-xl bg-gradient-to-b from-[#060a1c] to-black border border-indigo-900/70 shadow-lg space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
                 <FileText className="w-4 h-4 text-amber-400" />
-                <span>بۆکسی زانیاریی زیادە</span>
+                <span>زانیاری زیاتر</span>
               </div>
               <div className="flex items-center gap-1">
                 {notesSaved && (
@@ -322,7 +238,7 @@ export const FactDetailModal: React.FC<Props> = ({
                   rows={4}
                   value={notesContent}
                   onChange={(e) => setNotesContent(e.target.value)}
-                  placeholder="وەک ئەدمین، لێرە زانیاریی زیادە، سەرچاوەی دەستنووس، کورتەی کتێب یان شیکاری بۆ ئەم دەسەڵاتە بنووسە..."
+                  placeholder="وەک ئەدمین، لێرە زانیاری زیاتر، سەرچاوەی دەستنووس، کورتەی کتێب یان شیکاری بۆ ئەم دەسەڵاتە بنووسە..."
                   className="w-full bg-[#030712] text-slate-100 placeholder:text-indigo-400/40 p-2.5 rounded-lg border border-indigo-700/60 focus:border-amber-400 focus:outline-none text-xs leading-relaxed"
                 />
                 <div className="flex items-center justify-end gap-1.5">
@@ -355,12 +271,12 @@ export const FactDetailModal: React.FC<Props> = ({
                   <div className="py-2.5 px-3 rounded-lg bg-black/60 border border-indigo-950/60 text-indigo-300/60 text-[11px] leading-relaxed">
                     {isAdmin ? (
                       <div className="flex items-center justify-between">
-                        <span>هێشتا زانیاریی زیادە بۆ ئەم بابەتە نەنووسراوە.</span>
+                        <span>هێشتا زانیاری زیاتر بۆ ئەم بابەتە نەنووسراوە.</span>
                         <button
                           onClick={() => setIsEditingNotes(true)}
                           className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
                         >
-                          تۆمارکردنی زانیاری زیادە
+                          تۆمارکردنی زانیاری زیاتر
                         </button>
                       </div>
                     ) : (
@@ -377,7 +293,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-indigo-950 mt-3">
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => {
                 onFlyToMap(fact);

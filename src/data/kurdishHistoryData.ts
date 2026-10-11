@@ -10,14 +10,23 @@ export interface FactItem {
   lat: number;
   lng: number;
   zoom: number;
-  tag: 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture';
+  tag: 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture' | 'minister' | 'official' | 'scholar';
   region?: string;
   collectionId?: string;
   additionalNotes?: string;
   isCustom?: boolean;
   year?: string;
+  startYear?: number;
+  endYear?: number;
+  birthYear?: number;
+  deathYear?: number;
+  isBC?: boolean;
   century?: string;
   centuryNumber?: number;
+  territoryPolygon?: [number, number][];
+  territoryColor?: string;
+  overlayImageUrl?: string;
+  overlayBounds?: [[number, number], [number, number]];
 }
 
 export interface EraInfo {
@@ -85,13 +94,36 @@ export const ERAS: EraInfo[] = [
 ];
 
 export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
+  // Northwest (Afrin, Maras, Malatya, Erzurum)
   [36.85, 36.2], [37.5, 36.8], [38.2, 37.2], [39.2, 38.0], [39.8, 38.5],
   [40.2, 40.5], [41.1, 42.8], [41.0, 43.8], [39.9, 44.6], [38.8, 45.2],
   [38.0, 45.8], [37.2, 46.2], [36.2, 46.8], [35.3, 47.5], [34.8, 48.5],
   [33.8, 48.8], [32.8, 49.5], [31.8, 50.2], [30.5, 50.8], [29.8, 50.4],
-  [30.3, 49.5], [31.2, 48.8], [32.0, 48.0], [33.0, 47.0], [34.0, 45.8],
-  [34.6, 45.0], [35.1, 44.2], [35.8, 43.2], [36.3, 42.2], [36.5, 40.8],
-  [36.2, 39.0], [36.5, 38.0], [36.85, 36.2]
+  [30.3, 49.5], [31.2, 48.8], [32.0, 48.0],
+  // Southern Zagros down to Wasit Governorate (Badra & Jassan)
+  [32.45, 47.1],   // Dehloran / Tib foothills
+  [32.70, 46.4],   // Southeast Wasit border
+  [32.90, 46.15],  // South of Jassan (باشووری جەسان لە پارێزگای واست)
+  [32.96, 45.92],  // Southwest of Jassan & Badra (جەسان و بەدرە)
+  [33.15, 45.80],  // West of Badra (بەدرە لە پارێزگای واست)
+  [33.45, 45.58],  // Tersaq / Mandali south (تەرەق و باشووری مەندەلی)
+  [33.78, 45.38],  // West of Mandali (مەندەلی)
+  // Garmian & Khanaqin
+  [34.15, 45.10],  // West of Jalawla / Qoratu (جەلەولا)
+  [34.38, 44.95],  // West of Khanaqin (خانەقین و ئەڵوەن)
+  [34.70, 44.48],  // South of Kifri & Tuz Khurmatu (کفری و خورماتوو)
+  // Kirkuk & Erbil plains
+  [35.08, 44.15],  // South of Daquq (داقووق و کەرکووک)
+  [35.45, 43.75],  // West of Kirkuk (ڕۆژئاوای کەرکووک)
+  [35.75, 43.20],  // Makhmur & Qaraj (دەشتی هەولێر و مەخموور)
+  [35.95, 42.65],  // South of Nineveh Plains (دەشتی نەینەوا)
+  // Sinjar (Shingal) region
+  [36.08, 41.80],  // South of Mount Sinjar (باشووری چیای شنگاڵ)
+  [36.18, 41.15],  // Southwest of Sinjar (ڕۆژئاوای شنگاڵ)
+  [36.45, 41.05],  // West of Sinjar ridge (شنگاڵ)
+  [36.75, 41.35],  // Sinuni & Rabia north of Sinjar (سنونی و باکووری شنگاڵ)
+  // Rojava & Northern arc
+  [36.60, 40.50], [36.20, 39.00], [36.50, 38.00], [36.85, 36.20]
 ];
 
 // Helper to determine category tag
@@ -1716,7 +1748,12 @@ const MERGED_FACTS: Record<number, { name: string; lat: number; lng: number; zoo
   ...FACTS_276_TO_350,
 };
 
-export const ALL_FACTS: FactItem[] = Object.keys(MERGED_FACTS).map((key) => {
+// All 350 default facts cleared to 0 as requested by the user.
+// The user now adds their own custom facts dynamically to the map and menu.
+export const ALL_FACTS: FactItem[] = [];
+
+/* Initial seed mapping archived:
+export const LEGACY_ALL_FACTS: FactItem[] = Object.keys(MERGED_FACTS).map((key) => {
   const num = parseInt(key, 10);
   const raw = MERGED_FACTS[num];
   let eraId = 1;
@@ -1788,3 +1825,4 @@ export const ALL_FACTS: FactItem[] = Object.keys(MERGED_FACTS).map((key) => {
     tag: raw.tag || getTag(num),
   };
 });
+*/

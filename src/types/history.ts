@@ -14,7 +14,7 @@ export const DEFAULT_COLLECTIONS: CollectionItem[] = [
   {
     id: 'all',
     name: 'هەموو وێستگەکان',
-    description: 'تەواوی ٣٥٠ دەسەڵات، میرنشین و وێستگە مێژووییەکان',
+    description: 'تەواوی دەسەڵات، میرنشین، وەزیران و وێستگە مێژووییەکان',
     color: '#6366f1',
     isCustom: false,
   },
@@ -23,6 +23,27 @@ export const DEFAULT_COLLECTIONS: CollectionItem[] = [
     name: 'دەسەڵات و میرنشین',
     description: 'ئیمپراتۆریەت، میرنشین و دەسەڵاتە فەرمانڕەواکان',
     color: '#3b82f6',
+    isCustom: false,
+  },
+  {
+    id: 'ministers',
+    name: 'وەزیرەکان',
+    description: 'وەزیران، ڕاوێژکاران و کەسایەتییە دیارەکانی بەڕێوەبردن',
+    color: '#06b6d4',
+    isCustom: false,
+  },
+  {
+    id: 'officials',
+    name: 'کاربەدەستان',
+    description: 'کاربەدەستان، سەرکردە ئیدارییەکان و فەرمانڕەوایان',
+    color: '#f97316',
+    isCustom: false,
+  },
+  {
+    id: 'scholars',
+    name: 'زانایان',
+    description: 'زانایان، فەیلەسوفان، بیرمەندان و مێژوونووسانی کورد',
+    color: '#10b981',
     isCustom: false,
   },
   {
@@ -37,13 +58,6 @@ export const DEFAULT_COLLECTIONS: CollectionItem[] = [
     name: 'کەسایەتی و پێشەوا',
     description: 'ڕابەران و کەسایەتییە کاریگەرە مێژووییەکان',
     color: '#ec4899',
-    isCustom: false,
-  },
-  {
-    id: 'scholars',
-    name: 'زانا و نووسەر',
-    description: 'زانایان، فەیلەسوفان و مێژوونووسانی کورد',
-    color: '#10b981',
     isCustom: false,
   },
   {

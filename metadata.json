@@ -1,6 +1,6 @@
 {
   "name": "Kurdish Historical Map & Encyclopedia",
-  "description": "ئینسایکلۆپیدیا و نەخشەی کارلێککاری مێژووی ٣٥٠ دەسەڵات، شارستانیەت و میرنشینی کورد",
+  "description": "ئینسایکلۆپیدیا و نەخشەی کارلێککاری مێژووی دەسەڵات، شارستانیەت و میرنشینەکانی کورد",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

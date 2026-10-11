@@ -9,11 +9,7 @@ import {
   SATELLITE_MAP_TILE_URL,
 } from '../services/mapTileCacheService';
 import {
-  Eye,
-  EyeOff,
-  Moon,
   Layers,
-  Globe,
   Menu,
   Search,
   Castle,
@@ -30,10 +26,22 @@ import {
   Hourglass,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Calendar,
   History,
+  Landmark,
+  Award,
+  Briefcase,
+  BookOpen,
+  Compass,
+  MapPin,
+  Copy,
 } from 'lucide-react';
-import { CENTURY_OPTIONS, filterFactsByCentury } from '../utils/centuryUtils';
+import { TimelineSlider } from './TimelineSlider';
+import {
+  filterFactsByActiveYear,
+  formatKurdishYear,
+} from '../utils/yearUtils';
 
 interface Props {
   facts: FactItem[];
@@ -47,8 +55,9 @@ interface Props {
   onOpenMenu?: () => void;
   activeTagFilter: string;
   setActiveTagFilter: (tag: string) => void;
-  activeCenturyFilter?: string;
-  setActiveCenturyFilter?: (centuryId: string) => void;
+  // Year & Timeline Slider Props
+  selectedYear?: number | 'all';
+  onYearChange?: (year: number | 'all') => void;
   // Admin Props
   isAdmin?: boolean;
   onTriggerAdminPin: () => void;
@@ -70,12 +79,12 @@ const TAG_FILTER_OPTIONS = [
     accentClass: 'text-indigo-400',
   },
   {
-    id: 'capital',
-    label: 'قەڵا و پایتەختەکان',
-    shortLabel: 'قەڵاکان',
-    icon: Castle,
-    color: '#a855f7',
-    accentClass: 'text-purple-400',
+    id: 'principality',
+    label: 'میرنشین و دەسەڵاتەکان',
+    shortLabel: 'میرنشینەکان',
+    icon: Shield,
+    color: '#eab308',
+    accentClass: 'text-amber-400',
   },
   {
     id: 'empire',
@@ -86,12 +95,36 @@ const TAG_FILTER_OPTIONS = [
     accentClass: 'text-blue-400',
   },
   {
-    id: 'principality',
-    label: 'میرنشین و دەسەڵاتەکان',
-    shortLabel: 'میرنشینەکان',
-    icon: Shield,
-    color: '#eab308',
-    accentClass: 'text-amber-400',
+    id: 'minister',
+    label: 'وەزیر و سەروەران',
+    shortLabel: 'وەزیر',
+    icon: Award,
+    color: '#06b6d4',
+    accentClass: 'text-cyan-400',
+  },
+  {
+    id: 'official',
+    label: 'کاربەدەستان و بەڕێوەبەران',
+    shortLabel: 'کاربەدەست',
+    icon: Briefcase,
+    color: '#f97316',
+    accentClass: 'text-orange-400',
+  },
+  {
+    id: 'scholar',
+    label: 'زانایان و بیرمەندان',
+    shortLabel: 'زانا',
+    icon: BookOpen,
+    color: '#10b981',
+    accentClass: 'text-emerald-400',
+  },
+  {
+    id: 'capital',
+    label: 'قەڵا و پایتەختەکان',
+    shortLabel: 'قەڵاکان',
+    icon: Castle,
+    color: '#a855f7',
+    accentClass: 'text-purple-400',
   },
   {
     id: 'battle',
@@ -115,8 +148,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   onOpenMenu,
   activeTagFilter,
   setActiveTagFilter,
-  activeCenturyFilter = 'all',
-  setActiveCenturyFilter,
+  selectedYear = 'all',
+  onYearChange,
   isAdmin = false,
   onTriggerAdminPin,
   onOpenAddFact,
@@ -136,14 +169,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite)
   const [mapMode, setMapMode] = useState<'dark' | 'satellite'>('dark');
 
+  // Quick Topic Summary Card state for bottom dock
+  const [showQuickSummary, setShowQuickSummary] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
   // Filter Menu Popover & Toast state
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [filterNotification, setFilterNotification] = useState<string | null>(null);
   const filterNotificationTimeoutRef = useRef<any>(null);
-
-  // Century Filter & Timeline state
-  const [isCenturyMenuOpen, setIsCenturyMenuOpen] = useState(false);
-  const currentCenturyId = activeCenturyFilter || 'all';
 
   // Admin secret 6-tap tracking
   const [adminTapCount, setAdminTapCount] = useState(0);
@@ -158,17 +191,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     return counts;
   }, [facts]);
 
-  // Compute fact counts per century
-  const centuryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: facts.length };
-    CENTURY_OPTIONS.forEach((c) => {
-      if (c.id !== 'all') {
-        counts[c.id] = filterFactsByCentury(facts, c.id).length;
-      }
-    });
-    return counts;
-  }, [facts]);
-
   // Active filter object definition
   const currentFilterObj = useMemo(() => {
     return (
@@ -176,47 +198,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       TAG_FILTER_OPTIONS[0]
     );
   }, [activeTagFilter]);
-
-  // Active century object definition
-  const currentCenturyObj = useMemo(() => {
-    return (
-      CENTURY_OPTIONS.find((c) => c.id === currentCenturyId) ||
-      CENTURY_OPTIONS[0]
-    );
-  }, [currentCenturyId]);
-
-  // Handle Century selection
-  const handleSelectCentury = (centuryId: string) => {
-    if (setActiveCenturyFilter) {
-      setActiveCenturyFilter(centuryId);
-    }
-    setIsCenturyMenuOpen(false);
-    setIsFilterMenuOpen(false);
-  };
-
-  // Step backwards chronologically through centuries
-  const handlePrevCentury = () => {
-    if (!setActiveCenturyFilter) return;
-    const validCenturies = CENTURY_OPTIONS.filter((c) => c.id !== 'all');
-    const currentIndex = validCenturies.findIndex((c) => c.id === currentCenturyId);
-    if (currentIndex <= 0) {
-      setActiveCenturyFilter(validCenturies[validCenturies.length - 1].id);
-    } else {
-      setActiveCenturyFilter(validCenturies[currentIndex - 1].id);
-    }
-  };
-
-  // Step forwards chronologically through centuries
-  const handleNextCentury = () => {
-    if (!setActiveCenturyFilter) return;
-    const validCenturies = CENTURY_OPTIONS.filter((c) => c.id !== 'all');
-    const currentIndex = validCenturies.findIndex((c) => c.id === currentCenturyId);
-    if (currentIndex < 0 || currentIndex >= validCenturies.length - 1) {
-      setActiveCenturyFilter(validCenturies[0].id);
-    } else {
-      setActiveCenturyFilter(validCenturies[currentIndex + 1].id);
-    }
-  };
 
   // Handle changing filter with beautiful notification
   const handleSelectTagFilter = (tagId: string) => {
@@ -268,12 +249,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Center on Kurdistan: Lat 36.8, Lng 44.5, Zoom 6.5
+    // Center on central Kurdistan: Erbil, Kirkuk, Shingal, Khanaqin & Wasit
     const map = L.map(mapContainerRef.current, {
-      center: [36.8, 44.5],
+      center: [35.2, 44.2],
       zoom: 6.5,
       minZoom: 5,
-      maxZoom: 14,
+      maxZoom: 16,
       zoomControl: false,
       attributionControl: false,
     });
@@ -291,13 +272,16 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
 
-    // Set initial bounds for Kurdistan
+    // Set initial bounds to frame all of Erbil, Kirkuk, Shingal, Khanaqin, and down to Badra & Jassan in Wasit
     map.fitBounds(
       [
-        [31.5, 36.0],
-        [40.2, 51.5],
+        [32.6, 40.8], // Southwest: covering Badra & Jassan in Wasit (33.0°N) and Shingal in west (41.1°E)
+        [37.5, 47.2], // Northeast: covering Erbil, Kirkuk, Khanaqin & Zagros
       ],
-      { padding: [20, 20] }
+      {
+        paddingTopLeft: [20, 20],
+        paddingBottomRight: [20, 105], // Ensure Badra & Jassan in Wasit are not obscured by bottom timeline dock
+      }
     );
 
     // Invalidate size after layout settles to prevent NaN coordinates in flyTo
@@ -435,29 +419,32 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
     if (showPolygon) {
       const polygon = L.polygon(GREAT_KURDISTAN_POLYGON, {
-        color: '#6366f1',
-        weight: 1.5,
-        opacity: 0.65,
-        fillColor: '#4f46e5',
+        color: '#f59e0b',
+        weight: 1.8,
+        opacity: 0.75,
+        fillColor: '#f59e0b',
         fillOpacity: 0.05,
-        dashArray: '5, 5',
+        dashArray: '6, 6',
       }).addTo(map);
 
       polygonLayerRef.current = polygon;
     }
   }, [showPolygon]);
 
-  // Filter facts based on Century and Category Tag
+  // Filter facts based on Active Year and Category Tag
   const visibleFacts = useMemo(() => {
     let list = facts;
-    if (currentCenturyId !== 'all') {
-      list = filterFactsByCentury(list, currentCenturyId);
+    // 1. Active Year Filter (Checks startYear <= selectedYear <= endYear)
+    if (selectedYear !== 'all') {
+      list = filterFactsByActiveYear(list, selectedYear);
     }
+
+    // 2. Category Tag Filter
     if (activeTagFilter !== 'all') {
       list = list.filter((fact) => fact.tag === activeTagFilter);
     }
     return list;
-  }, [facts, activeTagFilter, currentCenturyId]);
+  }, [facts, activeTagFilter, selectedYear]);
 
   // Update Markers
   useEffect(() => {
@@ -474,34 +461,52 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         return;
       }
 
+      // Determine color based on tag
+      let tagColor = '#6366f1';
+      let glowColor = 'rgba(99,102,241,0.8)';
+      if (fact.tag === 'minister') {
+        tagColor = '#06b6d4';
+        glowColor = 'rgba(6,182,212,0.85)';
+      } else if (fact.tag === 'official') {
+        tagColor = '#f97316';
+        glowColor = 'rgba(249,115,22,0.85)';
+      } else if (fact.tag === 'scholar') {
+        tagColor = '#10b981';
+        glowColor = 'rgba(16,185,129,0.85)';
+      } else if (fact.tag === 'empire') {
+        tagColor = '#3b82f6';
+        glowColor = 'rgba(59,130,246,0.85)';
+      } else if (fact.tag === 'principality') {
+        tagColor = '#eab308';
+        glowColor = 'rgba(234,179,8,0.85)';
+      } else if (fact.tag === 'capital') {
+        tagColor = '#a855f7';
+        glowColor = 'rgba(168,85,247,0.85)';
+      } else if (fact.tag === 'battle') {
+        tagColor = '#ef4444';
+        glowColor = 'rgba(239,68,68,0.85)';
+      }
+
       let iconHtml = '';
 
       if (isSelected) {
         iconHtml = `
           <div class="kurdish-selected-marker relative flex flex-col items-center cursor-pointer pointer-events-auto" style="transform: translate(-50%, -50%);">
-            <div class="absolute w-10 h-10 rounded-full bg-indigo-500/25 animate-ping"></div>
-            <div class="absolute w-6 h-6 rounded-full bg-indigo-600/40"></div>
-            <div class="relative w-4 h-4 rounded-full bg-indigo-500 border-2 border-white shadow-[0_0_15px_rgba(99,102,241,1)] flex items-center justify-center">
+            <div class="absolute w-10 h-10 rounded-full animate-ping" style="background-color: ${glowColor}; opacity: 0.35;"></div>
+            <div class="absolute w-6 h-6 rounded-full" style="background-color: ${glowColor}; opacity: 0.5;"></div>
+            <div class="relative w-4 h-4 rounded-full border-2 border-white flex items-center justify-center" style="background-color: ${tagColor}; box-shadow: 0 0 15px ${glowColor};">
               <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
             </div>
             <div class="mt-1.5 px-2.5 py-1 rounded-md bg-black/95 border border-indigo-500/80 shadow-[0_0_15px_rgba(79,70,229,0.35)] backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap z-50">
-              <span class="w-1.5 h-1.5 rounded-full ${
-                fact.isCustom ? 'bg-amber-400' : 'bg-indigo-400'
-              } shrink-0"></span>
-              <span class="text-[11px] font-bold text-white tracking-wide font-sans">${
-                fact.name
-              }</span>
+              <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${tagColor};"></span>
+              <span class="text-[11px] font-bold text-white tracking-wide font-sans">${fact.name}</span>
             </div>
           </div>
         `;
       } else {
-        const dotBg = fact.isCustom
-          ? 'bg-amber-400 border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-          : 'bg-indigo-400/70 border-black/80 hover:bg-white shadow-[0_0_6px_rgba(99,102,241,0.6)]';
-
         iconHtml = `
           <div class="kurdish-dot-marker cursor-pointer transition-transform hover:scale-150" style="transform: translate(-50%, -50%);">
-            <div class="w-2.5 h-2.5 rounded-full ${dotBg} border"></div>
+            <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-sm" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
           </div>
         `;
       }
@@ -534,6 +539,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         marker.on('click', () => {
           onSelectFact(fact);
+          setShowQuickSummary(true);
         });
 
         markersLayer.addLayer(marker);
@@ -543,7 +549,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     });
   }, [visibleFacts, selectedFact?.id, showAllMarkers]);
 
-  // Smooth camera flyTo on selectedFact change (hardened against NaN dimensions)
+  // Smooth camera flyTo on selectedFact change
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !selectedFact) return;
@@ -657,72 +663,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           </div>
         )}
 
-        {/* C. Persistent Century Stepper Badge (Shown whenever activeCenturyFilter is not 'all') */}
-        {currentCenturyId !== 'all' && (
-          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/95 border border-purple-500/80 shadow-[0_0_25px_rgba(168,85,247,0.45)] backdrop-blur-md animate-fade-in text-right">
-            <button
-              onClick={handlePrevCentury}
-              className="p-1 rounded-full text-purple-300 hover:text-white hover:bg-purple-950 transition-colors cursor-pointer"
-              title="سەدەی پێشوو"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={() => setIsCenturyMenuOpen(true)}
-              className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity"
-            >
-              <span
-                className="w-2 h-2 rounded-full animate-ping shrink-0"
-                style={{ backgroundColor: currentCenturyObj.badgeColor || '#a855f7' }}
-              />
-              <Hourglass className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span className="text-xs font-bold text-white tracking-wide">
-                {currentCenturyObj.label}
-              </span>
-              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-purple-950 text-purple-300 border border-purple-800/60">
-                {visibleFacts.length} شوێن
-              </span>
-            </button>
-
-            <button
-              onClick={handleNextCentury}
-              className="p-1 rounded-full text-purple-300 hover:text-white hover:bg-purple-950 transition-colors cursor-pointer"
-              title="سەدەی دواتر"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={() => handleSelectCentury('all')}
-              className="p-1 -mr-1 rounded-full text-purple-400 hover:text-white hover:bg-purple-950 transition-colors cursor-pointer border-r border-purple-900/60 pr-1.5"
-              title="لابردنی فلتەری سەدە و پیشاندانی هەمووی"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* C. Filter Notification Toast (Pops up when switched) */}
+        {/* Filter Notification Toast (Pops up when switched) */}
         {filterNotification && activeTagFilter === 'all' && (
           <div className="pointer-events-auto flex items-center gap-2 px-3 py-1 rounded-full bg-black/90 border border-indigo-950 text-indigo-300 text-[11px] font-medium shadow-xl backdrop-blur-md animate-fade-in">
             <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
             <span>فلتەر: {filterNotification}</span>
-          </div>
-        )}
-
-        {/* D. Selected Fact Header Badge */}
-        {!isPickingLocation && selectedFact && (
-          <div className="flex flex-col items-center pointer-events-auto px-3.5 py-1.5 rounded-xl bg-black/90 border border-indigo-950/80 shadow-[0_0_25px_rgba(79,70,229,0.25)] backdrop-blur-md">
-            <span className="text-[10px] text-indigo-400 font-medium tracking-wide">
-              دەسەڵاتی دیاریکراو
-            </span>
-            <span className="text-xs font-bold text-white mt-0.5 max-w-[260px] truncate">
-              {selectedFact.name}
-            </span>
-            <span className="text-[9px] text-indigo-300/70 mt-0.5">
-              {selectedFact.desc}
-            </span>
           </div>
         )}
       </div>
@@ -781,126 +726,27 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           )}
         </button>
 
-        {/* Polygon Border Toggle */}
+        {/* Overview Viewport Reset (Framing Erbil, Kirkuk, Shingal, Khanaqin, Badra & Jassan) */}
         <button
-          onClick={() => setShowPolygon(!showPolygon)}
-          title={showPolygon ? 'شاردنەوەی سنووری کوردستان' : 'پیشاندانی سنووری کوردستان'}
-          className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border transition-all shadow-lg ${
-            showPolygon
-              ? 'bg-indigo-600/30 border-indigo-500/80 text-indigo-300'
-              : 'bg-black/60 border-indigo-950 text-indigo-400/50 hover:text-white'
-          }`}
+          onClick={() => {
+            if (!mapInstanceRef.current) return;
+            mapInstanceRef.current.flyToBounds(
+              [
+                [32.6, 40.8],
+                [37.5, 47.2],
+              ],
+              {
+                paddingTopLeft: [20, 20],
+                paddingBottomRight: [20, 105],
+                duration: 1.2,
+              }
+            );
+          }}
+          title="گەڕانەوە بۆ نەخشەی گشتی (هەولێر، کەرکووک، شنگاڵ، خانەقین، بەدرە و جەسان)"
+          className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border border-amber-500/40 bg-[#080c14]/90 text-amber-400 hover:text-white hover:border-amber-400 transition-all shadow-lg cursor-pointer"
         >
-          {showPolygon ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          <Compass className="w-3.5 h-3.5" />
         </button>
-
-        {/* Satellite / Dark Canvas Switcher */}
-        <button
-          onClick={() => setMapMode(mapMode === 'dark' ? 'satellite' : 'dark')}
-          title={mapMode === 'dark' ? 'گۆڕین بۆ سەتەلایتی تاریک' : 'گۆڕین بۆ نەخشەی ڕەشی خاوێن'}
-          className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border transition-all shadow-lg ${
-            mapMode === 'satellite'
-              ? 'bg-indigo-600/30 border-indigo-500/80 text-indigo-300'
-              : 'bg-black/60 border-indigo-950 text-indigo-400 hover:text-white'
-          }`}
-        >
-          {mapMode === 'satellite' ? (
-            <Satellite className="w-3.5 h-3.5" />
-          ) : (
-            <Moon className="w-3.5 h-3.5" />
-          )}
-        </button>
-
-        {/* Century Timeline Filter Toggle with Popover Explorer */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setIsCenturyMenuOpen((prev) => !prev);
-              setIsFilterMenuOpen(false);
-            }}
-            title={
-              currentCenturyId !== 'all'
-                ? `بینین بەپێی سەدە: ${currentCenturyObj.label}`
-                : 'بینین بەپێی سەدە (گەشت بەناو سەدەکاندا)'
-            }
-            className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border transition-all shadow-lg cursor-pointer ${
-              currentCenturyId !== 'all'
-                ? 'bg-purple-600/40 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.6)] ring-2 ring-purple-500/50'
-                : 'bg-black/60 border-indigo-950 text-indigo-400/80 hover:text-white'
-            }`}
-          >
-            <Hourglass className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Interactive Popover Menu for Century Timeline Explorer */}
-          {isCenturyMenuOpen && (
-            <div className="absolute right-10 top-0 w-72 max-h-[80vh] overflow-y-auto bg-black/95 border border-purple-900/90 rounded-2xl p-2.5 shadow-[0_0_50px_rgba(30,10,50,0.95)] backdrop-blur-2xl z-50 text-right animate-slide-left space-y-2">
-              <div className="flex items-center justify-between pb-1.5 border-b border-indigo-950/80 px-1">
-                <div className="flex items-center gap-1.5 text-purple-300">
-                  <Hourglass className="w-3.5 h-3.5 text-purple-400" />
-                  <div>
-                    <h4 className="text-xs font-bold text-white leading-tight">
-                      بینین بەپێی سەدە
-                    </h4>
-                    <p className="text-[9px] text-purple-300/70">
-                      گەشت بەناو مێژووی کوردستاندا
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsCenturyMenuOpen(false)}
-                  className="p-1 rounded text-purple-400 hover:text-white hover:bg-purple-950 transition-colors cursor-pointer"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-
-              {/* Century Options List */}
-              <div className="space-y-1">
-                {CENTURY_OPTIONS.map((c) => {
-                  const isSelected = currentCenturyId === c.id;
-                  const count = centuryCounts[c.id] || 0;
-
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => handleSelectCentury(c.id)}
-                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer text-right text-xs ${
-                        isSelected
-                          ? 'bg-purple-600 text-white font-bold shadow-[0_0_15px_rgba(168,85,247,0.5)] border border-purple-400/60'
-                          : 'bg-[#030712] text-slate-300 hover:bg-purple-950/60 hover:text-white border border-indigo-950/60'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate font-semibold text-[11px]">{c.label}</span>
-                        </div>
-                        {c.range && (
-                          <div className="text-[9px] text-indigo-300/60 font-mono truncate">
-                            {c.range}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span
-                          className={`font-mono text-[9px] px-1.5 py-0.2 rounded-full ${
-                            isSelected
-                              ? 'bg-black/40 text-white font-bold'
-                              : 'bg-indigo-950 text-indigo-300'
-                          }`}
-                        >
-                          {count}
-                        </span>
-                        {isSelected && <Check className="w-3 h-3 text-white" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Category Filter Toggle with Dynamic Icon & Popover Flyout */}
         <div className="relative">
@@ -996,15 +842,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           <Layers className="w-3.5 h-3.5" />
         </button>
 
-        {/* Globe: Reset Camera to Center */}
-        <button
-          onClick={handleResetCamera}
-          title="گەڕانەوە بۆ ناوەندی کوردستان"
-          className="w-8 h-8 rounded-full flex items-center justify-center bg-black/60 hover:bg-indigo-950/60 border border-indigo-950 text-indigo-300 hover:text-white backdrop-blur-md shadow-lg transition-all"
-        >
-          <Globe className="w-3.5 h-3.5" />
-        </button>
-
         <div className="h-px w-5 bg-indigo-950 my-0.5" />
 
         {/* Menu (Hamburger ≡) */}
@@ -1030,76 +867,154 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 5. Bottom Center Floating Capsule & Century Timeline Dock */}
-      <div className="absolute bottom-2.5 left-2 right-2 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center gap-1.5 max-w-2xl w-full">
-        {/* Horizontal Century Timeline: ONLY CENTURIES, NO EMPIRE/KINGDOM NAMES */}
-        <div className="w-full bg-black/92 border border-purple-950/80 rounded-2xl px-2 py-1.5 backdrop-blur-xl shadow-[0_0_35px_rgba(25,10,45,0.85)] flex items-center gap-1.5 text-right">
-          <div className="flex items-center gap-1 shrink-0 text-purple-400 pl-1.5 border-l border-purple-900/60">
-            <Hourglass className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span className="text-[10px] font-bold text-white hidden sm:inline">سەدەکان</span>
-          </div>
-
-          {/* Scrollable Century Buttons (Pure Century names only) */}
-          <div className="flex-1 flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 px-0.5">
-            {CENTURY_OPTIONS.map((c) => {
-              const isSelected = currentCenturyId === c.id;
-              const count = centuryCounts[c.id] || 0;
-
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => handleSelectCentury(c.id)}
-                  title={`${c.label} (${c.range || ''}) - ${count} وێستگە`}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl whitespace-nowrap text-[10px] font-medium transition-all cursor-pointer shrink-0 ${
-                    isSelected
-                      ? 'bg-purple-600 text-white font-bold shadow-[0_0_15px_rgba(168,85,247,0.55)] border border-purple-400'
-                      : 'bg-[#030712] text-slate-300 hover:text-white hover:bg-purple-950/60 border border-purple-950/70'
-                  }`}
-                >
-                  <span>{c.shortLabel}</span>
-                  {count > 0 && (
-                    <span
-                      className={`text-[8px] font-mono px-1 py-0.1 rounded-full ${
-                        isSelected
-                          ? 'bg-black/40 text-white'
-                          : 'bg-purple-950 text-purple-300'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Selected Fact Capsule */}
-        {selectedFact && (
+      {/* 5. Bottom Center Floating Capsule & Year Timeline Slider Dock (باریک، تەنک و جوان بۆ مۆبایلیش) */}
+      <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl z-30 pointer-events-auto flex flex-col items-center gap-0.5 sm:gap-1 w-auto sm:w-full">
+        {/* Quick Topic Summary Card with Beautiful Motion & Graphic (کورتەی بابەت بە مۆنشن و گرافیکی پرۆفێشناڵ) */}
+        {selectedFact && showQuickSummary && (
           <div
-            onClick={() => onOpenDetail && onOpenDetail(selectedFact)}
-            className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-black/95 border border-indigo-950 hover:border-indigo-500/60 backdrop-blur-xl shadow-lg cursor-pointer transition-all active:scale-98"
+            className="w-full max-w-md sm:max-w-lg mb-1.5 p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-[#0e1626]/98 via-[#080d17]/98 to-[#03060c]/98 border border-amber-500/40 shadow-[0_15px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(245,158,11,0.2)] backdrop-blur-2xl text-right animate-summary-popup z-40 transition-all select-text"
+            onClick={(e) => e.stopPropagation()}
           >
-            <span className="text-[9px] font-mono font-bold text-indigo-400/80 tracking-wider">
-              KUR
-            </span>
+            {/* Decorative Header with Kurdish Flag, Golden Sun & Category */}
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-500/20">
+              <div className="flex items-center gap-2 min-w-0">
+                {/* Kurdish Flag badge with glowing sun */}
+                <div className="w-6 h-4 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs shrink-0 border border-amber-400/50">
+                  <span className="text-[7px] text-amber-500 font-bold leading-none select-none">☀️</span>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-amber-400 tracking-wider">
+                      کورتەی بابەت
+                    </span>
+                    {selectedFact.tag && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60 font-medium">
+                        {selectedFact.tag}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold font-heading text-white truncate drop-shadow-xs mt-0.5">
+                    {selectedFact.name}
+                  </h3>
+                </div>
+              </div>
 
+              <div className="flex items-center gap-1.5 shrink-0">
+                {(selectedFact.year || selectedFact.century) && (
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-amber-950/80 text-amber-300 border border-amber-700/60 shadow-xs">
+                    {selectedFact.year || selectedFact.century}
+                  </span>
+                )}
+                <button
+                  onClick={() => setShowQuickSummary(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="داخستنی کورتە"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Location Description */}
+            {selectedFact.desc && (
+              <div className="flex items-center gap-1.5 mb-2 text-[11px] text-amber-200/90 font-medium">
+                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">{selectedFact.desc}</span>
+              </div>
+            )}
+
+            {/* Summary Text Content with Elegant Typography */}
+            <div className="p-2.5 rounded-xl bg-black/60 border border-indigo-950/80 text-slate-200 text-xs sm:text-[13px] leading-relaxed max-h-36 overflow-y-auto shadow-inner">
+              <p className="line-clamp-5 whitespace-pre-line">
+                {selectedFact.fullText || selectedFact.desc}
+              </p>
+            </div>
+
+            {/* Action Footer */}
+            <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-indigo-950/80">
+              <div className="flex items-center gap-1.5">
+                {onOpenDetail && (
+                  <button
+                    onClick={() => {
+                      setShowQuickSummary(false);
+                      onOpenDetail(selectedFact);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold text-xs shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all cursor-pointer active:scale-95"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-black" />
+                    <span>زانیاری زیاتر و بەڵگەنامەکان</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${selectedFact.name}\n${selectedFact.fullText || selectedFact.desc}\nشوێن: ${selectedFact.desc}`
+                    );
+                    setCopiedSummary(true);
+                    setTimeout(() => setCopiedSummary(false), 2000);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 hover:bg-indigo-950/70 text-slate-300 hover:text-white border border-indigo-900/60 text-[10px] transition-colors cursor-pointer"
+                  title="لەبەرگرتنەوەی دەق"
+                >
+                  {copiedSummary ? (
+                    <Check className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-slate-400" />
+                  )}
+                  <span>{copiedSummary ? 'کۆپیکرا' : 'کۆپی'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline Slider Component */}
+        <TimelineSlider
+          facts={facts}
+          selectedYear={selectedYear}
+          onYearChange={(newYear) => {
+            if (onYearChange) onYearChange(newYear);
+          }}
+          filteredCount={visibleFacts.length}
+          totalCount={facts.length}
+        />
+
+        {/* Selected Fact Capsule (Two-Tone Sleek Style - هر پۆینتێک داگرێت ببێتە ئەو شتە و بە کلیک کورتەی بدات) */}
+        {selectedFact && (
+          <button
+            onClick={() => setShowQuickSummary((prev) => !prev)}
+            className="group flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg sm:rounded-xl bg-[#080c14]/95 hover:bg-[#0f172a] border border-amber-500/40 hover:border-amber-400 backdrop-blur-xl shadow-lg cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-right"
+            title="کلیک بکە بۆ پیشاندانی کورتەی بابەت بە مۆنشن و گرافیک"
+          >
             {/* Kurdish Flag Icon in Center */}
-            <div className="w-4 h-3 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs">
-              <span className="text-[6px] text-amber-500 font-bold leading-none select-none">☀️</span>
+            <div className="w-3 h-2 sm:w-3.5 sm:h-2.5 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs shrink-0">
+              <span className="text-[4px] sm:text-[5px] text-amber-500 font-bold leading-none select-none">☀️</span>
             </div>
 
             {/* Selected Location Name */}
-            <div className="flex items-center gap-1.5 text-xs font-bold text-white tracking-wide">
-              <span>{selectedFact.name}</span>
-            </div>
+            <span className="text-[11px] sm:text-xs font-bold text-white tracking-wide group-hover:text-amber-300 transition-colors truncate max-w-[150px] sm:max-w-xs">
+              {selectedFact.name}
+            </span>
 
-            {(selectedFact.century || selectedFact.year) && (
-              <span className="text-[9px] font-mono text-purple-300 bg-purple-950/80 px-1.5 py-0.2 rounded border border-purple-800/40">
-                {selectedFact.century || selectedFact.year}
+            {(selectedFact.year || selectedFact.century) && (
+              <span className="text-[8px] sm:text-[9px] font-mono text-amber-300 bg-amber-950/80 px-1 sm:px-1.5 py-0.2 rounded border border-amber-800/40 shrink-0">
+                {selectedFact.year || selectedFact.century}
               </span>
             )}
-          </div>
+
+            {/* Interactive Motion Indicator */}
+            <span className="text-[9px] sm:text-[10px] text-amber-400 font-medium flex items-center gap-0.5 mr-0.5 pr-1 border-r border-amber-900/50 shrink-0">
+              <span>کورتە</span>
+              <ChevronUp
+                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 transition-transform duration-300 ${
+                  showQuickSummary ? 'rotate-180 text-amber-300' : 'text-amber-400 group-hover:-translate-y-0.5'
+                }`}
+              />
+            </span>
+          </button>
         )}
       </div>
     </div>

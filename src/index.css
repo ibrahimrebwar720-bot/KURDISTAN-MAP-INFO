@@ -105,3 +105,23 @@
   filter: brightness(0.52) contrast(1.25) saturate(0.5);
 }
 
+/* Smooth motion for Topic Summary Graphic Card */
+@keyframes summarySlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  60% {
+    opacity: 0.95;
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-summary-popup {
+  animation: summarySlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

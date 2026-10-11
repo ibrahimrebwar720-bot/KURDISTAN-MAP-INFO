@@ -19,11 +19,9 @@ import {
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
 import { FactDetailModal } from './components/FactDetailModal';
-import { FeaturedFactCard } from './components/FeaturedFactCard';
 import { AdminPinModal } from './components/AdminPinModal';
 import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
-import { X, Layers, LogOut } from 'lucide-react';
 
 export default function App() {
   const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
@@ -42,7 +40,7 @@ export default function App() {
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
   const [activeTagFilter, setActiveTagFilter] = useState('all');
-  const [activeCenturyFilter, setActiveCenturyFilter] = useState('all');
+  const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
   const [selectedCollectionId, setSelectedCollectionId] = useState('all');
 
   // Admin Modals state
@@ -58,6 +56,15 @@ export default function App() {
     lng: number;
   } | null>(null);
 
+  // Google Maps Platform Quota Exceeded Alert State
+  const [isGmpQuotaExceeded, setIsGmpQuotaExceeded] = useState(false);
+
+  useEffect(() => {
+    const handleQuota = () => setIsGmpQuotaExceeded(true);
+    window.addEventListener('gmp-quota-exceeded', handleQuota);
+    return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
+  }, []);
+
   // 1. Real-time Firebase Cloud Database synchronization for all users worldwide
   useEffect(() => {
     const unsubFacts = subscribeToCloudFacts((cloudFacts) => {
@@ -66,13 +73,13 @@ export default function App() {
       setSelectedFact((prev) => {
         if (!prev) return cloudFacts[0] || null;
         const found = cloudFacts.find((f) => f.id === prev.id);
-        return found || prev;
+        return found || (cloudFacts.length > 0 ? cloudFacts[0] : null);
       });
       // Keep detail fact synced
       setDetailFact((prev) => {
         if (!prev) return null;
         const found = cloudFacts.find((f) => f.id === prev.id);
-        return found || prev;
+        return found || null;
       });
     });
 
@@ -120,21 +127,6 @@ export default function App() {
   // Fact Selection
   const handleSelectFact = (fact: FactItem) => {
     setSelectedFact(fact);
-  };
-
-  // Next / Prev Fact navigation
-  const handleNextFact = () => {
-    if (facts.length === 0) return;
-    const currentIdx = facts.findIndex((f) => f.id === selectedFact?.id);
-    const nextIdx = (currentIdx + 1) % facts.length;
-    setSelectedFact(facts[nextIdx]);
-  };
-
-  const handlePrevFact = () => {
-    if (facts.length === 0) return;
-    const currentIdx = facts.findIndex((f) => f.id === selectedFact?.id);
-    const prevIdx = (currentIdx - 1 + facts.length) % facts.length;
-    setSelectedFact(facts[prevIdx]);
   };
 
   // Detail Modal Navigation
@@ -290,6 +282,24 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#090b0e] text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white text-xs">
+      {/* Google Maps Platform quota defense notification banner */}
+      {isGmpQuotaExceeded && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
+          <span>
+            Google Maps Platform quota reached. If you are the app owner, visit{' '}
+            <a
+              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold text-amber-950 hover:text-amber-800"
+            >
+              maps developer site
+            </a>{' '}
+            for instructions to update your account.
+          </span>
+        </div>
+      )}
+
       {/* Main Screen: Leaflet CartoDB Dark Matter */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
         {/* Full Viewport Interactive Kurdish Clean Dark Map */}
@@ -305,8 +315,8 @@ export default function App() {
           onOpenMenu={() => setIsMenuOpen(true)}
           activeTagFilter={activeTagFilter}
           setActiveTagFilter={setActiveTagFilter}
-          activeCenturyFilter={activeCenturyFilter}
-          setActiveCenturyFilter={setActiveCenturyFilter}
+          selectedYear={selectedYear}
+          onYearChange={setSelectedYear}
           isAdmin={isAdmin}
           onTriggerAdminPin={() => setIsAdminPinModalOpen(true)}
           onOpenAddFact={handleOpenAddFact}
@@ -326,63 +336,8 @@ export default function App() {
               onClick={() => setIsMenuOpen(false)}
             />
 
-            {/* Drawer Content */}
+            {/* Drawer Content - Starts directly from Search with close button */}
             <aside className="relative w-full sm:w-[390px] md:w-[450px] h-full bg-black border-r sm:border-r-0 sm:border-l border-indigo-950 shadow-[0_0_50px_rgba(15,10,40,0.8)] flex flex-col z-10 animate-slide-left text-right">
-              {/* Drawer Header with Hairline Indigo Divider */}
-              <div className="px-3.5 py-3 border-b border-indigo-950 bg-black flex items-center justify-between gap-2 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-indigo-950/80 border border-indigo-500/30 flex items-center justify-center shadow-[0_0_10px_rgba(79,70,229,0.25)]">
-                    <Layers className="w-3.5 h-3.5 text-indigo-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-xs font-bold text-white tracking-wide">
-                      ناوی دەسەڵاتەکان و زانیارییەکان
-                    </h2>
-                    <span className="text-[9px] text-indigo-400/80 font-medium">
-                      {facts.length} دەسەڵات، میرنشین و وێستگەی مێژوویی کوردستان
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {isAdmin ? (
-                    <button
-                      onClick={handleAdminLogout}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold text-red-300 bg-red-950/60 hover:bg-red-900/60 border border-red-800/60 transition-colors cursor-pointer"
-                      title="دەرچوون لە بەشی ئەدمین"
-                    >
-                      <LogOut className="w-3 h-3" />
-                      <span>دەرچوون</span>
-                    </button>
-                  ) : null}
-
-                  <button
-                    onClick={() => setIsMenuOpen(false)}
-                    className="p-1 rounded-md text-indigo-400 hover:text-white hover:bg-indigo-950/60 transition-colors cursor-pointer"
-                    title="داخستنی مینۆ"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Selected Fact Summary inside Drawer */}
-              {selectedFact && (
-                <div className="p-2 border-b border-indigo-950 bg-black shrink-0">
-                  <FeaturedFactCard
-                    fact={selectedFact}
-                    currentIndex={facts.findIndex((f) => f.id === selectedFact.id)}
-                    totalFacts={facts.length}
-                    onOpenDetail={(fact) => setDetailFact(fact)}
-                    onNext={handleNextFact}
-                    onPrev={handlePrevFact}
-                    isAdmin={isAdmin}
-                    onOpenEditFact={handleOpenEditFact}
-                  />
-                </div>
-              )}
-
-              {/* Searchable Facts List with Collections inside Drawer */}
               <div className="flex-1 overflow-hidden p-2 bg-black">
                 <FactsList
                   facts={facts}
@@ -398,6 +353,8 @@ export default function App() {
                   onOpenAddFact={handleOpenAddFact}
                   onOpenEditFact={handleOpenEditFact}
                   onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
+                  onClose={() => setIsMenuOpen(false)}
+                  onLogoutAdmin={handleAdminLogout}
                 />
               </div>
             </aside>
