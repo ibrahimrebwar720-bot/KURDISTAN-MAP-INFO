@@ -14,7 +14,7 @@
 | **Build command** | `npm run build` |
 | **Build output directory** | `dist` |
 | **Root directory** | `/` (یان بە بەتاڵی جێیبهێڵە) |
-| **Node.js Version** | `20` (لە فایلی `.nvmrc` دانراوە) |
+| **Node.js Version** | `22` (لە فایلی `.nvmrc` دانراوە) |
 
 ---
 
@@ -57,10 +57,25 @@
 
 ---
 
-### ڕێگای سێیەم: لە ڕێگەی تێرمیناڵەوە بە فەرمانی Wrangler (CLI)
+### ڕێگای سێیەم: لە ڕێگەی Cloudflare Workers (یان Wrangler CLI)
+ئەگەر لە کاتی بەستنەوەی گیت، وەک **Workers** دروستت کردووە، ئێستا فایلی `wrangler.toml` بە فەرمی ڕێکخراوە بە:
+```toml
+name = "kurdistan-map-info"
+compatibility_date = "2024-09-23"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+```
+بەهۆی ئەم ڕێکخستنەوە، فەرمانی `wrangler deploy` ڕاستەوخۆ فۆڵدەری `dist` دەخوێنێتەوە و بێ هیچ کێشەیەک دیپلۆی دەبێت!
+
 ```bash
 npm run build
-npx wrangler pages deploy dist --project-name=kurdish-historical-atlas
+npx wrangler deploy
+```
+یان بۆ Cloudflare Pages:
+```bash
+npx wrangler pages deploy dist --project-name=kurdistan-map-info
 ```
 
 ---
