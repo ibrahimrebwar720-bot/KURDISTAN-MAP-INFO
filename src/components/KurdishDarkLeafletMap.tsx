@@ -356,19 +356,19 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       const customIcon = L.divIcon({
         html: `
-          <div class="relative flex flex-col items-center pointer-events-none" style="transform: translate(-50%, -50%);">
-            <div class="absolute w-8 h-8 rounded-full bg-amber-400/30 animate-ping"></div>
-            <div class="relative w-5 h-5 rounded-full bg-amber-500 border-2 border-white shadow-[0_0_15px_rgba(245,158,11,1)] flex items-center justify-center">
+          <div class="relative w-6 h-6 flex items-center justify-center select-none pointer-events-none">
+            <div class="absolute -inset-1 rounded-full bg-amber-400/35 animate-ping"></div>
+            <div class="relative w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-[0_0_15px_rgba(245,158,11,1)] flex items-center justify-center">
               <div class="w-1.5 h-1.5 rounded-full bg-black"></div>
             </div>
-            <div class="mt-1 px-2 py-0.5 rounded bg-black/90 border border-amber-500 text-[10px] font-bold text-amber-300 whitespace-nowrap shadow-md">
+            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-0.5 rounded bg-black/95 border border-amber-500 text-[10px] font-bold text-amber-300 whitespace-nowrap shadow-md" dir="rtl">
               پۆینتی دەستنیشانکراو
             </div>
           </div>
         `,
         className: 'custom-picked-marker',
-        iconSize: [100, 40],
-        iconAnchor: [50, 20],
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       });
 
       try {
@@ -491,29 +491,33 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       if (isSelected) {
         iconHtml = `
-          <div class="kurdish-selected-marker absolute left-0 top-0 pointer-events-auto select-none" style="width: 0; height: 0;">
-            <!-- Outer glowing pulse ring centered on (0, 0) -->
-            <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full animate-ping pointer-events-none" style="background-color: ${glowColor}; opacity: 0.35;"></div>
+          <div class="relative w-7 h-7 flex items-center justify-center select-none pointer-events-auto">
+            <!-- Outer glowing pulse ring centered on the pin -->
+            <div class="absolute -inset-1.5 rounded-full animate-ping pointer-events-none opacity-40" style="background-color: ${glowColor};"></div>
             
-            <!-- Secondary glow halo centered on (0, 0) -->
-            <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full pointer-events-none" style="background-color: ${glowColor}; opacity: 0.5;"></div>
+            <!-- Secondary soft halo centered on the pin -->
+            <div class="absolute inset-0 rounded-full pointer-events-none opacity-60" style="background-color: ${glowColor};"></div>
             
-            <!-- Central Pin Dot (Centered exactly at 0, 0 on the geographic coordinate) -->
-            <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-lg z-10" style="background-color: ${tagColor}; box-shadow: 0 0 16px ${glowColor};">
+            <!-- Central Pin Dot (Centered exactly at (14px, 14px)) -->
+            <div class="relative w-4 h-4 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-lg z-10" style="background-color: ${tagColor}; box-shadow: 0 0 16px ${glowColor};">
               <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
             </div>
 
-            <!-- Name Label Tag (Hangs below the dot, centered horizontally without displacing the anchor) -->
-            <div class="absolute left-0 top-3 -translate-x-1/2 mt-1 px-2.5 py-1 rounded-md bg-black/95 border border-indigo-500/80 shadow-[0_4px_20px_rgba(0,0,0,0.9),0_0_15px_rgba(79,70,229,0.35)] backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap z-50 pointer-events-auto">
-              <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${tagColor};"></span>
-              <span class="text-[11px] font-bold text-white tracking-wide font-sans">${fact.name}</span>
+            <!-- Name Label Tag (Hangs directly below the pin, centered horizontally at 50% without displacing the anchor) -->
+            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50">
+              <!-- Little arrow triangle pointing up to the pin dot -->
+              <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-indigo-500/80 mx-auto -mb-1 shadow-xs"></div>
+              <!-- Badge Content in RTL -->
+              <div dir="rtl" class="px-2.5 py-1 rounded-md bg-[#080c14]/95 border border-indigo-500/80 shadow-[0_4px_20px_rgba(0,0,0,0.9),0_0_15px_rgba(79,70,229,0.35)] backdrop-blur-md whitespace-nowrap text-right">
+                <span class="text-[11px] font-bold text-white tracking-wide font-sans">${fact.name}</span>
+              </div>
             </div>
           </div>
         `;
       } else {
         iconHtml = `
-          <div class="kurdish-dot-marker absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform duration-150 hover:scale-150 pointer-events-auto select-none" style="width: 12px; height: 12px;">
-            <div class="w-3 h-3 rounded-full border border-black/80 hover:bg-white shadow-sm transition-colors" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
+          <div class="w-4 h-4 flex items-center justify-center cursor-pointer pointer-events-auto transition-transform duration-150 hover:scale-125 select-none">
+            <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-sm transition-colors" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
           </div>
         `;
       }
@@ -521,8 +525,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       const customIcon = L.divIcon({
         html: iconHtml,
         className: 'kurdish-map-marker-container',
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
+        iconSize: isSelected ? [28, 28] : [16, 16],
+        iconAnchor: isSelected ? [14, 14] : [8, 8],
       });
 
       const lat = Number(fact.lat);

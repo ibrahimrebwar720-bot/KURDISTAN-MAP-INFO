@@ -61,7 +61,7 @@
 .leaflet-container {
   background: #090d16 !important;
   font-family: 'Vazirmatn', sans-serif !important;
-  direction: rtl !important;
+  direction: ltr !important; /* CRITICAL: Leaflet map engine requires LTR for map math and marker positioning. Popups and controls have RTL applied */
 }
 
 .leaflet-popup-content-wrapper {
@@ -149,5 +149,13 @@
   background: transparent !important;
   border: none !important;
   pointer-events: auto !important;
+  direction: ltr !important;
+}
+
+.custom-picked-marker {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: auto !important;
+  direction: ltr !important;
 }
 
