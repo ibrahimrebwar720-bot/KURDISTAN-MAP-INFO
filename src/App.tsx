@@ -22,7 +22,6 @@ import { FactDetailModal } from './components/FactDetailModal';
 import { AdminPinModal } from './components/AdminPinModal';
 import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
-import { PWAInstallBanner } from './components/PWAInstallBanner';
 
 export default function App() {
   const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
@@ -303,9 +302,6 @@ export default function App() {
 
       {/* Main Screen: Leaflet CartoDB Dark Matter */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
-        {/* PWA In-App Install Pill & Guided Modal */}
-        <PWAInstallBanner />
-
         {/* Full Viewport Interactive Kurdish Clean Dark Map */}
         <KurdishDarkLeafletMap
           facts={facts}

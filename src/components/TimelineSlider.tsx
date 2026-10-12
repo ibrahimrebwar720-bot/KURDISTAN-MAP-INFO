@@ -514,7 +514,7 @@ export const TimelineSlider: React.FC<Props> = ({
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
               onScroll={handleScroll}
-              className={`flex items-end gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5 sm:py-1.5 px-10 sm:px-24 scroll-smooth min-h-[26px] sm:min-h-[44px] select-none ${
+              className={`timeline-ruler-container flex items-end gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5 sm:py-1.5 px-10 sm:px-24 scroll-smooth min-h-[26px] sm:min-h-[44px] select-none ${
                 isDragging ? 'cursor-grabbing' : 'cursor-grab'
               }`}
               style={{ touchAction: 'pan-x' }}

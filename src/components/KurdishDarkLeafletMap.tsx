@@ -250,6 +250,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     // Center on central Kurdistan: Erbil, Kirkuk, Shingal, Khanaqin & Wasit
+    // Optimized for 60 FPS - 120 FPS high-refresh rate displays (ProMotion / 120Hz OLEDs)
     const map = L.map(mapContainerRef.current, {
       center: [35.2, 44.2],
       zoom: 6.5,
@@ -257,6 +258,16 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       maxZoom: 16,
       zoomControl: false,
       attributionControl: false,
+      zoomAnimation: true,
+      zoomAnimationThreshold: 8,
+      fadeAnimation: true,
+      markerZoomAnimation: true,
+      inertia: true,
+      inertiaDeceleration: 3400, // Smooth 120fps friction curve
+      inertiaMaxSpeed: 2400,
+      easeLinearity: 0.15,
+      wheelDebounceTime: 20, // Rapid responsive wheel response for high Hz mice/trackpads
+      wheelPxPerZoomLevel: 90,
     });
 
     // Dark TileLayer with persistent CacheStorage - avoids black loading squares
