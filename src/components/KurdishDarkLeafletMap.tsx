@@ -72,7 +72,7 @@ interface Props {
 const TAG_FILTER_OPTIONS = [
   {
     id: 'all',
-    label: 'هەموو وێستگەکان',
+    label: 'هەموو دەسەڵاتەکان',
     shortLabel: 'هەمووی',
     icon: SlidersHorizontal,
     color: '#6366f1',
@@ -491,13 +491,20 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       if (isSelected) {
         iconHtml = `
-          <div class="kurdish-selected-marker relative flex flex-col items-center cursor-pointer pointer-events-auto" style="transform: translate(-50%, -50%);">
-            <div class="absolute w-10 h-10 rounded-full animate-ping" style="background-color: ${glowColor}; opacity: 0.35;"></div>
-            <div class="absolute w-6 h-6 rounded-full" style="background-color: ${glowColor}; opacity: 0.5;"></div>
-            <div class="relative w-4 h-4 rounded-full border-2 border-white flex items-center justify-center" style="background-color: ${tagColor}; box-shadow: 0 0 15px ${glowColor};">
+          <div class="kurdish-selected-marker absolute left-0 top-0 pointer-events-auto select-none" style="width: 0; height: 0;">
+            <!-- Outer glowing pulse ring centered on (0, 0) -->
+            <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full animate-ping pointer-events-none" style="background-color: ${glowColor}; opacity: 0.35;"></div>
+            
+            <!-- Secondary glow halo centered on (0, 0) -->
+            <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full pointer-events-none" style="background-color: ${glowColor}; opacity: 0.5;"></div>
+            
+            <!-- Central Pin Dot (Centered exactly at 0, 0 on the geographic coordinate) -->
+            <div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-lg z-10" style="background-color: ${tagColor}; box-shadow: 0 0 16px ${glowColor};">
               <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
             </div>
-            <div class="mt-1.5 px-2.5 py-1 rounded-md bg-black/95 border border-indigo-500/80 shadow-[0_0_15px_rgba(79,70,229,0.35)] backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap z-50">
+
+            <!-- Name Label Tag (Hangs below the dot, centered horizontally without displacing the anchor) -->
+            <div class="absolute left-0 top-3 -translate-x-1/2 mt-1 px-2.5 py-1 rounded-md bg-black/95 border border-indigo-500/80 shadow-[0_4px_20px_rgba(0,0,0,0.9),0_0_15px_rgba(79,70,229,0.35)] backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap z-50 pointer-events-auto">
               <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${tagColor};"></span>
               <span class="text-[11px] font-bold text-white tracking-wide font-sans">${fact.name}</span>
             </div>
@@ -505,17 +512,17 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         `;
       } else {
         iconHtml = `
-          <div class="kurdish-dot-marker cursor-pointer transition-transform hover:scale-150" style="transform: translate(-50%, -50%);">
-            <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-sm" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
+          <div class="kurdish-dot-marker absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform duration-150 hover:scale-150 pointer-events-auto select-none" style="width: 12px; height: 12px;">
+            <div class="w-3 h-3 rounded-full border border-black/80 hover:bg-white shadow-sm transition-colors" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
           </div>
         `;
       }
 
       const customIcon = L.divIcon({
         html: iconHtml,
-        className: 'custom-leaflet-div-icon',
-        iconSize: isSelected ? [120, 50] : [10, 10],
-        iconAnchor: isSelected ? [60, 20] : [5, 5],
+        className: 'kurdish-map-marker-container',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
       });
 
       const lat = Number(fact.lat);
@@ -773,7 +780,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 <div className="flex items-center gap-1.5">
                   <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
                   <span className="text-[11px] font-bold text-white">
-                    فلتەری جۆری وێستگەکان
+                    فلتەری جۆری دەسەڵاتەکان
                   </span>
                 </div>
                 <button
@@ -867,12 +874,17 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 5. Bottom Center Floating Capsule & Year Timeline Slider Dock (باریک، تەنک و جوان بۆ مۆبایلیش) */}
-      <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl z-30 pointer-events-auto flex flex-col items-center gap-0.5 sm:gap-1 w-auto sm:w-full">
+      {/* 5. Bottom Center Floating Capsule & Year Timeline Slider Dock (باریک، تەنک و ڕوون لەسەر مۆبایل بەبێ پێویستی بە سکرۆڵ) */}
+      <div
+        className="absolute left-1.5 right-1.5 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl z-40 pointer-events-auto flex flex-col items-center gap-0.5 sm:gap-1 w-auto sm:w-full max-h-[calc(100dvh-4rem)] overflow-y-auto scrollbar-none"
+        style={{
+          bottom: 'max(0.6rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
+        }}
+      >
         {/* Quick Topic Summary Card with Beautiful Motion & Graphic (کورتەی بابەت بە مۆنشن و گرافیکی پرۆفێشناڵ) */}
         {selectedFact && showQuickSummary && (
           <div
-            className="w-full max-w-md sm:max-w-lg mb-1.5 p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-[#0e1626]/98 via-[#080d17]/98 to-[#03060c]/98 border border-amber-500/40 shadow-[0_15px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(245,158,11,0.2)] backdrop-blur-2xl text-right animate-summary-popup z-40 transition-all select-text"
+            className="w-full max-w-md sm:max-w-lg mb-1 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#0e1626]/98 via-[#080d17]/98 to-[#03060c]/98 border border-amber-500/40 shadow-[0_15px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(245,158,11,0.2)] backdrop-blur-2xl text-right animate-summary-popup z-40 transition-all select-text shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Decorative Header with Kurdish Flag, Golden Sun & Category */}

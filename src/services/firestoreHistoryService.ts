@@ -16,17 +16,22 @@ import {
   saveStoredCollections,
   inferCollectionForFact,
   sanitizeFact,
+  isCityFact,
 } from './historyStorageService';
 
 const FACTS_COLLECTION = 'facts';
 const COLLECTIONS_COLLECTION = 'collections';
 
-// Helper: Merge Firestore facts with all 46 Kurdish Provinces and Cities from the map image
+// Helper: Merge Firestore facts and exclude any city stations / provincial points
 function mergeFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
   const map = new Map<number, FactItem>();
-  KURDISH_PROVINCES_CITIES.forEach((city) => map.set(city.id, city));
+  KURDISH_PROVINCES_CITIES.forEach((city) => {
+    if (!isCityFact(city)) {
+      map.set(city.id, city);
+    }
+  });
   cloudFacts.forEach((cf) => {
-    if (cf && typeof cf.id === 'number') {
+    if (cf && typeof cf.id === 'number' && !isCityFact(cf)) {
       map.set(cf.id, sanitizeFact(cf));
     }
   });
@@ -65,7 +70,13 @@ export function subscribeToCloudFacts(onUpdate: (facts: FactItem[]) => void): ()
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           if (data && typeof data.id === 'number') {
-            cloudList.push(data as FactItem);
+            const item = data as FactItem;
+            if (isCityFact(item)) {
+              // Delete permanently from cloud so it does not linger
+              deleteDoc(docSnap.ref).catch(() => {});
+            } else {
+              cloudList.push(item);
+            }
           }
         });
 

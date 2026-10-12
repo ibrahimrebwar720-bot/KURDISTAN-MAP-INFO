@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0b1329" />
+      <stop offset="100%" stop-color="#030712" />
+    </radialGradient>
+    <radialGradient id="sun-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="gold-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bg-grad)" stroke="url(#gold-stroke)" stroke-width="6" />
+  
+  <!-- Outer Gold Rings -->
+  <circle cx="256" cy="256" r="215" fill="none" stroke="url(#gold-stroke)" stroke-width="2.5" opacity="0.6" />
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#gold-stroke)" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.4" />
+  
+  <!-- Map of Kurdistan Contour Path (Stylized) -->
+  <path d="M 160 140 C 210 130 260 145 300 160 C 340 170 380 200 400 240 C 410 270 390 310 380 340 C 370 370 350 400 320 420 C 290 435 250 420 220 390 C 190 380 160 360 140 330 C 120 300 110 260 120 220 C 130 180 140 150 160 140 Z" fill="#042f2e" stroke="url(#gold-stroke)" stroke-width="4" opacity="0.85" filter="drop-shadow(0 0 15px rgba(245, 158, 11, 0.4))" />
+  
+  <!-- Central Glowing Sun -->
+  <circle cx="256" cy="265" r="75" fill="url(#sun-glow)" />
+  <circle cx="256" cy="265" r="26" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
+  
+  <!-- 21 Sun Rays of Kurdistan Flag -->
+  <g stroke="#fbbf24" stroke-width="3" stroke-linecap="round">
+    <line x1="256" y1="233" x2="256" y2="210" />
+    <line x1="265" y1="234" x2="274" y2="212" />
+    <line x1="274" y1="238" x2="291" y2="217" />
+    <line x1="281" y1="244" x2="304" y2="226" />
+    <line x1="286" y1="251" x2="313" y2="238" />
+    <line x1="288" y1="260" x2="317" y2="252" />
+    <line x1="287" y1="269" x2="316" y2="267" />
+    <line x1="283" y1="277" x2="309" y2="282" />
+    <line x1="277" y1="284" x2="298" y2="296" />
+    <line x1="269" y1="289" x2="283" y2="307" />
+    <line x1="260" y1="292" x2="265" y2="315" />
+    <line x1="251" y1="292" x2="246" y2="315" />
+    <line x1="242" y1="289" x2="228" y2="307" />
+    <line x1="234" y1="284" x2="213" y2="296" />
+    <line x1="228" y1="277" x2="202" y2="282" />
+    <line x1="224" y1="269" x2="195" y2="267" />
+    <line x1="223" y1="260" x2="194" y2="252" />
+    <line x1="225" y1="251" x2="198" y2="238" />
+    <line x1="230" y1="244" x2="207" y2="226" />
+    <line x1="237" y1="238" x2="220" y2="217" />
+    <line x1="246" y1="234" x2="237" y2="212" />
+  </g>
+</svg>

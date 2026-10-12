@@ -13,8 +13,8 @@ export const ADMIN_SECRET_CODE = '200076';
 export const DEFAULT_COLLECTIONS: CollectionItem[] = [
   {
     id: 'all',
-    name: 'هەموو وێستگەکان',
-    description: 'تەواوی دەسەڵات، میرنشین، وەزیران و وێستگە مێژووییەکان',
+    name: 'هەموو دەسەڵاتەکان',
+    description: 'تەواوی دەسەڵات، میرنشین، وەزیران و شوێنە مێژووییەکان',
     color: '#6366f1',
     isCustom: false,
   },

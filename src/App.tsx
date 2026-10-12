@@ -22,6 +22,7 @@ import { FactDetailModal } from './components/FactDetailModal';
 import { AdminPinModal } from './components/AdminPinModal';
 import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 
 export default function App() {
   const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
@@ -281,7 +282,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#090b0e] text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white text-xs">
+    <div className="h-full h-[100dvh] w-full overflow-hidden bg-[#090b0e] text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white text-xs">
       {/* Google Maps Platform quota defense notification banner */}
       {isGmpQuotaExceeded && (
         <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
@@ -302,6 +303,9 @@ export default function App() {
 
       {/* Main Screen: Leaflet CartoDB Dark Matter */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
+        {/* PWA In-App Install Pill & Guided Modal */}
+        <PWAInstallBanner />
+
         {/* Full Viewport Interactive Kurdish Clean Dark Map */}
         <KurdishDarkLeafletMap
           facts={facts}

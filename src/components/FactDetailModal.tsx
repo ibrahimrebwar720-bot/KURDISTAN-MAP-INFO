@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 
+const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
+
 interface Props {
   fact: FactItem | null;
   onClose: () => void;
@@ -96,11 +98,21 @@ export const FactDetailModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-2 sm:p-3 bg-black/85 backdrop-blur-xs animate-fade-in">
       <div
-        className="relative w-full max-w-lg bg-black border border-indigo-950 rounded-xl p-3.5 sm:p-4 shadow-[0_0_60px_rgba(15,10,40,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100"
+        className="relative w-full max-w-lg bg-black border border-indigo-950 rounded-xl p-3.5 sm:p-4 shadow-[0_0_60px_rgba(15,10,40,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Subtle Background Layer: Kurdish Battles & Scholars Artwork */}
+        <div className="absolute inset-0 pointer-events-none opacity-15 overflow-hidden z-0">
+          <img
+            src={BATTLE_SCHOLAR_BG}
+            alt="Kurdish Battles & Scholars Background"
+            className="w-full h-full object-cover object-center filter saturate-50"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/90 to-black" />
+        </div>
+
         {/* Header row */}
-        <div className="flex items-center justify-between gap-2 border-b border-indigo-950 pb-2 mb-2.5">
+        <div className="relative z-10 flex items-center justify-between gap-2 border-b border-indigo-950 pb-2 mb-2.5">
           <div className="flex items-center gap-2">
             <span className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-mono font-bold text-xs flex items-center justify-center shadow-[0_0_12px_rgba(79,70,229,0.4)] shrink-0">
               #{fact.num}

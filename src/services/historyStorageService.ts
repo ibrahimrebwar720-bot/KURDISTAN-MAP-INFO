@@ -153,32 +153,53 @@ export function sanitizeFact(fact: any): FactItem {
   };
 }
 
+export function isCityFact(fact: Partial<FactItem>): boolean {
+  if (!fact) return false;
+  if (fact.eraName === 'شارەکانی کوردستان') return true;
+  if (typeof fact.id === 'number' && fact.id >= 1001 && fact.id <= 1050) return true;
+  if ((fact.tag as unknown as string) === 'city') return true;
+  if (fact.collectionId === 'cities') return true;
+  const n = (fact.name || '').trim();
+  // Filter out any standalone city names that were added as modern cities or provincial station points
+  if (
+    n.startsWith('شاری ') &&
+    !n.includes('ماد') &&
+    !n.includes('میتانی') &&
+    !n.includes('دینەوەر') &&
+    !n.includes('ئاراپخا') &&
+    !n.includes('توشپا') &&
+    !n.includes('واشۆکانی') &&
+    !n.includes('نوزی')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function loadStoredFacts(): FactItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FACTS);
     if (!raw) {
-      saveStoredFacts(KURDISH_PROVINCES_CITIES);
-      return KURDISH_PROVINCES_CITIES;
+      return [];
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      const map = new Map<number, FactItem>();
-      // 1. Seed all 46 Kurdish provinces and cities from image.png
-      KURDISH_PROVINCES_CITIES.forEach((p) => map.set(p.id, p));
-      // 2. Overlay any custom facts or user modifications
-      parsed.forEach((f) => {
-        if (f && typeof f.id === 'number') {
-          map.set(f.id, sanitizeFact(f));
-        }
-      });
-      const merged = Array.from(map.values());
-      return merged;
+      // Filter out city facts / stations
+      const cleaned = parsed
+        .filter((f) => f && typeof f.id === 'number' && !isCityFact(f))
+        .map((f) => sanitizeFact(f));
+
+      // Synchronize back if city facts were purged
+      if (cleaned.length !== parsed.length) {
+        saveStoredFacts(cleaned);
+      }
+      return cleaned;
     }
   } catch (e) {
     console.warn('Failed to load facts from storage:', e);
   }
 
-  return KURDISH_PROVINCES_CITIES;
+  return [];
 }
 
 export function saveStoredFacts(facts: FactItem[]): void {

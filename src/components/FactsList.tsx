@@ -30,6 +30,9 @@ interface Props {
   onLogoutAdmin?: () => void;
 }
 
+const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
+const KURD_MAP_ICON = '/src/assets/images/kurd_map_pwa_icon_1791793702859.jpg';
+
 export const FactsList: React.FC<Props> = ({
   facts,
   selectedFact,
@@ -93,9 +96,36 @@ export const FactsList: React.FC<Props> = ({
   }, [facts]);
 
   return (
-    <div className="flex flex-col h-full bg-black rounded-lg border border-indigo-950/80 overflow-hidden shadow-2xl">
+    <div className="relative flex flex-col h-full bg-black rounded-lg border border-indigo-950/80 overflow-hidden shadow-2xl">
+      {/* Subtle Background Layer: Kurdish Battles & Scholars Artwork */}
+      <div className="absolute inset-0 pointer-events-none opacity-15 overflow-hidden z-0">
+        <img
+          src={BATTLE_SCHOLAR_BG}
+          alt="Kurdish Battles & Scholars Background"
+          className="w-full h-full object-cover object-center filter saturate-50"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/90 to-black" />
+      </div>
+
       {/* Top Header: Search and Admin Actions */}
-      <div className="p-2 border-b border-indigo-950/80 bg-black/95 space-y-2">
+      <div className="relative z-10 p-2 border-b border-indigo-950/80 bg-black/95 space-y-2">
+        {/* App Title Row with Kurdistan Map Icon */}
+        <div className="flex items-center justify-between px-1 pb-0.5 border-b border-indigo-950/60">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <img
+              src={KURD_MAP_ICON}
+              alt="KURDISTAN INFO MAP"
+              className="w-4.5 h-4.5 rounded-full object-cover border border-amber-400/50 shadow-xs"
+            />
+            <span className="text-[11px] font-black text-amber-300 font-heading tracking-wide">
+              KURDISTAN INFO MAP
+            </span>
+          </div>
+          <span className="text-[8px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800/40">
+            PWA ONLINE
+          </span>
+        </div>
+
         {/* Search Input Row with Close & Admin Logout */}
         <div className="flex items-center gap-1.5">
           <div className="relative flex-1">
@@ -211,7 +241,7 @@ export const FactsList: React.FC<Props> = ({
         <div className="flex items-center justify-between text-[9px] px-0.5 text-indigo-300/70 border-t border-indigo-950/60 pt-1">
           <span className="font-medium">پێڕستی مێژوویی</span>
           <span className="font-mono text-indigo-400 font-semibold">
-            {filteredFacts.length} لە {facts.length} وێستگە
+            {filteredFacts.length} لە {facts.length} دەسەڵات و شوێن
           </span>
         </div>
       </div>
@@ -231,7 +261,7 @@ export const FactsList: React.FC<Props> = ({
               </p>
               <p className="text-[10px] text-indigo-300/60 mt-1">
                 {facts.length === 0
-                  ? 'لەمەودوا دەتوانیت خۆت بە ئارەزووی خۆت دەسەڵات و وێستگەکان لەسەر نەخشەکە زیاد بکەیت.'
+                  ? 'لەمەودوا دەتوانیت خۆت بە ئارەزووی خۆت دەسەڵات و شوێنەکان لەسەر نەخشەکە زیاد بکەیت.'
                   : 'دەتوانیت فلتەرەکە بگۆڕیت یان دەسەڵاتی نوێ تۆمار بکەیت.'}
               </p>
             </div>
