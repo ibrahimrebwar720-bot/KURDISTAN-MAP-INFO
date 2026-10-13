@@ -151,50 +151,6 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
 
   // 2. Parse from year string
   const rawYear = fact.year ? normalizeYearString(fact.year) : '';
-  if (rawYear) {
-    const rangeParts = rawYear.split(/[-–—]|(\bتا\b)/);
-    const cleanedParts = rangeParts.filter((p) => p && p.trim() !== 'تا' && /\d/.test(p));
-    if (cleanedParts.length >= 2) {
-      const p1 = cleanedParts[0];
-      const p2 = cleanedParts[1];
-      const m1 = p1.match(/\d+/);
-      const m2 = p2.match(/\d+/);
-      if (m1 && m2) {
-        let y1 = parseInt(m1[0], 10);
-        let y2 = parseInt(m2[0], 10);
-
-        const p1HasBC = p1.includes('پ.ز') || p1.includes('پێش');
-        const p2HasBC = p2.includes('پ.ز') || p2.includes('پێش');
-
-        // Cross-era: starts BC and ends AD (e.g. "100 پ.ز - 50 ز")
-        if (p1HasBC && !p2HasBC) {
-          y1 = -Math.abs(y1);
-          y2 = Math.abs(y2);
-        } else if (p2HasBC && !p1HasBC && !p1.includes('ز')) {
-          // e.g. "700 - 550 پ.ز" -> both are BC
-          y1 = -Math.abs(y1);
-          y2 = -Math.abs(y2);
-        } else if (p1HasBC && p2HasBC) {
-          // e.g. "700 پ.ز - 550 پ.ز" -> both are BC
-          y1 = -Math.abs(y1);
-          y2 = -Math.abs(y2);
-        } else if (fact.isBC || fact.eraId === 1 || fact.eraId === 2) {
-          y1 = -Math.abs(y1);
-          y2 = -Math.abs(y2);
-        }
-
-        const s = Math.min(y1, y2);
-        const e = Math.max(y1, y2);
-        return {
-          startYear: s,
-          endYear: e,
-          isRange: true,
-          label: fact.year || formatKurdishYearRange(s, e),
-        };
-      }
-    }
-  }
-
   const isBC =
     Boolean(fact.isBC) ||
     (fact.year && (fact.year.includes('پ.ز') || fact.year.includes('پێش'))) ||
