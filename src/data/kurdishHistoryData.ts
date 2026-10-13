@@ -119,11 +119,19 @@ export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
   [35.95, 42.65],  // South of Nineveh Plains (دەشتی نەینەوا)
   // Sinjar (Shingal) region
   [36.08, 41.80],  // South of Mount Sinjar (باشووری چیای شنگاڵ)
-  [36.18, 41.15],  // Southwest of Sinjar (ڕۆژئاوای شنگاڵ)
-  [36.45, 41.05],  // West of Sinjar ridge (شنگاڵ)
-  [36.75, 41.35],  // Sinuni & Rabia north of Sinjar (سنونی و باکووری شنگاڵ)
-  // Rojava & Northern arc
-  [36.60, 40.50], [36.20, 39.00], [36.50, 38.00], [36.85, 36.20]
+  [36.18, 41.15],  // Southwest of Sinjar (باشووری ڕۆژئاوای شنگاڵ)
+  // پارێزگای حەسەکە (Hasakah Governorate)
+  [36.05, 40.95],  // South of Hasakah / Al-Hawl & Shaddadi (باشووری پارێزگای حەسەکە)
+  [36.35, 40.20],  // Mount Abdulaziz & southwest Hasakah (چیای عەبدولعەزیز و باشووری حەسەکە)
+  // گرێ سپی (Girê Spî / Tell Abyad)
+  [36.35, 38.90],  // South of Girê Spî / Ayn Issa (باشووری گرێ سپی و عەین عیسا)
+  // کۆبانێ (Kobanî)
+  [36.45, 38.25],  // South of Kobanî / Sarrin & Euphrates (باشووری کۆبانێ و ڕووباری فورات)
+  // باکووری حەلەب، مەنبەج، شەهبا و عەفرین (Northern Aleppo, Manbij, Shahba & Afrin)
+  [36.40, 37.60],  // Manbij & Shahba (مەنبەج و دەشتی شەهبا)
+  [36.20, 37.15],  // Northern Aleppo / Sheikh Maqsoud (باکووری حەلەب، شێخ مەقسوود و تەل ڕەفعەت)
+  [36.35, 36.70],  // South of Afrin / Mount Simeon & Jenderes (باشووری عەفرین و جۆندێرێس)
+  [36.60, 36.40]   // West of Afrin (چیای کورمێنج و سنوری باکووری ڕۆژئاوا)
 ];
 
 // Helper to determine category tag

@@ -36,12 +36,15 @@ import {
   Compass,
   MapPin,
   Copy,
+  Sun,
+  Sparkles,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
   filterFactsByActiveYear,
   formatKurdishYear,
 } from '../utils/yearUtils';
+import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 
 interface Props {
   facts: FactItem[];
@@ -67,6 +70,9 @@ interface Props {
   onPickLocation?: (lat: number, lng: number) => void;
   onCancelPickLocation?: () => void;
   pickedCoords?: { lat: number; lng: number } | null;
+  onReplayIntro?: () => void;
+  playMapIntro?: boolean;
+  onMapIntroComplete?: () => void;
 }
 
 const TAG_FILTER_OPTIONS = [
@@ -158,9 +164,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   onPickLocation,
   onCancelPickLocation,
   pickedCoords,
+  onReplayIntro,
+  playMapIntro = false,
+  onMapIntroComplete,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const [leafletMap, setLeafletMap] = useState<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
@@ -249,12 +259,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Center on central Kurdistan: Erbil, Kirkuk, Shingal, Khanaqin & Wasit
+    // Center on Greater Kurdistan (Bakur, Bashur, Rojava, Rojhelat)
     // Optimized for 60 FPS - 120 FPS high-refresh rate displays (ProMotion / 120Hz OLEDs)
     const map = L.map(mapContainerRef.current, {
-      center: [35.2, 44.2],
-      zoom: 6.5,
-      minZoom: 5,
+      center: [36.2, 43.8],
+      zoom: 5.5,
+      minZoom: 4,
       maxZoom: 16,
       zoomControl: false,
       attributionControl: false,
@@ -283,17 +293,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
 
-    // Set initial bounds to frame all of Erbil, Kirkuk, Shingal, Khanaqin, and down to Badra & Jassan in Wasit
-    map.fitBounds(
-      [
-        [32.6, 40.8], // Southwest: covering Badra & Jassan in Wasit (33.0°N) and Shingal in west (41.1°E)
-        [37.5, 47.2], // Northeast: covering Erbil, Kirkuk, Khanaqin & Zagros
-      ],
-      {
-        paddingTopLeft: [20, 20],
-        paddingBottomRight: [20, 105], // Ensure Badra & Jassan in Wasit are not obscured by bottom timeline dock
-      }
-    );
+    // Frame all of Greater Kurdistan cleanly so the whole map is clearly visible upon opening
+    const kurdistanBounds = L.latLngBounds(GREAT_KURDISTAN_POLYGON);
+    map.fitBounds(kurdistanBounds, {
+      padding: [20, 20],
+      maxZoom: 6.2,
+    });
 
     // Invalidate size after layout settles to prevent NaN coordinates in flyTo
     const timer = setTimeout(() => {
@@ -313,12 +318,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     preloadKurdistanTiles();
 
     mapInstanceRef.current = map;
+    setLeafletMap(map);
 
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', handleResize);
       map.remove();
       mapInstanceRef.current = null;
+      setLeafletMap(null);
     };
   }, []);
 
@@ -571,10 +578,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     });
   }, [visibleFacts, selectedFact?.id, showAllMarkers]);
 
-  // Smooth camera flyTo on selectedFact change
+  // Smooth camera flyTo on selectedFact change (disabled while intro is running)
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !selectedFact) return;
+    if (!map || !selectedFact || playMapIntro) return;
 
     const lat = Number(selectedFact.lat);
     const lng = Number(selectedFact.lng);
@@ -596,7 +603,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         return;
       }
       const currentZoom = map.getZoom();
-      const safeZoom = Number.isFinite(currentZoom) ? Math.max(currentZoom, 8) : 8;
+      const safeZoom = Number.isFinite(currentZoom) ? Math.max(currentZoom, 7.5) : 7.5;
       map.flyTo([lat, lng], safeZoom, {
         animate: true,
         duration: 1.2,
@@ -604,28 +611,25 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       });
     } catch {
       try {
-        map.setView([lat, lng], 8);
+        map.setView([lat, lng], 7.5);
       } catch {}
     }
-  }, [selectedFact?.id, selectedFact?.lat, selectedFact?.lng]);
+  }, [selectedFact?.id, selectedFact?.lat, selectedFact?.lng, playMapIntro]);
 
-  // Reset Camera to center of Kurdistan
+  // Reset Camera to full view of Greater Kurdistan
   const handleResetCamera = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
     try {
-      const size = map.getSize();
-      if (!size || size.x === 0 || size.y === 0) {
-        map.setView([36.8, 44.5], 6.5);
-        return;
-      }
-      map.flyTo([36.8, 44.5], 6.5, {
+      const kurdistanBounds = L.latLngBounds(GREAT_KURDISTAN_POLYGON);
+      map.fitBounds(kurdistanBounds, {
+        padding: [25, 25],
+        maxZoom: 6.2,
         animate: true,
-        duration: 1.2,
       });
     } catch {
       try {
-        map.setView([36.8, 44.5], 6.5);
+        map.setView([36.2, 43.8], 5.5);
       } catch {}
     }
   };
@@ -641,7 +645,17 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       {/* 1. Leaflet Map Viewport */}
       <div ref={mapContainerRef} className="w-full h-full z-0 bg-[#12161f]" />
 
-      {/* 2. Top-Center Indicators: Pick Mode / Filter Badge / Selected Location Badge */}
+      {/* 2. 4-Second Kurdistan Border Light Beam Motion Graphic & Illumination directly on real map */}
+      <KurdishMapBorderIllumination
+        map={leafletMap}
+        isActive={!!playMapIntro}
+        onComplete={() => {
+          if (onMapIntroComplete) onMapIntroComplete();
+        }}
+        durationMs={4000}
+      />
+
+      {/* 3. Top-Center Indicators: Pick Mode / Filter Badge / Selected Location Badge */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-1.5">
         {/* A. Picking Location Prompt */}
         {isPickingLocation ? (
@@ -748,27 +762,25 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           )}
         </button>
 
-        {/* Overview Viewport Reset (Framing Erbil, Kirkuk, Shingal, Khanaqin, Badra & Jassan) */}
+        {/* Overview Viewport Reset (Framing all of Greater Kurdistan) */}
         <button
-          onClick={() => {
-            if (!mapInstanceRef.current) return;
-            mapInstanceRef.current.flyToBounds(
-              [
-                [32.6, 40.8],
-                [37.5, 47.2],
-              ],
-              {
-                paddingTopLeft: [20, 20],
-                paddingBottomRight: [20, 105],
-                duration: 1.2,
-              }
-            );
-          }}
-          title="گەڕانەوە بۆ نەخشەی گشتی (هەولێر، کەرکووک، شنگاڵ، خانەقین، بەدرە و جەسان)"
+          onClick={handleResetCamera}
+          title="بینینی تەواوی نەخشەی کوردستان"
           className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border border-amber-500/40 bg-[#080c14]/90 text-amber-400 hover:text-white hover:border-amber-400 transition-all shadow-lg cursor-pointer"
         >
           <Compass className="w-3.5 h-3.5" />
         </button>
+
+        {/* Replay 4-Second Soft Glow on Map (ڕووناکیی نەرمی سنوری کوردستان لەسەر نەخشە) */}
+        {onReplayIntro && (
+          <button
+            onClick={onReplayIntro}
+            title="دووبارەکردنەوەی ڕووناکیی نەرمی سنوری کوردستان لەسەر نەخشە (٤ چرکە)"
+            className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border border-amber-400/60 bg-gradient-to-tr from-amber-600/30 to-yellow-500/20 text-amber-300 hover:text-white hover:border-amber-300 hover:scale-105 transition-all shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer"
+          >
+            <Sun className="w-3.5 h-3.5 text-amber-300" />
+          </button>
+        )}
 
         {/* Category Filter Toggle with Dynamic Icon & Popover Flyout */}
         <div className="relative">

@@ -24,16 +24,14 @@ import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
 
 export default function App() {
+  const [showIntro, setShowIntro] = useState<boolean>(true);
   const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
   const [collections, setCollections] = useState<CollectionItem[]>(() =>
     loadStoredCollections()
   );
   const [isAdmin, setIsAdmin] = useState<boolean>(() => getAdminState());
 
-  const [selectedFact, setSelectedFact] = useState<FactItem | null>(() => {
-    const loaded = loadStoredFacts();
-    return loaded.length > 0 ? loaded[0] : null;
-  });
+  const [selectedFact, setSelectedFact] = useState<FactItem | null>(null);
   const [detailFact, setDetailFact] = useState<FactItem | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -71,9 +69,9 @@ export default function App() {
       setFacts(cloudFacts);
       // Keep selected fact synced
       setSelectedFact((prev) => {
-        if (!prev) return cloudFacts[0] || null;
+        if (!prev) return null;
         const found = cloudFacts.find((f) => f.id === prev.id);
-        return found || (cloudFacts.length > 0 ? cloudFacts[0] : null);
+        return found || null;
       });
       // Keep detail fact synced
       setDetailFact((prev) => {
@@ -325,6 +323,9 @@ export default function App() {
           onPickLocation={handlePickLocationOnMap}
           onCancelPickLocation={handleCancelPickLocation}
           pickedCoords={pickedCoords}
+          onReplayIntro={() => setShowIntro(true)}
+          playMapIntro={showIntro}
+          onMapIntroComplete={() => setShowIntro(false)}
         />
 
         {/* Slide-Over Menu Drawer */}

@@ -157,9 +157,17 @@ export function isCityFact(fact: Partial<FactItem>): boolean {
   if (!fact) return false;
   if (fact.eraName === 'شارەکانی کوردستان') return true;
   if (typeof fact.id === 'number' && fact.id >= 1001 && fact.id <= 1050) return true;
-  if ((fact.tag as unknown as string) === 'city') return true;
-  if (fact.collectionId === 'cities') return true;
+  // Remove Hasakah and Rojava province stations as requested by user
+  if (typeof fact.id === 'number' && fact.id >= 901 && fact.id <= 904) return true;
   const n = (fact.name || '').trim();
+  if (
+    n.includes('حەسەکە') ||
+    n.includes('گرێ سپی') ||
+    (n.includes('ڕۆژئاوای کوردستان') && !n.includes('هۆرییەکان')) ||
+    (n.includes('ڕۆژاوای کوردستان') && !n.includes('هۆرییەکان'))
+  ) {
+    return true;
+  }
   // Filter out any standalone city names that were added as modern cities or provincial station points
   if (
     n.startsWith('شاری ') &&
@@ -180,7 +188,7 @@ export function loadStoredFacts(): FactItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FACTS);
     if (!raw) {
-      return [];
+      return KURDISH_PROVINCES_CITIES;
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -189,17 +197,18 @@ export function loadStoredFacts(): FactItem[] {
         .filter((f) => f && typeof f.id === 'number' && !isCityFact(f))
         .map((f) => sanitizeFact(f));
 
-      // Synchronize back if city facts were purged
-      if (cleaned.length !== parsed.length) {
-        saveStoredFacts(cleaned);
-      }
-      return cleaned;
+      const map = new Map<number, FactItem>();
+      KURDISH_PROVINCES_CITIES.forEach((loc) => map.set(loc.id, loc));
+      cleaned.forEach((f) => map.set(f.id, f));
+      const merged = Array.from(map.values());
+
+      return merged;
     }
   } catch (e) {
     console.warn('Failed to load facts from storage:', e);
   }
 
-  return [];
+  return KURDISH_PROVINCES_CITIES;
 }
 
 export function saveStoredFacts(facts: FactItem[]): void {
