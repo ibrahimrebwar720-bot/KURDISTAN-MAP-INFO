@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { CollectionItem } from '../types/history';
 import {
@@ -66,7 +66,8 @@ export const FactEditorModal: React.FC<Props> = ({
   const [collectionId, setCollectionId] = useState<string>('powers');
   const [startYearInput, setStartYearInput] = useState('');
   const [endYearInput, setEndYearInput] = useState('');
-  const [isBC, setIsBC] = useState(false);
+  const [startEra, setStartEra] = useState<'BC' | 'AD'>('AD');
+  const [endEra, setEndEra] = useState<'BC' | 'AD'>('AD');
   const [yearError, setYearError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasLocationPicked, setHasLocationPicked] = useState(false);
@@ -98,21 +99,38 @@ export const FactEditorModal: React.FC<Props> = ({
         setCollectionId(factToEdit.collectionId || 'powers');
         if (typeof factToEdit.birthYear === 'number') {
           setStartYearInput(Math.abs(factToEdit.birthYear).toString());
-          setIsBC(factToEdit.birthYear < 0);
-          setEndYearInput(typeof factToEdit.deathYear === 'number' ? Math.abs(factToEdit.deathYear).toString() : '');
+          setStartEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
+          if (typeof factToEdit.deathYear === 'number') {
+            setEndYearInput(Math.abs(factToEdit.deathYear).toString());
+            setEndEra(factToEdit.deathYear < 0 ? 'BC' : 'AD');
+          } else {
+            setEndYearInput('');
+            setEndEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
+          }
         } else if (typeof factToEdit.startYear === 'number') {
           setStartYearInput(Math.abs(factToEdit.startYear).toString());
-          setIsBC(factToEdit.startYear < 0);
-          setEndYearInput(
-            typeof factToEdit.endYear === 'number' && factToEdit.endYear !== factToEdit.startYear
-              ? Math.abs(factToEdit.endYear).toString()
-              : ''
-          );
+          setStartEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
+          if (
+            typeof factToEdit.endYear === 'number' &&
+            factToEdit.endYear !== factToEdit.startYear
+          ) {
+            setEndYearInput(Math.abs(factToEdit.endYear).toString());
+            setEndEra(factToEdit.endYear < 0 ? 'BC' : 'AD');
+          } else {
+            setEndYearInput('');
+            setEndEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
+          }
         } else {
           const span = getFactYearSpan(factToEdit);
           setStartYearInput(Math.abs(span.startYear).toString());
-          setEndYearInput(span.isRange && span.endYear !== span.startYear ? Math.abs(span.endYear).toString() : '');
-          setIsBC(span.startYear < 0 || Boolean(factToEdit.isBC));
+          setStartEra(span.startYear < 0 ? 'BC' : 'AD');
+          if (span.isRange && span.endYear !== span.startYear) {
+            setEndYearInput(Math.abs(span.endYear).toString());
+            setEndEra(span.endYear < 0 ? 'BC' : 'AD');
+          } else {
+            setEndYearInput('');
+            setEndEra(span.startYear < 0 ? 'BC' : 'AD');
+          }
         }
         setHasLocationPicked(true);
       } else {
@@ -123,7 +141,8 @@ export const FactEditorModal: React.FC<Props> = ({
         setAdditionalNotes('');
         setStartYearInput('');
         setEndYearInput('');
-        setIsBC(false);
+        setStartEra('AD');
+        setEndEra('AD');
         if (pickedCoords) {
           setLat(pickedCoords.lat);
           setLng(pickedCoords.lng);
@@ -181,6 +200,32 @@ export const FactEditorModal: React.FC<Props> = ({
     }
   }, [pickedCoords]);
 
+  // Live preview calculation for real-time visual feedback
+  const previewYear = useMemo(() => {
+    const normStart = normalizeYearString(startYearInput.trim());
+    const normEnd = normalizeYearString(endYearInput.trim());
+    const startNum = normStart ? parseInt(normStart, 10) : NaN;
+    const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
+
+    if (isNaN(startNum)) return null;
+
+    const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
+    const actualEnd = !isNaN(endNum)
+      ? (endEra === 'BC' ? -Math.abs(endNum) : Math.abs(endNum))
+      : actualStart;
+
+    const finalStart = Math.min(actualStart, actualEnd);
+    const finalEnd = Math.max(actualStart, actualEnd);
+    const isCrossEra = finalStart < 0 && finalEnd > 0;
+
+    return {
+      label: formatKurdishYearRange(finalStart, finalEnd),
+      isCrossEra,
+      finalStart,
+      finalEnd,
+    };
+  }, [startYearInput, endYearInput, startEra, endEra]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -201,20 +246,42 @@ export const FactEditorModal: React.FC<Props> = ({
       return;
     }
 
-    const actualStart = isBC ? -Math.abs(startNum) : Math.abs(startNum);
+    const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
     const actualEnd = !isNaN(endNum)
-      ? (isBC ? -Math.abs(endNum) : Math.abs(endNum))
+      ? (endEra === 'BC' ? -Math.abs(endNum) : Math.abs(endNum))
       : actualStart;
 
     const finalStart = Math.min(actualStart, actualEnd);
     const finalEnd = Math.max(actualStart, actualEnd);
     const formattedYear = formatKurdishYearRange(finalStart, finalEnd);
 
+    // Dynamic era assignment for new custom items
+    let eraId = factToEdit ? factToEdit.eraId : 4;
+    let eraName = factToEdit ? factToEdit.eraName : 'دەسەڵاتە مێژووییەکان';
+    if (!factToEdit) {
+      if (finalStart < -800) {
+        eraId = 1;
+        eraName = 'دەسەڵات و گەلە دێرینەکانی پێش ماد';
+      } else if (finalStart < -500) {
+        eraId = 2;
+        eraName = 'ئیمپراتۆریەتی ماد و سەردەمی کۆن';
+      } else if (finalStart < 650) {
+        eraId = 3;
+        eraName = finalStart < 0 && finalEnd > 0 ? 'سەردەمی پێش و دوای زایین' : 'سەردەمی کلاسیک و کۆن';
+      } else if (finalStart < 1918) {
+        eraId = 4;
+        eraName = 'میرنشین و دەسەڵاتە ئیسلامییەکان';
+      } else {
+        eraId = 5;
+        eraName = 'سەردەمی هاوچەرخ';
+      }
+    }
+
     const item: FactItem = {
       id: factToEdit ? factToEdit.id : Date.now(),
       num: factToEdit ? factToEdit.num : totalFactsCount + 1,
-      eraId: factToEdit ? factToEdit.eraId : 4,
-      eraName: factToEdit ? factToEdit.eraName : 'دەسەڵاتە مێژووییەکان',
+      eraId: eraId,
+      eraName: eraName,
       eraPeriod: factToEdit ? factToEdit.eraPeriod : 'مێژووی کوردستان',
       name: name.trim(),
       desc: desc.trim() || 'کوردستان',
@@ -225,9 +292,9 @@ export const FactEditorModal: React.FC<Props> = ({
       endYear: !isNaN(endNum) ? finalEnd : (isPerson ? Math.min(2026, finalStart + 75) : finalStart),
       birthYear: isPerson ? finalStart : undefined,
       deathYear: isPerson && !isNaN(endNum) ? finalEnd : undefined,
-      isBC: isBC,
+      isBC: finalStart < 0,
       century: `${Math.ceil(Math.abs(finalStart) / 100)}`,
-      centuryNumber: Math.ceil(finalStart / 100),
+      centuryNumber: finalStart < 0 ? -Math.ceil(Math.abs(finalStart) / 100) : Math.ceil(finalStart / 100),
       lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
       lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
       zoom: factToEdit ? factToEdit.zoom : 8,
@@ -483,7 +550,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
           {/* ⏳ ساڵی سەرەتا و کۆتایی / لەدایکبوون و مردن بۆ سکرۆڵی تایملاین */}
           <div className="p-3 rounded-xl bg-gradient-to-b from-[#080d24] to-black border border-indigo-700/60 shadow-lg space-y-2.5">
-            <div className="flex items-center justify-between border-b border-indigo-950 pb-1.5">
+            <div className="flex items-center justify-between border-b border-indigo-950 pb-2">
               <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-amber-400" />
                 <span>
@@ -493,31 +560,19 @@ export const FactEditorModal: React.FC<Props> = ({
                 </span>
               </span>
 
-              {/* BC / AD Toggle */}
-              <div className="flex items-center gap-1 bg-black p-0.5 rounded-lg border border-indigo-900 text-[10px]">
-                <button
-                  type="button"
-                  onClick={() => setIsBC(false)}
-                  className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer font-bold ${
-                    !isBC
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  زایینی (ز)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsBC(true)}
-                  className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer font-bold ${
-                    isBC
-                      ? 'bg-amber-600 text-white'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  پێش زایین (پ.ز)
-                </button>
-              </div>
+              {previewYear?.isCrossEra && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                  نێوان پێش و دوای زایین (پ.ز ⟷ ز)
+                </span>
+              )}
+            </div>
+
+            {/* Helper guidance for cross-era entries */}
+            <div className="text-[10px] text-slate-300 bg-indigo-950/40 p-2 rounded-xl border border-indigo-900/50 flex items-start gap-1.5 leading-relaxed">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <span>
+                دەتوانیت ساڵی دەستپێک و کۆتایی بە جیا دیاری بکەیت: ئەگەر دەسەڵات یان کەسایەتییەکە کەوتووەتە نێوان پێش و دوای زایین، دەستپێک بکە بە <strong className="text-amber-300">پ.ز</strong> و کۆتایی بکە بە <strong className="text-indigo-300">ز</strong>.
+              </span>
             </div>
 
             {yearError && (
@@ -527,69 +582,131 @@ export const FactEditorModal: React.FC<Props> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Field 1: Birth year or Start year */}
-              <div>
-                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-emerald-400" />
-                  {isPerson ? 'ساڵی لەدایکبوون *' : 'ساڵی سەرەتا / دامەزراندن *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={startYearInput}
-                  onChange={(e) => {
-                    setStartYearInput(e.target.value);
-                    setYearError(null);
-                  }}
-                  placeholder={
-                    isPerson
-                      ? isBC
-                        ? 'بۆ نموونە: 400'
-                        : 'بۆ نموونە: 1890'
-                      : isBC
-                      ? 'بۆ نموونە: 700'
-                      : 'بۆ نموونە: 1514'
-                  }
-                  className="w-full bg-[#030712] text-white px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Field 1: Birth year or Start year with its own era toggle */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-emerald-400" />
+                    {isPerson ? 'ساڵی لەدایکبوون *' : 'ساڵی دەستپێک / دامەزراندن *'}
+                  </label>
+                  {/* Era Selector for Start Year */}
+                  <div className="flex items-center gap-0.5 bg-black p-0.5 rounded-lg border border-indigo-900/80 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setStartEra('BC')}
+                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                        startEra === 'BC'
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="پێش زایین"
+                    >
+                      پ.ز
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStartEra('AD')}
+                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                        startEra === 'AD'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="زایینی"
+                    >
+                      ز
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={startYearInput}
+                    onChange={(e) => {
+                      setStartYearInput(e.target.value);
+                      setYearError(null);
+                    }}
+                    placeholder={startEra === 'BC' ? 'بۆ نموونە: 150 (پ.ز)' : 'بۆ نموونە: 1514 (ز)'}
+                    className="w-full bg-[#030712] text-white pr-2.5 pl-14 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
+                  />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                    {startEra === 'BC' ? 'پ.ز' : 'زایینی'}
+                  </span>
+                </div>
               </div>
 
-              {/* Field 2: Death year or End year */}
-              <div>
-                <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-rose-400" />
-                  {isPerson
-                    ? 'ساڵی کۆچی دوایی / وەفات'
-                    : 'ساڵی کۆتایی / ڕووخان (ئەگەر هەبێت)'}
-                </label>
-                <input
-                  type="text"
-                  value={endYearInput}
-                  onChange={(e) => {
-                    setEndYearInput(e.target.value);
-                    setYearError(null);
-                  }}
-                  placeholder={
-                    isPerson
-                      ? isBC
-                        ? 'بۆ نموونە: 340'
-                        : 'بۆ نموونە: 1960'
-                      : isBC
-                      ? 'بۆ نموونە: 550'
-                      : 'بۆ نموونە: 1851'
-                  }
-                  className="w-full bg-[#030712] text-white px-2.5 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
-                />
+              {/* Field 2: Death year or End year with its own era toggle */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-rose-400" />
+                    {isPerson ? 'ساڵی کۆچی دوایی' : 'ساڵی کۆتایی / ڕووخان'}
+                  </label>
+                  {/* Era Selector for End Year */}
+                  <div className="flex items-center gap-0.5 bg-black p-0.5 rounded-lg border border-indigo-900/80 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setEndEra('BC')}
+                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                        endEra === 'BC'
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="پێش زایین"
+                    >
+                      پ.ز
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEndEra('AD')}
+                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                        endEra === 'AD'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="زایینی"
+                    >
+                      ز
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={endYearInput}
+                    onChange={(e) => {
+                      setEndYearInput(e.target.value);
+                      setYearError(null);
+                    }}
+                    placeholder={endEra === 'BC' ? 'بۆ نموونە: 40 (پ.ز)' : 'بۆ نموونە: 1851 (ز)'}
+                    className="w-full bg-[#030712] text-white pr-2.5 pl-14 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
+                  />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                    {endEra === 'BC' ? 'پ.ز' : 'زایینی'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Explanatory helper text */}
-            <p className="text-[10px] text-amber-300/80 leading-relaxed bg-black/60 p-2 rounded-lg border border-indigo-950">
-              {isPerson
-                ? '💡 بۆ نموونە: ئەگەر ١٨٩٠ بۆ لەدایکبوون و ١٩٦٠ بۆ مردن بنووسیت، کاتێک لە تایملایندا سکرۆڵەکە بچێتە سەر ساڵی ١٩٤٠ ئەم کەسایەتییە لەسەر نەخشەکە دەردەکەوێت چونکە لە ژیاندا بووە.'
-                : '💡 بۆ نموونە: ئەگەر دەوڵەتێک لە ١٥١٤ دەستی پێکردبێت و ١٨٥١ کۆتایی هاتبێت، کاتێک لە سکرۆڵدا ساڵەکە لەنێوان ئەو دوو ساڵەدا بێت ئەم دەسەڵاتە لەسەر نەخشە دەردەکەوێت.'}
-            </p>
+            {/* Live Preview Display */}
+            {previewYear && (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-black/80 border border-indigo-900/60 text-xs">
+                <span className="text-slate-400 text-[11px]">پێشبینینی مێژووی تۆمارکراو:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-amber-300 font-mono text-xs">
+                    {previewYear.label}
+                  </span>
+                  {previewYear.isCrossEra && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-200 border border-amber-500/40">
+                      پ.ز ⟷ ز
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Full Historical Text */}
