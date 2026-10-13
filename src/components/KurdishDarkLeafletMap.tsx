@@ -214,6 +214,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const handleSelectTagFilter = (tagId: string) => {
     setActiveTagFilter(tagId);
     setIsFilterMenuOpen(false);
+    setIsMoreMenuOpen(false);
 
     const targetOpt = TAG_FILTER_OPTIONS.find((t) => t.id === tagId) || TAG_FILTER_OPTIONS[0];
     setFilterNotification(targetOpt.label);
@@ -226,8 +227,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     }, 3500);
   };
 
-  // Toggle or Cycle filter
+  // Toggle or open filter menu and automatically close more menu
   const handleFilterButtonClick = () => {
+    setIsMoreMenuOpen(false);
     setIsFilterMenuOpen((prev) => !prev);
   };
 
@@ -738,7 +740,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       {/* 4. "زیاتر" Button & 3D Glass Marbles Dock ("تۆپ تۆپ وەک هەڵمات بکەونە سەر یەک بە گرافیکێکی زۆر شاز") */}
       {/* Backdrop to close menu when tapping anywhere on map */}
-      {isMoreMenuOpen && (
+      {/* Backdrop to close menu when tapping anywhere on map */}
+      {(isMoreMenuOpen || isFilterMenuOpen) && (
         <div
           className="fixed inset-0 z-28 bg-black/40 backdrop-blur-xs transition-opacity animate-fade-in cursor-pointer"
           onClick={() => {
@@ -749,248 +752,211 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       )}
 
       <div className="absolute top-3 right-3 z-30 pointer-events-auto flex flex-col items-end gap-2">
-        {/* The Primary "زیاتر" (More) Floating Button */}
+        {/* The Primary "زیاتر" (More) Floating Button - Simple & Clean Design */}
         <button
           onClick={() => {
             setIsMoreMenuOpen(!isMoreMenuOpen);
             if (isMoreMenuOpen) setIsFilterMenuOpen(false);
           }}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl backdrop-blur-2xl border transition-all duration-300 shadow-2xl cursor-pointer select-none group ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer select-none ${
             isMoreMenuOpen
-              ? 'bg-gradient-to-r from-amber-600/90 to-amber-700/90 border-amber-400 text-white shadow-[0_0_25px_rgba(245,158,11,0.5)] scale-102'
-              : 'bg-[#060a14]/90 hover:bg-[#0c1324]/95 border-amber-500/40 hover:border-amber-400 text-slate-100 shadow-[0_10px_30px_rgba(0,0,0,0.85)] hover:shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+              ? 'bg-amber-500 text-black font-bold border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+              : 'bg-[#070b14]/90 hover:bg-[#0d1424]/95 border-amber-500/30 hover:border-amber-400 text-slate-100 hover:text-amber-300'
           }`}
           title="زیاتر - کرداری خێرا و ئامرازەکانی نەخشە"
         >
-          <div className="flex items-center gap-2">
-            {/* 3 Glowing micro-marbles indicator */}
-            <div className="flex items-center -space-x-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 shadow-xs ring-1 ring-black/40 group-hover:scale-110 transition-transform" />
-              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-emerald-300 to-emerald-600 shadow-xs ring-1 ring-black/40 group-hover:scale-110 transition-transform" />
-              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-sky-300 to-sky-600 shadow-xs ring-1 ring-black/40 group-hover:scale-110 transition-transform" />
-            </div>
-            <span className="font-heading font-bold text-xs tracking-wide">
-              {isMoreMenuOpen ? 'داخستن' : 'زیاتر'}
-            </span>
-          </div>
+          <span className="font-heading font-medium text-xs">
+            {isMoreMenuOpen ? 'داخستن' : 'زیاتر'}
+          </span>
           {isMoreMenuOpen ? (
-            <X className="w-3.5 h-3.5 text-white animate-spin-once" />
+            <X className="w-3.5 h-3.5" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5 text-amber-300 group-hover:translate-y-0.5 transition-transform" />
+            <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
           )}
         </button>
 
-        {/* The Stacked 3D Marbles ("تۆپ تۆپ وەک هەڵمات بکەونە سەر یەک") */}
+        {/* Simple & Clean Dropdown Menu ("بەشی زیاتر: سادە و ساکار بەبێ تۆپ تۆپ") */}
         {isMoreMenuOpen && (
-          <div className="flex flex-col items-end gap-2.5 pt-1">
-            {/* 1. گەڕان (Search) - Sapphire Marble */}
-            <div
-              style={{ animationDelay: '0ms' }}
-              className="animate-marble-drop relative flex items-center gap-2 group cursor-pointer"
+          <div
+            className="w-56 bg-[#070b14]/95 border border-amber-500/30 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.95),0_0_20px_rgba(245,158,11,0.15)] backdrop-blur-2xl text-right flex flex-col gap-1 animate-menu-dropdown z-30"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. پێڕست و بابەتەکان (Menu & Drawer) - (Search is inside menu drawer) */}
+            <button
               onClick={() => {
                 setIsMoreMenuOpen(false);
                 setIsFilterMenuOpen(false);
                 if (onOpenMenu) onOpenMenu();
               }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-amber-200 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors cursor-pointer group"
             >
-              <div className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-black/90 border border-indigo-900/80 text-indigo-200 text-[11px] font-bold shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 sm:opacity-90 transition-all duration-200 pointer-events-none">
-                گەڕان لە دەسەڵاتەکان
+              <div className="flex items-center gap-2.5">
+                <Menu className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                <span className="font-medium">پێڕست و بابەتەکان</span>
               </div>
-              <button
-                className="w-11 h-11 marble-sphere flex items-center justify-center cursor-pointer border border-sky-300/40 bg-[radial-gradient(circle_at_35%_28%,#38bdf8_0%,#0284c7_45%,#1e3a8a_80%,#050811_100%)] shadow-[0_6px_16px_rgba(2,132,199,0.5)] active:scale-95"
-                title="گەڕان لەناو دەسەڵاتەکاندا"
-              >
-                <Search className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
-              </button>
-            </div>
+            </button>
 
-            {/* 2. پێڕست و مینۆ (Menu) - Kurdish Ruby Crimson Marble */}
-            <div
-              style={{ animationDelay: '45ms' }}
-              className="animate-marble-drop relative flex items-center gap-2 group cursor-pointer"
+            {/* 2. فلتەری دەسەڵاتەکان (Filter Categories) - Closes more menu automatically */}
+            <button
               onClick={() => {
                 setIsMoreMenuOpen(false);
-                setIsFilterMenuOpen(false);
-                if (onOpenMenu) onOpenMenu();
+                setIsFilterMenuOpen(true);
               }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer border ${
+                activeTagFilter !== 'all'
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                  : 'text-slate-200 hover:text-amber-200 hover:bg-amber-500/10 border-transparent hover:border-amber-500/20'
+              }`}
             >
-              <div className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-black/90 border border-red-950 text-red-200 text-[11px] font-bold shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 sm:opacity-90 transition-all duration-200 pointer-events-none">
-                پێڕست و بابەتەکان
+              <div className="flex items-center gap-2.5">
+                <SlidersHorizontal className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium">فلتەری بابەتەکان</span>
               </div>
-              <button
-                className="w-11 h-11 marble-sphere flex items-center justify-center cursor-pointer border border-red-300/40 bg-[radial-gradient(circle_at_35%_28%,#f87171_0%,#dc2626_45%,#881337_80%,#050811_100%)] shadow-[0_6px_16px_rgba(220,38,38,0.5)] active:scale-95"
-                title="کردنەوەی مینۆی دەسەڵاتەکان و زانیارییەکان"
-              >
-                <Menu className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
-              </button>
-            </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {currentFilterObj.label}
+              </span>
+            </button>
 
-            {/* 3. فلتەری بابەتەکان (Categories Filter) - Amethyst Purple Marble with Popover Flyout */}
-            <div
-              style={{ animationDelay: '90ms' }}
-              className="animate-marble-drop relative flex items-center gap-2 group cursor-pointer"
+            {/* 3. مارکەرەکان (Layers Toggle) */}
+            <button
+              onClick={() => {
+                setShowAllMarkers(!showAllMarkers);
+                setIsMoreMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-amber-200 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors cursor-pointer"
             >
-              <div
-                onClick={handleFilterButtonClick}
-                className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-black/90 border border-purple-900/80 text-purple-200 text-[11px] font-bold shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 sm:opacity-90 transition-all duration-200 cursor-pointer"
-              >
-                فلتەر: {currentFilterObj.label}
+              <div className="flex items-center gap-2.5">
+                <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium">نیشاندانی مارکەرەکان</span>
               </div>
-              <button
-                onClick={handleFilterButtonClick}
-                className={`w-11 h-11 marble-sphere flex items-center justify-center cursor-pointer border border-purple-300/40 ${
-                  activeTagFilter !== 'all'
-                    ? 'bg-[radial-gradient(circle_at_35%_28%,#e879f9_0%,#a855f7_45%,#6b21a8_80%,#050811_100%)] ring-2 ring-fuchsia-400 shadow-[0_0_20px_rgba(168,85,247,0.6)]'
-                    : 'bg-[radial-gradient(circle_at_35%_28%,#c084fc_0%,#9333ea_45%,#581c87_80%,#050811_100%)] shadow-[0_6px_16px_rgba(147,51,234,0.5)]'
-                } active:scale-95`}
-                title={`فلتەری جۆر: ${currentFilterObj.label}`}
-              >
-                <FilterIconComponent className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
-              </button>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-300">
+                {showAllMarkers ? `هەمووی (${facts.length})` : 'یەک'}
+              </span>
+            </button>
 
-              {/* Interactive Popover Menu for Category Filters */}
-              {isFilterMenuOpen && (
-                <div
-                  className="absolute right-14 top-0 w-60 bg-black/95 border border-indigo-900/90 rounded-2xl p-2.5 shadow-[0_0_40px_rgba(15,10,40,0.95)] backdrop-blur-2xl z-50 text-right animate-slide-left space-y-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-between pb-1.5 border-b border-indigo-950/80 px-1 text-indigo-300">
-                    <div className="flex items-center gap-1.5">
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                      <span className="text-[11px] font-bold text-white">
-                        فلتەری جۆری دەسەڵاتەکان
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setIsFilterMenuOpen(false)}
-                      className="p-0.5 rounded text-indigo-400 hover:text-white hover:bg-indigo-950 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-1">
-                    {TAG_FILTER_OPTIONS.map((opt) => {
-                      const isSelected = activeTagFilter === opt.id;
-                      const IconComp = opt.icon;
-                      const count = tagCounts[opt.id] || 0;
-
-                      return (
-                        <button
-                          key={opt.id}
-                          onClick={() => handleSelectTagFilter(opt.id)}
-                          className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl transition-all cursor-pointer text-xs ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white font-bold shadow-[0_0_15px_rgba(79,70,229,0.5)] border border-indigo-400/60'
-                              : 'bg-[#030712] text-slate-300 hover:bg-indigo-950/60 hover:text-white border border-indigo-950/60'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <IconComp
-                              className={`w-4 h-4 shrink-0 ${
-                                isSelected ? 'text-white' : opt.accentClass
-                              }`}
-                            />
-                            <span className="truncate">{opt.label}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span
-                              className={`font-mono text-[9px] px-1.5 py-0.2 rounded-full ${
-                                isSelected
-                                  ? 'bg-black/40 text-white font-bold'
-                                  : 'bg-indigo-950 text-indigo-300'
-                              }`}
-                            >
-                              {count}
-                            </span>
-                            {isSelected && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 4. هەموو مارکەرەکان (Layers Toggle) - Emerald Green Marble */}
-            <div
-              style={{ animationDelay: '135ms' }}
-              className="animate-marble-drop relative flex items-center gap-2 group cursor-pointer"
-              onClick={() => setShowAllMarkers(!showAllMarkers)}
-            >
-              <div className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-black/90 border border-emerald-950 text-emerald-200 text-[11px] font-bold shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 sm:opacity-90 transition-all duration-200 pointer-events-none">
-                {showAllMarkers ? `هەموو مارکەرەکان (${facts.length})` : 'تەنها یەک مارکەر'}
-              </div>
-              <button
-                className={`w-11 h-11 marble-sphere flex items-center justify-center cursor-pointer border border-emerald-300/40 ${
-                  showAllMarkers
-                    ? 'bg-[radial-gradient(circle_at_35%_28%,#4ade80_0%,#16a34a_45%,#14532d_80%,#050811_100%)] ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(22,163,74,0.6)]'
-                    : 'bg-[radial-gradient(circle_at_35%_28%,#6ee7b7_0%,#059669_45%,#064e3b_80%,#050811_100%)] shadow-[0_6px_16px_rgba(5,150,105,0.5)]'
-                } active:scale-95`}
-                title={showAllMarkers ? `هەموو ${facts.length} مارکەرەکە` : 'تەنها هەڵبژێردراو'}
-              >
-                <Layers className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
-              </button>
-            </div>
-
-            {/* 5. بینینی تەواوی نەخشە (Full Kurdistan Overview) - Golden Amber Topaz Marble */}
-            <div
-              style={{ animationDelay: '180ms' }}
-              className="animate-marble-drop relative flex items-center gap-2 group cursor-pointer"
+            {/* 4. تەواوی نەخشەی کوردستان (Full Map View) */}
+            <button
               onClick={() => {
                 handleResetCamera();
                 setIsMoreMenuOpen(false);
                 setIsFilterMenuOpen(false);
               }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-amber-200 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors cursor-pointer"
             >
-              <div className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-black/90 border border-amber-950 text-amber-200 text-[11px] font-bold shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 sm:opacity-90 transition-all duration-200 pointer-events-none">
-                تەواوی نەخشەی کوردستان
+              <div className="flex items-center gap-2.5">
+                <Compass className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium">تەواوی نەخشە</span>
+              </div>
+            </button>
+
+            {/* 5. گۆڕینی شێوازی نەخشە: تاریک / مانگی دەستکرد */}
+            <button
+              onClick={() => {
+                setMapMode(mapMode === 'dark' ? 'satellite' : 'dark');
+                setIsMoreMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-amber-200 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Satellite className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium">
+                  {mapMode === 'dark' ? 'نەخشەی مانگی دەستکرد' : 'نەخشەی تاریک'}
+                </span>
+              </div>
+            </button>
+
+            {/* 6. بەڕێوەبردن (Admin Secret Mode) */}
+            <button
+              onClick={() => {
+                handleAdminIconClick();
+                if (isAdmin) setIsMoreMenuOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer border ${
+                isAdmin
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : 'text-slate-300 hover:text-amber-200 hover:bg-amber-500/10 border-transparent hover:border-amber-500/20'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {isAdmin ? (
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <Shield className="w-4 h-4 text-amber-400/80 shrink-0" />
+                )}
+                <span className="font-medium">
+                  {isAdmin
+                    ? 'ئەدمین چالاکە'
+                    : adminTapCount > 0
+                    ? `بەڕێوەبردن (${adminTapCount}/6)`
+                    : 'بەڕێوەبردن'}
+                </span>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Interactive Popover Menu for Category Filters - Independent from More menu */}
+        {isFilterMenuOpen && (
+          <div
+            className="w-64 bg-[#070b14]/95 border border-amber-500/40 rounded-2xl p-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.95),0_0_25px_rgba(245,158,11,0.2)] backdrop-blur-2xl z-40 text-right animate-menu-dropdown space-y-2 mt-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-1.5 border-b border-amber-500/20 px-1 text-amber-300">
+              <div className="flex items-center gap-1.5">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-xs font-bold text-amber-200">
+                  فلتەری جۆری دەسەڵاتەکان
+                </span>
               </div>
               <button
-                className="w-11 h-11 marble-sphere flex items-center justify-center cursor-pointer border border-amber-300/50 bg-[radial-gradient(circle_at_35%_28%,#fde047_0%,#d97706_45%,#78350f_80%,#050811_100%)] shadow-[0_6px_16px_rgba(217,119,6,0.5)] active:scale-95"
-                title="بینینی تەواوی نەخشەی کوردستان"
+                onClick={() => setIsFilterMenuOpen(false)}
+                className="p-1 rounded-lg text-amber-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="داخستن"
               >
-                <Compass className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* 6. بەڕێوەبردن (Admin Secret Mode) - Obsidian/Emerald Marble */}
-            <div
-              style={{ animationDelay: '225ms' }}
-              className="animate-marble-drop relative flex items-center gap-2 group cursor-pointer"
-              onClick={handleAdminIconClick}
-            >
-              <div className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-black/90 border border-slate-800 text-slate-200 text-[11px] font-bold shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 sm:opacity-90 transition-all duration-200 pointer-events-none">
-                {isAdmin
-                  ? 'ئەدمین چالاکە'
-                  : adminTapCount > 0
-                  ? `بەڕێوەبردن (${adminTapCount}/6)`
-                  : 'بەڕێوەبردن'}
-              </div>
-              <button
-                className={`w-11 h-11 marble-sphere flex items-center justify-center cursor-pointer border ${
-                  isAdmin
-                    ? 'border-emerald-400/60 bg-[radial-gradient(circle_at_35%_28%,#34d399_0%,#059669_45%,#064e3b_80%,#050811_100%)] ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.6)]'
-                    : adminTapCount > 0
-                    ? 'border-indigo-400/60 bg-[radial-gradient(circle_at_35%_28%,#818cf8_0%,#4f46e5_45%,#312e81_80%,#050811_100%)] ring-2 ring-indigo-400 shadow-[0_6px_16px_rgba(79,70,229,0.5)] animate-pulse'
-                    : 'border-slate-500/40 bg-[radial-gradient(circle_at_35%_28%,#94a3b8_0%,#475569_45%,#1e293b_80%,#050811_100%)] shadow-[0_6px_16px_rgba(71,85,105,0.4)]'
-                } active:scale-95`}
-                title={
-                  isAdmin
-                    ? 'دۆخی ئەدمین چالاکە - کلیک بکەوە بۆ لاچوون و داخستنی ئەدمین'
-                    : adminTapCount > 0
-                    ? `${adminTapCount}/6 جار کلیک کراوە`
-                    : 'ئایکۆنی بەڕێوەبردن (٦ جار دەستی لێبدە بۆ چالاککردن)'
-                }
-              >
-                {isAdmin ? (
-                  <ShieldCheck className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
-                ) : (
-                  <Shield className="w-4.5 h-4.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
-                )}
-              </button>
+            <div className="space-y-1">
+              {TAG_FILTER_OPTIONS.map((opt) => {
+                const isSelected = activeTagFilter === opt.id;
+                const IconComp = opt.icon;
+                const count = tagCounts[opt.id] || 0;
+
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleSelectTagFilter(opt.id)}
+                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
+                      isSelected
+                        ? 'bg-amber-500 text-black font-bold shadow-md border border-amber-300'
+                        : 'bg-black/40 text-slate-200 hover:bg-amber-500/10 hover:text-amber-200 border border-white/5 hover:border-amber-500/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <IconComp
+                        className={`w-4 h-4 shrink-0 ${
+                          isSelected ? 'text-black' : 'text-amber-400'
+                        }`}
+                      />
+                      <span className="truncate">{opt.label}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span
+                        className={`font-mono text-[9px] px-1.5 py-0.5 rounded-full ${
+                          isSelected
+                            ? 'bg-black/30 text-black font-bold'
+                            : 'bg-white/5 text-amber-300/80'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                      {isSelected && <Check className="w-3 h-3 text-black font-bold" />}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
