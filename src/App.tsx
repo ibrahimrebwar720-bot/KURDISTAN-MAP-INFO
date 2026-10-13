@@ -154,12 +154,13 @@ export default function App() {
     setAdminState(false);
   };
 
-  // Add / Edit Fact (Directly pick on map!)
+  // Add / Edit Fact (Immediately opens form!)
   const handleOpenAddFact = () => {
     setFactToEdit(null);
     setPickedCoords(null);
     setIsMenuOpen(false);
-    setIsPickingLocation(true);
+    setIsPickingLocation(false);
+    setIsFactEditorOpen(true);
   };
 
   const handleOpenEditFact = (fact: FactItem) => {

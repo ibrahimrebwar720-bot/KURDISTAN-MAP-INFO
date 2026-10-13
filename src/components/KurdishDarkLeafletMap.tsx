@@ -722,7 +722,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               className="mr-1.5 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 text-[10px] transition-colors cursor-pointer"
             >
               <Plus className="w-3 h-3" />
-              <span>دەسەڵاتی نوێ</span>
+              <span>زیادکردنی بابەت</span>
             </button>
           )}
           {onLogoutAdmin && (
@@ -865,7 +865,23 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </button>
 
-            {/* 6. بەڕێوەبردن (Admin Secret Mode) */}
+            {/* 6. زیادکردنی بابەت (کاتێک ئەدمین چالاکە) */}
+            {isAdmin && onOpenAddFact && (
+              <button
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onOpenAddFact();
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-200 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Plus className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-bold">زیادکردنی بابەت</span>
+                </div>
+              </button>
+            )}
+
+            {/* 7. بەڕێوەبردن (Admin Secret Mode) */}
             <button
               onClick={() => {
                 handleAdminIconClick();
@@ -873,7 +889,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer border ${
                 isAdmin
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                   : 'text-slate-300 hover:text-amber-200 hover:bg-amber-500/10 border-transparent hover:border-amber-500/20'
               }`}
             >
