@@ -19,6 +19,7 @@ import {
   Camera,
   Maximize2,
   Image as ImageIcon,
+  Images,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 
@@ -32,6 +33,7 @@ interface Props {
   isAdmin?: boolean;
   onEditFact?: (fact: FactItem) => void;
   onSaveNotes?: (factId: number, notes: string) => void;
+  onOpenGallery?: () => void;
   totalFactsCount?: number;
 }
 
@@ -43,6 +45,7 @@ export const FactDetailModal: React.FC<Props> = ({
   isAdmin = false,
   onEditFact,
   onSaveNotes,
+  onOpenGallery,
   totalFactsCount = 350,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -187,19 +190,35 @@ export const FactDetailModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Custom Topic Image with Small Info / Caption Note */}
+          {/* Custom Topic Image in True Aspect Ratio (بە قیاسی تەواو بێ بڕین) */}
           {fact.imageUrl && (
-            <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-black/70 shadow-lg group">
+            <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-black/95 shadow-xl group flex flex-col items-center justify-center p-1.5 sm:p-2">
               <img
                 src={fact.imageUrl}
                 alt={fact.imageCaption || fact.name}
-                className="w-full h-48 sm:h-60 object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                className="max-h-72 sm:max-h-80 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 shadow-md"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#070b14]/90 via-transparent to-black/20 pointer-events-none" />
               {fact.imageCaption && (
-                <div className="absolute bottom-2 right-2 left-2 p-2 px-3 rounded-xl bg-[#070b14]/90 border border-amber-500/35 text-amber-200 text-xs backdrop-blur-md flex items-center gap-2 shadow-sm">
-                  <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="font-medium text-[11px] sm:text-xs">{fact.imageCaption}</span>
+                <div className="w-full mt-2 p-2 px-3 rounded-xl bg-[#070b14]/95 border border-amber-500/35 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="font-medium text-[11px] sm:text-xs truncate">{fact.imageCaption}</span>
+                  </div>
+                  {onOpenGallery && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClose();
+                        onOpenGallery();
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                      title="کردنەوە لە بەشی گەلەری"
+                    >
+                      <Images className="w-3 h-3" />
+                      <span>گەلەری</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

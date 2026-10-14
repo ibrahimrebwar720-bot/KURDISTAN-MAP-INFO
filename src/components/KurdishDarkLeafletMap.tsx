@@ -41,6 +41,7 @@ import {
   Camera,
   Maximize2,
   Image as ImageIcon,
+  Images,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -59,6 +60,7 @@ interface Props {
   showPolygon: boolean;
   setShowPolygon: (val: boolean) => void;
   onOpenMenu?: () => void;
+  onOpenGallery?: () => void;
   activeTagFilter: string;
   setActiveTagFilter: (tag: string) => void;
   // Year & Timeline Slider Props
@@ -155,6 +157,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   showPolygon,
   setShowPolygon,
   onOpenMenu,
+  onOpenGallery,
   activeTagFilter,
   setActiveTagFilter,
   selectedYear = 'all',
@@ -760,35 +763,64 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       )}
 
       <div className="absolute top-3 right-3 z-30 pointer-events-auto flex flex-col items-end gap-2">
-        {/* The Primary "زیاتر" (More) Floating Button - Simple & Clean Design */}
-        <button
-          onClick={() => {
-            setIsMoreMenuOpen(!isMoreMenuOpen);
-            if (isMoreMenuOpen) setIsFilterMenuOpen(false);
-          }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer select-none ${
-            isMoreMenuOpen
-              ? 'bg-amber-500 text-black font-extrabold border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
-              : 'bg-[#070b14]/75 hover:bg-[#0d1424]/85 border-amber-500/25 hover:border-amber-400 text-slate-100 hover:text-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.5)]'
-          }`}
-          title="زیاتر - کرداری خێرا و ئامرازەکانی نەخشە"
-        >
-          <span className="font-heading font-medium text-xs">
-            {isMoreMenuOpen ? 'داخستن' : 'زیاتر'}
-          </span>
-          {isMoreMenuOpen ? (
-            <X className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+        <div className="flex items-center gap-1.5">
+          {/* ئایکۆنی گەلەری بە تەنها بێ نووسینی تۆماتیکی */}
+          {onOpenGallery && (
+            <button
+              onClick={onOpenGallery}
+              className="p-2 rounded-2xl bg-[#070b14]/80 hover:bg-[#0d1424]/90 border border-amber-500/35 hover:border-amber-400 text-amber-300 hover:text-amber-200 shadow-[0_4px_20px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
+              title="گەلەری"
+              aria-label="گەلەری"
+            >
+              <Images className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+            </button>
           )}
-        </button>
+
+          {/* The Primary "زیاتر" (More) Floating Button - Simple & Clean Design */}
+          <button
+            onClick={() => {
+              setIsMoreMenuOpen(!isMoreMenuOpen);
+              if (isMoreMenuOpen) setIsFilterMenuOpen(false);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer select-none ${
+              isMoreMenuOpen
+                ? 'bg-amber-500 text-black font-extrabold border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                : 'bg-[#070b14]/75 hover:bg-[#0d1424]/85 border-amber-500/25 hover:border-amber-400 text-slate-100 hover:text-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.5)]'
+            }`}
+            title="زیاتر - کرداری خێرا و ئامرازەکانی نەخشە"
+          >
+            <span className="font-heading font-medium text-xs">
+              {isMoreMenuOpen ? 'داخستن' : 'زیاتر'}
+            </span>
+            {isMoreMenuOpen ? (
+              <X className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+            )}
+          </button>
+        </div>
 
         {/* Simple & Clean Dropdown Menu ("بەشی زیاتر: سادە و ساکار بەبێ تۆپ تۆپ") */}
         {isMoreMenuOpen && (
           <div
-            className="w-56 bg-[#070b14]/80 border border-amber-500/25 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.12)] backdrop-blur-2xl text-right flex flex-col gap-1 animate-menu-dropdown z-30"
+            className="w-60 bg-[#070b14]/85 border border-amber-500/25 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.12)] backdrop-blur-2xl text-right flex flex-col gap-1 animate-menu-dropdown z-30"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* 0. گەلەری (بە تەنها بێ تۆماتیکی) */}
+            {onOpenGallery && (
+              <button
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  setIsFilterMenuOpen(false);
+                  onOpenGallery();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-500/35 transition-colors cursor-pointer group"
+              >
+                <Images className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                <span className="font-bold">گەلەری</span>
+              </button>
+            )}
+
             {/* 1. پێڕست و بابەتەکان (Menu & Drawer) - (Search is inside menu drawer) */}
             <button
               onClick={() => {
@@ -1055,13 +1087,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Topic Image with Glassmorphism Border & Small Information Text */}
+            {/* Topic Image in True Aspect Ratio & Small Information Text (بە قیاسی تەواو بێ بڕین) */}
             {selectedFact.imageUrl && (
-              <div className="relative mb-2.5 rounded-xl overflow-hidden border border-amber-500/30 bg-black/70 group shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+              <div className="relative mb-2.5 rounded-xl overflow-hidden border border-amber-500/30 bg-black/95 group shadow-[0_4px_20px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center p-1">
                 <img
                   src={selectedFact.imageUrl}
                   alt={selectedFact.imageCaption || selectedFact.name}
-                  className="w-full h-36 sm:h-44 object-cover object-center group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+                  className="max-h-56 max-w-full w-auto h-auto object-contain mx-auto rounded-lg group-hover:scale-[1.02] transition-transform duration-300 cursor-pointer shadow-lg"
                   onClick={() =>
                     setLightboxImage({
                       url: selectedFact.imageUrl!,
@@ -1070,30 +1102,45 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     })
                   }
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#070b14]/90 via-transparent to-black/20 pointer-events-none" />
 
                 {/* Small Caption / Information on the image (نوسینی بچووک بۆ زانیاری لەسەر وێنەکە) */}
                 {selectedFact.imageCaption && (
-                  <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-1 rounded-lg bg-[#070b14]/90 border border-amber-500/30 text-amber-200 text-[10px] sm:text-[11px] backdrop-blur-md flex items-center justify-between gap-1.5 shadow-sm">
+                  <div className="w-full mt-1.5 px-2.5 py-1.5 rounded-lg bg-[#070b14]/95 border border-amber-500/30 text-amber-200 text-[10px] sm:text-[11px] flex items-center justify-between gap-1.5 shadow-sm">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Camera className="w-3 h-3 text-amber-400 shrink-0" />
                       <span className="truncate font-medium">{selectedFact.imageCaption}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLightboxImage({
-                          url: selectedFact.imageUrl!,
-                          caption: selectedFact.imageCaption,
-                          title: selectedFact.name,
-                        });
-                      }}
-                      className="p-0.5 rounded text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
-                      title="گەورەکردنی وێنە"
-                    >
-                      <Maximize2 className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {onOpenGallery && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenGallery();
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[9px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          title="کردنەوە لە بەشی گەلەری"
+                        >
+                          <Images className="w-2.5 h-2.5" />
+                          <span>گەلەری</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxImage({
+                            url: selectedFact.imageUrl!,
+                            caption: selectedFact.imageCaption,
+                            title: selectedFact.name,
+                          });
+                        }}
+                        className="p-0.5 rounded text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
+                        title="گەورەکردنی وێنە"
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

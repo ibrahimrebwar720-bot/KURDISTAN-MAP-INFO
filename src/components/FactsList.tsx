@@ -11,6 +11,7 @@ import {
   Edit3,
   Layers,
   MapPin,
+  Images,
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
   onOpenAddFact?: () => void;
   onOpenEditFact?: (fact: FactItem) => void;
   onOpenCollectionManager?: () => void;
+  onOpenGallery?: () => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
 }
@@ -45,6 +47,7 @@ export const FactsList: React.FC<Props> = ({
   onOpenAddFact,
   onOpenEditFact,
   onOpenCollectionManager,
+  onOpenGallery,
   onClose,
   onLogoutAdmin,
 }) => {
@@ -121,9 +124,24 @@ export const FactsList: React.FC<Props> = ({
               KURDISTAN INFO MAP
             </span>
           </div>
-          <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-            PWA ONLINE
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenGallery && (
+              <button
+                onClick={() => {
+                  if (onClose) onClose();
+                  onOpenGallery();
+                }}
+                className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition-colors cursor-pointer flex items-center justify-center"
+                title="گەلەری"
+                aria-label="گەلەری"
+              >
+                <Images className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            )}
+            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              PWA ONLINE
+            </span>
+          </div>
         </div>
 
         {/* Search Input Row with Close & Admin Logout */}

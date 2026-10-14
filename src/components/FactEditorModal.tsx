@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import {
   compressImageFile,
-  KURDISH_HISTORICAL_IMAGE_PRESETS,
 } from '../utils/imageUtils';
 import {
   getFactYearSpan,
@@ -115,11 +114,21 @@ export const FactEditorModal: React.FC<Props> = ({
     }
   };
 
-  // Google Maps Place Search state
+  // Google Maps Place Search state with high-performance debounce
   const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
+  const searchTimeoutRef = useRef<any>(null);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -206,8 +215,13 @@ export const FactEditorModal: React.FC<Props> = ({
     }
   }, [isOpen, factToEdit]);
 
-  const handlePlaceSearch = async (query: string) => {
+  const handlePlaceSearch = (query: string) => {
     setPlaceSearchQuery(query);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
     if (query.trim().length < 2) {
       setPlaceSearchResults([]);
       setIsSearchingPlaces(false);
@@ -215,14 +229,16 @@ export const FactEditorModal: React.FC<Props> = ({
     }
 
     setIsSearchingPlaces(true);
-    try {
-      const results = await searchPlacesOnMap(query);
-      setPlaceSearchResults(results);
-    } catch {
-      setPlaceSearchResults([]);
-    } finally {
-      setIsSearchingPlaces(false);
-    }
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await searchPlacesOnMap(query);
+        setPlaceSearchResults(results);
+      } catch {
+        setPlaceSearchResults([]);
+      } finally {
+        setIsSearchingPlaces(false);
+      }
+    }, 350);
   };
 
   const handleSelectSearchedPlace = (place: PlaceSearchResult) => {
@@ -361,7 +377,7 @@ export const FactEditorModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl bg-[#070b14]/85 border border-amber-500/25 rounded-3xl p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.12)] backdrop-blur-2xl max-h-[92vh] flex flex-col text-slate-100"
+        className="relative w-full max-w-3xl bg-[#070c18] border border-amber-500/35 rounded-3xl p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
@@ -389,7 +405,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer"
             title="داخستن"
           >
             <X className="w-5 h-5" />
@@ -400,7 +416,7 @@ export const FactEditorModal: React.FC<Props> = ({
         <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-5 text-xs flex-1 custom-scrollbar">
           
           {/* SECTION 1: ناو و پۆلێنبەندی (Basic Information & Classification) */}
-          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
@@ -422,7 +438,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند، شەرەفخانی بەدلیسی..."
-                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-sm font-semibold placeholder:text-slate-500 transition-all"
+                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-sm font-semibold placeholder:text-slate-500"
               />
             </div>
 
@@ -485,7 +501,7 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
 
           {/* SECTION 2: شوێن و جوگرافیا (Geographic Location & Google Maps) */}
-          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
@@ -513,7 +529,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
                 placeholder="بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد، جزیرە، هەولێر..."
-                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs placeholder:text-slate-500"
+                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs placeholder:text-slate-500"
               />
             </div>
 
@@ -838,7 +854,7 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
 
           {/* SECTION 4: دەقی مێژوویی و بەڵگەنامەکان (Narrative & Archives) */}
-          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
@@ -860,7 +876,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={fullText}
                 onChange={(e) => setFullText(e.target.value)}
                 placeholder="وەسفی مێژوویی ئەم دەسەڵاتە یان کەسایەتییە بنووسە: ڕووداوە گرنگەکان، نەبەردییەکان، ئاسەوارەکان و بەسەرهاتەکانی فەرمانڕەوایی..."
-                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none leading-relaxed text-xs placeholder:text-slate-500"
+                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none leading-relaxed text-xs placeholder:text-slate-500"
               />
             </div>
 
@@ -881,7 +897,7 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
 
           {/* SECTION 5: وێنە و ڕوونکردنەوەی وێنە (وێنەی تایبەت بە بابەت و زانیاری بچووک لەسەری) */}
-          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
@@ -911,44 +927,21 @@ export const FactEditorModal: React.FC<Props> = ({
 
             {/* Image Selection Buttons & URL Input */}
             <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
                 {/* Upload Button */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingImage}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50"
                 >
                   {isUploadingImage ? (
                     <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
                   ) : (
                     <Upload className="w-4 h-4 text-amber-400" />
                   )}
-                  <span>{isUploadingImage ? 'کەمکردنەوەی قەبارە و بارکردن...' : 'هەڵبژاردنی وێنە لە مۆبایل / کۆمپیوتەر'}</span>
+                  <span>{isUploadingImage ? 'کەمکردنەوەی قەبارە و بارکردن...' : 'هەڵبژاردنی وێنە لە مۆبایل یان کۆمپیوتەرەکەت'}</span>
                 </button>
-
-                {/* Preset Historical Images Dropdown */}
-                <div className="p-1 rounded-xl bg-black/50 border border-slate-800 text-[11px]">
-                  <span className="text-slate-400 px-2 block mb-1">وێنەی نموونەیی ئامادەکراو:</span>
-                  <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5">
-                    {KURDISH_HISTORICAL_IMAGE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          setImageUrl(preset.url);
-                          if (!imageCaption.trim()) {
-                            setImageCaption(preset.caption);
-                          }
-                        }}
-                        className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-amber-500/20 hover:text-amber-300 border border-slate-800 hover:border-amber-500/40 text-slate-300 text-[10px] whitespace-nowrap transition-colors cursor-pointer"
-                        title={preset.caption}
-                      >
-                        {preset.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* URL Input */}
@@ -986,13 +979,13 @@ export const FactEditorModal: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Image Preview & Caption Field */}
+              {/* Image Preview & Caption Field (بە قیاسی تەواو بێ بڕین) */}
               {imageUrl && (
-                <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/30 space-y-3 animate-fade-in shadow-md">
+                <div className="p-3.5 rounded-2xl bg-[#090d18] border border-amber-500/30 space-y-3 shadow-md">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                     <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                       <Eye className="w-3.5 h-3.5 text-amber-400" />
-                      <span>پێشبینینی وێنەکە</span>
+                      <span>پێشبینینی وێنەکە بە قیاسی تەواو</span>
                     </span>
                     <button
                       type="button"
@@ -1000,25 +993,24 @@ export const FactEditorModal: React.FC<Props> = ({
                         setImageUrl('');
                         setImageCaption('');
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-[10px] cursor-pointer transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-[10px] cursor-pointer transition-colors"
                     >
                       <Trash2 className="w-3 h-3" />
                       <span>لابردنی وێنە</span>
                     </button>
                   </div>
 
-                  <div className="relative rounded-xl overflow-hidden border border-amber-500/20 max-h-56 bg-slate-950 flex items-center justify-center">
+                  <div className="relative rounded-xl overflow-hidden border border-amber-500/30 bg-black/95 flex flex-col items-center justify-center p-2 min-h-[160px]">
                     <img
                       src={imageUrl}
                       alt={imageCaption || name || 'Topic Image Preview'}
-                      className="w-full h-48 object-cover object-center"
+                      className="max-h-64 max-w-full w-auto h-auto object-contain mx-auto rounded-lg shadow-lg"
                       onError={() => setImageUploadError('نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.')}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
                     {imageCaption && (
-                      <div className="absolute bottom-2 right-2 left-2 p-1.5 px-2.5 rounded-lg bg-black/80 border border-amber-500/30 text-amber-200 text-[11px] backdrop-blur-md flex items-center gap-1.5">
-                        <ImageIcon className="w-3 h-3 text-amber-400 shrink-0" />
-                        <span className="truncate">{imageCaption}</span>
+                      <div className="w-full mt-2 p-2 rounded-lg bg-[#070b14] border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+                        <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="font-medium text-right">{imageCaption}</span>
                       </div>
                     )}
                   </div>

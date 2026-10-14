@@ -22,6 +22,7 @@ import { FactDetailModal } from './components/FactDetailModal';
 import { AdminPinModal } from './components/AdminPinModal';
 import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
+import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState<boolean>(true);
@@ -46,6 +47,7 @@ export default function App() {
   const [isFactEditorOpen, setIsFactEditorOpen] = useState(false);
   const [factToEdit, setFactToEdit] = useState<FactItem | null>(null);
   const [isCollectionManagerOpen, setIsCollectionManagerOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   // Map Point Picking state
   const [isPickingLocation, setIsPickingLocation] = useState(false);
@@ -104,6 +106,8 @@ export default function App() {
           setIsFactEditorOpen(false);
         } else if (isCollectionManagerOpen) {
           setIsCollectionManagerOpen(false);
+        } else if (isGalleryOpen) {
+          setIsGalleryOpen(false);
         } else if (detailFact) {
           setDetailFact(null);
         } else if (isMenuOpen) {
@@ -119,6 +123,7 @@ export default function App() {
     isAdminPinModalOpen,
     isFactEditorOpen,
     isCollectionManagerOpen,
+    isGalleryOpen,
     isPickingLocation,
   ]);
 
@@ -312,6 +317,7 @@ export default function App() {
           showPolygon={showPolygon}
           setShowPolygon={setShowPolygon}
           onOpenMenu={() => setIsMenuOpen(true)}
+          onOpenGallery={() => setIsGalleryOpen(true)}
           activeTagFilter={activeTagFilter}
           setActiveTagFilter={setActiveTagFilter}
           selectedYear={selectedYear}
@@ -355,6 +361,7 @@ export default function App() {
                   onOpenAddFact={handleOpenAddFact}
                   onOpenEditFact={handleOpenEditFact}
                   onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
+                  onOpenGallery={() => setIsGalleryOpen(true)}
                   onClose={() => setIsMenuOpen(false)}
                   onLogoutAdmin={handleAdminLogout}
                 />
@@ -376,7 +383,19 @@ export default function App() {
           handleOpenEditFact(fact);
         }}
         onSaveNotes={handleSaveNotes}
+        onOpenGallery={() => setIsGalleryOpen(true)}
         totalFactsCount={facts.length}
+      />
+
+      {/* Kurdish Historical Gallery Modal with 6-second auto slideshow */}
+      <HistoricalGalleryModal
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        facts={facts}
+        onFlyToFact={(fact) => {
+          handleSelectFact(fact);
+          setIsGalleryOpen(false);
+        }}
       />
 
       {/* Admin Secret PIN Verification Modal */}
