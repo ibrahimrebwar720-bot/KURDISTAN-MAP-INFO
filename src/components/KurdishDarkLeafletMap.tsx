@@ -38,6 +38,9 @@ import {
   Copy,
   ChevronDown,
   Sparkles,
+  Camera,
+  Maximize2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -182,6 +185,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   // Quick Topic Summary Card state for bottom dock
   const [showQuickSummary, setShowQuickSummary] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{
+    url: string;
+    caption?: string;
+    title: string;
+  } | null>(null);
 
   // Filter Menu Popover & Toast state
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -678,7 +686,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* B. Active Filter Persistent Badge (Shown whenever activeTagFilter is not 'all') */}
         {activeTagFilter !== 'all' && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/95 border border-indigo-500/80 shadow-[0_0_25px_rgba(79,70,229,0.45)] backdrop-blur-md animate-fade-in text-right">
+          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#070b14]/75 border border-amber-500/25 shadow-[0_8px_30px_rgba(0,0,0,0.7),0_0_20px_rgba(245,158,11,0.12)] backdrop-blur-xl animate-fade-in text-right">
             <span
               className="w-2 h-2 rounded-full animate-ping shrink-0"
               style={{ backgroundColor: currentFilterObj.color }}
@@ -689,12 +697,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             <span className="text-xs font-bold text-white tracking-wide">
               {currentFilterObj.label}
             </span>
-            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
               {visibleFacts.length} شوێن
             </span>
             <button
               onClick={() => handleSelectTagFilter('all')}
-              className="p-1 -mr-1 rounded-full text-indigo-400 hover:text-white hover:bg-indigo-950 transition-colors cursor-pointer"
+              className="p-1 -mr-1 rounded-full text-amber-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               title="لابردنی فلتەر و پیشاندانی هەمووی"
             >
               <X className="w-3 h-3" />
@@ -704,8 +712,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* Filter Notification Toast (Pops up when switched) */}
         {filterNotification && activeTagFilter === 'all' && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3 py-1 rounded-full bg-black/90 border border-indigo-950 text-indigo-300 text-[11px] font-medium shadow-xl backdrop-blur-md animate-fade-in">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="pointer-events-auto flex items-center gap-2 px-3 py-1 rounded-full bg-[#070b14]/75 border border-amber-500/20 text-amber-300 text-[11px] font-medium shadow-xl backdrop-blur-xl animate-fade-in">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
             <span>فلتەر: {filterNotification}</span>
           </div>
         )}
@@ -713,13 +721,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       {/* 3. Top-Left Admin Indicator when active */}
       {isAdmin && (
-        <div className="absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/90 border border-emerald-500/70 shadow-[0_0_20px_rgba(16,185,129,0.3)] backdrop-blur-md">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-          <span className="text-[11px] font-bold text-emerald-300">ئەدمین چالاکە</span>
+        <div className="absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#070b14]/75 border border-amber-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(245,158,11,0.1)] backdrop-blur-xl">
+          <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+          <span className="text-[11px] font-bold text-amber-300">ئەدمین چالاکە</span>
           {onOpenAddFact && (
             <button
               onClick={onOpenAddFact}
-              className="mr-1.5 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 text-[10px] transition-colors cursor-pointer"
+              className="mr-1.5 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold transition-colors cursor-pointer"
             >
               <Plus className="w-3 h-3" />
               <span>زیادکردنی بابەت</span>
@@ -728,7 +736,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           {onLogoutAdmin && (
             <button
               onClick={onLogoutAdmin}
-              className="mr-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-950/70 hover:bg-red-900/70 text-red-300 border border-red-800/60 text-[10px] transition-colors cursor-pointer"
+              className="mr-1 flex items-center gap-1 px-2 py-1 rounded-xl bg-red-950/70 hover:bg-red-900/70 text-red-300 border border-red-800/60 text-[10px] transition-colors cursor-pointer"
               title="داخستنی دۆخی ئەدمین"
             >
               <X className="w-3 h-3" />
@@ -758,10 +766,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             setIsMoreMenuOpen(!isMoreMenuOpen);
             if (isMoreMenuOpen) setIsFilterMenuOpen(false);
           }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer select-none ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer select-none ${
             isMoreMenuOpen
-              ? 'bg-amber-500 text-black font-bold border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
-              : 'bg-[#070b14]/90 hover:bg-[#0d1424]/95 border-amber-500/30 hover:border-amber-400 text-slate-100 hover:text-amber-300'
+              ? 'bg-amber-500 text-black font-extrabold border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+              : 'bg-[#070b14]/75 hover:bg-[#0d1424]/85 border-amber-500/25 hover:border-amber-400 text-slate-100 hover:text-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.5)]'
           }`}
           title="زیاتر - کرداری خێرا و ئامرازەکانی نەخشە"
         >
@@ -778,7 +786,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         {/* Simple & Clean Dropdown Menu ("بەشی زیاتر: سادە و ساکار بەبێ تۆپ تۆپ") */}
         {isMoreMenuOpen && (
           <div
-            className="w-56 bg-[#070b14]/95 border border-amber-500/30 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.95),0_0_20px_rgba(245,158,11,0.15)] backdrop-blur-2xl text-right flex flex-col gap-1 animate-menu-dropdown z-30"
+            className="w-56 bg-[#070b14]/80 border border-amber-500/25 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.12)] backdrop-blur-2xl text-right flex flex-col gap-1 animate-menu-dropdown z-30"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 1. پێڕست و بابەتەکان (Menu & Drawer) - (Search is inside menu drawer) */}
@@ -849,6 +857,22 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </button>
 
+            {/* دووبارەکردنەوەی ئینترۆی تیشکی نەخشە */}
+            {onReplayIntro && (
+              <button
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onReplayIntro();
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-amber-200 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="font-medium">دووبارەکردنەوەی ئینترۆی نەخشە</span>
+                </div>
+              </button>
+            )}
+
             {/* 5. گۆڕینی شێوازی نەخشە: تاریک / مانگی دەستکرد */}
             <button
               onClick={() => {
@@ -914,7 +938,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         {/* Interactive Popover Menu for Category Filters - Independent from More menu */}
         {isFilterMenuOpen && (
           <div
-            className="w-64 bg-[#070b14]/95 border border-amber-500/40 rounded-2xl p-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.95),0_0_25px_rgba(245,158,11,0.2)] backdrop-blur-2xl z-40 text-right animate-menu-dropdown space-y-2 mt-1"
+            className="w-64 bg-[#070b14]/80 border border-amber-500/25 rounded-2xl p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.15)] backdrop-blur-2xl z-40 text-right animate-menu-dropdown space-y-2 mt-1"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-1.5 border-b border-amber-500/20 px-1 text-amber-300">
@@ -945,8 +969,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     onClick={() => handleSelectTagFilter(opt.id)}
                     className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
                       isSelected
-                        ? 'bg-amber-500 text-black font-bold shadow-md border border-amber-300'
-                        : 'bg-black/40 text-slate-200 hover:bg-amber-500/10 hover:text-amber-200 border border-white/5 hover:border-amber-500/20'
+                        ? 'bg-amber-500 text-black font-extrabold shadow-md border border-amber-300'
+                        : 'bg-[#050812]/50 text-slate-200 hover:bg-amber-500/15 hover:text-amber-200 border border-slate-800/80 hover:border-amber-500/30'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -988,7 +1012,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         {/* Quick Topic Summary Card with Beautiful Motion & Graphic (کورتەی بابەت بە مۆنشن و گرافیکی پرۆفێشناڵ) */}
         {selectedFact && showQuickSummary && (
           <div
-            className="w-full max-w-md sm:max-w-lg mb-1 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#0e1626]/98 via-[#080d17]/98 to-[#03060c]/98 border border-amber-500/40 shadow-[0_15px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(245,158,11,0.2)] backdrop-blur-2xl text-right animate-summary-popup z-40 transition-all select-text shrink-0"
+            className="w-full max-w-md sm:max-w-lg mb-1 p-3 sm:p-4 rounded-2xl bg-[#070b14]/80 border border-amber-500/25 shadow-[0_16px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(245,158,11,0.15)] backdrop-blur-2xl text-right animate-summary-popup z-40 transition-all select-text shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Decorative Header with Kurdish Flag, Golden Sun & Category */}
@@ -1004,7 +1028,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       کورتەی بابەت
                     </span>
                     {selectedFact.tag && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60 font-medium">
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
                         {selectedFact.tag}
                       </span>
                     )}
@@ -1031,6 +1055,50 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </div>
 
+            {/* Topic Image with Glassmorphism Border & Small Information Text */}
+            {selectedFact.imageUrl && (
+              <div className="relative mb-2.5 rounded-xl overflow-hidden border border-amber-500/30 bg-black/70 group shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+                <img
+                  src={selectedFact.imageUrl}
+                  alt={selectedFact.imageCaption || selectedFact.name}
+                  className="w-full h-36 sm:h-44 object-cover object-center group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+                  onClick={() =>
+                    setLightboxImage({
+                      url: selectedFact.imageUrl!,
+                      caption: selectedFact.imageCaption,
+                      title: selectedFact.name,
+                    })
+                  }
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#070b14]/90 via-transparent to-black/20 pointer-events-none" />
+
+                {/* Small Caption / Information on the image (نوسینی بچووک بۆ زانیاری لەسەر وێنەکە) */}
+                {selectedFact.imageCaption && (
+                  <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-1 rounded-lg bg-[#070b14]/90 border border-amber-500/30 text-amber-200 text-[10px] sm:text-[11px] backdrop-blur-md flex items-center justify-between gap-1.5 shadow-sm">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Camera className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="truncate font-medium">{selectedFact.imageCaption}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightboxImage({
+                          url: selectedFact.imageUrl!,
+                          caption: selectedFact.imageCaption,
+                          title: selectedFact.name,
+                        });
+                      }}
+                      className="p-0.5 rounded text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
+                      title="گەورەکردنی وێنە"
+                    >
+                      <Maximize2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Location Description */}
             {selectedFact.desc && (
               <div className="flex items-center gap-1.5 mb-2 text-[11px] text-amber-200/90 font-medium">
@@ -1040,14 +1108,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             )}
 
             {/* Summary Text Content with Elegant Typography */}
-            <div className="p-2.5 rounded-xl bg-black/60 border border-indigo-950/80 text-slate-200 text-xs sm:text-[13px] leading-relaxed max-h-36 overflow-y-auto shadow-inner">
+            <div className="p-3 rounded-xl bg-black/45 border border-amber-500/15 text-slate-200 text-xs sm:text-[13px] leading-relaxed max-h-36 overflow-y-auto custom-scrollbar">
               <p className="line-clamp-5 whitespace-pre-line">
                 {selectedFact.fullText || selectedFact.desc}
               </p>
             </div>
 
             {/* Action Footer */}
-            <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-indigo-950/80">
+            <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-amber-500/20">
               <div className="flex items-center gap-1.5">
                 {onOpenDetail && (
                   <button
@@ -1055,9 +1123,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       setShowQuickSummary(false);
                       onOpenDetail(selectedFact);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold text-xs shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all cursor-pointer active:scale-95"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all cursor-pointer active:scale-95"
                   >
-                    <BookOpen className="w-3.5 h-3.5 text-black" />
+                    <BookOpen className="w-3.5 h-3.5 text-slate-950" />
                     <span>زانیاری زیاتر و بەڵگەنامەکان</span>
                   </button>
                 )}
@@ -1072,7 +1140,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     setCopiedSummary(true);
                     setTimeout(() => setCopiedSummary(false), 2000);
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 hover:bg-indigo-950/70 text-slate-300 hover:text-white border border-indigo-900/60 text-[10px] transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-black/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 text-[10px] transition-colors cursor-pointer"
                   title="لەبەرگرتنەوەی دەق"
                 >
                   {copiedSummary ? (
@@ -1102,7 +1170,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         {selectedFact && (
           <button
             onClick={() => setShowQuickSummary((prev) => !prev)}
-            className="group flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg sm:rounded-xl bg-[#080c14]/95 hover:bg-[#0f172a] border border-amber-500/40 hover:border-amber-400 backdrop-blur-xl shadow-lg cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-right"
+            className="group flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl sm:rounded-2xl bg-[#070b14]/75 hover:bg-[#0c1220]/85 border border-amber-500/25 hover:border-amber-400/50 backdrop-blur-xl shadow-[0_8px_25px_rgba(0,0,0,0.6)] cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-right"
             title="کلیک بکە بۆ پیشاندانی کورتەی بابەت بە مۆنشن و گرافیک"
           >
             {/* Kurdish Flag Icon in Center */}
@@ -1133,6 +1201,55 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           </button>
         )}
       </div>
+
+      {/* Full-Screen Lightbox Modal for Topic Image */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[1500] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-in text-right"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-3xl w-full bg-[#070b14]/90 border border-amber-500/35 rounded-3xl p-4 sm:p-5 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] backdrop-blur-2xl flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="w-full flex items-center justify-between pb-3 mb-3 border-b border-amber-500/20">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <h4 className="text-sm sm:text-base font-bold text-white">
+                  {lightboxImage.title}
+                </h4>
+              </div>
+              <button
+                onClick={() => setLightboxImage(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 border border-slate-800 transition-colors cursor-pointer"
+                title="داخستن"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Image display */}
+            <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 max-h-[65vh] w-full flex items-center justify-center bg-black">
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.caption || lightboxImage.title}
+                className="max-h-[65vh] w-auto max-w-full object-contain"
+              />
+            </div>
+
+            {/* Small Caption / Description Text */}
+            {lightboxImage.caption && (
+              <div className="mt-3.5 w-full p-2.5 px-3.5 rounded-xl bg-black/60 border border-amber-500/25 text-amber-200 text-xs sm:text-[13px] backdrop-blur-md flex items-center gap-2">
+                <Camera className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium">{lightboxImage.caption}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

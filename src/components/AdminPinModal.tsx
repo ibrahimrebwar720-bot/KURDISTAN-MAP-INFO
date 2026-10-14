@@ -64,7 +64,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-sm bg-[#090d16] border border-amber-500/40 rounded-3xl p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.18)] text-slate-100"
+        className="relative w-full max-w-sm bg-[#070b14]/85 border border-amber-500/25 rounded-3xl p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-2xl text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}

@@ -280,7 +280,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-full h-[100dvh] w-full overflow-hidden bg-[#090b0e] text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white text-xs">
+    <div className="h-full h-[100dvh] w-full overflow-hidden bg-[#05070e] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs">
       {/* Google Maps Platform quota defense notification banner */}
       {isGmpQuotaExceeded && (
         <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
@@ -334,13 +334,13 @@ export default function App() {
           <div className="fixed inset-0 z-50 flex justify-end">
             {/* Backdrop */}
             <div
-              className="fixed inset-0 bg-black/75 backdrop-blur-xs transition-opacity"
+              className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
               onClick={() => setIsMenuOpen(false)}
             />
 
             {/* Drawer Content - Starts directly from Search with close button */}
-            <aside className="relative w-full sm:w-[390px] md:w-[450px] h-full bg-black border-r sm:border-r-0 sm:border-l border-indigo-950 shadow-[0_0_50px_rgba(15,10,40,0.8)] flex flex-col z-10 animate-slide-left text-right">
-              <div className="flex-1 overflow-hidden p-2 bg-black">
+            <aside className="relative w-full sm:w-[400px] md:w-[460px] h-full bg-[#070b14]/85 border-r sm:border-r-0 sm:border-l border-amber-500/25 shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(245,158,11,0.1)] backdrop-blur-2xl flex flex-col z-10 animate-slide-left text-right">
+              <div className="flex-1 overflow-hidden p-2 sm:p-3">
                 <FactsList
                   facts={facts}
                   selectedFact={selectedFact}

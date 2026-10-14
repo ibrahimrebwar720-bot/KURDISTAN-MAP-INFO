@@ -27,6 +27,8 @@ export interface FactItem {
   territoryColor?: string;
   overlayImageUrl?: string;
   overlayBounds?: [[number, number], [number, number]];
+  imageUrl?: string;
+  imageCaption?: string;
 }
 
 export interface EraInfo {

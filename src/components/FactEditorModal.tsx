@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { CollectionItem } from '../types/history';
 import {
@@ -23,7 +23,15 @@ import {
   Sliders,
   ChevronDown,
   Info,
+  Image as ImageIcon,
+  Upload,
+  Link as LinkIcon,
+  Eye,
 } from 'lucide-react';
+import {
+  compressImageFile,
+  KURDISH_HISTORICAL_IMAGE_PRESETS,
+} from '../utils/imageUtils';
 import {
   getFactYearSpan,
   formatKurdishYearRange,
@@ -78,6 +86,35 @@ export const FactEditorModal: React.FC<Props> = ({
   // Is this fact a historical person / figure?
   const isPerson = tag === 'figure' || tag === 'scholar' || tag === 'minister' || tag === 'official';
 
+  // Topic Image & Caption state
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageCaption, setImageCaption] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setImageUploadError(null);
+    try {
+      const compressedDataUrl = await compressImageFile(file);
+      setImageUrl(compressedDataUrl);
+      if (!imageCaption.trim() && name.trim()) {
+        setImageCaption(`وێنەی تایبەت بە «${name.trim()}»`);
+      }
+    } catch (err: any) {
+      setImageUploadError(err?.message || 'هەڵە لە بارکردنی وێنەکەدا ڕوویدا');
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Google Maps Place Search state
   const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
@@ -90,6 +127,7 @@ export const FactEditorModal: React.FC<Props> = ({
       setPlaceSearchQuery('');
       setPlaceSearchResults([]);
       setShowManualCoords(false);
+      setImageUploadError(null);
 
       if (factToEdit) {
         setName(factToEdit.name);
@@ -97,6 +135,8 @@ export const FactEditorModal: React.FC<Props> = ({
         setSelectedPlaceName(factToEdit.desc || null);
         setFullText(factToEdit.fullText);
         setAdditionalNotes(factToEdit.additionalNotes || '');
+        setImageUrl(factToEdit.imageUrl || '');
+        setImageCaption(factToEdit.imageCaption || '');
         setLat(factToEdit.lat);
         setLng(factToEdit.lng);
         setTag(factToEdit.tag);
@@ -158,6 +198,8 @@ export const FactEditorModal: React.FC<Props> = ({
         }
         setTag('principality');
         setCollectionId('powers');
+        setImageUrl('');
+        setImageCaption('');
       }
       setYearError(null);
       setConfirmDelete(false);
@@ -304,6 +346,8 @@ export const FactEditorModal: React.FC<Props> = ({
       zoom: factToEdit ? factToEdit.zoom : 8,
       tag: tag,
       collectionId: collectionId,
+      imageUrl: imageUrl.trim() || undefined,
+      imageCaption: imageCaption.trim() || undefined,
       isCustom: true,
     };
 
@@ -317,7 +361,7 @@ export const FactEditorModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl bg-[#090d16] border border-amber-500/30 rounded-3xl p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.12)] max-h-[92vh] flex flex-col text-slate-100"
+        className="relative w-full max-w-3xl bg-[#070b14]/85 border border-amber-500/25 rounded-3xl p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.12)] backdrop-blur-2xl max-h-[92vh] flex flex-col text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
@@ -833,6 +877,171 @@ export const FactEditorModal: React.FC<Props> = ({
                 placeholder="لێرە زانیارییە زیاترەکان، دەقی دەستنووس و وتەی مێژوونووسان، شوێنەوارە پارێزراوەکان و سەرچاوەی کتێبەکان تۆمار بکە..."
                 className="w-full bg-[#050812] text-slate-200 placeholder:text-slate-500 px-3.5 py-2 rounded-xl border border-slate-800 focus:border-amber-400 focus:outline-none text-xs leading-relaxed"
               />
+            </div>
+          </div>
+
+          {/* SECTION 5: وێنە و ڕوونکردنەوەی وێنە (وێنەی تایبەت بە بابەت و زانیاری بچووک لەسەری) */}
+          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                  05
+                </span>
+                <span>وێنەی تایبەت بە بابەت و زانیاری لەسەری</span>
+              </span>
+              <span className="text-[11px] text-amber-300/80">یەک وێنە + نوسینی بچووک</span>
+            </div>
+
+            {/* Explanatory note */}
+            <div className="text-[11px] text-slate-300 bg-black/40 p-3 rounded-xl border border-slate-800 flex items-start gap-2 leading-relaxed">
+              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span>
+                دەتوانیت یەک وێنەی تایبەت بەم بابەتە دابنێیت (لە مۆبایلەکەت، کۆمپیوتەرەکەت یان بە بەستەر). کاتێک بەکارهێنەر لەسەر نەخشە پۆینتەکە دادەگرێت، ئەم وێنەیە لەگەڵ کورتەی بابەت و ئەو زانیارییە بچووکەی لەسەری دەینووسیت بە جوانترین شێواز نیشان دەدرێت.
+              </span>
+            </div>
+
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageFileChange}
+            />
+
+            {/* Image Selection Buttons & URL Input */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingImage}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50"
+                >
+                  {isUploadingImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                  ) : (
+                    <Upload className="w-4 h-4 text-amber-400" />
+                  )}
+                  <span>{isUploadingImage ? 'کەمکردنەوەی قەبارە و بارکردن...' : 'هەڵبژاردنی وێنە لە مۆبایل / کۆمپیوتەر'}</span>
+                </button>
+
+                {/* Preset Historical Images Dropdown */}
+                <div className="p-1 rounded-xl bg-black/50 border border-slate-800 text-[11px]">
+                  <span className="text-slate-400 px-2 block mb-1">وێنەی نموونەیی ئامادەکراو:</span>
+                  <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5">
+                    {KURDISH_HISTORICAL_IMAGE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          setImageUrl(preset.url);
+                          if (!imageCaption.trim()) {
+                            setImageCaption(preset.caption);
+                          }
+                        }}
+                        className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-amber-500/20 hover:text-amber-300 border border-slate-800 hover:border-amber-500/40 text-slate-300 text-[10px] whitespace-nowrap transition-colors cursor-pointer"
+                        title={preset.caption}
+                      >
+                        {preset.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* URL Input */}
+              <div className="relative">
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
+                  <span>یان بەستەری ڕاستەوخۆی وێنە لە ئینتەرنێتەوە (Image URL):</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/kurdish_history_image.jpg"
+                    className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs font-mono placeholder:text-slate-600 pl-10"
+                    dir="ltr"
+                  />
+                  {imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setImageUrl('')}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-400 cursor-pointer"
+                      title="سڕینەوەی بەستەر"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {imageUploadError && (
+                <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{imageUploadError}</span>
+                </div>
+              )}
+
+              {/* Image Preview & Caption Field */}
+              {imageUrl && (
+                <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/30 space-y-3 animate-fade-in shadow-md">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-amber-400" />
+                      <span>پێشبینینی وێنەکە</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageUrl('');
+                        setImageCaption('');
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-[10px] cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>لابردنی وێنە</span>
+                    </button>
+                  </div>
+
+                  <div className="relative rounded-xl overflow-hidden border border-amber-500/20 max-h-56 bg-slate-950 flex items-center justify-center">
+                    <img
+                      src={imageUrl}
+                      alt={imageCaption || name || 'Topic Image Preview'}
+                      className="w-full h-48 object-cover object-center"
+                      onError={() => setImageUploadError('نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.')}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+                    {imageCaption && (
+                      <div className="absolute bottom-2 right-2 left-2 p-1.5 px-2.5 rounded-lg bg-black/80 border border-amber-500/30 text-amber-200 text-[11px] backdrop-blur-md flex items-center gap-1.5">
+                        <ImageIcon className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span className="truncate">{imageCaption}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Small Caption / Description about Image */}
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                  <span>زانیاری لەسەر وێنەکە (بە نوسینێکی بچووک نیشان دەدرێت)</span>
+                </label>
+                <input
+                  type="text"
+                  value={imageCaption}
+                  onChange={(e) => setImageCaption(e.target.value)}
+                  placeholder="بۆ نموونە: دیمەنی قەڵاکە لە سەرەتای سەدەی بیستەم، یان نیگاری پاشا لەسەر بەردی دێرین..."
+                  className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs placeholder:text-slate-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  ئەم نوسینە بە قەبارەیەکی بچووک و جوان لە ژێر یان لەسەر وێنەکە لە کاتی داگرتنی پۆینت نیشان دەدرێت.
+                </p>
+              </div>
             </div>
           </div>
 

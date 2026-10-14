@@ -351,27 +351,27 @@ export const TimelineSlider: React.FC<Props> = ({
   return (
     <div className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-right select-none transition-all">
       {/* 
-        Two-Tone Precision Ruler Dock (ڕاستەی مێژوویی: باریک، تەنک و ڕوون بۆ مۆبایل)
+        Two-Tone Precision Ruler Dock (ڕاستەی مێژوویی: شوشەیی تەنک و ڕوون بە لێواری تەنکی زێڕین)
       */}
-      <div className="w-full bg-[#080c14]/95 border border-amber-500/30 rounded-lg sm:rounded-2xl p-1 sm:p-2.5 backdrop-blur-xl shadow-[0_6px_25px_rgba(0,0,0,0.85),0_0_15px_rgba(245,158,11,0.06)] flex flex-col gap-0.5 sm:gap-1.5 transition-all">
+      <div className="w-full bg-[#070b14]/75 border border-amber-500/20 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.7),0_0_15px_rgba(245,158,11,0.08)] flex flex-col gap-1 sm:gap-2 transition-all">
         {/* Tier 1: Top Status Header (ڕاستەوخۆ بەپێی جوڵەی ڕاستەکە دەگۆڕێت) */}
         <div className="flex items-center justify-between gap-1 sm:gap-1.5 w-full">
           {/* Right: Year Label & Fact Count */}
-          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-            <div className="w-4 h-4 sm:w-6 sm:h-6 rounded sm:rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-amber-500/15 border border-amber-500/35 flex items-center justify-center shrink-0 shadow-xs">
               <Calendar className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-amber-400" />
             </div>
 
-            <div className="flex items-baseline gap-1 sm:gap-1.5 truncate">
+            <div className="flex items-baseline gap-1.5 truncate">
               {/* ئەو ساڵەی لەسەرەوەیە ڕاستەوخۆ نوێ دەبێتەوە */}
-              <span className="font-bold text-white text-[10px] sm:text-sm font-mono tracking-wide">
+              <span className="font-bold text-white text-[11px] sm:text-sm font-mono tracking-wide">
                 {selectedYear === 'all'
                   ? 'هەموو ساڵەکان'
                   : formatKurdishYear(selectedYear)}
               </span>
 
               {/* Fact Count Pill */}
-              <span className="text-[7.5px] sm:text-[9px] font-mono px-1 py-0.2 sm:px-2 sm:py-0.5 rounded sm:rounded-md bg-amber-950/80 text-amber-300 border border-amber-800/50 shrink-0">
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
                 {toKurdishDigits(filteredCount)} شوێن
               </span>
             </div>
@@ -383,7 +383,7 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => handleStepYear(-1)}
               title="١ ساڵ بۆ دواوە"
-              className="w-4.5 h-4.5 sm:w-6 sm:h-6 rounded sm:rounded-lg bg-[#0d121f] hover:bg-amber-950/60 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 flex items-center justify-center transition-all cursor-pointer"
+              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer backdrop-blur-md"
             >
               <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -392,16 +392,16 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={togglePlay}
               title={isPlaying ? 'وەستاندنی تایملاین' : 'پەخشکردنی مێژوو بەپێی ڕاستە'}
-              className={`w-4.5 h-4.5 sm:w-6 sm:h-6 rounded sm:rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                 isPlaying
-                  ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.6)] animate-pulse'
-                  : 'bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/40'
+                  ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.6)] animate-pulse'
+                  : 'bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/35 backdrop-blur-md'
               }`}
             >
               {isPlaying ? (
-                <Pause className="w-2 h-2 sm:w-3 sm:h-3 fill-current" />
+                <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />
               ) : (
-                <Play className="w-2 h-2 sm:w-3 sm:h-3 fill-current ml-0.5" />
+                <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current ml-0.5" />
               )}
             </button>
 
@@ -409,7 +409,7 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => handleStepYear(1)}
               title="١ ساڵ بۆ پێشەوە"
-              className="w-4.5 h-4.5 sm:w-6 sm:h-6 rounded sm:rounded-lg bg-[#0d121f] hover:bg-amber-950/60 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 flex items-center justify-center transition-all cursor-pointer"
+              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer backdrop-blur-md"
             >
               <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -418,13 +418,13 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => setShowDirectInput(!showDirectInput)}
               title="دیاریکردنی ساڵ بە ژمارە"
-              className={`w-4.5 h-4.5 sm:w-6 sm:h-6 rounded sm:rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg border flex items-center justify-center transition-all cursor-pointer backdrop-blur-md ${
                 showDirectInput
-                  ? 'bg-amber-500 text-black border-amber-400 font-bold'
-                  : 'bg-[#0d121f] border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-500/40'
+                  ? 'bg-amber-500 text-black border-amber-300 font-bold shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                  : 'bg-[#0a0f1d]/60 border-amber-500/20 text-slate-300 hover:text-amber-300 hover:border-amber-400/40'
               }`}
             >
-              <Search className="w-2 h-2 sm:w-3 sm:h-3" />
+              <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
 
             {/* Toggle All Years Button (Clicking again toggles OFF) */}
@@ -435,13 +435,13 @@ export const TimelineSlider: React.FC<Props> = ({
                   ? 'کلیک بکەرەوە بۆ گەڕانەوە بۆ ساڵی دیاریکراو'
                   : 'پیشاندانی هەموو ساڵەکان'
               }
-              className={`flex items-center gap-0.5 sm:gap-1 px-1 sm:px-2 h-4.5 sm:h-6 rounded sm:rounded-lg text-[8px] sm:text-[10px] font-medium border transition-all cursor-pointer ${
+              className={`flex items-center gap-1 px-1.5 sm:px-2.5 h-5 sm:h-6 rounded-lg text-[9px] sm:text-[10px] font-bold border transition-all cursor-pointer backdrop-blur-md ${
                 selectedYear === 'all'
-                  ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)] font-bold'
-                  : 'bg-[#0d121f] text-slate-300 hover:text-amber-300 hover:bg-amber-950/40 border-slate-800 hover:border-amber-500/40'
+                  ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)] font-extrabold'
+                  : 'bg-[#0a0f1d]/60 text-slate-200 hover:text-amber-300 hover:bg-amber-500/15 border-amber-500/20 hover:border-amber-400/40'
               }`}
             >
-              <Layers className="w-2 h-2 sm:w-3 sm:h-3" />
+              <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span>هەمووی</span>
             </button>
           </div>
@@ -451,7 +451,7 @@ export const TimelineSlider: React.FC<Props> = ({
         {showDirectInput && (
           <form
             onSubmit={handleDirectJumpSubmit}
-            className="flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-lg sm:rounded-xl bg-[#0d121f] border border-amber-500/50 animate-fade-in"
+            className="flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-lg sm:rounded-xl bg-[#070b14]/85 border border-amber-500/35 backdrop-blur-xl animate-fade-in shadow-md"
           >
             <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold shrink-0">
               ساڵ بنووسە:
@@ -462,18 +462,18 @@ export const TimelineSlider: React.FC<Props> = ({
               value={directInputYear}
               onChange={(e) => setDirectInputYear(e.target.value)}
               placeholder="1940، 1890، 612 پ.ز..."
-              className="flex-1 bg-[#05070e] text-white px-2 py-0.5 sm:py-1 rounded border border-slate-800 text-[10px] sm:text-xs focus:outline-none focus:border-amber-500 font-mono"
+              className="flex-1 bg-black/60 text-white px-2 py-0.5 sm:py-1 rounded-lg border border-amber-500/20 text-[10px] sm:text-xs focus:outline-none focus:border-amber-400 font-mono"
             />
             <button
               type="submit"
-              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] sm:text-xs cursor-pointer"
+              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
             >
               بڕۆ
             </button>
             <button
               type="button"
               onClick={() => setShowDirectInput(false)}
-              className="p-0.5 sm:p-1 rounded text-slate-400 hover:text-white"
+              className="p-0.5 sm:p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
             >
               <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
@@ -490,13 +490,13 @@ export const TimelineSlider: React.FC<Props> = ({
             type="button"
             onClick={() => handleScrollRuler('left')}
             title="سکرۆڵکردنی ڕاستە بۆ چەپ"
-            className="w-3.5 h-6 sm:w-5 sm:h-9 rounded sm:rounded-md bg-[#0d121f] hover:bg-amber-950/60 text-slate-400 hover:text-amber-300 flex items-center justify-center shrink-0 border border-slate-800 cursor-pointer"
+            className="w-3.5 h-6 sm:w-5 sm:h-9 rounded-md sm:rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/20 hover:border-amber-400/40 cursor-pointer backdrop-blur-md"
           >
             <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
           </button>
 
           {/* Precision Ruler Strip (خاوەن نیشاندەری ناوەڕاست و هێڵەکانی سانتیمەتر) */}
-          <div className="relative flex-1 bg-gradient-to-b from-[#0e1422] to-[#070a13] border border-amber-500/30 rounded-lg sm:rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1">
+          <div className="relative flex-1 bg-black/45 border border-amber-500/20 rounded-lg sm:rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1 backdrop-blur-md">
             {/* Center Fixed Hairline Indicator (دەرزی پێوانەی ناوەڕاست) */}
             <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 bg-amber-400 z-20 pointer-events-none shadow-[0_0_8px_#f59e0b] flex flex-col justify-between items-center">
               <span className="text-[5px] sm:text-[7px] text-amber-400 -mt-0.5 leading-none select-none">▼</span>
@@ -574,9 +574,9 @@ export const TimelineSlider: React.FC<Props> = ({
             type="button"
             onClick={() => handleScrollRuler('right')}
             title="سکرۆڵکردنی ڕاستە بۆ ڕاست"
-            className="w-4 h-7 sm:w-5 sm:h-9 rounded sm:rounded-md bg-[#0d121f] hover:bg-amber-950/60 text-slate-400 hover:text-amber-300 flex items-center justify-center shrink-0 border border-slate-800 cursor-pointer"
+            className="w-3.5 h-6 sm:w-5 sm:h-9 rounded-md sm:rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/20 hover:border-amber-400/40 cursor-pointer backdrop-blur-md"
           >
-            <ChevronLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>

@@ -88,7 +88,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md bg-[#090d16] border border-amber-500/35 rounded-3xl p-5 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.15)] max-h-[90vh] overflow-y-auto text-slate-100"
+        className="relative w-full max-w-md bg-[#070b14]/85 border border-amber-500/25 rounded-3xl p-5 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-2xl max-h-[90vh] overflow-y-auto text-slate-100 custom-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

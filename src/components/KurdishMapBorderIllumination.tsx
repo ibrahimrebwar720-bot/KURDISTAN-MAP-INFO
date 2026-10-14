@@ -1,18 +1,41 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import { GREAT_KURDISTAN_POLYGON } from '../data/kurdishHistoryData';
+import { FastForward } from 'lucide-react';
 
 interface Props {
   map: L.Map | null;
   isActive: boolean;
   onComplete: () => void;
-  durationMs?: number; // 4000ms
+  durationMs?: number;
 }
 
+// Find index of southernmost point (lowest latitude)
+function getSouthernStartIndex(polygon: [number, number][]): number {
+  let minLat = Infinity;
+  let southIdx = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    if (polygon[i][0] < minLat) {
+      minLat = polygon[i][0];
+      southIdx = i;
+    }
+  }
+  return southIdx;
+}
+
+// Build closed loop starting from the south, traveling along the perimeter, and returning to the south
+const SOUTH_INDEX = getSouthernStartIndex(GREAT_KURDISTAN_POLYGON);
+const ORDERED_KURDISTAN_PERIMETER: [number, number][] = [
+  ...GREAT_KURDISTAN_POLYGON.slice(SOUTH_INDEX),
+  ...GREAT_KURDISTAN_POLYGON.slice(0, SOUTH_INDEX),
+  GREAT_KURDISTAN_POLYGON[SOUTH_INDEX], // Closes the perimeter back at the southern origin
+];
+
 /**
- * High-performance hardware-accelerated Canvas illumination.
- * 100% immune to mobile SVG filter memory limits, zero glitching, zero lag on iOS/Android.
- * Renders a silky soft golden light that diffuses outward from the border of Kurdistan.
+ * ئینترۆی تەنها تیشکی زەرد:
+ * تەنها تیشکێکی زەردی باریک و بچووک بەبێ هیچ ڕووناکییەک یان سێبەرێک بۆ دەوروبەر.
+ * لە باشوورەوە بە باریکی دەستپێدەکات، هێڵی نەخشەکە دەکێشێت بەبێ ڕووناککردنەوەی دەوروبەر،
+ * تا دەگاتەوە شوێنی خۆی لە باشوور.
  */
 export const KurdishMapBorderIllumination: React.FC<Props> = ({
   map,
@@ -21,19 +44,19 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
   durationMs = 4000,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const darkOverlayRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameIdRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const isTerminatedRef = useRef<boolean>(false);
 
-  // Cached screen points of the Kurdistan polygon
+  // Projected screen coordinates of the perimeter
   const projectedPointsRef = useRef<{ x: number; y: number }[]>([]);
 
-  // Project map LatLngs to container pixels
+  // Project map coordinates into container pixel space
   const projectCoordinates = useCallback(() => {
     if (!map) return;
     try {
-      const pts = GREAT_KURDISTAN_POLYGON.map(([lat, lng]) => {
+      const pts = ORDERED_KURDISTAN_PERIMETER.map(([lat, lng]) => {
         const pt = map.latLngToContainerPoint(L.latLng(lat, lng));
         return { x: pt.x, y: pt.y };
       });
@@ -43,11 +66,11 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
     }
   }, [map]);
 
-  // Handle map frame bounds & coordinate updates
+  // Frame the map to Kurdistan and listen for changes
   useEffect(() => {
     if (!map || !isActive) return;
 
-    // Gently frame all of Kurdistan so the whole map is visible on startup
+    // Gently frame Kurdistan so the entire path is in view
     const kurdistanBounds = L.latLngBounds(GREAT_KURDISTAN_POLYGON);
     map.fitBounds(kurdistanBounds, {
       padding: [25, 25],
@@ -72,18 +95,19 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
     };
   }, [map, isActive, projectCoordinates]);
 
-  // Main 60-120 FPS Glitch-Free Canvas Animation Loop
+  // Main Canvas Animation Loop
   useEffect(() => {
     if (!isActive || !map) return;
 
     const canvas = canvasRef.current;
-    const darkOverlay = darkOverlayRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    // Resize canvas to match display size with capped DPR (2x max) for zero mobile GPU strain
+    isTerminatedRef.current = false;
+
+    // Resize canvas with devicePixelRatio cap (max 2 for high performance)
     const updateCanvasSize = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -96,136 +120,156 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
     projectCoordinates();
 
     startTimeRef.current = null;
-    if (darkOverlay) darkOverlay.style.opacity = '1';
+
+    // 82% travel time, remaining time for holding full line and clean fade
+    const travelDuration = durationMs * 0.82;
 
     const animate = (timestamp: number) => {
+      if (isTerminatedRef.current) return;
+
       if (!startTimeRef.current) {
         startTimeRef.current = timestamp;
       }
       const elapsed = timestamp - startTimeRef.current;
-      const progress = Math.min(elapsed / durationMs, 1);
 
-      const pts = projectedPointsRef.current;
       const rect = canvas.getBoundingClientRect();
       const width = rect.width;
       const height = rect.height;
 
-      // Clear previous frame
+      // Clear frame
       ctx.clearRect(0, 0, width, height);
 
+      const pts = projectedPointsRef.current;
+
       if (pts.length >= 3) {
-        // Build reusable polygon path
+        // Compute segment lengths and cumulative distances
+        const segLengths: number[] = [];
+        const cumDist: number[] = [0];
+        let totalLength = 0;
+
+        for (let i = 0; i < pts.length - 1; i++) {
+          const dx = pts[i + 1].x - pts[i].x;
+          const dy = pts[i + 1].y - pts[i].y;
+          const len = Math.hypot(dx, dy);
+          segLengths.push(len);
+          totalLength += len;
+          cumDist.push(totalLength);
+        }
+
+        // Calculate travel progress along the path (0 to 1)
+        const travelProgress = Math.min(elapsed / travelDuration, 1);
+
+        // Smooth cubic ease-in-out for natural, elegant motion
+        const easedProgress =
+          travelProgress < 0.5
+            ? 4 * travelProgress * travelProgress * travelProgress
+            : 1 - Math.pow(-2 * travelProgress + 2, 3) / 2;
+
+        const currentDist = easedProgress * totalLength;
+
+        // Helper: get coordinates at specific distance along perimeter
+        const getPointAtDist = (targetD: number): { x: number; y: number; segIdx: number } => {
+          const clamped = Math.max(0, Math.min(totalLength, targetD));
+          let idx = 0;
+          for (let i = 0; i < cumDist.length - 1; i++) {
+            if (clamped >= cumDist[i] && clamped <= cumDist[i + 1]) {
+              idx = i;
+              break;
+            }
+          }
+          const segStartD = cumDist[idx];
+          const segLen = segLengths[idx] || 1;
+          const segFrac = Math.max(0, Math.min(1, (clamped - segStartD) / segLen));
+          return {
+            x: pts[idx].x + (pts[idx + 1].x - pts[idx].x) * segFrac,
+            y: pts[idx].y + (pts[idx + 1].y - pts[idx].y) * segFrac,
+            segIdx: idx,
+          };
+        };
+
+        const headPoint = getPointAtDist(currentDist);
+
+        // Clean fade out at the very end (last 300ms)
+        let globalAlpha = 1;
+        if (elapsed > durationMs - 300) {
+          globalAlpha = Math.max(0, (durationMs - elapsed) / 300);
+        }
+
+        ctx.save();
+        ctx.globalAlpha = globalAlpha;
+
+        // Zero shadow blur ensures NO surrounding area is illuminated (دەوروبەر ڕووناک ناکاتەوە)
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+
+        // 1. Draw the Clean Traced Border Line (هێڵی نەخشەکە بە باریکی و ڕوونی)
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) {
+        for (let i = 1; i <= headPoint.segIdx; i++) {
           ctx.lineTo(pts[i].x, pts[i].y);
         }
-        ctx.closePath();
+        ctx.lineTo(headPoint.x, headPoint.y);
 
-        // 1. Soft Warm Interior Wash (gently lights the land of Kurdistan)
-        let interiorAlpha = 0;
-        if (progress < 0.25) {
-          interiorAlpha = (progress / 0.25) * 0.12;
-        } else if (progress < 0.75) {
-          interiorAlpha = 0.12;
-        } else {
-          interiorAlpha = Math.max(0, 0.12 * (1 - (progress - 0.75) / 0.25));
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#eab308'; // Crisp yellow
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. Active Yellow Light Beam Section (تیشکە زەردە باریکەکە)
+        const beamLength = Math.min(36, currentDist);
+        const tailDist = Math.max(0, currentDist - beamLength);
+        const tailPoint = getPointAtDist(tailDist);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(tailPoint.x, tailPoint.y);
+        for (let i = tailPoint.segIdx + 1; i <= headPoint.segIdx; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
         }
+        ctx.lineTo(headPoint.x, headPoint.y);
 
-        if (interiorAlpha > 0.005) {
+        ctx.lineWidth = 2.0;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#fde047'; // Bright crisp yellow
+        ctx.stroke();
+        ctx.restore();
+
+        // 3. Small, Sharp Yellow Dot at the Head (خاڵێکی بچووک و باریکی زەرد بەبێ هیچ تەم یان ڕووناکییەک بۆ دەوروبەر)
+        if (travelProgress < 1.0) {
           ctx.save();
-          ctx.fillStyle = `rgba(245, 158, 11, ${interiorAlpha.toFixed(3)})`;
+          // Small solid yellow dot
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(headPoint.x, headPoint.y, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Tiny pure white center core
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(headPoint.x, headPoint.y, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          // Closed at south point
+          ctx.save();
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(pts[0].x, pts[0].y, 2.4, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
         }
 
-        // 2. Outward Diffusing Soft Light Aura (Far wave)
-        let auraFarAlpha = 0;
-        if (progress < 0.2) {
-          auraFarAlpha = (progress / 0.2) * 0.45;
-        } else if (progress < 0.75) {
-          auraFarAlpha = 0.45 + Math.sin(progress * Math.PI * 2) * 0.05;
-        } else {
-          auraFarAlpha = Math.max(0, 0.45 * (1 - (progress - 0.75) / 0.25));
-        }
-
-        if (auraFarAlpha > 0.005) {
-          ctx.save();
-          const spreadWidth = 16 + progress * 24;
-          ctx.lineWidth = spreadWidth;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.shadowColor = 'rgba(245, 158, 11, 0.6)';
-          ctx.shadowBlur = 18;
-          ctx.strokeStyle = `rgba(245, 158, 11, ${(auraFarAlpha * 0.35).toFixed(3)})`;
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 3. Mid Outward Radiance Wave (Near golden warmth)
-        let auraMidAlpha = 0;
-        if (progress < 0.2) {
-          auraMidAlpha = (progress / 0.2) * 0.7;
-        } else if (progress < 0.75) {
-          auraMidAlpha = 0.7;
-        } else {
-          auraMidAlpha = Math.max(0, 0.7 * (1 - (progress - 0.75) / 0.25));
-        }
-
-        if (auraMidAlpha > 0.005) {
-          ctx.save();
-          ctx.lineWidth = 8;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
-          ctx.shadowBlur = 10;
-          ctx.strokeStyle = `rgba(251, 191, 36, ${(auraMidAlpha * 0.5).toFixed(3)})`;
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 4. Core Golden Border Line (ڕووناکیی نەرمی سنور)
-        let borderAlpha = 0;
-        if (progress < 0.15) {
-          borderAlpha = (progress / 0.15) * 0.95;
-        } else if (progress < 0.75) {
-          borderAlpha = 0.95;
-        } else {
-          borderAlpha = Math.max(0, 0.95 - ((progress - 0.75) / 0.25) * 0.65);
-        }
-
-        if (borderAlpha > 0.005) {
-          ctx.save();
-          ctx.lineWidth = 2.4;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.shadowColor = 'rgba(254, 240, 138, 0.9)';
-          ctx.shadowBlur = 4;
-          ctx.strokeStyle = `rgba(254, 243, 199, ${borderAlpha.toFixed(3)})`;
-          ctx.stroke();
-          ctx.restore();
-        }
+        ctx.restore();
       }
 
-      // 5. Deep Midnight Backdrop softly dissipates
-      if (darkOverlay) {
-        let veilOpacity = 1;
-        if (progress < 0.15) {
-          veilOpacity = 1;
-        } else if (progress < 0.8) {
-          const spreadProg = (progress - 0.15) / 0.65;
-          veilOpacity = 1 - Math.sin(spreadProg * (Math.PI / 2)) * 0.75;
-        } else {
-          const endProg = (progress - 0.8) / 0.2;
-          veilOpacity = 0.25 * (1 - endProg);
-        }
-        darkOverlay.style.opacity = Math.max(0, veilOpacity).toFixed(3);
-      }
-
-      if (progress < 1) {
+      if (elapsed < durationMs) {
         animFrameIdRef.current = requestAnimationFrame(animate);
       } else {
-        if (darkOverlay) darkOverlay.style.opacity = '0';
+        isTerminatedRef.current = true;
         ctx.clearRect(0, 0, width, height);
         onComplete();
       }
@@ -234,19 +278,18 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
     animFrameIdRef.current = requestAnimationFrame(animate);
 
     return () => {
+      isTerminatedRef.current = true;
       if (animFrameIdRef.current) {
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
   }, [isActive, map, durationMs, onComplete, projectCoordinates]);
 
-  // Immediate Skip on tap anywhere
+  // Skip immediately on tap or click
   const handleSkip = useCallback(() => {
+    isTerminatedRef.current = true;
     if (animFrameIdRef.current) {
       cancelAnimationFrame(animFrameIdRef.current);
-    }
-    if (darkOverlayRef.current) {
-      darkOverlayRef.current.style.opacity = '0';
     }
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
@@ -264,20 +307,28 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
       ref={containerRef}
       onClick={handleSkip}
       className="absolute inset-0 w-full h-full pointer-events-auto cursor-pointer z-20 overflow-hidden select-none"
+      title="کلیک بکە بۆ تێپەڕاندن"
     >
-      {/* 1. Deep Midnight Backdrop - seamlessly melts away into full map clarity */}
-      <div
-        ref={darkOverlayRef}
-        className="absolute inset-0 bg-[#050811] pointer-events-none transition-opacity duration-300"
-        style={{ opacity: 1, willChange: 'opacity' }}
-      />
-
-      {/* 2. Hardware-Accelerated 2D Canvas - zero glitching, silky 60/120 FPS on mobile */}
+      {/* 1. Hardware-accelerated 2D Canvas - No dark backdrop or background tint */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none"
         style={{ willChange: 'transform' }}
       />
+
+      {/* 2. Sleek Minimal Floating Skip Pill at Top-Right */}
+      <div className="absolute top-3.5 right-3.5 z-30 pointer-events-auto">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSkip();
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#070b14]/75 hover:bg-[#0c1220]/90 border border-amber-500/25 hover:border-amber-400/50 backdrop-blur-md text-[10px] sm:text-xs text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] transition-all cursor-pointer group"
+        >
+          <span>تێپەڕاندن</span>
+          <FastForward className="w-3 h-3 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      </div>
     </div>
   );
 };

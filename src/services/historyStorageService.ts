@@ -150,6 +150,8 @@ export function sanitizeFact(fact: any): FactItem {
     year: fact?.year || dateInfo.year,
     century: fact?.century || dateInfo.century,
     centuryNumber: typeof fact?.centuryNumber === 'number' ? fact.centuryNumber : dateInfo.centuryNumber,
+    imageUrl: typeof fact?.imageUrl === 'string' && fact.imageUrl.trim() ? fact.imageUrl.trim() : undefined,
+    imageCaption: typeof fact?.imageCaption === 'string' && fact.imageCaption.trim() ? fact.imageCaption.trim() : undefined,
   };
 }
 

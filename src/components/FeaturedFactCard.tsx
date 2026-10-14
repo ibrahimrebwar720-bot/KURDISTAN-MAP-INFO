@@ -28,11 +28,11 @@ export const FeaturedFactCard: React.FC<Props> = ({
   onOpenEditFact,
 }) => {
   return (
-    <div className="rounded-xl bg-black border border-indigo-950/90 p-2.5 sm:p-3 shadow-2xl flex flex-col gap-2 text-right">
+    <div className="rounded-2xl bg-[#070b14]/80 border border-amber-500/25 p-3 sm:p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.1)] backdrop-blur-2xl flex flex-col gap-2.5 text-right">
       {/* Header Row */}
-      <div className="flex items-center justify-between gap-2 border-b border-indigo-950/80 pb-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[9px] font-mono font-bold text-indigo-300 bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-800/40 shrink-0">
+      <div className="flex items-center justify-between gap-2 border-b border-amber-500/15 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-lg border border-amber-500/30 shrink-0">
             #{fact.num}
           </span>
           <h2 className="text-xs sm:text-sm font-bold text-white truncate">
@@ -45,51 +45,51 @@ export const FeaturedFactCard: React.FC<Props> = ({
           <button
             onClick={onPrev}
             title="دەسەڵاتی پێشوو"
-            className="p-1 rounded bg-[#030712] hover:bg-indigo-950 border border-indigo-950 text-indigo-300 hover:text-white transition-all active:scale-95"
+            className="p-1 rounded-lg bg-[#050812]/80 hover:bg-amber-500/20 border border-amber-500/20 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer"
           >
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[9px] text-indigo-400/80 font-mono px-0.5">
+          <span className="text-[10px] text-amber-300/80 font-mono font-bold px-1">
             {fact.num}/{totalFacts}
           </span>
           <button
             onClick={onNext}
             title="دەسەڵاتی دواتر"
-            className="p-1 rounded bg-[#030712] hover:bg-indigo-950 border border-indigo-950 text-indigo-300 hover:text-white transition-all active:scale-95"
+            className="p-1 rounded-lg bg-[#050812]/80 hover:bg-amber-500/20 border border-amber-500/20 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer"
           >
-            <ChevronLeft className="w-3 h-3" />
+            <ChevronLeft className="w-3.5 h-3.5" />
           </button>
 
           {onClose && (
             <button
               onClick={onClose}
               title="داخستن"
-              className="p-1 mr-0.5 rounded text-indigo-400 hover:text-white hover:bg-indigo-950/50 transition-colors"
+              className="p-1 mr-0.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
 
       {/* Meta Row: Geographic Location & Century / Year */}
-      <div className="flex flex-wrap items-center justify-between gap-1 text-[9px]">
-        <div className="flex items-center gap-1 text-indigo-300/80 min-w-0">
-          <MapPin className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+      <div className="flex flex-wrap items-center justify-between gap-1 text-[10px]">
+        <div className="flex items-center gap-1 text-slate-300 min-w-0">
+          <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
           <span className="truncate">{fact.desc}</span>
         </div>
 
         {(fact.century || fact.year) && (
           <div className="flex items-center gap-1 shrink-0 font-medium">
             {fact.century && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-950/90 border border-purple-700/60 text-purple-200">
-                <Hourglass className="w-2.5 h-2.5 text-purple-400" />
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/40 border border-amber-500/20 text-amber-300 font-mono">
+                <Hourglass className="w-3 h-3 text-amber-400" />
                 <span>{fact.century}</span>
               </span>
             )}
             {fact.year && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-950/90 border border-amber-700/60 text-amber-200 font-mono">
-                <Calendar className="w-2.5 h-2.5 text-amber-400" />
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono font-bold">
+                <Calendar className="w-3 h-3 text-amber-400" />
                 <span>{fact.year}</span>
               </span>
             )}
@@ -97,25 +97,42 @@ export const FeaturedFactCard: React.FC<Props> = ({
         )}
       </div>
 
+      {/* Topic Image if present */}
+      {fact.imageUrl && (
+        <div className="relative rounded-xl overflow-hidden border border-amber-500/25 bg-black/60 max-h-36">
+          <img
+            src={fact.imageUrl}
+            alt={fact.imageCaption || fact.name}
+            className="w-full h-32 object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+          {fact.imageCaption && (
+            <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/85 text-[10px] text-amber-200 border border-amber-500/20 backdrop-blur-xs truncate">
+              {fact.imageCaption}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary Text (Compact, legible) */}
-      <p className="text-[10px] sm:text-[11px] text-slate-300 leading-relaxed line-clamp-2">
+      <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">
         {fact.fullText}
       </p>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-1.5 pt-1.5 border-t border-indigo-950/60">
+      <div className="flex items-center gap-2 pt-2 border-t border-amber-500/15">
         <button
           onClick={() => onOpenDetail(fact)}
-          className="flex-1 flex items-center justify-center gap-1 py-1 px-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[10px] shadow-[0_0_12px_rgba(79,70,229,0.25)] transition-all active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-xs shadow-sm transition-all active:scale-[0.98] cursor-pointer"
         >
-          <BookOpen className="w-3 h-3" />
+          <BookOpen className="w-3.5 h-3.5 text-slate-950" />
           <span>وردەکاریی تەواو و بەڵگەنامە</span>
         </button>
 
         {isAdmin && onOpenEditFact && (
           <button
             onClick={() => onOpenEditFact(fact)}
-            className="flex items-center justify-center gap-1 py-1 px-2 rounded-md bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-amber-300 text-[10px] transition-all"
+            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition-all cursor-pointer"
             title="دەستکاریکردنی ئەم دەسەڵاتە"
           >
             <Edit3 className="w-3 h-3" />
@@ -126,10 +143,10 @@ export const FeaturedFactCard: React.FC<Props> = ({
         {onFlyToMap && (
           <button
             onClick={() => onFlyToMap(fact)}
-            className="flex items-center justify-center gap-1 py-1 px-2 rounded-md bg-black hover:bg-indigo-950 border border-indigo-900/40 text-indigo-300 text-[10px] transition-all"
+            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-black/60 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs transition-all cursor-pointer"
             title="فڕین بۆ شوێن لەسەر نەخشە"
           >
-            <MapPin className="w-3 h-3 text-indigo-400" />
+            <MapPin className="w-3 h-3 text-amber-400" />
             <span className="hidden sm:inline">نەخشە</span>
           </button>
         )}
