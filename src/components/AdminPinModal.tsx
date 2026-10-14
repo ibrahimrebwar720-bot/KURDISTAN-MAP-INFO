@@ -59,35 +59,38 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
   };
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-fade-in text-right">
+    <div
+      className="fixed inset-0 z-[1300] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-md animate-fade-in text-right"
+      onClick={onClose}
+    >
       <div
-        className="relative w-full max-w-sm bg-black border border-indigo-900/80 rounded-2xl p-5 shadow-[0_0_60px_rgba(79,70,229,0.3)] text-slate-100"
+        className="relative w-full max-w-sm bg-[#090d16] border border-amber-500/40 rounded-3xl p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.18)] text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-3.5 left-3.5 p-1 rounded-lg text-indigo-400 hover:text-white hover:bg-indigo-950 transition-colors"
+          className="absolute top-4 left-4 w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer"
           title="داخستن"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-950/90 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.35)] mb-2.5">
-            <Lock className="w-6 h-6 text-indigo-400 animate-pulse" />
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-amber-500/25 via-amber-900/30 to-black border border-amber-500/40 flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.25)] mb-3">
+            <Lock className="w-6 h-6 text-amber-400 animate-pulse" />
           </div>
-          <h3 className="text-sm font-bold text-white tracking-wide">
-            چالاککردنی بەشی ئەدمین
+          <h3 className="text-base font-bold text-white tracking-wide">
+            چوونەژوورەوەی بەڕێوەبەر (ئەدمین)
           </h3>
-          <p className="text-[11px] text-indigo-300/80 mt-1">
-            تکایە کۆدی نهێنیی ئەدمین بنووسە بۆ بەڕێوەبردنی سیستمەکە:
+          <p className="text-xs text-slate-400 mt-1 max-w-[240px]">
+            تکایە کۆدی نهێنی بنووسە بۆ بەڕێوەبردنی نەخشە و زانیارییەکان
           </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
             <input
               type="password"
@@ -95,15 +98,15 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
               maxLength={10}
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="کۆدی ئەدمین (٦ ژمارە)..."
+              placeholder="کۆدی ئەدمین..."
               autoFocus
-              className="w-full h-11 bg-[#030712] text-center font-mono text-lg font-bold tracking-widest text-indigo-200 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 focus:outline-none placeholder:text-indigo-400/30 placeholder:tracking-normal placeholder:text-xs"
+              className="w-full h-12 bg-[#050812] text-center font-mono text-xl font-extrabold tracking-widest text-amber-300 rounded-2xl border border-slate-700 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none placeholder:text-slate-600 placeholder:tracking-normal placeholder:text-xs"
             />
-            <KeyRound className="w-4 h-4 text-indigo-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <KeyRound className="w-4 h-4 text-amber-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           {/* Keypad Quick Input */}
-          <div className="grid grid-cols-3 gap-1.5 pt-1" dir="ltr">
+          <div className="grid grid-cols-3 gap-2 pt-1" dir="ltr">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((k) => (
               <button
                 key={k}
@@ -113,7 +116,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
                   else if (k === '⌫') handleBackspace();
                   else handleKeypadPress(k);
                 }}
-                className="h-10 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/60 active:scale-95 border border-indigo-900/40 text-sm font-mono font-bold text-indigo-200 transition-all flex items-center justify-center cursor-pointer"
+                className="h-11 rounded-xl bg-slate-900/90 hover:bg-amber-500/20 active:scale-95 border border-slate-800 hover:border-amber-500/40 text-sm font-mono font-bold text-slate-200 hover:text-amber-300 transition-all flex items-center justify-center cursor-pointer shadow-xs"
               >
                 {k}
               </button>
@@ -121,22 +124,22 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
           </div>
 
           {error && (
-            <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-[11px] animate-shake">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>کۆدی داخڵکراو هەڵەیە، تکایە دڵنیابەرەوە!</span>
+            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-950/80 border border-red-500/70 text-red-200 text-xs animate-shake font-medium">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>کۆدی داخڵکراو هەڵەیە، دووبارە تاقی بکەرەوە!</span>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-[11px] animate-fade-in">
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span>کۆد درووستە! دەسەڵاتی ئەدمین ئەکتیڤ دەکرێت...</span>
+            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 text-xs animate-fade-in font-bold">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>کۆد درووستە! دەروازەی ئەدمین دەکرێتەوە...</span>
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold text-xs shadow-[0_0_20px_rgba(79,70,229,0.4)] border border-indigo-400/40 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>چوونەژوورەوە و چالاککردن</span>

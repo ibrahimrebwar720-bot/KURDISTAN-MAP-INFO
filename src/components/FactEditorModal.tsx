@@ -19,13 +19,15 @@ import {
   Clock,
   User,
   Shield,
+  Compass,
+  Sliders,
+  ChevronDown,
+  Info,
 } from 'lucide-react';
 import {
   getFactYearSpan,
   formatKurdishYearRange,
   normalizeYearString,
-  toKurdishDigits,
-  formatKurdishYear,
 } from '../utils/yearUtils';
 import {
   searchPlacesOnMap,
@@ -62,6 +64,7 @@ export const FactEditorModal: React.FC<Props> = ({
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [lat, setLat] = useState<number>(36.8);
   const [lng, setLng] = useState<number>(44.5);
+  const [showManualCoords, setShowManualCoords] = useState(false);
   const [tag, setTag] = useState<FactItem['tag']>('principality');
   const [collectionId, setCollectionId] = useState<string>('powers');
   const [startYearInput, setStartYearInput] = useState('');
@@ -86,6 +89,7 @@ export const FactEditorModal: React.FC<Props> = ({
       loadGoogleMapsScript().catch(() => {});
       setPlaceSearchQuery('');
       setPlaceSearchResults([]);
+      setShowManualCoords(false);
 
       if (factToEdit) {
         setName(factToEdit.name);
@@ -308,114 +312,201 @@ export const FactEditorModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1250] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-sm animate-fade-in text-right">
+    <div
+      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in text-right"
+      onClick={onClose}
+    >
       <div
-        className="relative w-full max-w-lg bg-black border border-indigo-900/90 rounded-2xl p-4 sm:p-5 shadow-[0_0_60px_rgba(79,70,229,0.35)] max-h-[92vh] overflow-y-auto text-slate-100"
+        className="relative w-full max-w-3xl bg-[#090d16] border border-amber-500/30 rounded-3xl p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.12)] max-h-[92vh] flex flex-col text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-indigo-950 pb-3 mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-950 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_12px_rgba(79,70,229,0.3)]">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
+        {/* Modal Top Header */}
+        <div className="flex items-center justify-between border-b border-amber-500/20 pb-4 mb-5 shrink-0">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-900/30 to-black border border-amber-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
+              <Sparkles className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">
-                {factToEdit ? 'دەستکاریکردنی دەسەڵات و زانیاری' : 'زیادکردنی دەسەڵات و شوێنی نوێ'}
-              </h3>
-              <p className="text-[10px] text-indigo-300/70">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-wide">
+                  {factToEdit ? 'دەستکاریکردنی دەسەڵات و بابەت' : 'زیادکردنی بابەت و شوێنی نوێ'}
+                </h3>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  {factToEdit ? `#${factToEdit.num}` : 'نوێ'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
                 {factToEdit
-                  ? `دەستکاریکردنی #${factToEdit.num} ${factToEdit.name}`
-                  : 'تۆمارکردنی خاڵ و دەسەڵاتی نوێ لەسەر نەخشەی کوردستان'}
+                  ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و تایملاین`
+                  : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە دیاریکردنی ورد'}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-indigo-400 hover:text-white hover:bg-indigo-950 transition-colors"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
             title="داخستن"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-          {/* Name */}
-          <div>
-            <label className="block text-[11px] font-bold text-indigo-300 mb-1">
-              ناوی دەسەڵات / فەرمانڕەوا / شوێن *
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند..."
-              className="w-full bg-[#030712] text-white px-3 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          {/* Location / Geo description */}
-          <div>
-            <label className="block text-[11px] font-bold text-indigo-300 mb-1">
-              پێگەی جوگرافی / شار یان ناوچە
-            </label>
-            <input
-              type="text"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              placeholder="بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد..."
-              className="w-full bg-[#030712] text-white px-3 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          {/* 100% Visual Map Location Picker with Google Maps Search */}
-          <div className="p-3 rounded-xl bg-gradient-to-b from-[#060a1c] to-black border border-indigo-900/80 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-amber-400" />
-                <span>دیاریکردنی شوێن (بە نەخشە یان گۆگڵ ماپس)</span>
+        {/* Scrollable Form Body with Refined Structure */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-5 text-xs flex-1 custom-scrollbar">
+          
+          {/* SECTION 1: ناو و پۆلێنبەندی (Basic Information & Classification) */}
+          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                  01
+                </span>
+                <span>ناونیشان و پۆلێنبەندی بابەت</span>
               </span>
+              <span className="text-[11px] text-slate-400">زانیارییە سەرەکییەکان</span>
+            </div>
 
+            {/* Name Field */}
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                ناوی دەسەڵات / کەسایەتی / شوێن <span className="text-amber-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند، شەرەفخانی بەدلیسی..."
+                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-sm font-semibold placeholder:text-slate-500 transition-all"
+              />
+            </div>
+
+            {/* Collection & Tag Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Collection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  <span>کۆلێکشن (دەستە)</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={collectionId}
+                    onChange={(e) => setCollectionId(e.target.value)}
+                    className="w-full appearance-none bg-[#050812] text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs font-medium cursor-pointer"
+                  >
+                    {collections
+                      .filter((c) => c.id !== 'all')
+                      .map((col) => (
+                        <option key={col.id} value={col.id} className="bg-[#090d16] text-white">
+                          {col.name}
+                        </option>
+                      ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Tag / Category */}
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  {isPerson ? (
+                    <User className="w-3.5 h-3.5 text-amber-400" />
+                  ) : (
+                    <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  <span>جۆر و پۆلێن (پێگەی مێژوویی)</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={tag}
+                    onChange={(e) => setTag(e.target.value as FactItem['tag'])}
+                    className="w-full appearance-none bg-[#050812] text-amber-300 font-bold px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs cursor-pointer"
+                  >
+                    <option value="principality" className="bg-[#090d16] text-white">میرنشین و دەسەڵات</option>
+                    <option value="empire" className="bg-[#090d16] text-white">ئیمپراتۆریەت و دەوڵەت</option>
+                    <option value="minister" className="bg-[#090d16] text-white">وەزیر (وەزیرە مێژووییەکان)</option>
+                    <option value="official" className="bg-[#090d16] text-white">کاربەدەست و بەڕێوەبەر</option>
+                    <option value="scholar" className="bg-[#090d16] text-white">زانا و فەیلەسوف</option>
+                    <option value="figure" className="bg-[#090d16] text-white">کەسایەتی و پێشەوا</option>
+                    <option value="capital" className="bg-[#090d16] text-white">قەڵا و پایتەخت</option>
+                    <option value="battle" className="bg-[#090d16] text-white">جەنگ و پەیماننامە</option>
+                    <option value="culture" className="bg-[#090d16] text-white">کولتوور و شوێنەوار</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 2: شوێن و جوگرافیا (Geographic Location & Google Maps) */}
+          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                  02
+                </span>
+                <span>شوێن و پۆوتانی جوگرافی لەسەر نەخشە</span>
+              </span>
               <button
                 type="button"
-                onClick={onStartPickLocation}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all cursor-pointer active:scale-95"
+                onClick={() => setShowManualCoords(!showManualCoords)}
+                className="text-[11px] text-amber-400/90 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-medium"
               >
-                <Crosshair className="w-3.5 h-3.5 text-white" />
-                <span>
-                  {hasLocationPicked
-                    ? 'گۆڕینی شوێن بە دەست لەسەر نەخشە'
-                    : 'کلیک لەسەر نەخشە بۆ دەستنیشانکردن'}
-                </span>
+                <Sliders className="w-3.5 h-3.5" />
+                <span>{showManualCoords ? 'شاردنەوەی پۆوتانی دەستی' : 'دەستکاریکردنی دەستی پۆوتان'}</span>
               </button>
             </div>
 
-            {/* Google Maps Search Bar */}
-            <div className="space-y-1.5 pt-1.5 border-t border-indigo-950/80">
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="font-bold text-amber-300 flex items-center gap-1">
-                  <Search className="w-3.5 h-3.5 text-amber-400" />
-                  <span>گەڕان بە یارمەتی گۆگڵ ماپ (Google Maps Search):</span>
+            {/* Region / Geographic description */}
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                پێگەی جوگرافی / شار، ناوچە یان وڵات
+              </label>
+              <input
+                type="text"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                placeholder="بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد، جزیرە، هەولێر..."
+                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs placeholder:text-slate-500"
+              />
+            </div>
+
+            {/* Google Maps Search Bar + Direct Map Picker */}
+            <div className="p-3.5 rounded-2xl bg-black/50 border border-slate-800/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Search className="w-4 h-4 text-amber-400" />
+                  <span>گەڕان لە گۆگڵ ماپ بۆ دۆزینەوەی دەستبەجێ:</span>
                 </span>
-                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800/50">
-                  Google Maps Connected
-                </span>
+
+                <button
+                  type="button"
+                  onClick={onStartPickLocation}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                >
+                  <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                  <span>
+                    {hasLocationPicked
+                      ? 'گۆڕینی شوێن بە دەست لەسەر نەخشە'
+                      : 'دیاریکردن بە کلیک لەسەر نەخشە'}
+                  </span>
+                </button>
               </div>
 
+              {/* Search Input Box */}
               <div className="relative">
                 <input
                   type="text"
                   value={placeSearchQuery}
                   onChange={(e) => handlePlaceSearch(e.target.value)}
-                  placeholder="ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوندێک بنووسە (بۆ نموونە: سلێمانی، ڕواندز، ئامێدی، سنە، قەڵای هەولێر...)"
-                  className="w-full bg-[#030712] text-white pl-8 pr-3 py-2 rounded-xl border border-indigo-900/90 focus:border-amber-500 focus:outline-none text-xs placeholder:text-slate-500"
+                  placeholder="ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوند بنووسە (بۆ نموونە: سلێمانی، ڕواندز، قەڵای دمدم، بەدلیس، ئامێدی...)"
+                  className="w-full bg-[#050812] text-white pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-700/90 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs placeholder:text-slate-500"
                 />
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                   {isSearchingPlaces ? (
-                    <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                    <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
                   ) : placeSearchQuery ? (
                     <button
                       type="button"
@@ -425,194 +516,185 @@ export const FactEditorModal: React.FC<Props> = ({
                       }}
                       className="text-slate-400 hover:text-white cursor-pointer"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   ) : (
-                    <Search className="w-3.5 h-3.5 text-slate-500" />
+                    <Search className="w-4 h-4 text-slate-500" />
                   )}
                 </div>
               </div>
 
               {/* Search Results Dropdown List */}
               {placeSearchResults.length > 0 && (
-                <div className="bg-[#030712] border border-amber-600/70 rounded-xl overflow-hidden shadow-2xl divide-y divide-indigo-950 max-h-56 overflow-y-auto animate-fade-in z-20">
-                  <div className="p-1.5 bg-black/80 text-[9px] text-amber-300 font-bold flex items-center justify-between px-2.5">
+                <div className="bg-[#090d16] border border-amber-500/50 rounded-2xl overflow-hidden shadow-2xl divide-y divide-slate-800 max-h-56 overflow-y-auto animate-fade-in">
+                  <div className="p-2 bg-black/80 text-[10px] text-amber-300 font-bold flex items-center justify-between px-3">
                     <span>کلیک لە ناوی شوێنەکە بکە بۆ دیاریکردنی دەستبەجێ:</span>
-                    <span className="font-mono text-slate-400">{placeSearchResults.length} ئەنجام دۆزرایەوە</span>
+                    <span className="font-mono text-slate-400">{placeSearchResults.length} ئەنجام</span>
                   </div>
                   {placeSearchResults.map((place) => (
                     <button
                       key={place.id}
                       type="button"
                       onClick={() => handleSelectSearchedPlace(place)}
-                      className="w-full text-right p-2.5 hover:bg-amber-950/50 transition-colors flex items-start gap-2.5 cursor-pointer group"
+                      className="w-full text-right p-3 hover:bg-amber-500/10 transition-colors flex items-start gap-3 cursor-pointer group"
                     >
                       <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:scale-125 transition-transform" />
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-bold text-white group-hover:text-amber-300 truncate">
                           {place.name}
                         </div>
-                        <div className="text-[10px] text-slate-300/80 truncate mt-0.5">
+                        <div className="text-[11px] text-slate-400 truncate mt-0.5">
                           {place.formattedAddress}
                         </div>
-                        <div className="text-[9px] font-mono text-indigo-400/80 mt-0.5">
+                        <div className="text-[10px] font-mono text-amber-400/80 mt-0.5">
                           {place.lat.toFixed(4)}° N, {place.lng.toFixed(4)}° E
                         </div>
                       </div>
-                      <span className="text-[9px] px-2 py-0.5 rounded-lg bg-indigo-950 text-indigo-300 border border-indigo-800/40 shrink-0 font-bold group-hover:bg-amber-500 group-hover:text-black transition-colors">
+                      <span className="text-[10px] px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0 font-bold group-hover:bg-amber-400 group-hover:text-black transition-colors">
                         دەستنیشانکردن
                       </span>
                     </button>
                   ))}
                 </div>
               )}
-            </div>
 
-            {/* Visual confirmation badge */}
-            <div className="flex items-center justify-between p-2 rounded-lg bg-black border border-indigo-950 text-[11px]">
-              {hasLocationPicked ? (
-                <div className="flex items-center gap-2 text-emerald-400 min-w-0">
-                  <div className="w-5 h-5 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-emerald-400" />
+              {/* Visual Confirmation Badge */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-[#050812] border border-slate-800 text-xs">
+                {hasLocationPicked ? (
+                  <div className="flex items-center gap-2.5 text-emerald-400 min-w-0">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-slate-100 truncate block">
+                        {selectedPlaceName
+                          ? `شوێن دیاریکراوە: ${selectedPlaceName}`
+                          : 'شوێنی ئەم دەسەڵاتە دیاریکراوە.'}
+                      </span>
+                      <span className="text-[11px] font-mono text-amber-300">
+                        پۆوتان: {lat.toFixed(4)}° N, {lng.toFixed(4)}° E
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <span className="font-bold truncate block">
-                      {selectedPlaceName
-                        ? `شوێن دیاریکراوە: ${selectedPlaceName}`
-                        : 'شوێنی ئەم دەسەڵاتە لەسەر نەخشەی کوردستان دیاریکراوە.'}
+                ) : (
+                  <div className="flex items-center gap-2 text-amber-300 text-xs">
+                    <div className="w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
+                      <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                    </div>
+                    <span>
+                      دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە یان بە دوگمەی نەخشە پۆینتەکە دیاری بکەیت.
                     </span>
-                    <span className="text-[9px] font-mono text-emerald-300/80">
-                      پۆوتان: {lat.toFixed(3)}° N, {lng.toFixed(3)}° E
-                    </span>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-amber-300">
-                  <div className="w-5 h-5 rounded-full bg-amber-950 border border-amber-500/50 flex items-center justify-center shrink-0">
-                    <MapPin className="w-3 h-3 text-amber-400 animate-bounce" />
+                )}
+              </div>
+
+              {/* Optional Manual GPS Coordinates fields */}
+              {showManualCoords && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800 animate-fade-in">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      هێڵی پانی (Latitude)
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={lat}
+                      onChange={(e) => {
+                        setLat(parseFloat(e.target.value) || 0);
+                        setHasLocationPicked(true);
+                      }}
+                      className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
+                    />
                   </div>
-                  <span>
-                    دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە یان بە دوگمەی دەستنیشانکردن لەسەر نەخشە خاڵەکە دابنێیت.
-                  </span>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      هێڵی درێژی (Longitude)
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={lng}
+                      onChange={(e) => {
+                        setLng(parseFloat(e.target.value) || 0);
+                        setHasLocationPicked(true);
+                      }}
+                      className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Collection & Tag Selection (First so year inputs adapt dynamically) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-                <Layers className="w-3 h-3 text-indigo-400" />
-                کۆلێکشن
-              </label>
-              <select
-                value={collectionId}
-                onChange={(e) => setCollectionId(e.target.value)}
-                className="w-full bg-[#030712] text-indigo-200 px-2.5 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 text-xs"
-              >
-                {collections
-                  .filter((c) => c.id !== 'all')
-                  .map((col) => (
-                    <option key={col.id} value={col.id}>
-                      {col.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-                {isPerson ? (
-                  <User className="w-3 h-3 text-amber-400" />
-                ) : (
-                  <Shield className="w-3 h-3 text-blue-400" />
-                )}
-                جۆر / پۆلێن
-              </label>
-              <select
-                value={tag}
-                onChange={(e) => setTag(e.target.value as FactItem['tag'])}
-                className="w-full bg-[#030712] text-indigo-200 px-2.5 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 text-xs font-bold"
-              >
-                <option value="principality">میرنشین و دەسەڵات</option>
-                <option value="empire">ئیمپراتۆریەت و دەوڵەت</option>
-                <option value="minister">وەزیر (وەزیرەکان)</option>
-                <option value="official">کاربەدەست (کاربەدەستان و بەڕێوەبەران)</option>
-                <option value="scholar">زانا (زانایان و فەیلەسوفان)</option>
-                <option value="figure">کەسایەتی و پێشەوا</option>
-                <option value="capital">قەڵا و پایتەخت</option>
-                <option value="battle">جەنگ و ڕووداو</option>
-                <option value="culture">کولتوور و شوێنەوار</option>
-              </select>
-            </div>
-          </div>
-
-          {/* ⏳ ساڵی سەرەتا و کۆتایی / لەدایکبوون و مردن بۆ سکرۆڵی تایملاین */}
-          <div className="p-3 rounded-xl bg-gradient-to-b from-[#080d24] to-black border border-indigo-700/60 shadow-lg space-y-2.5">
-            <div className="flex items-center justify-between border-b border-indigo-950 pb-2">
-              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-amber-400" />
+          {/* SECTION 3: ساڵنامە و تایملاین (Timeline & Eras - BC/AD & Cross-Era) */}
+          <div className="bg-gradient-to-b from-[#10172a] to-[#0a0f1d] border border-amber-500/40 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.06)]">
+            <div className="flex items-center justify-between pb-2 border-b border-amber-500/20">
+              <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                  03
+                </span>
                 <span>
                   {isPerson
-                    ? 'ساڵانی ژیان (لەدایکبوون و کۆچی دوایی) بۆ تایملاین *'
-                    : 'ساڵانی دەسەڵات (سەرەتا و کۆتایی) بۆ تایملاین *'}
+                    ? 'ساڵانی ژیان (لەدایکبوون و کۆچی دوایی) بۆ تایملاین'
+                    : 'ساڵانی دەسەڵات (سەرەتا و کۆتایی) بۆ تایملاین'}
                 </span>
               </span>
 
               {previewYear?.isCrossEra && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-amber-500/25 to-amber-600/30 text-amber-300 border border-amber-500/50 shadow-sm animate-pulse">
                   نێوان پێش و دوای زایین (پ.ز ⟷ ز)
                 </span>
               )}
             </div>
 
-            {/* Helper guidance for cross-era entries */}
-            <div className="text-[10px] text-slate-300 bg-indigo-950/40 p-2 rounded-xl border border-indigo-900/50 flex items-start gap-1.5 leading-relaxed">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            {/* Helper guidance for cross-era and single-year entries */}
+            <div className="text-[11px] text-slate-300 bg-black/40 p-3 rounded-xl border border-slate-800 flex items-start gap-2 leading-relaxed">
+              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>
-                دەتوانیت ساڵی دەستپێک و کۆتایی بە جیا دیاری بکەیت: ئەگەر دەسەڵات یان کەسایەتییەکە کەوتووەتە نێوان پێش و دوای زایین، دەستپێک بکە بە <strong className="text-amber-300">پ.ز</strong> و کۆتایی بکە بە <strong className="text-indigo-300">ز</strong>.
+                دەتوانیت ساڵی دەستپێک و کۆتایی بە ئازادی دیاری بکەیت. ئەگەر کەسایەتی یان دەسەڵاتەکە کەوتووەتە نێوان پێش زایین و دوای زایین، بژاردەی یەکەم بکە بە <strong className="text-amber-400 font-bold">پ.ز</strong> و دووەم بکە بە <strong className="text-amber-300 font-bold">ز</strong>.
               </span>
             </div>
 
             {yearError && (
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-950/80 border border-rose-500/80 text-rose-200 text-[11px]">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/80 border border-rose-500/80 text-rose-200 text-xs font-medium">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{yearError}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Field 1: Birth year or Start year with its own era toggle */}
-              <div className="space-y-1.5">
+            {/* Year Inputs with Segmented BC/AD Era Toggles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {/* Field 1: Birth / Start Year */}
+              <div className="bg-[#050812] border border-slate-800 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-emerald-400" />
-                    {isPerson ? 'ساڵی لەدایکبوون *' : 'ساڵی دەستپێک / دامەزراندن *'}
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isPerson ? 'ساڵی لەدایکبوون' : 'ساڵی دەستپێک / دامەزراندن'}</span>
+                    <span className="text-amber-400">*</span>
                   </label>
-                  {/* Era Selector for Start Year */}
-                  <div className="flex items-center gap-0.5 bg-black p-0.5 rounded-lg border border-indigo-900/80 text-[10px]">
+
+                  {/* Segmented Era Switcher */}
+                  <div className="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-700 text-xs" dir="ltr">
                     <button
                       type="button"
                       onClick={() => setStartEra('BC')}
-                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startEra === 'BC'
-                          ? 'bg-amber-600 text-white shadow-xs'
+                          ? 'bg-amber-500 text-black shadow-sm font-extrabold'
                           : 'text-slate-400 hover:text-white'
                       }`}
-                      title="پێش زایین"
                     >
                       پ.ز
                     </button>
                     <button
                       type="button"
                       onClick={() => setStartEra('AD')}
-                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startEra === 'AD'
-                          ? 'bg-indigo-600 text-white shadow-xs'
+                          ? 'bg-amber-400/25 text-amber-300 border border-amber-500/40 font-extrabold'
                           : 'text-slate-400 hover:text-white'
                       }`}
-                      title="زایینی"
                     >
                       ز
                     </button>
@@ -628,45 +710,44 @@ export const FactEditorModal: React.FC<Props> = ({
                       setStartYearInput(e.target.value);
                       setYearError(null);
                     }}
-                    placeholder={startEra === 'BC' ? 'بۆ نموونە: 150 (پ.ز)' : 'بۆ نموونە: 1514 (ز)'}
-                    className="w-full bg-[#030712] text-white pr-2.5 pl-14 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
+                    placeholder={startEra === 'BC' ? 'بۆ نموونە: 150 (پێش زایین)' : 'بۆ نموونە: 1514 (زایینی)'}
+                    className="w-full bg-[#0a0f1d] text-white pr-3 pl-16 py-2.5 rounded-xl border border-slate-700 focus:border-amber-400 focus:outline-none text-xs font-mono font-bold"
                   />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
-                    {startEra === 'BC' ? 'پ.ز' : 'زایینی'}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
+                    {startEra === 'BC' ? 'پێش زایین' : 'زایینی'}
                   </span>
                 </div>
               </div>
 
-              {/* Field 2: Death year or End year with its own era toggle */}
-              <div className="space-y-1.5">
+              {/* Field 2: Death / End Year */}
+              <div className="bg-[#050812] border border-slate-800 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-rose-400" />
-                    {isPerson ? 'ساڵی کۆچی دوایی' : 'ساڵی کۆتایی / ڕووخان'}
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{isPerson ? 'ساڵی کۆچی دوایی' : 'ساڵی کۆتایی / ڕووخان'}</span>
                   </label>
-                  {/* Era Selector for End Year */}
-                  <div className="flex items-center gap-0.5 bg-black p-0.5 rounded-lg border border-indigo-900/80 text-[10px]">
+
+                  {/* Segmented Era Switcher */}
+                  <div className="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-700 text-xs" dir="ltr">
                     <button
                       type="button"
                       onClick={() => setEndEra('BC')}
-                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         endEra === 'BC'
-                          ? 'bg-amber-600 text-white shadow-xs'
+                          ? 'bg-amber-500 text-black shadow-sm font-extrabold'
                           : 'text-slate-400 hover:text-white'
                       }`}
-                      title="پێش زایین"
                     >
                       پ.ز
                     </button>
                     <button
                       type="button"
                       onClick={() => setEndEra('AD')}
-                      className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         endEra === 'AD'
-                          ? 'bg-indigo-600 text-white shadow-xs'
+                          ? 'bg-amber-400/25 text-amber-300 border border-amber-500/40 font-extrabold'
                           : 'text-slate-400 hover:text-white'
                       }`}
-                      title="زایینی"
                     >
                       ز
                     </button>
@@ -681,26 +762,29 @@ export const FactEditorModal: React.FC<Props> = ({
                       setEndYearInput(e.target.value);
                       setYearError(null);
                     }}
-                    placeholder={endEra === 'BC' ? 'بۆ نموونە: 40 (پ.ز)' : 'بۆ نموونە: 1851 (ز)'}
-                    className="w-full bg-[#030712] text-white pr-2.5 pl-14 py-2 rounded-xl border border-indigo-900/80 focus:border-indigo-500 focus:outline-none text-xs font-mono"
+                    placeholder={endEra === 'BC' ? 'بۆ نموونە: 40 (پێش زایین)' : 'بۆ نموونە: 1851 (زایینی)'}
+                    className="w-full bg-[#0a0f1d] text-white pr-3 pl-16 py-2.5 rounded-xl border border-slate-700 focus:border-amber-400 focus:outline-none text-xs font-mono font-bold"
                   />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
-                    {endEra === 'BC' ? 'پ.ز' : 'زایینی'}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
+                    {endEra === 'BC' ? 'پێش زایین' : 'زایینی'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Live Preview Display */}
+            {/* Live Interactive Kurdish Year Preview Badge */}
             {previewYear && (
-              <div className="flex items-center justify-between p-2 rounded-xl bg-black/80 border border-indigo-900/60 text-xs">
-                <span className="text-slate-400 text-[11px]">پێشبینینی مێژووی تۆمارکراو:</span>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-black/70 border border-amber-500/30 text-xs">
+                <span className="text-slate-300 text-xs flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>پێشبینینی ڕێکەوتی تۆمارکراو:</span>
+                </span>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-amber-300 font-mono text-xs">
+                  <span className="font-extrabold text-amber-300 font-mono text-sm tracking-wider">
                     {previewYear.label}
                   </span>
                   {previewYear.isCrossEra && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-200 border border-amber-500/40">
+                    <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/25 text-amber-200 border border-amber-500/50">
                       پ.ز ⟷ ز
                     </span>
                   )}
@@ -709,57 +793,71 @@ export const FactEditorModal: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Full Historical Text */}
-          <div>
-            <label className="block text-[11px] font-bold text-indigo-300 mb-1 flex items-center gap-1">
-              <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-              پوختەی مێژوویی و شوێنەواری
-            </label>
-            <textarea
-              rows={3}
-              value={fullText}
-              onChange={(e) => setFullText(e.target.value)}
-              placeholder="وەسفی مێژوویی ئەم دەسەڵاتە، ساڵانی فەرمانڕەوایی، ڕووداوەکان..."
-              className="w-full bg-[#030712] text-white px-3 py-2 rounded-xl border border-indigo-900/60 focus:border-indigo-500 focus:outline-none leading-relaxed text-xs"
-            />
+          {/* SECTION 4: دەقی مێژوویی و بەڵگەنامەکان (Narrative & Archives) */}
+          <div className="bg-[#0e1526]/90 border border-slate-800/90 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                  04
+                </span>
+                <span>پوختەی مێژوویی، شوێنەواری و بەڵگەنامەکان</span>
+              </span>
+              <span className="text-[11px] text-slate-400">دەق و سەرچاوەکان</span>
+            </div>
+
+            {/* Full historical overview text */}
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>پوختەی مێژوویی و شوێنەواری (دەقی سەرەکی)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={fullText}
+                onChange={(e) => setFullText(e.target.value)}
+                placeholder="وەسفی مێژوویی ئەم دەسەڵاتە یان کەسایەتییە بنووسە: ڕووداوە گرنگەکان، نەبەردییەکان، ئاسەوارەکان و بەسەرهاتەکانی فەرمانڕەوایی..."
+                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none leading-relaxed text-xs placeholder:text-slate-500"
+              />
+            </div>
+
+            {/* Additional notes, manuscripts & references */}
+            <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/20 space-y-2">
+              <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-amber-400" />
+                <span>زانیاریی زیاتر، دەستنووس، وتەی مێژوونووسان و سەرچاوەکان</span>
+              </label>
+              <textarea
+                rows={3}
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="لێرە زانیارییە زیاترەکان، دەقی دەستنووس و وتەی مێژوونووسان، شوێنەوارە پارێزراوەکان و سەرچاوەی کتێبەکان تۆمار بکە..."
+                className="w-full bg-[#050812] text-slate-200 placeholder:text-slate-500 px-3.5 py-2 rounded-xl border border-slate-800 focus:border-amber-400 focus:outline-none text-xs leading-relaxed"
+              />
+            </div>
           </div>
 
-          {/* Additional Information Box (زانیاری زیاتر) */}
-          <div className="p-2.5 rounded-xl bg-gradient-to-b from-[#050714] to-black border border-indigo-900/70 space-y-1.5">
-            <label className="block text-[11px] font-bold text-amber-300 flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-amber-400" />
-              زانیاری زیاتر (بەڵگەنامە، دەستنووس و تێبینی تایبەت)
-            </label>
-            <textarea
-              rows={3}
-              value={additionalNotes}
-              onChange={(e) => setAdditionalNotes(e.target.value)}
-              placeholder="لێرە زانیاری زیاتر و سەرچاوەکان، دەقی دەستنووس، وتەی مێژوونووسان یان تێبینی بنووسە..."
-              className="w-full bg-black text-indigo-100 placeholder:text-indigo-400/30 px-3 py-2 rounded-lg border border-indigo-950 focus:border-amber-500/80 focus:outline-none text-xs leading-relaxed"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-indigo-950">
+          {/* Action Buttons Bar */}
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-800/90 shrink-0">
+            {/* Delete button (when editing) */}
             {factToEdit && onDelete && (
               <div>
                 {confirmDelete ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 animate-fade-in">
                     <button
                       type="button"
                       onClick={() => {
                         onDelete(factToEdit.id);
                         onClose();
                       }}
-                      className="px-2 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] flex items-center gap-1 transition-all"
+                      className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       <span>دڵنیام، بیسڕەوە</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}
-                      className="px-2 py-1.5 rounded-lg bg-indigo-950 text-indigo-300 text-[10px]"
+                      className="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs cursor-pointer"
                     >
                       پەشیمانبوونەوە
                     </button>
@@ -768,8 +866,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setConfirmDelete(true)}
-                    className="p-2 rounded-lg text-red-400 hover:text-white hover:bg-red-950/60 border border-red-950 transition-colors"
-                    title="سڕینەوەی ئەم دەسەڵاتە"
+                    className="p-2.5 rounded-xl text-red-400 hover:text-white hover:bg-red-950/70 border border-red-900/40 hover:border-red-700 transition-colors cursor-pointer"
+                    title="سڕینەوەی ئەم بابەتە"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -777,21 +875,22 @@ export const FactEditorModal: React.FC<Props> = ({
               </div>
             )}
 
-            <div className="flex items-center gap-2 mr-auto">
+            {/* Cancel & Save Buttons */}
+            <div className="flex items-center gap-2.5 mr-auto">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-2 rounded-xl bg-black border border-indigo-950 text-indigo-300 hover:text-white text-xs transition-all"
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
               >
                 داخستن
               </button>
 
               <button
                 type="submit"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
               >
-                <Save className="w-3.5 h-3.5" />
-                <span>پاشەکەوتکردن</span>
+                <Save className="w-4 h-4" />
+                <span>پاشەکەوتکردنی زانیارییەکان</span>
               </button>
             </div>
           </div>

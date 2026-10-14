@@ -12,15 +12,14 @@ interface Props {
 }
 
 const PRESET_COLORS = [
-  '#6366f1', // Indigo
-  '#3b82f6', // Blue
+  '#f59e0b', // Amber / Gold
   '#10b981', // Emerald
-  '#eab308', // Amber
+  '#3b82f6', // Blue
+  '#ec4899', // Rose Pink
+  '#8b5cf6', // Violet
+  '#14b8a6', // Teal
   '#f97316', // Orange
   '#ef4444', // Red
-  '#ec4899', // Pink
-  '#8b5cf6', // Purple
-  '#14b8a6', // Teal
 ];
 
 export const CollectionManagerModal: React.FC<Props> = ({
@@ -33,7 +32,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
 }) => {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
-  const [color, setColor] = useState('#6366f1');
+  const [color, setColor] = useState('#f59e0b');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -66,61 +65,64 @@ export const CollectionManagerModal: React.FC<Props> = ({
 
     setName('');
     setDesc('');
-    setColor('#6366f1');
+    setColor('#f59e0b');
   };
 
   const handleStartEdit = (col: CollectionItem) => {
     setEditingId(col.id);
     setName(col.name);
     setDesc(col.description || '');
-    setColor(col.color || '#6366f1');
+    setColor(col.color || '#f59e0b');
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setName('');
     setDesc('');
-    setColor('#6366f1');
+    setColor('#f59e0b');
   };
 
   return (
-    <div className="fixed inset-0 z-[1260] flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-fade-in text-right">
+    <div
+      className="fixed inset-0 z-[1260] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-md animate-fade-in text-right"
+      onClick={onClose}
+    >
       <div
-        className="relative w-full max-w-md bg-black border border-indigo-900/90 rounded-2xl p-4 sm:p-5 shadow-[0_0_60px_rgba(79,70,229,0.35)] max-h-[90vh] overflow-y-auto text-slate-100"
+        className="relative w-full max-w-md bg-[#090d16] border border-amber-500/35 rounded-3xl p-5 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.15)] max-h-[90vh] overflow-y-auto text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-indigo-950 pb-3 mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-950 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_12px_rgba(79,70,229,0.3)]">
-              <Layers className="w-4 h-4 text-indigo-400" />
+        <div className="flex items-center justify-between border-b border-amber-500/20 pb-3.5 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+              <Layers className="w-4 h-4 text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">بەڕێوەبردنی کۆلێکشنەکان</h3>
-              <p className="text-[10px] text-indigo-300/70">
-                زیادکردن و دەستکاریکردنی کۆلێکشنەکانی مینۆ
+              <h3 className="text-sm font-bold text-white">بەڕێوەبردنی دەستە و کۆلێکشنەکان</h3>
+              <p className="text-[11px] text-slate-400">
+                زیادکردن و دەستکاریکردنی دەستەکانی پێڕست
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-indigo-400 hover:text-white hover:bg-indigo-950 transition-colors"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer"
             title="داخستن"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Add / Edit Form */}
-        <form onSubmit={handleSave} className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-900/50 space-y-2.5 mb-4 text-xs">
-          <h4 className="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
-            {editingId ? <Edit3 className="w-3.5 h-3.5 text-amber-400" /> : <Plus className="w-3.5 h-3.5 text-indigo-400" />}
-            <span>{editingId ? 'دەستکاریکردنی کۆلێکشن' : 'زیادکردنی کۆلێکشن نوێ'}</span>
+        {/* Add / Edit Form Card */}
+        <form onSubmit={handleSave} className="p-4 rounded-2xl bg-[#0e1526]/90 border border-slate-800 hover:border-amber-500/30 space-y-3 mb-4 text-xs transition-colors">
+          <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5 pb-1 border-b border-slate-800/80">
+            {editingId ? <Edit3 className="w-3.5 h-3.5 text-amber-400" /> : <Plus className="w-3.5 h-3.5 text-amber-400" />}
+            <span>{editingId ? 'دەستکاریکردنی دەستە' : 'زیادکردنی دەستەی نوێ'}</span>
           </h4>
 
           <div>
-            <label className="block text-[10px] text-indigo-300/80 mb-1">
+            <label className="block text-[11px] font-bold text-slate-300 mb-1">
               ناوی کۆلێکشن *
             </label>
             <input
@@ -129,111 +131,116 @@ export const CollectionManagerModal: React.FC<Props> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="بۆ نموونە: شاعیرانی کلاسیک، میرنشینە هاوپەیمانەکان..."
-              className="w-full bg-[#030712] text-white px-3 py-1.5 rounded-lg border border-indigo-900/60 focus:border-indigo-500 text-xs"
+              className="w-full bg-[#050812] text-white px-3 py-2 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] text-indigo-300/80 mb-1">
-              وەسف و تێبینی کۆلێکشن
+            <label className="block text-[11px] font-bold text-slate-300 mb-1">
+              وەسف و تێبینی کورت
             </label>
             <input
               type="text"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder="وەسفێکی کورت..."
-              className="w-full bg-[#030712] text-white px-3 py-1.5 rounded-lg border border-indigo-900/60 focus:border-indigo-500 text-xs"
+              className="w-full bg-[#050812] text-white px-3 py-2 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs"
             />
           </div>
 
           {/* Color picker */}
           <div>
-            <label className="block text-[10px] text-indigo-300/80 mb-1 flex items-center gap-1">
-              <Palette className="w-3 h-3" />
-              ڕەنگی نیشاندەر
+            <label className="block text-[11px] font-bold text-slate-300 mb-1.5 flex items-center gap-1">
+              <Palette className="w-3.5 h-3.5 text-amber-400" />
+              <span>ڕەنگی نیشاندەر لەسەر نەخشە</span>
             </label>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-full border transition-transform flex items-center justify-center cursor-pointer ${
-                    color === c ? 'scale-110 border-white ring-2 ring-indigo-400/50' : 'border-black/50 opacity-80'
+                  className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
+                    color === c ? 'scale-110 border-white ring-2 ring-amber-400/50' : 'border-slate-800 opacity-80 hover:opacity-100'
                   }`}
                   style={{ backgroundColor: c }}
                 >
-                  {color === c && <Check className="w-3 h-3 text-white" />}
+                  {color === c && <Check className="w-3.5 h-3.5 text-black drop-shadow-sm" />}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-800/80">
             {editingId && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-2.5 py-1 rounded-lg bg-black text-indigo-300 text-[10px]"
+                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-xs hover:text-white cursor-pointer"
               >
                 هەڵوەشاندنەوە
               </button>
             )}
             <button
               type="submit"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)] transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-sm transition-all cursor-pointer"
             >
-              <Check className="w-3 h-3" />
+              <Check className="w-3.5 h-3.5" />
               <span>{editingId ? 'نوێکردنەوە' : 'زیادکردنی کۆلێکشن'}</span>
             </button>
           </div>
         </form>
 
         {/* Existing Collections List */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-bold text-indigo-300 block mb-1">
-            کۆلێکشنە بەردەستەکان ({collections.length})
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-200">
+              کۆلێکشنە بەردەستەکان
+            </span>
+            <span className="text-[11px] font-mono font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+              {collections.length} دەستە
+            </span>
+          </div>
 
-          <div className="divide-y divide-indigo-950/60 border border-indigo-950 rounded-xl overflow-hidden bg-black max-h-56 overflow-y-auto">
+          <div className="divide-y divide-slate-800 border border-slate-800 rounded-2xl overflow-hidden bg-[#050812] max-h-56 overflow-y-auto custom-scrollbar">
             {collections.map((col) => (
               <div
                 key={col.id}
-                className="flex items-center justify-between gap-2 p-2 hover:bg-indigo-950/20 text-xs"
+                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/60 transition-colors text-xs"
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <span
-                    className="w-3 h-3 rounded-full shrink-0 shadow-xs"
+                    className="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm"
                     style={{ backgroundColor: col.color }}
                   />
                   <div className="min-w-0">
-                    <span className="font-semibold text-white truncate block">
+                    <span className="font-bold text-white truncate block">
                       {col.name}
                     </span>
                     {col.description && (
-                      <span className="text-[9px] text-indigo-300/60 truncate block">
+                      <span className="text-[11px] text-slate-400 truncate block mt-0.5">
                         {col.description}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleStartEdit(col)}
-                    className="p-1 rounded text-indigo-400 hover:text-white hover:bg-indigo-950 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors cursor-pointer"
                     title="دەستکاریکردن"
                   >
-                    <Edit3 className="w-3 h-3" />
+                    <Edit3 className="w-3.5 h-3.5" />
                   </button>
 
                   {col.id !== 'all' && (
                     <button
                       onClick={() => onDeleteCollection(col.id)}
-                      className="p-1 rounded text-red-400 hover:text-white hover:bg-red-950/60 transition-colors"
+                      className="p-1.5 rounded-lg text-red-400 hover:text-white hover:bg-red-950/70 transition-colors cursor-pointer"
                       title="سڕینەوە"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
