@@ -351,14 +351,16 @@ export const TimelineSlider: React.FC<Props> = ({
   return (
     <div className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-right select-none transition-all">
       {/* 
-        Two-Tone Precision Ruler Dock (ڕاستەی مێژوویی: شوشەیی تەنک و ڕوون بە لێواری تەنکی زێڕین)
+        Two-Tone Precision Ruler Dock (ڕاستەی مێژوویی بە شێوازی شوشەی شلە - Liquid Glass)
       */}
-      <div className="w-full bg-[#070b14]/75 border border-amber-500/20 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.7),0_0_15px_rgba(245,158,11,0.08)] flex flex-col gap-1 sm:gap-2 transition-all">
+      <div className="relative w-full liquid-glass-panel rounded-2xl sm:rounded-3xl p-2 sm:p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_16px_45px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.15)] flex flex-col gap-1 sm:gap-2 transition-all overflow-hidden">
+        <div className="glass-specular-ray" />
+
         {/* Tier 1: Top Status Header (ڕاستەوخۆ بەپێی جوڵەی ڕاستەکە دەگۆڕێت) */}
         <div className="flex items-center justify-between gap-1 sm:gap-1.5 w-full">
           {/* Right: Year Label & Fact Count */}
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-amber-500/15 border border-amber-500/35 flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs">
               <Calendar className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-amber-400" />
             </div>
 
@@ -371,19 +373,19 @@ export const TimelineSlider: React.FC<Props> = ({
               </span>
 
               {/* Fact Count Pill */}
-              <span className="text-[8px] sm:text-[9px] font-mono font-bold px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/10 text-amber-300 border border-white/15 shrink-0">
                 {toKurdishDigits(filteredCount)} شوێن
               </span>
             </div>
           </div>
 
           {/* Left: Quick Actions Cluster */}
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {/* Step -1 Year */}
             <button
               onClick={() => handleStepYear(-1)}
               title="١ ساڵ بۆ دواوە"
-              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer backdrop-blur-md"
+              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
             >
               <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -392,10 +394,10 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={togglePlay}
               title={isPlaying ? 'وەستاندنی تایملاین' : 'پەخشکردنی مێژوو بەپێی ڕاستە'}
-              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
                 isPlaying
-                  ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.6)] animate-pulse'
-                  : 'bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/35 backdrop-blur-md'
+                  ? 'liquid-glass-btn-active animate-pulse'
+                  : 'liquid-glass-btn text-amber-400'
               }`}
             >
               {isPlaying ? (
@@ -409,7 +411,7 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => handleStepYear(1)}
               title="١ ساڵ بۆ پێشەوە"
-              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer backdrop-blur-md"
+              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
             >
               <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -418,10 +420,10 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => setShowDirectInput(!showDirectInput)}
               title="دیاریکردنی ساڵ بە ژمارە"
-              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg border flex items-center justify-center transition-all cursor-pointer backdrop-blur-md ${
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 showDirectInput
-                  ? 'bg-amber-500 text-black border-amber-300 font-bold shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                  : 'bg-[#0a0f1d]/60 border-amber-500/20 text-slate-300 hover:text-amber-300 hover:border-amber-400/40'
+                  ? 'liquid-glass-btn-active font-bold'
+                  : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
               }`}
             >
               <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -435,10 +437,10 @@ export const TimelineSlider: React.FC<Props> = ({
                   ? 'کلیک بکەرەوە بۆ گەڕانەوە بۆ ساڵی دیاریکراو'
                   : 'پیشاندانی هەموو ساڵەکان'
               }
-              className={`flex items-center gap-1 px-1.5 sm:px-2.5 h-5 sm:h-6 rounded-lg text-[9px] sm:text-[10px] font-bold border transition-all cursor-pointer backdrop-blur-md ${
+              className={`flex items-center gap-1 px-2 sm:px-2.5 h-5 sm:h-6 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer ${
                 selectedYear === 'all'
-                  ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)] font-extrabold'
-                  : 'bg-[#0a0f1d]/60 text-slate-200 hover:text-amber-300 hover:bg-amber-500/15 border-amber-500/20 hover:border-amber-400/40'
+                  ? 'liquid-glass-btn-active font-extrabold'
+                  : 'liquid-glass-btn text-slate-200 hover:text-amber-300'
               }`}
             >
               <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -451,7 +453,7 @@ export const TimelineSlider: React.FC<Props> = ({
         {showDirectInput && (
           <form
             onSubmit={handleDirectJumpSubmit}
-            className="flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-lg sm:rounded-xl bg-[#070b14]/85 border border-amber-500/35 backdrop-blur-xl animate-fade-in shadow-md"
+            className="flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-xl liquid-glass-card animate-fade-in shadow-md"
           >
             <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold shrink-0">
               ساڵ بنووسە:
@@ -484,19 +486,19 @@ export const TimelineSlider: React.FC<Props> = ({
           Tier 2: The Precision Ruler Controller (ڕاستەی پێوان)
           Each centimeter is a graduated measure; user drags or scrolls it like a physical ruler!
         */}
-        <div className="relative w-full flex items-center gap-0.5 sm:gap-1 border-t border-slate-800/80 pt-0.5 sm:pt-1">
+        <div className="relative w-full flex items-center gap-1 sm:gap-1.5 border-t border-white/10 pt-1">
           {/* Scroll left nudge */}
           <button
             type="button"
             onClick={() => handleScrollRuler('left')}
             title="سکرۆڵکردنی ڕاستە بۆ چەپ"
-            className="w-3.5 h-6 sm:w-5 sm:h-9 rounded-md sm:rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/20 hover:border-amber-400/40 cursor-pointer backdrop-blur-md"
+            className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
           >
             <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
           </button>
 
-          {/* Precision Ruler Strip (خاوەن نیشاندەری ناوەڕاست و هێڵەکانی سانتیمەتر) */}
-          <div className="relative flex-1 bg-black/45 border border-amber-500/20 rounded-lg sm:rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1 backdrop-blur-md">
+          {/* Precision Ruler Strip (شوشەی شلە بە دەرزی زێڕینی پێوانە) */}
+          <div className="relative flex-1 liquid-glass-subtle rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1 shadow-inner">
             {/* Center Fixed Hairline Indicator (دەرزی پێوانەی ناوەڕاست) */}
             <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 bg-amber-400 z-20 pointer-events-none shadow-[0_0_8px_#f59e0b] flex flex-col justify-between items-center">
               <span className="text-[5px] sm:text-[7px] text-amber-400 -mt-0.5 leading-none select-none">▼</span>
@@ -574,7 +576,7 @@ export const TimelineSlider: React.FC<Props> = ({
             type="button"
             onClick={() => handleScrollRuler('right')}
             title="سکرۆڵکردنی ڕاستە بۆ ڕاست"
-            className="w-3.5 h-6 sm:w-5 sm:h-9 rounded-md sm:rounded-lg bg-[#0a0f1d]/60 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/20 hover:border-amber-400/40 cursor-pointer backdrop-blur-md"
+            className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
           >
             <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
           </button>

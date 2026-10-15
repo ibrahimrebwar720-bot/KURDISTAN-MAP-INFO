@@ -110,7 +110,9 @@ export const FactsList: React.FC<Props> = ({
   }, [facts]);
 
   return (
-    <div className="relative flex flex-col h-full bg-[#070b14]/90 backdrop-blur-2xl rounded-2xl border border-amber-500/20 overflow-hidden shadow-2xl">
+    <div className="relative flex flex-col h-full liquid-glass-panel rounded-2xl sm:rounded-3xl border border-white/20 border-t-white/45 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_60px_rgba(0,0,0,0.9)]">
+      <div className="glass-specular-ray" />
+
       {/* Subtle Background Layer: Kurdish Battles & Scholars Artwork */}
       <div className="absolute inset-0 pointer-events-none opacity-10 overflow-hidden z-0">
         <img
@@ -122,14 +124,14 @@ export const FactsList: React.FC<Props> = ({
       </div>
 
       {/* Top Header: Search and Admin Actions */}
-      <div className="relative z-10 p-3 border-b border-amber-500/20 bg-black/50 backdrop-blur-xl space-y-2.5">
+      <div className="relative z-10 p-3 border-b border-white/10 liquid-glass-subtle space-y-2.5">
         {/* App Title Row with Kurdistan Map Icon */}
-        <div className="flex items-center justify-between px-1 pb-1 border-b border-amber-500/15">
+        <div className="flex items-center justify-between px-1 pb-1 border-b border-white/10">
           <div className="flex items-center gap-2 min-w-0">
             <img
               src={KURD_MAP_ICON}
               alt="KURDISTAN INFO MAP"
-              className="w-5 h-5 rounded-full object-cover border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
+              className="w-5 h-5 rounded-full object-cover border border-amber-400/50 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
             />
             <span className="text-xs font-black text-amber-300 font-heading tracking-wide">
               KURDISTAN INFO MAP
@@ -142,14 +144,14 @@ export const FactsList: React.FC<Props> = ({
                   if (onClose) onClose();
                   onOpenGallery();
                 }}
-                className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition-colors cursor-pointer flex items-center justify-center"
+                className="p-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white transition-all cursor-pointer flex items-center justify-center shadow-xs"
                 title="گەلەری"
                 aria-label="گەلەری"
               >
                 <Images className="w-3.5 h-3.5 text-amber-400" />
               </button>
             )}
-            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/30">
               PWA ONLINE
             </span>
           </div>
@@ -164,7 +166,7 @@ export const FactsList: React.FC<Props> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="گەڕان لەناو دەسەڵات، کەسایەتی، شوێن و زانیاری..."
-              className="w-full bg-[#050812]/75 text-slate-100 placeholder:text-slate-500 text-xs pr-8 pl-8 py-2 rounded-xl border border-amber-500/25 focus:border-amber-400 focus:ring-1 focus:ring-amber-500/30 focus:outline-none transition-all text-right h-8 backdrop-blur-md"
+              className="w-full liquid-glass-input text-slate-100 placeholder:text-slate-400 text-xs pr-8 pl-8 py-2 rounded-xl focus:border-amber-400 focus:outline-none transition-all text-right h-8"
             />
             {searchTerm && (
               <button
@@ -190,7 +192,7 @@ export const FactsList: React.FC<Props> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-black/60 hover:bg-white/10 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+              className="w-8 h-8 flex items-center justify-center rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
               title="داخستنی مینۆ"
             >
               <X className="w-4 h-4" />
@@ -210,7 +212,7 @@ export const FactsList: React.FC<Props> = ({
             </span>
           </div>
 
-          {/* Unified Category Pills (Thin Frosted Glass) */}
+          {/* Unified Category Pills (Liquid Glass Pills) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[10px]">
             {UNIFIED_CATEGORIES.map((cat) => {
               const isSelected = currentCategory === cat.id;
@@ -220,10 +222,10 @@ export const FactsList: React.FC<Props> = ({
                 <button
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 font-medium border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 font-medium ${
                     isSelected
-                      ? 'bg-amber-500 text-black font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.4)] border-amber-300'
-                      : 'bg-[#050812]/60 text-slate-300 hover:text-amber-300 hover:bg-amber-500/15 border-amber-500/20 backdrop-blur-md'
+                      ? 'liquid-glass-btn-active font-extrabold shadow-md'
+                      : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
                   }`}
                 >
                   <span
@@ -235,7 +237,7 @@ export const FactsList: React.FC<Props> = ({
                     className={`font-mono text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
                       isSelected
                         ? 'bg-black/30 text-black'
-                        : 'bg-black/40 text-amber-300/80 border border-amber-500/20'
+                        : 'bg-white/10 text-amber-300/90 border border-white/10'
                     }`}
                   >
                     {count}
@@ -250,15 +252,15 @@ export const FactsList: React.FC<Props> = ({
         {isAdmin && onOpenAddFact && (
           <button
             onClick={onOpenAddFact}
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_15px_rgba(245,158,11,0.35)] flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer"
+            className="w-full py-2 px-3 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-black" />
             <span>زیادکردنی دەسەڵات، شوێن و زانیاریی نوێ</span>
           </button>
         )}
 
         {/* Count & Status bar */}
-        <div className="flex items-center justify-between text-[10px] px-1 text-slate-400 border-t border-amber-500/15 pt-1.5">
+        <div className="flex items-center justify-between text-[10px] px-1 text-slate-400 border-t border-white/10 pt-1.5">
           <span className="font-medium text-amber-400/90">پێڕستی مێژوویی</span>
           <span className="font-mono text-amber-300 font-bold">
             {filteredFacts.length} لە {facts.length} دەسەڵات و شوێن
@@ -303,10 +305,10 @@ export const FactsList: React.FC<Props> = ({
               <div
                 key={fact.id}
                 onClick={() => onSelectFact(fact)}
-                className={`group flex items-center justify-between gap-2.5 px-3 py-2 cursor-pointer transition-all text-right ${
+                className={`group flex items-center justify-between gap-2.5 px-3 py-2 cursor-pointer transition-all text-right rounded-xl mx-1.5 my-0.5 ${
                   isSelected
-                    ? 'bg-amber-500/15 border-r-2 border-amber-400 shadow-[inset_0_0_16px_rgba(245,158,11,0.1)]'
-                    : 'hover:bg-white/5 hover:border-r hover:border-amber-500/30'
+                    ? 'liquid-glass-subtle border-r-2 border-amber-400 shadow-[inset_0_0_20px_rgba(245,158,11,0.2)]'
+                    : 'hover:liquid-glass-subtle hover:border-r hover:border-amber-400/40'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -314,8 +316,8 @@ export const FactsList: React.FC<Props> = ({
                   <span
                     className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold shrink-0 transition-all ${
                       isSelected
-                        ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.6)] font-extrabold'
-                        : 'bg-[#050812]/80 text-amber-300 border border-amber-500/25 group-hover:border-amber-400/50'
+                        ? 'liquid-glass-btn-active text-black shadow-[0_0_10px_rgba(245,158,11,0.6)] font-extrabold'
+                        : 'liquid-glass-btn text-amber-300'
                     }`}
                   >
                     {fact.num}
