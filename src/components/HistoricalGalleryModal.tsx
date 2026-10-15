@@ -67,7 +67,8 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   }, [facts]);
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isAutoPlay, setIsAutoPlay] = useState(true);
+  // Interval in seconds: 5, 7, 9 or 0 (کوژانەوەی کات / off)
+  const [intervalSeconds, setIntervalSeconds] = useState<5 | 7 | 9 | 0>(7);
   const [progress, setProgress] = useState(0); // 0 to 100%
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -80,7 +81,6 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       } else {
         setCurrentIndex(0);
       }
-      setIsAutoPlay(true);
       setProgress(0);
     }
   }, [isOpen, initialIndex, galleryItems.length]);
@@ -101,14 +101,14 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
     setProgress(0);
   }, [total]);
 
-  // Automatic Display Timer (6 Seconds: ٦ چرکە جارێک وێنەکە تۆماتیکی بگۆڕێت)
+  // Automatic Display Timer (5, 7, 9 seconds or 0 for off / کوژانەوەی کات)
   useEffect(() => {
-    if (!isOpen || !isAutoPlay || total <= 1) {
+    if (!isOpen || intervalSeconds === 0 || total <= 1) {
       setProgress(0);
       return;
     }
 
-    const intervalMs = 6000; // 6 seconds
+    const intervalMs = intervalSeconds * 1000;
     const tickMs = 50; // Update progress bar every 50ms
     const step = (tickMs / intervalMs) * 100;
 
@@ -123,7 +123,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
     }, tickMs);
 
     return () => clearInterval(timer);
-  }, [isOpen, isAutoPlay, total, handleNext]);
+  }, [isOpen, intervalSeconds, total, handleNext]);
 
   // Keyboard navigation: Escape to close, Arrows to navigate, Space to toggle autoplay
   useEffect(() => {
@@ -147,7 +147,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         handlePrev();
       } else if (e.key === ' ') {
         e.preventDefault();
-        setIsAutoPlay((prev) => !prev);
+        setIntervalSeconds((prev) => (prev === 0 ? 7 : 0));
       }
     };
 
@@ -211,35 +211,56 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Action Controls: Autoplay Toggle, Fullscreen & Close */}
+        {/* Action Controls: 5s, 7s, 9s, Off & Fullscreen & Close */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Autoplay button (Active when multiple images exist) */}
+          {/* کاتی پەخشی وێنە: ٥، ٧، ٩ چرکە و کوژانەوەی کات */}
           {total > 1 && (
-            <button
-              onClick={() => setIsAutoPlay(!isAutoPlay)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                isAutoPlay
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
-                  : 'bg-black/60 hover:bg-slate-800 text-slate-300 border-slate-700/80 hover:text-white'
-              }`}
-              title={
-                isAutoPlay
-                  ? 'وەستاندنی گۆڕینی وێنە'
-                  : 'دەستپێکردنی گۆڕینی وێنە (٦ چرکە)'
-              }
-            >
-              {isAutoPlay ? (
-                <>
-                  <Pause className="w-3.5 h-3.5 fill-current text-amber-400" />
-                  <span className="hidden sm:inline">وەستاندن</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current text-amber-400" />
-                  <span className="hidden sm:inline">دەستپێکردن</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-1 bg-[#070b14] border border-amber-500/35 p-1 rounded-xl shadow-xs">
+              <span className="text-[10px] text-amber-300 font-bold px-1 hidden md:inline">
+                کات:
+              </span>
+              {([5, 7, 9] as const).map((sec) => (
+                <button
+                  key={sec}
+                  type="button"
+                  onClick={() => {
+                    setIntervalSeconds(sec);
+                    setProgress(0);
+                  }}
+                  className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                    intervalSeconds === sec
+                      ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                      : 'text-slate-300 hover:text-amber-300 hover:bg-white/5'
+                  }`}
+                  title={`گۆڕینی وێنە لە ${sec} چرکەدا`}
+                >
+                  {sec === 5 ? '٥ چ' : sec === 7 ? '٧ چ' : '٩ چ'}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIntervalSeconds((prev) => (prev === 0 ? 7 : 0));
+                  setProgress(0);
+                }}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  intervalSeconds === 0
+                    ? 'bg-rose-950 text-rose-300 border border-rose-800'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+                title={intervalSeconds === 0 ? 'کاتی گۆڕین کوژاوەتەوە' : 'کوژانەوەی کات'}
+              >
+                {intervalSeconds === 0 ? (
+                  <>
+                    <Pause className="w-3 h-3 fill-current text-rose-400" />
+                    <span>کوژاوەتەوە</span>
+                  </>
+                ) : (
+                  <span>کوژانەوەی کات</span>
+                )}
+              </button>
+            </div>
           )}
 
           {/* Fullscreen Button */}
@@ -266,15 +287,11 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* 6-Second Slideshow Progress Bar */}
-      {total > 1 && (
+      {/* Slideshow Progress Bar (کاتی پەخش: ٥، ٧ یان ٩ چرکە) */}
+      {total > 1 && intervalSeconds > 0 && (
         <div className="relative z-20 w-full h-1 bg-black/60 overflow-hidden shrink-0">
           <div
-            className={`h-full transition-all ease-linear ${
-              isAutoPlay
-                ? 'bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300'
-                : 'bg-slate-700'
-            }`}
+            className="h-full transition-all ease-linear bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300"
             style={{ width: `${progress}%` }}
           />
         </div>

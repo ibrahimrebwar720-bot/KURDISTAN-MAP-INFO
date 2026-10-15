@@ -49,6 +49,7 @@ import {
   formatKurdishYear,
 } from '../utils/yearUtils';
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
+import { getCategoryInfo } from '../types/history';
 
 interface Props {
   facts: FactItem[];
@@ -80,67 +81,75 @@ interface Props {
   onMapIntroComplete?: () => void;
 }
 
-const TAG_FILTER_OPTIONS = [
+export const TAG_FILTER_OPTIONS = [
   {
     id: 'all',
-    label: 'هەموو دەسەڵاتەکان',
+    label: 'هەموو پۆلێنەکان',
     shortLabel: 'هەمووی',
     icon: SlidersHorizontal,
-    color: '#6366f1',
-    accentClass: 'text-indigo-400',
+    color: '#f59e0b',
+    accentClass: 'text-amber-400',
   },
   {
     id: 'principality',
-    label: 'میرنشین و دەسەڵاتەکان',
+    label: 'میرنشینەکان',
     shortLabel: 'میرنشینەکان',
     icon: Shield,
     color: '#eab308',
     accentClass: 'text-amber-400',
   },
   {
+    id: 'civilization',
+    label: 'شارستانییەتەکان',
+    shortLabel: 'شارستانییەتەکان',
+    icon: Landmark,
+    color: '#10b981',
+    accentClass: 'text-emerald-400',
+  },
+  {
     id: 'empire',
-    label: 'دەوڵەت و ئیمپراتۆریەتەکان',
-    shortLabel: 'دەوڵەتەکان',
+    label: 'ئیمپراتۆرییەتەکان',
+    shortLabel: 'ئیمپراتۆرییەتەکان',
     icon: Crown,
-    color: '#3b82f6',
-    accentClass: 'text-blue-400',
-  },
-  {
-    id: 'minister',
-    label: 'وەزیر و سەروەران',
-    shortLabel: 'وەزیر',
-    icon: Award,
-    color: '#06b6d4',
-    accentClass: 'text-cyan-400',
-  },
-  {
-    id: 'official',
-    label: 'کاربەدەستان و بەڕێوەبەران',
-    shortLabel: 'کاربەدەست',
-    icon: Briefcase,
     color: '#f97316',
     accentClass: 'text-orange-400',
   },
   {
     id: 'scholar',
-    label: 'زانایان و بیرمەندان',
-    shortLabel: 'زانا',
+    label: 'زانایان',
+    shortLabel: 'زانایان',
     icon: BookOpen,
-    color: '#10b981',
-    accentClass: 'text-emerald-400',
+    color: '#06b6d4',
+    accentClass: 'text-cyan-400',
   },
   {
-    id: 'capital',
-    label: 'قەڵا و پایتەختەکان',
+    id: 'official',
+    label: 'وەزیر و کاربەدەستان',
+    shortLabel: 'وەزیر و کاربەدەستان',
+    icon: Award,
+    color: '#3b82f6',
+    accentClass: 'text-blue-400',
+  },
+  {
+    id: 'other_figure',
+    label: 'کەسایەتی تر',
+    shortLabel: 'کەسایەتی تر',
+    icon: Sparkles,
+    color: '#ec4899',
+    accentClass: 'text-pink-400',
+  },
+  {
+    id: 'castle',
+    label: 'قەڵاکان',
     shortLabel: 'قەڵاکان',
     icon: Castle,
-    color: '#a855f7',
+    color: '#8b5cf6',
     accentClass: 'text-purple-400',
   },
   {
     id: 'battle',
-    label: 'جەنگ و ڕووداوە مێژووییەکان',
-    shortLabel: 'جەنگەکان',
+    label: 'جەنگ و ڕووداوەکان',
+    shortLabel: 'جەنگ و ڕووداوەکان',
     icon: Swords,
     color: '#ef4444',
     accentClass: 'text-rose-400',
@@ -204,11 +213,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const [adminTapCount, setAdminTapCount] = useState(0);
   const tapTimeoutRef = useRef<any>(null);
 
-  // Compute fact counts per tag
+  // Compute fact counts per unified category
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = { all: facts.length };
     facts.forEach((f) => {
-      counts[f.tag] = (counts[f.tag] || 0) + 1;
+      const catId = getCategoryInfo(f).id;
+      counts[catId] = (counts[catId] || 0) + 1;
     });
     return counts;
   }, [facts]);
@@ -471,9 +481,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       list = filterFactsByActiveYear(list, selectedYear);
     }
 
-    // 2. Category Tag Filter
+    // 2. Category Filter (پۆلێن)
     if (activeTagFilter !== 'all') {
-      list = list.filter((fact) => fact.tag === activeTagFilter);
+      list = list.filter((fact) => getCategoryInfo(fact).id === activeTagFilter);
     }
     return list;
   }, [facts, activeTagFilter, selectedYear]);
@@ -493,31 +503,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         return;
       }
 
-      // Determine color based on tag
-      let tagColor = '#6366f1';
-      let glowColor = 'rgba(99,102,241,0.8)';
-      if (fact.tag === 'minister') {
-        tagColor = '#06b6d4';
-        glowColor = 'rgba(6,182,212,0.85)';
-      } else if (fact.tag === 'official') {
-        tagColor = '#f97316';
-        glowColor = 'rgba(249,115,22,0.85)';
-      } else if (fact.tag === 'scholar') {
-        tagColor = '#10b981';
-        glowColor = 'rgba(16,185,129,0.85)';
-      } else if (fact.tag === 'empire') {
-        tagColor = '#3b82f6';
-        glowColor = 'rgba(59,130,246,0.85)';
-      } else if (fact.tag === 'principality') {
-        tagColor = '#eab308';
-        glowColor = 'rgba(234,179,8,0.85)';
-      } else if (fact.tag === 'capital') {
-        tagColor = '#a855f7';
-        glowColor = 'rgba(168,85,247,0.85)';
-      } else if (fact.tag === 'battle') {
-        tagColor = '#ef4444';
-        glowColor = 'rgba(239,68,68,0.85)';
-      }
+      // Determine color based on unified category (پۆلێن)
+      const catInfo = getCategoryInfo(fact);
+      const tagColor = catInfo.color;
+      const glowColor = `${tagColor}d9`;
 
       let iconHtml = '';
 
@@ -850,7 +839,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             >
               <div className="flex items-center gap-2.5">
                 <SlidersHorizontal className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-medium">فلتەری بابەتەکان</span>
+                <span className="font-medium">پۆلێنەکان</span>
               </div>
               <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 {currentFilterObj.label}
@@ -977,7 +966,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               <div className="flex items-center gap-1.5">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
                 <span className="text-xs font-bold text-amber-200">
-                  فلتەری جۆری دەسەڵاتەکان
+                  پۆلێنەکان
                 </span>
               </div>
               <button

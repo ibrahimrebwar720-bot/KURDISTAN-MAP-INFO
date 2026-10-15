@@ -1,6 +1,12 @@
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
 import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
-import { CollectionItem, DEFAULT_COLLECTIONS, ADMIN_SECRET_CODE } from '../types/history';
+import {
+  CollectionItem,
+  DEFAULT_COLLECTIONS,
+  UNIFIED_CATEGORIES,
+  getCategoryInfo,
+  ADMIN_SECRET_CODE,
+} from '../types/history';
 import { inferCenturyAndYearForFact } from '../utils/centuryUtils';
 
 const STORAGE_KEYS = {
@@ -110,23 +116,7 @@ export function inferCollectionForFact(fact: FactItem): string {
 }
 
 export function loadStoredCollections(): CollectionItem[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.COLLECTIONS);
-    if (!raw) return DEFAULT_COLLECTIONS;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Merge with default collections to ensure new built-in categories (ministers, officials, scholars) are present
-      const map = new Map<string, CollectionItem>();
-      DEFAULT_COLLECTIONS.forEach((dc) => map.set(dc.id, dc));
-      parsed.forEach((pc: CollectionItem) => {
-        if (pc && pc.id) map.set(pc.id, pc);
-      });
-      return Array.from(map.values());
-    }
-  } catch (e) {
-    console.warn('Failed to load collections from storage:', e);
-  }
-  return DEFAULT_COLLECTIONS;
+  return UNIFIED_CATEGORIES;
 }
 
 export function saveStoredCollections(collections: CollectionItem[]): void {
@@ -141,12 +131,15 @@ export function sanitizeFact(fact: any): FactItem {
   const latNum = Number(fact?.lat);
   const lngNum = Number(fact?.lng);
   const dateInfo = inferCenturyAndYearForFact(fact);
+  const cat = getCategoryInfo(fact);
 
   return {
     ...fact,
     lat: Number.isFinite(latNum) && latNum >= -90 && latNum <= 90 ? latNum : 36.8,
     lng: Number.isFinite(lngNum) && lngNum >= -180 && lngNum <= 180 ? lngNum : 44.5,
-    collectionId: fact?.collectionId || inferCollectionForFact(fact),
+    category: cat.id,
+    tag: cat.id,
+    collectionId: cat.id,
     year: fact?.year || dateInfo.year,
     century: fact?.century || dateInfo.century,
     centuryNumber: typeof fact?.centuryNumber === 'number' ? fact.centuryNumber : dateInfo.centuryNumber,

@@ -1,77 +1,140 @@
-import { FactItem } from '../data/kurdishHistoryData';
+export type CategoryId =
+  | 'principality'
+  | 'civilization'
+  | 'empire'
+  | 'scholar'
+  | 'official'
+  | 'other_figure'
+  | 'castle'
+  | 'battle';
 
-export interface CollectionItem {
-  id: string;
+export interface CategoryItem {
+  id: CategoryId | 'all' | string;
   name: string;
   description?: string;
   color: string;
   isCustom?: boolean;
 }
 
+// Backward-compatible alias for existing code referencing CollectionItem
+export type CollectionItem = CategoryItem;
+
 export const ADMIN_SECRET_CODE = '200076';
 
-export const DEFAULT_COLLECTIONS: CollectionItem[] = [
+/**
+ * ٨ پۆلێنی یەکگرتووی سەرەکی بەپێی داواکاری بەکارهێنەر:
+ * - میرنشینەکان
+ * - شارستانییەتەکان 
+ * - ئیمپراتۆرییەتەکان
+ * - زانایان
+ * - وەزیر و کاربەدەستان
+ * - کەسایەتی تر
+ * - قەڵاکان
+ * - جەنگ و ڕووداوەکان
+ */
+export const UNIFIED_CATEGORIES: CategoryItem[] = [
   {
     id: 'all',
-    name: 'هەموو دەسەڵاتەکان',
-    description: 'تەواوی دەسەڵات، میرنشین، وەزیران و شوێنە مێژووییەکان',
-    color: '#6366f1',
-    isCustom: false,
+    name: 'هەموو پۆلێنەکان',
+    description: 'تەواوی بابەتە مێژووییەکان لە هەموو پۆلێنەکاندا',
+    color: '#f59e0b',
   },
   {
-    id: 'powers',
-    name: 'دەسەڵات و میرنشین',
-    description: 'ئیمپراتۆریەت، میرنشین و دەسەڵاتە فەرمانڕەواکان',
-    color: '#3b82f6',
-    isCustom: false,
-  },
-  {
-    id: 'ministers',
-    name: 'وەزیرەکان',
-    description: 'وەزیران، ڕاوێژکاران و کەسایەتییە دیارەکانی بەڕێوەبردن',
-    color: '#06b6d4',
-    isCustom: false,
-  },
-  {
-    id: 'officials',
-    name: 'کاربەدەستان',
-    description: 'کاربەدەستان، سەرکردە ئیدارییەکان و فەرمانڕەوایان',
-    color: '#f97316',
-    isCustom: false,
-  },
-  {
-    id: 'scholars',
-    name: 'زانایان',
-    description: 'زانایان، فەیلەسوفان، بیرمەندان و مێژوونووسانی کورد',
-    color: '#10b981',
-    isCustom: false,
-  },
-  {
-    id: 'rulers',
-    name: 'دەسەڵاتدار و پاشا',
-    description: 'پاشاکان، ئەتابەگەکان و فەرمانڕەوایانی دیار',
+    id: 'principality',
+    name: 'میرنشینەکان',
+    description: 'میرنشینە مێژووییەکان و میرەکانی کوردستان',
     color: '#eab308',
-    isCustom: false,
   },
   {
-    id: 'figures',
-    name: 'کەسایەتی و پێشەوا',
-    description: 'ڕابەران و کەسایەتییە کاریگەرە مێژووییەکان',
+    id: 'civilization',
+    name: 'شارستانییەتەکان',
+    description: 'شارستانییەتە دێرینەکان و شوێنەوارە شارستانییەکان',
+    color: '#10b981',
+  },
+  {
+    id: 'empire',
+    name: 'ئیمپراتۆرییەتەکان',
+    description: 'ئیمپراتۆریەتە مەزنەکان و دەسەڵاتە فەرمانڕەواکان',
+    color: '#f97316',
+  },
+  {
+    id: 'scholar',
+    name: 'زانایان',
+    description: 'زانایان، فەیلەسوفان و مێژوونووسانی کورد',
+    color: '#06b6d4',
+  },
+  {
+    id: 'official',
+    name: 'وەزیر و کاربەدەستان',
+    description: 'وەزیران، کاربەدەستان و بەڕێوەبەرانی مێژوویی',
+    color: '#3b82f6',
+  },
+  {
+    id: 'other_figure',
+    name: 'کەسایەتی تر',
+    description: 'سەرکردە، شاعیر و کەسایەتییە کاریگەرەکانی تر',
     color: '#ec4899',
-    isCustom: false,
   },
   {
-    id: 'monuments',
-    name: 'شوێنەوار و قەڵا',
-    description: 'قەڵا مێژووییەکان، پایتەخت و پاشماوە شوێنەوارییەکان',
+    id: 'castle',
+    name: 'قەڵاکان',
+    description: 'قەڵا مێژووییەکان، پایتەخت و بارەگاکان',
     color: '#8b5cf6',
-    isCustom: false,
   },
   {
-    id: 'battles',
-    name: 'ڕووداو و جەنگەکان',
-    description: 'شەڕ و پەیماننامە چارەنووسسازەکانی مێژوو',
+    id: 'battle',
+    name: 'جەنگ و ڕووداوەکان',
+    description: 'جەنگە چارەنووسسازەکان، شۆڕش و ڕووداوەکان',
     color: '#ef4444',
-    isCustom: false,
   },
 ];
+
+// Alias for backwards compatibility
+export const DEFAULT_COLLECTIONS: CategoryItem[] = UNIFIED_CATEGORIES;
+
+/**
+ * دۆزینەوەی ناوی کوردی و ناسنامەی پۆلێنی هەر بابەتێک بە یەکگرتوویی
+ */
+export function getCategoryInfo(fact: { category?: string; tag?: string; collectionId?: string } | null | undefined): {
+  id: CategoryId;
+  name: string;
+  color: string;
+} {
+  if (!fact) {
+    return { id: 'principality', name: 'میرنشینەکان', color: '#eab308' };
+  }
+
+  const raw = (fact.category || fact.tag || fact.collectionId || '').toLowerCase().trim();
+
+  if (raw === 'principality' || raw === 'powers' || raw === 'میرنشینەکان' || raw === 'میرنشین') {
+    return { id: 'principality', name: 'میرنشینەکان', color: '#eab308' };
+  }
+  if (raw === 'civilization' || raw === 'culture' || raw === 'شارستانییەتەکان' || raw === 'شارستانییەت') {
+    return { id: 'civilization', name: 'شارستانییەتەکان', color: '#10b981' };
+  }
+  if (raw === 'empire' || raw === 'ئیمپراتۆرییەتەکان' || raw === 'ئیمپراتۆریەت') {
+    return { id: 'empire', name: 'ئیمپراتۆرییەتەکان', color: '#f97316' };
+  }
+  if (raw === 'scholar' || raw === 'scholars' || raw === 'زانایان' || raw === 'زانا') {
+    return { id: 'scholar', name: 'زانایان', color: '#06b6d4' };
+  }
+  if (
+    raw === 'official' ||
+    raw === 'officials' ||
+    raw === 'minister' ||
+    raw === 'ministers' ||
+    raw === 'وەزیر و کاربەدەستان' ||
+    raw === 'وەزیر' ||
+    raw === 'کاربەدەست'
+  ) {
+    return { id: 'official', name: 'وەزیر و کاربەدەستان', color: '#3b82f6' };
+  }
+  if (raw === 'castle' || raw === 'capital' || raw === 'monuments' || raw === 'قەڵاکان' || raw === 'قەڵا') {
+    return { id: 'castle', name: 'قەڵاکان', color: '#8b5cf6' };
+  }
+  if (raw === 'battle' || raw === 'battles' || raw === 'جەنگ و ڕووداوەکان' || raw === 'جەنگ') {
+    return { id: 'battle', name: 'جەنگ و ڕووداوەکان', color: '#ef4444' };
+  }
+
+  return { id: 'other_figure', name: 'کەسایەتی تر', color: '#ec4899' };
+}

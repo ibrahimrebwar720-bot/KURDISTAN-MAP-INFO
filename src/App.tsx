@@ -38,9 +38,8 @@ export default function App() {
 
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
-  const [activeTagFilter, setActiveTagFilter] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
-  const [selectedCollectionId, setSelectedCollectionId] = useState('all');
 
   // Admin Modals state
   const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
@@ -276,8 +275,8 @@ export default function App() {
   const handleDeleteCollection = (colId: string) => {
     const updated = collections.filter((c) => c.id !== colId);
     setCollections(updated);
-    if (selectedCollectionId === colId) {
-      setSelectedCollectionId('all');
+    if (selectedCategory === colId) {
+      setSelectedCategory('all');
     }
     deleteCollectionFromCloud(colId).catch((err) => {
       console.error('Failed to delete collection from cloud:', err);
@@ -318,8 +317,8 @@ export default function App() {
           setShowPolygon={setShowPolygon}
           onOpenMenu={() => setIsMenuOpen(true)}
           onOpenGallery={() => setIsGalleryOpen(true)}
-          activeTagFilter={activeTagFilter}
-          setActiveTagFilter={setActiveTagFilter}
+          activeTagFilter={selectedCategory}
+          setActiveTagFilter={setSelectedCategory}
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           isAdmin={isAdmin}
@@ -355,8 +354,10 @@ export default function App() {
                   }}
                   onOpenDetail={(fact) => setDetailFact(fact)}
                   collections={collections}
-                  selectedCollectionId={selectedCollectionId}
-                  onSelectCollection={setSelectedCollectionId}
+                  selectedCollectionId={selectedCategory}
+                  onSelectCollection={setSelectedCategory}
+                  activeCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
                   isAdmin={isAdmin}
                   onOpenAddFact={handleOpenAddFact}
                   onOpenEditFact={handleOpenEditFact}

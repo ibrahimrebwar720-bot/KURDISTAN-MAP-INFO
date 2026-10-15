@@ -9,8 +9,9 @@ export interface FactItem {
   fullText: string;
   lat: number;
   lng: number;
-  zoom: number;
-  tag: 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture' | 'minister' | 'official' | 'scholar';
+  zoom?: number;
+  tag: string;
+  category?: string;
   region?: string;
   collectionId?: string;
   additionalNotes?: string;

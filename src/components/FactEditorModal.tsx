@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { CollectionItem } from '../types/history';
+import {
+  CollectionItem,
+  CategoryId,
+  UNIFIED_CATEGORIES,
+  getCategoryInfo,
+} from '../types/history';
 import {
   X,
   MapPin,
@@ -72,8 +77,8 @@ export const FactEditorModal: React.FC<Props> = ({
   const [lat, setLat] = useState<number>(36.8);
   const [lng, setLng] = useState<number>(44.5);
   const [showManualCoords, setShowManualCoords] = useState(false);
-  const [tag, setTag] = useState<FactItem['tag']>('principality');
-  const [collectionId, setCollectionId] = useState<string>('powers');
+  // Unified single category state (میرنشینەکان، شارستانییەتەکان، ئیمپراتۆرییەتەکان، زانایان، وەزیر و کاربەدەستان، کەسایەتی تر، قەڵاکان، جەنگ و ڕووداوەکان)
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId>('principality');
   const [startYearInput, setStartYearInput] = useState('');
   const [endYearInput, setEndYearInput] = useState('');
   const [startEra, setStartEra] = useState<'BC' | 'AD'>('AD');
@@ -83,7 +88,10 @@ export const FactEditorModal: React.FC<Props> = ({
   const [hasLocationPicked, setHasLocationPicked] = useState(false);
 
   // Is this fact a historical person / figure?
-  const isPerson = tag === 'figure' || tag === 'scholar' || tag === 'minister' || tag === 'official';
+  const isPerson =
+    selectedCategory === 'scholar' ||
+    selectedCategory === 'official' ||
+    selectedCategory === 'other_figure';
 
   // Topic Image & Caption state
   const [imageUrl, setImageUrl] = useState('');
@@ -148,8 +156,9 @@ export const FactEditorModal: React.FC<Props> = ({
         setImageCaption(factToEdit.imageCaption || '');
         setLat(factToEdit.lat);
         setLng(factToEdit.lng);
-        setTag(factToEdit.tag);
-        setCollectionId(factToEdit.collectionId || 'powers');
+        // Unified Category
+        const catInfo = getCategoryInfo(factToEdit);
+        setSelectedCategory(catInfo.id);
         if (typeof factToEdit.birthYear === 'number') {
           setStartYearInput(Math.abs(factToEdit.birthYear).toString());
           setStartEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
@@ -205,8 +214,7 @@ export const FactEditorModal: React.FC<Props> = ({
           setLng(44.5);
           setHasLocationPicked(false);
         }
-        setTag('principality');
-        setCollectionId('powers');
+        setSelectedCategory('principality');
         setImageUrl('');
         setImageCaption('');
       }
@@ -359,9 +367,10 @@ export const FactEditorModal: React.FC<Props> = ({
       centuryNumber: finalStart < 0 ? -Math.ceil(Math.abs(finalStart) / 100) : Math.ceil(finalStart / 100),
       lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
       lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
-      zoom: factToEdit ? factToEdit.zoom : 8,
-      tag: tag,
-      collectionId: collectionId,
+      zoom: factToEdit?.zoom || 8,
+      tag: selectedCategory,
+      collectionId: selectedCategory,
+      category: selectedCategory,
       imageUrl: imageUrl.trim() || undefined,
       imageCaption: imageCaption.trim() || undefined,
       isCustom: true,
@@ -442,60 +451,38 @@ export const FactEditorModal: React.FC<Props> = ({
               />
             </div>
 
-            {/* Collection & Tag Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Collection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+            {/* Unified Category Selector (تەنها یەک پۆلێن لەنێوان ٨ پۆلێنە سەرەکییەکە) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-amber-300">
                   <Layers className="w-3.5 h-3.5 text-amber-400" />
-                  <span>کۆلێکشن (دەستە)</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={collectionId}
-                    onChange={(e) => setCollectionId(e.target.value)}
-                    className="w-full appearance-none bg-[#050812] text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs font-medium cursor-pointer"
-                  >
-                    {collections
-                      .filter((c) => c.id !== 'all')
-                      .map((col) => (
-                        <option key={col.id} value={col.id} className="bg-[#090d16] text-white">
-                          {col.name}
-                        </option>
-                      ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
+                  <span>پۆلێنی بابەت <span className="text-amber-400">*</span></span>
+                </span>
+                <span className="text-[10px] text-slate-400">یەکێک لە ٨ پۆلێنە سەرەکییەکە هەڵبژێرە</span>
+              </label>
 
-              {/* Tag / Category */}
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
-                  {isPerson ? (
-                    <User className="w-3.5 h-3.5 text-amber-400" />
-                  ) : (
-                    <Shield className="w-3.5 h-3.5 text-amber-400" />
-                  )}
-                  <span>جۆر و پۆلێن (پێگەی مێژوویی)</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value as FactItem['tag'])}
-                    className="w-full appearance-none bg-[#050812] text-amber-300 font-bold px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs cursor-pointer"
-                  >
-                    <option value="principality" className="bg-[#090d16] text-white">میرنشین و دەسەڵات</option>
-                    <option value="empire" className="bg-[#090d16] text-white">ئیمپراتۆریەت و دەوڵەت</option>
-                    <option value="minister" className="bg-[#090d16] text-white">وەزیر (وەزیرە مێژووییەکان)</option>
-                    <option value="official" className="bg-[#090d16] text-white">کاربەدەست و بەڕێوەبەر</option>
-                    <option value="scholar" className="bg-[#090d16] text-white">زانا و فەیلەسوف</option>
-                    <option value="figure" className="bg-[#090d16] text-white">کەسایەتی و پێشەوا</option>
-                    <option value="capital" className="bg-[#090d16] text-white">قەڵا و پایتەخت</option>
-                    <option value="battle" className="bg-[#090d16] text-white">جەنگ و پەیماننامە</option>
-                    <option value="culture" className="bg-[#090d16] text-white">کولتوور و شوێنەوار</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {UNIFIED_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
+                  const isSelected = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id as CategoryId)}
+                      className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)] font-extrabold scale-[1.02]'
+                          : 'bg-[#050812] text-slate-300 border-slate-700/80 hover:border-amber-500/40 hover:text-white'
+                      }`}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: isSelected ? '#000000' : cat.color }}
+                      />
+                      <span className="truncate">{cat.name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

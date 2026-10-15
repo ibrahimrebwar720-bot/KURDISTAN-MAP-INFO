@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { CollectionItem } from '../types/history';
+import { CollectionItem, UNIFIED_CATEGORIES, getCategoryInfo } from '../types/history';
 import { getFactChronologicalYear } from '../utils/yearUtils';
 import {
   Search,
@@ -19,9 +19,11 @@ interface Props {
   selectedFact: FactItem | null;
   onSelectFact: (fact: FactItem) => void;
   onOpenDetail: (fact: FactItem) => void;
-  collections: CollectionItem[];
-  selectedCollectionId: string;
-  onSelectCollection: (id: string) => void;
+  collections?: CollectionItem[];
+  selectedCollectionId?: string;
+  onSelectCollection?: (id: string) => void;
+  activeCategory?: string;
+  onSelectCategory?: (id: string) => void;
   isAdmin?: boolean;
   onOpenAdminPin?: () => void;
   onOpenAddFact?: () => void;
@@ -43,6 +45,8 @@ export const FactsList: React.FC<Props> = ({
   collections,
   selectedCollectionId,
   onSelectCollection,
+  activeCategory,
+  onSelectCategory,
   isAdmin = false,
   onOpenAddFact,
   onOpenEditFact,
@@ -53,13 +57,20 @@ export const FactsList: React.FC<Props> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter facts by search query AND selected collection
+  const currentCategory = activeCategory || selectedCollectionId || 'all';
+
+  const handleCategorySelect = (catId: string) => {
+    if (onSelectCategory) onSelectCategory(catId);
+    if (onSelectCollection) onSelectCollection(catId);
+  };
+
+  // Filter facts by search query AND unified category (پۆلێن)
   const filteredFacts = useMemo(() => {
     let list = facts;
 
-    // Filter by Collection
-    if (selectedCollectionId && selectedCollectionId !== 'all') {
-      list = list.filter((fact) => fact.collectionId === selectedCollectionId);
+    // Filter by unified category
+    if (currentCategory && currentCategory !== 'all') {
+      list = list.filter((fact) => getCategoryInfo(fact).id === currentCategory);
     }
 
     // Filter by Search Term
@@ -86,13 +97,13 @@ export const FactsList: React.FC<Props> = ({
       }
       return a.id - b.id;
     });
-  }, [facts, searchTerm, selectedCollectionId]);
+  }, [facts, searchTerm, currentCategory]);
 
-  // Compute counts per collection
-  const collectionCounts = useMemo(() => {
+  // Compute counts per unified category (پۆلێن)
+  const categoryCounts = useMemo(() => {
     const map: Record<string, number> = { all: facts.length };
     facts.forEach((f) => {
-      const cId = f.collectionId || 'powers';
+      const cId = getCategoryInfo(f).id;
       map[cId] = (map[cId] || 0) + 1;
     });
     return map;
@@ -187,37 +198,28 @@ export const FactsList: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Collections Filter Bar with Horizontal Scroll */}
+        {/* Unified Categories Filter Bar with Horizontal Scroll (پۆلێنەکان) */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs px-1">
             <span className="font-bold text-amber-300 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-amber-400" />
-              <span>دەستە و کۆلێکشنەکان:</span>
+              <span>پۆلێن:</span>
             </span>
-
-            {/* Admin: Manage Collections Button */}
-            {isAdmin && onOpenCollectionManager && (
-              <button
-                onClick={onOpenCollectionManager}
-                className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 font-bold cursor-pointer"
-                title="دەستکاریکردن یان زیادکردنی کۆلێکشن"
-              >
-                <Settings className="w-3 h-3" />
-                <span>دەستکاریی کۆلێکشن</span>
-              </button>
-            )}
+            <span className="text-[10px] text-slate-400 font-mono">
+              {UNIFIED_CATEGORIES.length - 1} پۆلێن
+            </span>
           </div>
 
-          {/* Collection Pills (Thin Frosted Glass) */}
+          {/* Unified Category Pills (Thin Frosted Glass) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[10px]">
-            {collections.map((col) => {
-              const isSelected = selectedCollectionId === col.id;
-              const count = collectionCounts[col.id] || 0;
+            {UNIFIED_CATEGORIES.map((cat) => {
+              const isSelected = currentCategory === cat.id;
+              const count = categoryCounts[cat.id] || 0;
 
               return (
                 <button
-                  key={col.id}
-                  onClick={() => onSelectCollection(col.id)}
+                  key={cat.id}
+                  onClick={() => handleCategorySelect(cat.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 font-medium border ${
                     isSelected
                       ? 'bg-amber-500 text-black font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.4)] border-amber-300'
@@ -226,9 +228,9 @@ export const FactsList: React.FC<Props> = ({
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0 shadow-xs"
-                    style={{ backgroundColor: col.color }}
+                    style={{ backgroundColor: isSelected ? '#000000' : cat.color }}
                   />
-                  <span>{col.name}</span>
+                  <span>{cat.name}</span>
                   <span
                     className={`font-mono text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
                       isSelected
@@ -331,25 +333,21 @@ export const FactsList: React.FC<Props> = ({
                       >
                         {fact.name}
                       </span>
-                      {fact.tag && (
-                        <span className="text-[9px] font-medium border px-1.5 py-0.2 rounded-md bg-amber-500/10 text-amber-300 border-amber-500/25">
-                          {fact.tag === 'minister'
-                            ? 'وەزیر'
-                            : fact.tag === 'official'
-                            ? 'کاربەدەست'
-                            : fact.tag === 'scholar'
-                            ? 'زانا'
-                            : fact.tag === 'empire'
-                            ? 'دەوڵەت'
-                            : fact.tag === 'principality'
-                            ? 'میرنشین'
-                            : fact.tag === 'capital'
-                            ? 'قەڵا'
-                            : fact.tag === 'battle'
-                            ? 'جەنگ'
-                            : 'کەسایەتی'}
-                        </span>
-                      )}
+                      {(() => {
+                        const catInfo = getCategoryInfo(fact);
+                        return (
+                          <span
+                            className="text-[9px] font-medium border px-1.5 py-0.2 rounded-md"
+                            style={{
+                              backgroundColor: `${catInfo.color}18`,
+                              color: catInfo.color,
+                              borderColor: `${catInfo.color}40`,
+                            }}
+                          >
+                            {catInfo.name}
+                          </span>
+                        );
+                      })()}
                       {fact.isCustom && (
                         <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/35 px-1.5 py-0.2 rounded font-bold">
                           نوێ
