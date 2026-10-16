@@ -84,22 +84,24 @@ export const CollectionManagerModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1260] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-md animate-fade-in text-right"
+      className="fixed inset-0 z-[1260] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md bg-[#070b14]/85 border border-amber-500/25 rounded-3xl p-5 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-2xl max-h-[90vh] overflow-y-auto text-slate-100 custom-scrollbar"
+        className="relative w-full max-w-md liquid-glass-panel rounded-3xl p-5 sm:p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="glass-specular-ray" />
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-amber-500/20 pb-3.5 mb-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3.5 mb-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-              <Layers className="w-4 h-4 text-amber-400" />
+            <div className="w-9 h-9 rounded-xl liquid-glass-btn flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+              <Layers className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">بەڕێوەبردنی دەستە و کۆلێکشنەکان</h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-amber-200/80">
                 زیادکردن و دەستکاریکردنی دەستەکانی پێڕست
               </p>
             </div>
@@ -107,7 +109,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
             title="داخستن"
           >
             <X className="w-4 h-4" />
@@ -115,14 +117,14 @@ export const CollectionManagerModal: React.FC<Props> = ({
         </div>
 
         {/* Add / Edit Form Card */}
-        <form onSubmit={handleSave} className="p-4 rounded-2xl bg-[#0e1526]/90 border border-slate-800 hover:border-amber-500/30 space-y-3 mb-4 text-xs transition-colors">
-          <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5 pb-1 border-b border-slate-800/80">
+        <form onSubmit={handleSave} className="p-4 rounded-2xl liquid-glass-card space-y-3 mb-4 text-xs transition-all shadow-sm">
+          <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5 pb-1 border-b border-white/10">
             {editingId ? <Edit3 className="w-3.5 h-3.5 text-amber-400" /> : <Plus className="w-3.5 h-3.5 text-amber-400" />}
             <span>{editingId ? 'دەستکاریکردنی دەستە' : 'زیادکردنی دەستەی نوێ'}</span>
           </h4>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-300 mb-1">
+            <label className="block text-[11px] font-bold text-amber-200/90 mb-1">
               ناوی کۆلێکشن *
             </label>
             <input
@@ -131,12 +133,12 @@ export const CollectionManagerModal: React.FC<Props> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="بۆ نموونە: شاعیرانی کلاسیک، میرنشینە هاوپەیمانەکان..."
-              className="w-full bg-[#050812] text-white px-3 py-2 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs"
+              className="w-full liquid-glass-input text-white px-3 py-2 rounded-xl text-xs"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-300 mb-1">
+            <label className="block text-[11px] font-bold text-amber-200/90 mb-1">
               وەسف و تێبینی کورت
             </label>
             <input
@@ -144,13 +146,13 @@ export const CollectionManagerModal: React.FC<Props> = ({
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder="وەسفێکی کورت..."
-              className="w-full bg-[#050812] text-white px-3 py-2 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs"
+              className="w-full liquid-glass-input text-white px-3 py-2 rounded-xl text-xs"
             />
           </div>
 
           {/* Color picker */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-300 mb-1.5 flex items-center gap-1">
+            <label className="block text-[11px] font-bold text-amber-200/90 mb-1.5 flex items-center gap-1">
               <Palette className="w-3.5 h-3.5 text-amber-400" />
               <span>ڕەنگی نیشاندەر لەسەر نەخشە</span>
             </label>
@@ -161,29 +163,29 @@ export const CollectionManagerModal: React.FC<Props> = ({
                   type="button"
                   onClick={() => setColor(c)}
                   className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
-                    color === c ? 'scale-110 border-white ring-2 ring-amber-400/50' : 'border-slate-800 opacity-80 hover:opacity-100'
+                    color === c ? 'scale-110 border-white ring-2 ring-amber-400/50' : 'border-black/40 opacity-80 hover:opacity-100'
                   }`}
                   style={{ backgroundColor: c }}
                 >
-                  {color === c && <Check className="w-3.5 h-3.5 text-black drop-shadow-sm" />}
+                  {color === c && <Check className="w-3.5 h-3.5 text-black drop-shadow-sm font-bold" />}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-800/80">
+          <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-white/10">
             {editingId && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-xs hover:text-white cursor-pointer"
+                className="px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-300 text-xs hover:text-white cursor-pointer"
               >
                 هەڵوەشاندنەوە
               </button>
             )}
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold text-xs shadow-sm transition-all cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
               <span>{editingId ? 'نوێکردنەوە' : 'زیادکردنی کۆلێکشن'}</span>
@@ -197,16 +199,16 @@ export const CollectionManagerModal: React.FC<Props> = ({
             <span className="text-xs font-bold text-slate-200">
               کۆلێکشنە بەردەستەکان
             </span>
-            <span className="text-[11px] font-mono font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+            <span className="text-[11px] font-mono font-bold text-amber-300 liquid-glass-subtle px-2 py-0.5 rounded-full">
               {collections.length} دەستە
             </span>
           </div>
 
-          <div className="divide-y divide-slate-800 border border-slate-800 rounded-2xl overflow-hidden bg-[#050812] max-h-56 overflow-y-auto custom-scrollbar">
+          <div className="divide-y divide-white/10 border border-white/15 rounded-2xl overflow-hidden liquid-glass-subtle max-h-56 overflow-y-auto custom-scrollbar">
             {collections.map((col) => (
               <div
                 key={col.id}
-                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/60 transition-colors text-xs"
+                className="flex items-center justify-between gap-3 p-3 hover:bg-white/5 transition-colors text-xs"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span
@@ -218,7 +220,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
                       {col.name}
                     </span>
                     {col.description && (
-                      <span className="text-[11px] text-slate-400 truncate block mt-0.5">
+                      <span className="text-[11px] text-slate-300/80 truncate block mt-0.5">
                         {col.description}
                       </span>
                     )}
@@ -228,7 +230,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleStartEdit(col)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 transition-colors cursor-pointer"
                     title="دەستکاریکردن"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -237,7 +239,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
                   {col.id !== 'all' && (
                     <button
                       onClick={() => onDeleteCollection(col.id)}
-                      className="p-1.5 rounded-lg text-red-400 hover:text-white hover:bg-red-950/70 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg text-red-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
                       title="سڕینەوە"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

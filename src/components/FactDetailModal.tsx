@@ -101,13 +101,15 @@ export const FactDetailModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl bg-[#070b14]/85 border border-amber-500/25 rounded-3xl p-4 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-2xl overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden custom-scrollbar"
+        className="relative w-full max-w-xl liquid-glass-panel rounded-3xl p-4 sm:p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden custom-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="glass-specular-ray" />
+
         {/* Subtle Background Layer: Kurdish Battles & Scholars Artwork */}
         <div className="absolute inset-0 pointer-events-none opacity-10 overflow-hidden z-0">
           <img
@@ -119,9 +121,9 @@ export const FactDetailModal: React.FC<Props> = ({
         </div>
 
         {/* Header row */}
-        <div className="relative z-10 flex items-center justify-between gap-3 border-b border-amber-500/20 pb-3 mb-3">
+        <div className="relative z-10 flex items-center justify-between gap-3 border-b border-white/10 pb-3 mb-3">
           <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-300 font-mono font-bold text-xs flex items-center justify-center shadow-[0_0_12px_rgba(245,158,11,0.2)] shrink-0">
+            <span className="w-8 h-8 rounded-xl liquid-glass-btn text-amber-300 font-mono font-bold text-xs flex items-center justify-center shadow-[0_0_12px_rgba(245,158,11,0.2)] shrink-0">
               #{fact.num}
             </span>
             <div>
@@ -139,7 +141,7 @@ export const FactDetailModal: React.FC<Props> = ({
             {isAdmin && onEditFact && (
               <button
                 onClick={() => onEditFact(fact)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold transition-all cursor-pointer backdrop-blur-md"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-glass-btn text-amber-300 text-[11px] font-bold transition-all cursor-pointer"
                 title="دەستکاریکردنی ئەم دەسەڵاتە لەلایەن ئەدمینەوە"
               >
                 <Edit3 className="w-3.5 h-3.5 text-amber-400" />
@@ -149,7 +151,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 border border-slate-800 transition-all cursor-pointer"
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-white liquid-glass-btn transition-all cursor-pointer"
               title="داخستن"
             >
               <X className="w-4 h-4" />
@@ -160,10 +162,10 @@ export const FactDetailModal: React.FC<Props> = ({
         {/* Content Body */}
         <div className="relative z-10 space-y-3.5 my-2">
           <div>
-            <h3 className="text-base sm:text-lg font-bold font-heading text-white leading-snug">
+            <h3 className="text-base sm:text-lg font-bold font-heading text-white leading-snug drop-shadow-xs">
               {fact.name}
             </h3>
-            <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-200/80">
+            <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-200/90 font-medium">
               <Compass className="w-3.5 h-3.5 shrink-0 text-amber-400" />
               <span>پێگەی جوگرافی: {fact.desc}</span>
             </div>
@@ -171,19 +173,19 @@ export const FactDetailModal: React.FC<Props> = ({
             {/* Century & Year Historical Time Badges */}
             <div className="flex flex-wrap items-center gap-2 mt-2.5 text-xs">
               {fact.century && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/50 border border-amber-500/30 text-amber-200 font-bold shadow-xs backdrop-blur-md">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl liquid-glass-subtle text-amber-200 font-bold shadow-xs">
                   <Hourglass className="w-3.5 h-3.5 text-amber-400" />
                   <span>{fact.century}</span>
                 </div>
               )}
               {fact.year && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono font-bold shadow-xs backdrop-blur-md">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl liquid-glass-btn text-amber-300 font-mono font-bold shadow-xs">
                   <Calendar className="w-3.5 h-3.5 text-amber-400" />
                   <span>{fact.year}</span>
                 </div>
               )}
               {fact.eraName && (
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-black/40 border border-slate-700/80 text-slate-300 text-[11px] backdrop-blur-md">
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-subtle text-slate-300 text-[11px]">
                   <span>{fact.eraName}</span>
                 </div>
               )}
@@ -192,14 +194,14 @@ export const FactDetailModal: React.FC<Props> = ({
 
           {/* Custom Topic Image in True Aspect Ratio (بە قیاسی تەواو بێ بڕین) */}
           {fact.imageUrl && (
-            <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-black/95 shadow-xl group flex flex-col items-center justify-center p-1.5 sm:p-2">
+            <div className="relative rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-xl group flex flex-col items-center justify-center p-1.5 sm:p-2">
               <img
                 src={fact.imageUrl}
                 alt={fact.imageCaption || fact.name}
                 className="max-h-72 sm:max-h-80 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 shadow-md"
               />
               {fact.imageCaption && (
-                <div className="w-full mt-2 p-2 px-3 rounded-xl bg-[#070b14]/95 border border-amber-500/35 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
+                <div className="w-full mt-2 p-2 px-3 rounded-xl liquid-glass-subtle text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span className="font-medium text-[11px] sm:text-xs truncate">{fact.imageCaption}</span>
@@ -212,7 +214,7 @@ export const FactDetailModal: React.FC<Props> = ({
                         onClose();
                         onOpenGallery();
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                      className="px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                       title="کردنەوە لە بەشی گەلەری"
                     >
                       <Images className="w-3 h-3" />
@@ -230,19 +232,19 @@ export const FactDetailModal: React.FC<Props> = ({
             wikiData?.historicalDynasty) && (
             <div className="flex flex-wrap gap-2 py-1 text-xs">
               {wikiData.historicalDynasty && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#050812]/60 text-slate-200 border border-amber-500/20 backdrop-blur-md">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl liquid-glass-subtle text-slate-200">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                   <span>دەسەڵات: {wikiData.historicalDynasty}</span>
                 </span>
               )}
               {wikiData.historicalCapital && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#050812]/60 text-slate-200 border border-amber-500/20 backdrop-blur-md">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl liquid-glass-subtle text-slate-200">
                   <Landmark className="w-3.5 h-3.5 text-amber-400" />
                   <span>پایتەخت: {wikiData.historicalCapital}</span>
                 </span>
               )}
               {wikiData.historicalDates && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#050812]/60 text-slate-200 border border-amber-500/20 backdrop-blur-md">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl liquid-glass-subtle text-slate-200">
                   <Calendar className="w-3.5 h-3.5 text-amber-400" />
                   <span>مێژوو: {wikiData.historicalDates}</span>
                 </span>
@@ -251,7 +253,7 @@ export const FactDetailModal: React.FC<Props> = ({
           )}
 
           {/* Primary Historical Fact text */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#050812]/60 border border-amber-500/20 text-slate-200 text-xs sm:text-[13px] leading-relaxed backdrop-blur-md">
+          <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card text-slate-200 text-xs sm:text-[13px] leading-relaxed shadow-sm">
             <h4 className="text-xs font-bold text-amber-400 mb-1.5 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5" />
               <span>پوختەی مێژوویی و شوێنەواری:</span>
@@ -260,8 +262,8 @@ export const FactDetailModal: React.FC<Props> = ({
           </div>
 
           {/* زانیاری زیاتر (Additional Information Box) */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-black/45 border border-amber-500/20 shadow-md space-y-2.5 backdrop-blur-md">
-            <div className="flex items-center justify-between pb-1 border-b border-amber-500/15">
+          <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card shadow-md space-y-2.5">
+            <div className="flex items-center justify-between pb-1 border-b border-white/10">
               <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
                 <FileText className="w-4 h-4 text-amber-400" />
                 <span>زانیاریی زیاتر، دەستنووس و سەرچاوەکان</span>
@@ -275,7 +277,7 @@ export const FactDetailModal: React.FC<Props> = ({
                 {isAdmin && (
                   <button
                     onClick={() => setIsEditingNotes(!isEditingNotes)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-[10px] font-bold border border-amber-500/30 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 text-[10px] font-bold transition-colors cursor-pointer"
                   >
                     <Edit3 className="w-3 h-3" />
                     <span>{isEditingNotes ? 'داخستنی دەستکاری' : 'دەستکاریی تێبینی'}</span>
@@ -292,7 +294,7 @@ export const FactDetailModal: React.FC<Props> = ({
                   value={notesContent}
                   onChange={(e) => setNotesContent(e.target.value)}
                   placeholder="وەک ئەدمین، لێرە زانیاری زیاتر، سەرچاوەی دەستنووس، کورتەی کتێب یان شیکاری بۆ ئەم دەسەڵاتە بنووسە..."
-                  className="w-full bg-[#050812] text-slate-100 placeholder:text-slate-500 p-3 rounded-xl border border-amber-500/35 focus:border-amber-400 focus:outline-none text-xs leading-relaxed"
+                  className="w-full liquid-glass-input text-slate-100 placeholder:text-slate-500 p-3 rounded-xl text-xs leading-relaxed"
                 />
                 <div className="flex items-center justify-end gap-2">
                   <button
@@ -300,13 +302,13 @@ export const FactDetailModal: React.FC<Props> = ({
                       setIsEditingNotes(false);
                       setNotesContent(fact.additionalNotes || '');
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-xs"
+                    className="px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-300 text-xs cursor-pointer"
                   >
                     هەڵوەشاندنەوە
                   </button>
                   <button
                     onClick={handleSaveNotesInline}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-sm transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold text-xs shadow-sm transition-all cursor-pointer"
                   >
                     <Save className="w-3.5 h-3.5" />
                     <span>پاشەکەوتکردن</span>
@@ -317,11 +319,11 @@ export const FactDetailModal: React.FC<Props> = ({
               /* Display state */
               <div>
                 {fact.additionalNotes && fact.additionalNotes.trim() ? (
-                  <div className="p-3 rounded-xl bg-[#050812]/50 border border-amber-500/15 text-slate-200 text-xs leading-relaxed whitespace-pre-line font-sans">
+                  <div className="p-3 rounded-xl liquid-glass-subtle text-slate-200 text-xs leading-relaxed whitespace-pre-line font-sans">
                     {fact.additionalNotes}
                   </div>
                 ) : (
-                  <div className="py-3 px-3.5 rounded-xl bg-[#050812]/40 border border-slate-800/80 text-slate-400 text-xs leading-relaxed">
+                  <div className="py-3 px-3.5 rounded-xl liquid-glass-subtle text-slate-400 text-xs leading-relaxed">
                     {isAdmin ? (
                       <div className="flex items-center justify-between">
                         <span>هێشتا زانیاری زیاتر بۆ ئەم بابەتە نەنووسراوە.</span>
@@ -345,14 +347,14 @@ export const FactDetailModal: React.FC<Props> = ({
         </div>
 
         {/* Action Buttons Footer */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-amber-500/20 mt-4">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-white/10 mt-4">
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => {
                 onFlyToMap(fact);
                 onClose();
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold text-xs shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all cursor-pointer active:scale-95"
             >
               <MapPin className="w-3.5 h-3.5" />
               <span>نیشاندان لە نەخشە</span>
@@ -360,7 +362,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
             <button
               onClick={handleCopyFact}
-              className="px-3 py-2 rounded-xl bg-black/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 transition-all flex items-center gap-1.5 text-xs cursor-pointer"
+              className="px-3 py-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs cursor-pointer"
               title="لەبەرگرتنەوە"
             >
               {copied ? (
@@ -376,7 +378,7 @@ export const FactDetailModal: React.FC<Props> = ({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => onNavigate('prev')}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#050812]/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-amber-500/20 text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
             >
               <ChevronRight className="w-3.5 h-3.5" />
               <span>پێشوو</span>
@@ -386,7 +388,7 @@ export const FactDetailModal: React.FC<Props> = ({
             </span>
             <button
               onClick={() => onNavigate('next')}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#050812]/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-amber-500/20 text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
             >
               <span>دواتر</span>
               <ChevronLeft className="w-3.5 h-3.5" />

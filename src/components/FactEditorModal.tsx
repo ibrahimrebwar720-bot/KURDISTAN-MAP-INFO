@@ -39,7 +39,13 @@ import {
 import {
   getFactYearSpan,
   formatKurdishYearRange,
+  formatKurdishYear,
   normalizeYearString,
+  toKurdishDigits,
+  centuryToYearSpan,
+  centuryRangeToYearSpan,
+  formatKurdishCentury,
+  formatKurdishCenturyRange,
 } from '../utils/yearUtils';
 import {
   searchPlacesOnMap,
@@ -79,10 +85,21 @@ export const FactEditorModal: React.FC<Props> = ({
   const [showManualCoords, setShowManualCoords] = useState(false);
   // Unified single category state (میرنشینەکان، شارستانییەتەکان، ئیمپراتۆرییەتەکان، زانایان، وەزیر و کاربەدەستان، کەسایەتی تر، قەڵاکان، جەنگ و ڕووداوەکان)
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('principality');
+  // Time format mode: 'single_year' (ساڵێک) | 'year_range' (دوو ساڵ) | 'single_century' (تەنیا یەک سەدە) | 'century_range' (نێوان دوو سەدە)
+  const [timeMode, setTimeMode] = useState<
+    'single_year' | 'year_range' | 'single_century' | 'century_range'
+  >('single_year');
   const [startYearInput, setStartYearInput] = useState('');
   const [endYearInput, setEndYearInput] = useState('');
   const [startEra, setStartEra] = useState<'BC' | 'AD'>('AD');
   const [endEra, setEndEra] = useState<'BC' | 'AD'>('AD');
+
+  // Century inputs
+  const [startCenturyInput, setStartCenturyInput] = useState('10');
+  const [endCenturyInput, setEndCenturyInput] = useState('12');
+  const [startCenturyEra, setStartCenturyEra] = useState<'BC' | 'AD'>('AD');
+  const [endCenturyEra, setEndCenturyEra] = useState<'BC' | 'AD'>('AD');
+
   const [yearError, setYearError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasLocationPicked, setHasLocationPicked] = useState(false);
@@ -159,39 +176,99 @@ export const FactEditorModal: React.FC<Props> = ({
         // Unified Category
         const catInfo = getCategoryInfo(factToEdit);
         setSelectedCategory(catInfo.id);
-        if (typeof factToEdit.birthYear === 'number') {
-          setStartYearInput(Math.abs(factToEdit.birthYear).toString());
-          setStartEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
-          if (typeof factToEdit.deathYear === 'number') {
-            setEndYearInput(Math.abs(factToEdit.deathYear).toString());
-            setEndEra(factToEdit.deathYear < 0 ? 'BC' : 'AD');
-          } else {
+
+        // Load Time Mode & Values
+        if (factToEdit.timeSpanType) {
+          setTimeMode(factToEdit.timeSpanType);
+          if (factToEdit.timeSpanType === 'single_century') {
+            const c = factToEdit.startCentury || (factToEdit.centuryNumber ? Math.abs(factToEdit.centuryNumber) : 1);
+            setStartCenturyInput(c.toString());
+            setStartCenturyEra(factToEdit.startCenturyBC ?? (factToEdit.isBC || (factToEdit.centuryNumber ? factToEdit.centuryNumber < 0 : false)) ? 'BC' : 'AD');
+          } else if (factToEdit.timeSpanType === 'century_range') {
+            const c1 = factToEdit.startCentury || 1;
+            const c2 = factToEdit.endCentury || c1;
+            setStartCenturyInput(c1.toString());
+            setEndCenturyInput(c2.toString());
+            setStartCenturyEra(factToEdit.startCenturyBC ? 'BC' : 'AD');
+            setEndCenturyEra(factToEdit.endCenturyBC ? 'BC' : 'AD');
+          } else if (factToEdit.timeSpanType === 'single_year') {
+            const s = typeof factToEdit.startYear === 'number' ? factToEdit.startYear : (factToEdit.birthYear || 0);
+            setStartYearInput(Math.abs(s).toString());
+            setStartEra(s < 0 ? 'BC' : 'AD');
             setEndYearInput('');
-            setEndEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
-          }
-        } else if (typeof factToEdit.startYear === 'number') {
-          setStartYearInput(Math.abs(factToEdit.startYear).toString());
-          setStartEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
-          if (
-            typeof factToEdit.endYear === 'number' &&
-            factToEdit.endYear !== factToEdit.startYear
-          ) {
-            setEndYearInput(Math.abs(factToEdit.endYear).toString());
-            setEndEra(factToEdit.endYear < 0 ? 'BC' : 'AD');
           } else {
-            setEndYearInput('');
-            setEndEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
+            const s = typeof factToEdit.startYear === 'number' ? factToEdit.startYear : (factToEdit.birthYear || 0);
+            const e = typeof factToEdit.endYear === 'number' ? factToEdit.endYear : (factToEdit.deathYear || s);
+            setStartYearInput(Math.abs(s).toString());
+            setStartEra(s < 0 ? 'BC' : 'AD');
+            setEndYearInput(Math.abs(e).toString());
+            setEndEra(e < 0 ? 'BC' : 'AD');
           }
         } else {
-          const span = getFactYearSpan(factToEdit);
-          setStartYearInput(Math.abs(span.startYear).toString());
-          setStartEra(span.startYear < 0 ? 'BC' : 'AD');
-          if (span.isRange && span.endYear !== span.startYear) {
-            setEndYearInput(Math.abs(span.endYear).toString());
-            setEndEra(span.endYear < 0 ? 'BC' : 'AD');
+          // Detect mode for legacy facts
+          const rawYearText = (factToEdit.year || '') + ' ' + (factToEdit.century || '');
+          const hasCenturyWord = rawYearText.includes('سەدە') || rawYearText.includes('سەدەی');
+          const isCenturyRange = hasCenturyWord && (rawYearText.includes('-') || rawYearText.includes('تا') || rawYearText.includes('—'));
+
+          if (isCenturyRange) {
+            setTimeMode('century_range');
+            const nums = rawYearText.match(/\d+/g);
+            if (nums && nums.length >= 2) {
+              setStartCenturyInput(nums[0]);
+              setEndCenturyInput(nums[1]);
+            } else {
+              setStartCenturyInput('10');
+              setEndCenturyInput('12');
+            }
+            const isBC = factToEdit.isBC || rawYearText.includes('پ.ز') || rawYearText.includes('پێش');
+            setStartCenturyEra(isBC ? 'BC' : 'AD');
+            setEndCenturyEra(isBC ? 'BC' : 'AD');
+          } else if (hasCenturyWord || (!factToEdit.startYear && factToEdit.century)) {
+            setTimeMode('single_century');
+            const numMatch = rawYearText.match(/\d+/);
+            setStartCenturyInput(numMatch ? numMatch[0] : (factToEdit.centuryNumber ? Math.abs(factToEdit.centuryNumber).toString() : '1'));
+            const isBC = factToEdit.isBC || (factToEdit.centuryNumber ? factToEdit.centuryNumber < 0 : false) || rawYearText.includes('پ.ز') || rawYearText.includes('پێش');
+            setStartCenturyEra(isBC ? 'BC' : 'AD');
+          } else if (typeof factToEdit.birthYear === 'number') {
+            setStartYearInput(Math.abs(factToEdit.birthYear).toString());
+            setStartEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
+            if (typeof factToEdit.deathYear === 'number') {
+              setTimeMode('year_range');
+              setEndYearInput(Math.abs(factToEdit.deathYear).toString());
+              setEndEra(factToEdit.deathYear < 0 ? 'BC' : 'AD');
+            } else {
+              setTimeMode('single_year');
+              setEndYearInput('');
+              setEndEra(factToEdit.birthYear < 0 ? 'BC' : 'AD');
+            }
+          } else if (typeof factToEdit.startYear === 'number') {
+            setStartYearInput(Math.abs(factToEdit.startYear).toString());
+            setStartEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
+            if (
+              typeof factToEdit.endYear === 'number' &&
+              factToEdit.endYear !== factToEdit.startYear
+            ) {
+              setTimeMode('year_range');
+              setEndYearInput(Math.abs(factToEdit.endYear).toString());
+              setEndEra(factToEdit.endYear < 0 ? 'BC' : 'AD');
+            } else {
+              setTimeMode('single_year');
+              setEndYearInput('');
+              setEndEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
+            }
           } else {
-            setEndYearInput('');
-            setEndEra(span.startYear < 0 ? 'BC' : 'AD');
+            const span = getFactYearSpan(factToEdit);
+            setStartYearInput(Math.abs(span.startYear).toString());
+            setStartEra(span.startYear < 0 ? 'BC' : 'AD');
+            if (span.isRange && span.endYear !== span.startYear) {
+              setTimeMode('year_range');
+              setEndYearInput(Math.abs(span.endYear).toString());
+              setEndEra(span.endYear < 0 ? 'BC' : 'AD');
+            } else {
+              setTimeMode('single_year');
+              setEndYearInput('');
+              setEndEra(span.startYear < 0 ? 'BC' : 'AD');
+            }
           }
         }
         setHasLocationPicked(true);
@@ -201,10 +278,15 @@ export const FactEditorModal: React.FC<Props> = ({
         setSelectedPlaceName(null);
         setFullText('');
         setAdditionalNotes('');
+        setTimeMode('single_year');
         setStartYearInput('');
         setEndYearInput('');
         setStartEra('AD');
         setEndEra('AD');
+        setStartCenturyInput('10');
+        setEndCenturyInput('12');
+        setStartCenturyEra('AD');
+        setEndCenturyEra('AD');
         if (pickedCoords) {
           setLat(pickedCoords.lat);
           setLng(pickedCoords.lng);
@@ -270,31 +352,98 @@ export const FactEditorModal: React.FC<Props> = ({
     }
   }, [pickedCoords]);
 
-  // Live preview calculation for real-time visual feedback
-  const previewYear = useMemo(() => {
-    const normStart = normalizeYearString(startYearInput.trim());
-    const normEnd = normalizeYearString(endYearInput.trim());
-    const startNum = normStart ? parseInt(normStart, 10) : NaN;
-    const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
+  // Live preview calculation for real-time visual feedback across all 4 modes
+  const previewTimeSpan = useMemo(() => {
+    if (timeMode === 'single_year') {
+      const norm = normalizeYearString(startYearInput.trim());
+      const num = norm ? parseInt(norm, 10) : NaN;
+      if (isNaN(num)) return null;
+      const actualYear = startEra === 'BC' ? -Math.abs(num) : Math.abs(num);
+      return {
+        label: formatKurdishYear(actualYear),
+        subLabel: `ساڵی ${toKurdishDigits(Math.abs(actualYear))} (${startEra === 'BC' ? 'پێش زایین' : 'زایینی'}) لەسەر تایملاین`,
+        isCrossEra: false,
+        finalStart: actualYear,
+        finalEnd: actualYear,
+      };
+    }
 
-    if (isNaN(startNum)) return null;
+    if (timeMode === 'year_range') {
+      const normStart = normalizeYearString(startYearInput.trim());
+      const normEnd = normalizeYearString(endYearInput.trim());
+      const startNum = normStart ? parseInt(normStart, 10) : NaN;
+      const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
 
-    const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
-    const actualEnd = !isNaN(endNum)
-      ? (endEra === 'BC' ? -Math.abs(endNum) : Math.abs(endNum))
-      : actualStart;
+      if (isNaN(startNum)) return null;
 
-    const finalStart = Math.min(actualStart, actualEnd);
-    const finalEnd = Math.max(actualStart, actualEnd);
-    const isCrossEra = finalStart < 0 && finalEnd > 0;
+      const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
+      const actualEnd = !isNaN(endNum)
+        ? (endEra === 'BC' ? -Math.abs(endNum) : Math.abs(endNum))
+        : actualStart;
 
-    return {
-      label: formatKurdishYearRange(finalStart, finalEnd),
-      isCrossEra,
-      finalStart,
-      finalEnd,
-    };
-  }, [startYearInput, endYearInput, startEra, endEra]);
+      const finalStart = Math.min(actualStart, actualEnd);
+      const finalEnd = Math.max(actualStart, actualEnd);
+      const isCrossEra = finalStart < 0 && finalEnd > 0;
+
+      return {
+        label: formatKurdishYearRange(finalStart, finalEnd),
+        subLabel: `ماوەی ${toKurdishDigits(finalEnd - finalStart)} ساڵ (لەسەر تایملاین لە ${formatKurdishYear(finalStart)} تا ${formatKurdishYear(finalEnd)})`,
+        isCrossEra,
+        finalStart,
+        finalEnd,
+      };
+    }
+
+    if (timeMode === 'single_century') {
+      const normC = normalizeYearString(startCenturyInput.trim());
+      const c = normC ? parseInt(normC, 10) : NaN;
+      if (isNaN(c) || c < 1) return null;
+      const isBC = startCenturyEra === 'BC';
+      const span = centuryToYearSpan(c, isBC);
+      return {
+        label: formatKurdishCentury(c, isBC, true),
+        subLabel: `هاوتایە لەگەڵ ساڵانی (${formatKurdishYear(span.startYear)} تا ${formatKurdishYear(span.endYear)}) لەسەر تایملاین`,
+        isCrossEra: false,
+        finalStart: span.startYear,
+        finalEnd: span.endYear,
+      };
+    }
+
+    if (timeMode === 'century_range') {
+      const normC1 = normalizeYearString(startCenturyInput.trim());
+      const normC2 = normalizeYearString(endCenturyInput.trim());
+      const c1 = normC1 ? parseInt(normC1, 10) : NaN;
+      const c2 = normC2 ? parseInt(normC2, 10) : NaN;
+
+      if (isNaN(c1) || c1 < 1) return null;
+      const validC2 = isNaN(c2) || c2 < 1 ? c1 : c2;
+
+      const startBC = startCenturyEra === 'BC';
+      const endBC = endCenturyEra === 'BC';
+      const span = centuryRangeToYearSpan(c1, startBC, validC2, endBC);
+      const isCrossEra = span.startYear < 0 && span.endYear > 0;
+
+      return {
+        label: formatKurdishCenturyRange(c1, startBC, validC2, endBC, true),
+        subLabel: `هاوتایە لەگەڵ ساڵانی (${formatKurdishYear(span.startYear)} تا ${formatKurdishYear(span.endYear)}) لەسەر تایملاین`,
+        isCrossEra,
+        finalStart: span.startYear,
+        finalEnd: span.endYear,
+      };
+    }
+
+    return null;
+  }, [
+    timeMode,
+    startYearInput,
+    endYearInput,
+    startEra,
+    endEra,
+    startCenturyInput,
+    endCenturyInput,
+    startCenturyEra,
+    endCenturyEra,
+  ]);
 
   if (!isOpen) return null;
 
@@ -302,28 +451,80 @@ export const FactEditorModal: React.FC<Props> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
-    const normStart = normalizeYearString(startYearInput.trim());
-    const normEnd = normalizeYearString(endYearInput.trim());
-    const startNum = normStart ? parseInt(normStart, 10) : NaN;
-    const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
+    let finalStart = 0;
+    let finalEnd = 0;
+    let formattedYear = '';
+    let centuryLabel = '';
+    let centuryNum = 1;
 
-    if (isNaN(startNum)) {
-      setYearError(
-        isPerson
-          ? 'تکایە ساڵی لەدایکبوون بنووسە.'
-          : 'تکایە ساڵی دەستپێک / دامەزراندن بنووسە.'
-      );
-      return;
+    if (timeMode === 'single_year') {
+      const normStart = normalizeYearString(startYearInput.trim());
+      const startNum = normStart ? parseInt(normStart, 10) : NaN;
+      if (isNaN(startNum)) {
+        setYearError('تکایە ساڵەکە بە درووستی بنووسە.');
+        return;
+      }
+      const actualYear = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
+      finalStart = actualYear;
+      finalEnd = isPerson ? Math.min(2026, actualYear + 75) : actualYear;
+      formattedYear = formatKurdishYear(actualYear);
+      centuryNum = actualYear < 0 ? -Math.ceil(Math.abs(actualYear) / 100) : Math.ceil(actualYear / 100);
+      centuryLabel = formatKurdishCentury(Math.abs(centuryNum), actualYear < 0, true);
+    } else if (timeMode === 'year_range') {
+      const normStart = normalizeYearString(startYearInput.trim());
+      const normEnd = normalizeYearString(endYearInput.trim());
+      const startNum = normStart ? parseInt(normStart, 10) : NaN;
+      const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
+
+      if (isNaN(startNum)) {
+        setYearError(isPerson ? 'تکایە ساڵی لەدایکبوون بنووسە.' : 'تکایە ساڵی دەستپێک بنووسە.');
+        return;
+      }
+
+      const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
+      const actualEnd = !isNaN(endNum)
+        ? (endEra === 'BC' ? -Math.abs(endNum) : Math.abs(endNum))
+        : actualStart;
+
+      finalStart = Math.min(actualStart, actualEnd);
+      finalEnd = Math.max(actualStart, actualEnd);
+      formattedYear = formatKurdishYearRange(finalStart, finalEnd);
+      centuryNum = finalStart < 0 ? -Math.ceil(Math.abs(finalStart) / 100) : Math.ceil(finalStart / 100);
+      centuryLabel = formatKurdishCentury(Math.abs(centuryNum), finalStart < 0, true);
+    } else if (timeMode === 'single_century') {
+      const normC = normalizeYearString(startCenturyInput.trim());
+      const c = normC ? parseInt(normC, 10) : NaN;
+      if (isNaN(c) || c < 1) {
+        setYearError('تکایە ژمارەی سەدەکە بە درووستی بنووسە (بۆ نموونە: ٤ یان ١٢).');
+        return;
+      }
+      const isBC = startCenturyEra === 'BC';
+      const span = centuryToYearSpan(c, isBC);
+      finalStart = span.startYear;
+      finalEnd = span.endYear;
+      formattedYear = formatKurdishCentury(c, isBC, false);
+      centuryLabel = formatKurdishCentury(c, isBC, true);
+      centuryNum = isBC ? -c : c;
+    } else if (timeMode === 'century_range') {
+      const normC1 = normalizeYearString(startCenturyInput.trim());
+      const normC2 = normalizeYearString(endCenturyInput.trim());
+      const c1 = normC1 ? parseInt(normC1, 10) : NaN;
+      const c2 = normC2 ? parseInt(normC2, 10) : NaN;
+
+      if (isNaN(c1) || c1 < 1) {
+        setYearError('تکایە سەدەی دەستپێک دیاری بکە.');
+        return;
+      }
+      const validC2 = isNaN(c2) || c2 < 1 ? c1 : c2;
+      const startBC = startCenturyEra === 'BC';
+      const endBC = endCenturyEra === 'BC';
+      const span = centuryRangeToYearSpan(c1, startBC, validC2, endBC);
+      finalStart = span.startYear;
+      finalEnd = span.endYear;
+      formattedYear = formatKurdishCenturyRange(c1, startBC, validC2, endBC, false);
+      centuryLabel = formatKurdishCenturyRange(c1, startBC, validC2, endBC, true);
+      centuryNum = span.startYear < 0 ? -c1 : c1;
     }
-
-    const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
-    const actualEnd = !isNaN(endNum)
-      ? (endEra === 'BC' ? -Math.abs(endNum) : Math.abs(endNum))
-      : actualStart;
-
-    const finalStart = Math.min(actualStart, actualEnd);
-    const finalEnd = Math.max(actualStart, actualEnd);
-    const formattedYear = formatKurdishYearRange(finalStart, finalEnd);
 
     // Dynamic era assignment for new custom items
     let eraId = factToEdit ? factToEdit.eraId : 4;
@@ -357,14 +558,19 @@ export const FactEditorModal: React.FC<Props> = ({
       desc: desc.trim() || 'کوردستان',
       fullText: fullText.trim(),
       additionalNotes: additionalNotes.trim(),
+      timeSpanType: timeMode,
       year: formattedYear,
       startYear: finalStart,
-      endYear: !isNaN(endNum) ? finalEnd : (isPerson ? Math.min(2026, finalStart + 75) : finalStart),
-      birthYear: isPerson ? finalStart : undefined,
-      deathYear: isPerson && !isNaN(endNum) ? finalEnd : undefined,
+      endYear: finalEnd,
+      birthYear: isPerson && timeMode === 'single_year' ? finalStart : undefined,
+      deathYear: isPerson && timeMode === 'year_range' ? finalEnd : undefined,
       isBC: finalStart < 0,
-      century: `${Math.ceil(Math.abs(finalStart) / 100)}`,
-      centuryNumber: finalStart < 0 ? -Math.ceil(Math.abs(finalStart) / 100) : Math.ceil(finalStart / 100),
+      century: centuryLabel,
+      centuryNumber: centuryNum,
+      startCentury: (timeMode === 'single_century' || timeMode === 'century_range') ? (parseInt(startCenturyInput, 10) || 1) : undefined,
+      endCentury: timeMode === 'century_range' ? (parseInt(endCenturyInput, 10) || 1) : undefined,
+      startCenturyBC: (timeMode === 'single_century' || timeMode === 'century_range') ? (startCenturyEra === 'BC') : undefined,
+      endCenturyBC: timeMode === 'century_range' ? (endCenturyEra === 'BC') : undefined,
       lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
       lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
       zoom: factToEdit?.zoom || 8,
@@ -382,17 +588,19 @@ export const FactEditorModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in text-right"
+      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl bg-[#070c18] border border-amber-500/35 rounded-3xl p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col text-slate-100"
+        className="relative w-full max-w-3xl liquid-glass-panel rounded-3xl p-5 sm:p-7 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.18)] max-h-[92vh] flex flex-col text-slate-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="glass-specular-ray" />
+
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-amber-500/20 pb-4 mb-5 shrink-0">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5 shrink-0">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-900/30 to-black border border-amber-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
+            <div className="w-11 h-11 rounded-2xl liquid-glass-btn flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
               <Sparkles className="w-5 h-5 text-amber-400" />
             </div>
             <div>
@@ -400,11 +608,11 @@ export const FactEditorModal: React.FC<Props> = ({
                 <h3 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   {factToEdit ? 'دەستکاریکردنی دەسەڵات و بابەت' : 'زیادکردنی بابەت و شوێنی نوێ'}
                 </h3>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold liquid-glass-subtle text-amber-300 border border-amber-400/30">
                   {factToEdit ? `#${factToEdit.num}` : 'نوێ'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-300 mt-0.5">
                 {factToEdit
                   ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و تایملاین`
                   : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە دیاریکردنی ورد'}
@@ -414,7 +622,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
             title="داخستن"
           >
             <X className="w-5 h-5" />
@@ -425,10 +633,10 @@ export const FactEditorModal: React.FC<Props> = ({
         <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-5 text-xs flex-1 custom-scrollbar">
           
           {/* SECTION 1: ناو و پۆلێنبەندی (Basic Information & Classification) */}
-          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   01
                 </span>
                 <span>ناونیشان و پۆلێنبەندی بابەت</span>
@@ -447,21 +655,21 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند، شەرەفخانی بەدلیسی..."
-                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-sm font-semibold placeholder:text-slate-500"
+                className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold placeholder:text-slate-500"
               />
             </div>
 
-            {/* Unified Category Selector (تەنها یەک پۆلێن لەنێوان ٨ پۆلێنە سەرەکییەکە) */}
+            {/* Unified Category Selector (تەنها یەک پۆلێن لەنێوان ٩ پۆلێنە سەرەکییەکە) */}
             <div>
               <label className="block text-xs font-bold text-slate-200 mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-amber-300">
                   <Layers className="w-3.5 h-3.5 text-amber-400" />
                   <span>پۆلێنی بابەت <span className="text-amber-400">*</span></span>
                 </span>
-                <span className="text-[10px] text-slate-400">یەکێک لە ٨ پۆلێنە سەرەکییەکە هەڵبژێرە</span>
+                <span className="text-[10px] text-slate-400">یەکێک لە ٩ پۆلێنە سەرەکییەکە هەڵبژێرە</span>
               </label>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {UNIFIED_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
                   const isSelected = selectedCategory === cat.id;
                   return (
@@ -471,8 +679,8 @@ export const FactEditorModal: React.FC<Props> = ({
                       onClick={() => setSelectedCategory(cat.id as CategoryId)}
                       className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)] font-extrabold scale-[1.02]'
-                          : 'bg-[#050812] text-slate-300 border-slate-700/80 hover:border-amber-500/40 hover:text-white'
+                          ? 'liquid-glass-btn-active font-extrabold shadow-md scale-[1.02]'
+                          : 'liquid-glass-btn text-slate-300 hover:text-white'
                       }`}
                     >
                       <span
@@ -488,10 +696,10 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
 
           {/* SECTION 2: شوێن و جوگرافیا (Geographic Location & Google Maps) */}
-          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   02
                 </span>
                 <span>شوێن و پۆوتانی جوگرافی لەسەر نەخشە</span>
@@ -516,12 +724,12 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
                 placeholder="بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد، جزیرە، هەولێر..."
-                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs placeholder:text-slate-500"
+                className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
               />
             </div>
 
             {/* Google Maps Search Bar + Direct Map Picker */}
-            <div className="p-3.5 rounded-2xl bg-black/50 border border-slate-800/80 space-y-3">
+            <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                   <Search className="w-4 h-4 text-amber-400" />
@@ -531,7 +739,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={onStartPickLocation}
-                  className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
                 >
                   <Crosshair className="w-3.5 h-3.5 text-amber-400" />
                   <span>
@@ -549,7 +757,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   value={placeSearchQuery}
                   onChange={(e) => handlePlaceSearch(e.target.value)}
                   placeholder="ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوند بنووسە (بۆ نموونە: سلێمانی، ڕواندز، قەڵای دمدم، بەدلیس، ئامێدی...)"
-                  className="w-full bg-[#050812] text-white pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-700/90 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs placeholder:text-slate-500"
+                  className="w-full liquid-glass-input text-white pl-9 pr-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
                 />
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                   {isSearchingPlaces ? (
@@ -573,8 +781,8 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* Search Results Dropdown List */}
               {placeSearchResults.length > 0 && (
-                <div className="bg-[#090d16] border border-amber-500/50 rounded-2xl overflow-hidden shadow-2xl divide-y divide-slate-800 max-h-56 overflow-y-auto animate-fade-in">
-                  <div className="p-2 bg-black/80 text-[10px] text-amber-300 font-bold flex items-center justify-between px-3">
+                <div className="liquid-glass-card rounded-2xl overflow-hidden shadow-2xl divide-y divide-white/10 max-h-56 overflow-y-auto animate-fade-in">
+                  <div className="p-2 liquid-glass-subtle text-[10px] text-amber-300 font-bold flex items-center justify-between px-3">
                     <span>کلیک لە ناوی شوێنەکە بکە بۆ دیاریکردنی دەستبەجێ:</span>
                     <span className="font-mono text-slate-400">{placeSearchResults.length} ئەنجام</span>
                   </div>
@@ -583,7 +791,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       key={place.id}
                       type="button"
                       onClick={() => handleSelectSearchedPlace(place)}
-                      className="w-full text-right p-3 hover:bg-amber-500/10 transition-colors flex items-start gap-3 cursor-pointer group"
+                      className="w-full text-right p-3 hover:liquid-glass-btn transition-colors flex items-start gap-3 cursor-pointer group"
                     >
                       <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:scale-125 transition-transform" />
                       <div className="min-w-0 flex-1">
@@ -597,7 +805,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           {place.lat.toFixed(4)}° N, {place.lng.toFixed(4)}° E
                         </div>
                       </div>
-                      <span className="text-[10px] px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0 font-bold group-hover:bg-amber-400 group-hover:text-black transition-colors">
+                      <span className="text-[10px] px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 shrink-0 font-bold group-hover:liquid-glass-btn-active group-hover:text-black transition-colors">
                         دەستنیشانکردن
                       </span>
                     </button>
@@ -606,7 +814,7 @@ export const FactEditorModal: React.FC<Props> = ({
               )}
 
               {/* Visual Confirmation Badge */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[#050812] border border-slate-800 text-xs">
+              <div className="flex items-center justify-between p-3 rounded-xl liquid-glass-subtle text-xs">
                 {hasLocationPicked ? (
                   <div className="flex items-center gap-2.5 text-emerald-400 min-w-0">
                     <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
@@ -673,35 +881,98 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* SECTION 3: ساڵنامە و تایملاین (Timeline & Eras - BC/AD & Cross-Era) */}
-          <div className="bg-gradient-to-b from-[#10172a] to-[#0a0f1d] border border-amber-500/40 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.06)]">
-            <div className="flex items-center justify-between pb-2 border-b border-amber-500/20">
+          {/* SECTION 3: ساڵنامە و تایملاین (Timeline & Eras - ساڵ یان سەدە) */}
+          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   03
                 </span>
                 <span>
-                  {isPerson
-                    ? 'ساڵانی ژیان (لەدایکبوون و کۆچی دوایی) بۆ تایملاین'
-                    : 'ساڵانی دەسەڵات (سەرەتا و کۆتایی) بۆ تایملاین'}
+                  دیاریکردنی کاتی مێژوویی (بە ساڵ یان بە سەدە) بۆ تایملاین و نەخشە
                 </span>
               </span>
 
-              {previewYear?.isCrossEra && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-amber-500/25 to-amber-600/30 text-amber-300 border border-amber-500/50 shadow-sm animate-pulse">
+              {previewTimeSpan?.isCrossEra && (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold liquid-glass-btn-active text-black shadow-sm animate-pulse">
                   نێوان پێش و دوای زایین (پ.ز ⟷ ز)
                 </span>
               )}
             </div>
 
-            {/* Helper guidance for cross-era and single-year entries */}
-            <div className="text-[11px] text-slate-300 bg-black/40 p-3 rounded-xl border border-slate-800 flex items-start gap-2 leading-relaxed">
-              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>
-                دەتوانیت ساڵی دەستپێک و کۆتایی بە ئازادی دیاری بکەیت. ئەگەر کەسایەتی یان دەسەڵاتەکە کەوتووەتە نێوان پێش زایین و دوای زایین، بژاردەی یەکەم بکە بە <strong className="text-amber-400 font-bold">پ.ز</strong> و دووەم بکە بە <strong className="text-amber-300 font-bold">ز</strong>.
-              </span>
+            {/* Mode Selector Segmented Tabs: ٤ بژاردەی سەرەکی بە شێوازی Liquid Glass */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold text-amber-200/90">
+                شێوازی دیاریکردنی کات هەڵبژێرە:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl liquid-glass-subtle">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeMode('single_year');
+                    setYearError(null);
+                  }}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    timeMode === 'single_year'
+                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
+                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">ساڵێکی دیاریکراو</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeMode('year_range');
+                    setYearError(null);
+                  }}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    timeMode === 'year_range'
+                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
+                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">نێوان دوو ساڵ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeMode('single_century');
+                    setYearError(null);
+                  }}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    timeMode === 'single_century'
+                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
+                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">بەتەنیا یەک سەدە</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeMode('century_range');
+                    setYearError(null);
+                  }}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    timeMode === 'century_range'
+                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
+                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Sliders className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">نێوان دوو سەدە</span>
+                </button>
+              </div>
             </div>
 
+            {/* Error Message */}
             {yearError && (
               <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/80 border border-rose-500/80 text-rose-200 text-xs font-medium">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
@@ -709,26 +980,24 @@ export const FactEditorModal: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Year Inputs with Segmented BC/AD Era Toggles */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
-              {/* Field 1: Birth / Start Year */}
-              <div className="bg-[#050812] border border-slate-800 rounded-xl p-3 space-y-2">
+            {/* MODE 1: ساڵێکی دیاریکراو (Single Year) */}
+            {timeMode === 'single_year' && (
+              <div className="liquid-glass-subtle rounded-xl p-3.5 space-y-2.5 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{isPerson ? 'ساڵی لەدایکبوون' : 'ساڵی دەستپێک / دامەزراندن'}</span>
+                    <span>{isPerson ? 'ساڵی لەدایکبوون یان ساڵی چالاکی' : 'ساڵی ڕووداو یان دامەزراندن'}</span>
                     <span className="text-amber-400">*</span>
                   </label>
 
                   {/* Segmented Era Switcher */}
-                  <div className="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-700 text-xs" dir="ltr">
+                  <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
                     <button
                       type="button"
                       onClick={() => setStartEra('BC')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                      className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startEra === 'BC'
-                          ? 'bg-amber-500 text-black shadow-sm font-extrabold'
+                          ? 'liquid-glass-btn-active font-extrabold shadow-sm'
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -737,9 +1006,9 @@ export const FactEditorModal: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => setStartEra('AD')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                      className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startEra === 'AD'
-                          ? 'bg-amber-400/25 text-amber-300 border border-amber-500/40 font-extrabold'
+                          ? 'liquid-glass-btn-active font-extrabold shadow-sm'
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -757,46 +1026,162 @@ export const FactEditorModal: React.FC<Props> = ({
                       setStartYearInput(e.target.value);
                       setYearError(null);
                     }}
-                    placeholder={startEra === 'BC' ? 'بۆ نموونە: 150 (پێش زایین)' : 'بۆ نموونە: 1514 (زایینی)'}
-                    className="w-full bg-[#0a0f1d] text-white pr-3 pl-16 py-2.5 rounded-xl border border-slate-700 focus:border-amber-400 focus:outline-none text-xs font-mono font-bold"
+                    placeholder={startEra === 'BC' ? 'بۆ نموونە: 612 (پێش زایین)' : 'بۆ نموونە: 1514 (زایینی)'}
+                    className="w-full liquid-glass-input text-white pr-3 pl-20 py-2.5 rounded-xl text-xs font-mono font-bold"
                   />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
                     {startEra === 'BC' ? 'پێش زایین' : 'زایینی'}
                   </span>
                 </div>
+                <p className="text-[10px] text-slate-400">
+                  ئەم بابەتە بەتەنیا بۆ ئەم ساڵە لەسەر نەخشە و تایملاین جێگیر دەبێت.
+                </p>
               </div>
+            )}
 
-              {/* Field 2: Death / End Year */}
-              <div className="bg-[#050812] border border-slate-800 rounded-xl p-3 space-y-2">
+            {/* MODE 2: نێوان دوو ساڵ (Year Range) */}
+            {timeMode === 'year_range' && (
+              <div className="space-y-3 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Field 1: Start Year */}
+                  <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{isPerson ? 'ساڵی لەدایکبوون' : 'ساڵی دەستپێک / دامەزراندن'}</span>
+                        <span className="text-amber-400">*</span>
+                      </label>
+
+                      <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
+                        <button
+                          type="button"
+                          onClick={() => setStartEra('BC')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            startEra === 'BC'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          پ.ز
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStartEra('AD')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            startEra === 'AD'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          ز
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={startYearInput}
+                        onChange={(e) => {
+                          setStartYearInput(e.target.value);
+                          setYearError(null);
+                        }}
+                        placeholder={startEra === 'BC' ? 'بۆ نموونە: 150 (پ.ز)' : 'بۆ نموونە: 1514 (ز)'}
+                        className="w-full liquid-glass-input text-white pr-3 pl-16 py-2 rounded-xl text-xs font-mono font-bold"
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        {startEra === 'BC' ? 'پ.ز' : 'ز'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Field 2: End Year */}
+                  <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{isPerson ? 'ساڵی کۆچی دوایی' : 'ساڵی کۆتایی / ڕووخان'}</span>
+                      </label>
+
+                      <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
+                        <button
+                          type="button"
+                          onClick={() => setEndEra('BC')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            endEra === 'BC'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          پ.ز
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEndEra('AD')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            endEra === 'AD'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          ز
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={endYearInput}
+                        onChange={(e) => {
+                          setEndYearInput(e.target.value);
+                          setYearError(null);
+                        }}
+                        placeholder={endEra === 'BC' ? 'بۆ نموونە: 40 (پ.ز)' : 'بۆ نموونە: 1851 (ز)'}
+                        className="w-full liquid-glass-input text-white pr-3 pl-16 py-2 rounded-xl text-xs font-mono font-bold"
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        {endEra === 'BC' ? 'پ.ز' : 'ز'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODE 3: بەتەنیا یەک سەدە (Single Century) */}
+            {timeMode === 'single_century' && (
+              <div className="liquid-glass-subtle rounded-xl p-3.5 space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{isPerson ? 'ساڵی کۆچی دوایی' : 'ساڵی کۆتایی / ڕووخان'}</span>
+                    <Layers className="w-3.5 h-3.5 text-amber-400" />
+                    <span>سەدە دیاری بکە (بەتەنیا یەک سەدە)</span>
+                    <span className="text-amber-400">*</span>
                   </label>
 
-                  {/* Segmented Era Switcher */}
-                  <div className="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-700 text-xs" dir="ltr">
+                  <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
                     <button
                       type="button"
-                      onClick={() => setEndEra('BC')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                        endEra === 'BC'
-                          ? 'bg-amber-500 text-black shadow-sm font-extrabold'
+                      onClick={() => setStartCenturyEra('BC')}
+                      className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                        startCenturyEra === 'BC'
+                          ? 'liquid-glass-btn-active font-extrabold shadow-sm'
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      پ.ز
+                      پ.ز (پێش زایین)
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEndEra('AD')}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                        endEra === 'AD'
-                          ? 'bg-amber-400/25 text-amber-300 border border-amber-500/40 font-extrabold'
+                      onClick={() => setStartCenturyEra('AD')}
+                      className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                        startCenturyEra === 'AD'
+                          ? 'liquid-glass-btn-active font-extrabold shadow-sm'
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      ز
+                      ز (زایینی)
                     </button>
                   </div>
                 </div>
@@ -804,34 +1189,216 @@ export const FactEditorModal: React.FC<Props> = ({
                 <div className="relative">
                   <input
                     type="text"
-                    value={endYearInput}
+                    required
+                    value={startCenturyInput}
                     onChange={(e) => {
-                      setEndYearInput(e.target.value);
+                      setStartCenturyInput(e.target.value);
                       setYearError(null);
                     }}
-                    placeholder={endEra === 'BC' ? 'بۆ نموونە: 40 (پێش زایین)' : 'بۆ نموونە: 1851 (زایینی)'}
-                    className="w-full bg-[#0a0f1d] text-white pr-3 pl-16 py-2.5 rounded-xl border border-slate-700 focus:border-amber-400 focus:outline-none text-xs font-mono font-bold"
+                    placeholder="ژمارەی سەدە بنووسە: بۆ نموونە 4 یان 12"
+                    className="w-full liquid-glass-input text-white pr-3 pl-32 py-2.5 rounded-xl text-xs font-mono font-bold"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
-                    {endEra === 'BC' ? 'پێش زایین' : 'زایینی'}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/90 pointer-events-none">
+                    {startCenturyEra === 'BC' ? 'سەدەی پێش زایین' : 'سەدەی زایینی'}
                   </span>
                 </div>
-              </div>
-            </div>
 
-            {/* Live Interactive Kurdish Year Preview Badge */}
-            {previewYear && (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-black/70 border border-amber-500/30 text-xs">
-                <span className="text-slate-300 text-xs flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span>پێشبینینی ڕێکەوتی تۆمارکراو:</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-amber-300 font-mono text-sm tracking-wider">
-                    {previewYear.label}
+                {/* Quick preset century buttons */}
+                <div>
+                  <span className="block text-[10px] text-slate-400 mb-1.5 font-bold">
+                    هەڵبژاردنی خێرا بۆ سەدە:
                   </span>
-                  {previewYear.isCrossEra && (
-                    <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/25 text-amber-200 border border-amber-500/50">
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => {
+                          setStartCenturyInput(num.toString());
+                          setYearError(null);
+                        }}
+                        className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                          startCenturyInput === num.toString()
+                            ? 'liquid-glass-btn-active text-black'
+                            : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
+                        }`}
+                      >
+                        سەدەی {toKurdishDigits(num)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODE 4: لە نێوان دوو سەدە (Century Range) */}
+            {timeMode === 'century_range' && (
+              <div className="space-y-3 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Century 1: Start */}
+                  <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-amber-400" />
+                        <span>سەدەی دەستپێک</span>
+                        <span className="text-amber-400">*</span>
+                      </label>
+
+                      <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
+                        <button
+                          type="button"
+                          onClick={() => setStartCenturyEra('BC')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            startCenturyEra === 'BC'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          پ.ز
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStartCenturyEra('AD')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            startCenturyEra === 'AD'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          ز
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={startCenturyInput}
+                        onChange={(e) => {
+                          setStartCenturyInput(e.target.value);
+                          setYearError(null);
+                        }}
+                        placeholder="بۆ نموونە: 4 یان 10"
+                        className="w-full liquid-glass-input text-white pr-3 pl-20 py-2 rounded-xl text-xs font-mono font-bold"
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        سەدەی {startCenturyEra === 'BC' ? 'پ.ز' : 'ز'}
+                      </span>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex flex-wrap gap-1">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].slice(0, 10).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setStartCenturyInput(n.toString())}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            startCenturyInput === n.toString()
+                              ? 'liquid-glass-btn-active text-black'
+                              : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                          }`}
+                        >
+                          {toKurdishDigits(n)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Century 2: End */}
+                  <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-slate-400" />
+                        <span>سەدەی کۆتایی</span>
+                      </label>
+
+                      <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
+                        <button
+                          type="button"
+                          onClick={() => setEndCenturyEra('BC')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            endCenturyEra === 'BC'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          پ.ز
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEndCenturyEra('AD')}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
+                            endCenturyEra === 'AD'
+                              ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          ز
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={endCenturyInput}
+                        onChange={(e) => {
+                          setEndCenturyInput(e.target.value);
+                          setYearError(null);
+                        }}
+                        placeholder="بۆ نموونە: 2 یان 12"
+                        className="w-full liquid-glass-input text-white pr-3 pl-20 py-2 rounded-xl text-xs font-mono font-bold"
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        سەدەی {endCenturyEra === 'BC' ? 'پ.ز' : 'ز'}
+                      </span>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex flex-wrap gap-1">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].slice(0, 10).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setEndCenturyInput(n.toString())}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            endCenturyInput === n.toString()
+                              ? 'liquid-glass-btn-active text-black'
+                              : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                          }`}
+                        >
+                          {toKurdishDigits(n)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Live Interactive Kurdish Year / Century Preview Badge */}
+            {previewTimeSpan && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl liquid-glass-subtle text-xs border border-amber-400/30">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="text-slate-300 text-xs flex items-center gap-1.5 font-bold">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>پێشبینینی ڕێکەوتی تۆمارکراو:</span>
+                  </div>
+                  {previewTimeSpan.subLabel && (
+                    <p className="text-[11px] text-amber-200/85 truncate">
+                      {previewTimeSpan.subLabel}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-extrabold text-amber-300 font-mono text-sm sm:text-base tracking-wider drop-shadow-sm">
+                    {previewTimeSpan.label}
+                  </span>
+                  {previewTimeSpan.isCrossEra && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold liquid-glass-btn-active text-black">
                       پ.ز ⟷ ز
                     </span>
                   )}
@@ -841,10 +1408,10 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
 
           {/* SECTION 4: دەقی مێژوویی و بەڵگەنامەکان (Narrative & Archives) */}
-          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   04
                 </span>
                 <span>پوختەی مێژوویی، شوێنەواری و بەڵگەنامەکان</span>
@@ -863,12 +1430,12 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={fullText}
                 onChange={(e) => setFullText(e.target.value)}
                 placeholder="وەسفی مێژوویی ئەم دەسەڵاتە یان کەسایەتییە بنووسە: ڕووداوە گرنگەکان، نەبەردییەکان، ئاسەوارەکان و بەسەرهاتەکانی فەرمانڕەوایی..."
-                className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none leading-relaxed text-xs placeholder:text-slate-500"
+                className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl leading-relaxed text-xs placeholder:text-slate-500"
               />
             </div>
 
             {/* Additional notes, manuscripts & references */}
-            <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/20 space-y-2">
+            <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-2">
               <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-amber-400" />
                 <span>زانیاریی زیاتر، دەستنووس، وتەی مێژوونووسان و سەرچاوەکان</span>
@@ -878,16 +1445,16 @@ export const FactEditorModal: React.FC<Props> = ({
                 value={additionalNotes}
                 onChange={(e) => setAdditionalNotes(e.target.value)}
                 placeholder="لێرە زانیارییە زیاترەکان، دەقی دەستنووس و وتەی مێژوونووسان، شوێنەوارە پارێزراوەکان و سەرچاوەی کتێبەکان تۆمار بکە..."
-                className="w-full bg-[#050812] text-slate-200 placeholder:text-slate-500 px-3.5 py-2 rounded-xl border border-slate-800 focus:border-amber-400 focus:outline-none text-xs leading-relaxed"
+                className="w-full liquid-glass-input text-slate-200 placeholder:text-slate-500 px-3.5 py-2 rounded-xl text-xs leading-relaxed"
               />
             </div>
           </div>
 
           {/* SECTION 5: وێنە و ڕوونکردنەوەی وێنە (وێنەی تایبەت بە بابەت و زانیاری بچووک لەسەری) */}
-          <div className="bg-[#0b101e] border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 sm:p-5 transition-colors space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   05
                 </span>
                 <span>وێنەی تایبەت بە بابەت و زانیاری لەسەری</span>
@@ -896,7 +1463,7 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
 
             {/* Explanatory note */}
-            <div className="text-[11px] text-slate-300 bg-black/40 p-3 rounded-xl border border-slate-800 flex items-start gap-2 leading-relaxed">
+            <div className="text-[11px] text-slate-300 liquid-glass-subtle p-3 rounded-xl flex items-start gap-2 leading-relaxed">
               <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>
                 دەتوانیت یەک وێنەی تایبەت بەم بابەتە دابنێیت (لە مۆبایلەکەت، کۆمپیوتەرەکەت یان بە بەستەر). کاتێک بەکارهێنەر لەسەر نەخشە پۆینتەکە دادەگرێت، ئەم وێنەیە لەگەڵ کورتەی بابەت و ئەو زانیارییە بچووکەی لەسەری دەینووسیت بە جوانترین شێواز نیشان دەدرێت.
@@ -920,7 +1487,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingImage}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50"
                 >
                   {isUploadingImage ? (
                     <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
@@ -943,7 +1510,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
                     placeholder="https://example.com/kurdish_history_image.jpg"
-                    className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs font-mono placeholder:text-slate-600 pl-10"
+                    className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-10"
                     dir="ltr"
                   />
                   {imageUrl && (
@@ -968,8 +1535,8 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* Image Preview & Caption Field (بە قیاسی تەواو بێ بڕین) */}
               {imageUrl && (
-                <div className="p-3.5 rounded-2xl bg-[#090d18] border border-amber-500/30 space-y-3 shadow-md">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-3 shadow-md">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
                     <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                       <Eye className="w-3.5 h-3.5 text-amber-400" />
                       <span>پێشبینینی وێنەکە بە قیاسی تەواو</span>
@@ -980,14 +1547,14 @@ export const FactEditorModal: React.FC<Props> = ({
                         setImageUrl('');
                         setImageCaption('');
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-[10px] cursor-pointer transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-rose-300 text-[10px] cursor-pointer transition-colors"
                     >
                       <Trash2 className="w-3 h-3" />
                       <span>لابردنی وێنە</span>
                     </button>
                   </div>
 
-                  <div className="relative rounded-xl overflow-hidden border border-amber-500/30 bg-black/95 flex flex-col items-center justify-center p-2 min-h-[160px]">
+                  <div className="relative rounded-xl overflow-hidden border border-amber-400/40 bg-black/95 flex flex-col items-center justify-center p-2 min-h-[160px]">
                     <img
                       src={imageUrl}
                       alt={imageCaption || name || 'Topic Image Preview'}
@@ -995,7 +1562,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       onError={() => setImageUploadError('نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.')}
                     />
                     {imageCaption && (
-                      <div className="w-full mt-2 p-2 rounded-lg bg-[#070b14] border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+                      <div className="w-full mt-2 p-2 rounded-lg liquid-glass-subtle text-amber-200 text-xs flex items-center gap-2">
                         <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span className="font-medium text-right">{imageCaption}</span>
                       </div>
@@ -1015,7 +1582,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   value={imageCaption}
                   onChange={(e) => setImageCaption(e.target.value)}
                   placeholder="بۆ نموونە: دیمەنی قەڵاکە لە سەرەتای سەدەی بیستەم، یان نیگاری پاشا لەسەر بەردی دێرین..."
-                  className="w-full bg-[#050812] text-white px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-xs placeholder:text-slate-500"
+                  className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
                   ئەم نوسینە بە قەبارەیەکی بچووک و جوان لە ژێر یان لەسەر وێنەکە لە کاتی داگرتنی پۆینت نیشان دەدرێت.
@@ -1025,7 +1592,7 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
 
           {/* Action Buttons Bar */}
-          <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-800/90 shrink-0">
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/10 shrink-0">
             {/* Delete button (when editing) */}
             {factToEdit && onDelete && (
               <div>
@@ -1045,7 +1612,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}
-                      className="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs cursor-pointer"
+                      className="px-3 py-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs cursor-pointer"
                     >
                       پەشیمانبوونەوە
                     </button>
@@ -1068,16 +1635,16 @@ export const FactEditorModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
               >
                 داخستن
               </button>
 
               <button
                 type="submit"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all cursor-pointer active:scale-95"
               >
-                <Save className="w-4 h-4" />
+                <Save className="w-4 h-4 text-black" />
                 <span>پاشەکەوتکردنی زانیارییەکان</span>
               </button>
             </div>

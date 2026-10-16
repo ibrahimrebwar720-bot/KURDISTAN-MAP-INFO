@@ -24,6 +24,11 @@ export interface FactItem {
   isBC?: boolean;
   century?: string;
   centuryNumber?: number;
+  timeSpanType?: 'single_year' | 'year_range' | 'single_century' | 'century_range';
+  startCentury?: number;
+  endCentury?: number;
+  startCenturyBC?: boolean;
+  endCenturyBC?: boolean;
   territoryPolygon?: [number, number][];
   territoryColor?: string;
   overlayImageUrl?: string;

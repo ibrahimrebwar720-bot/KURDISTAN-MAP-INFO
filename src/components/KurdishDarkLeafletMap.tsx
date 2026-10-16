@@ -154,6 +154,14 @@ export const TAG_FILTER_OPTIONS = [
     color: '#ef4444',
     accentClass: 'text-rose-400',
   },
+  {
+    id: 'monument',
+    label: 'شوێنەوار',
+    shortLabel: 'شوێنەوار',
+    icon: Compass,
+    color: '#14b8a6',
+    accentClass: 'text-teal-400',
+  },
 ];
 
 export const KurdishDarkLeafletMap: React.FC<Props> = ({
@@ -678,7 +686,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* B. Active Filter Persistent Badge (Shown whenever activeTagFilter is not 'all') */}
         {activeTagFilter !== 'all' && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#070b14]/75 border border-amber-500/25 shadow-[0_8px_30px_rgba(0,0,0,0.7),0_0_20px_rgba(245,158,11,0.12)] backdrop-blur-xl animate-fade-in text-right">
+          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass-dock border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_30px_rgba(0,0,0,0.7)] animate-fade-in text-right">
             <span
               className="w-2 h-2 rounded-full animate-ping shrink-0"
               style={{ backgroundColor: currentFilterObj.color }}
@@ -689,7 +697,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             <span className="text-xs font-bold text-white tracking-wide">
               {currentFilterObj.label}
             </span>
-            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full liquid-glass-subtle text-amber-300 border border-white/10">
               {visibleFacts.length} شوێن
             </span>
             <button
@@ -704,7 +712,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* Filter Notification Toast (Pops up when switched) */}
         {filterNotification && activeTagFilter === 'all' && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3 py-1 rounded-full bg-[#070b14]/75 border border-amber-500/20 text-amber-300 text-[11px] font-medium shadow-xl backdrop-blur-xl animate-fade-in">
+          <div className="pointer-events-auto flex items-center gap-2 px-3 py-1 rounded-full liquid-glass-dock border border-white/15 text-amber-300 text-[11px] font-medium shadow-xl animate-fade-in">
             <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
             <span>فلتەر: {filterNotification}</span>
           </div>
@@ -713,13 +721,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       {/* 3. Top-Left Admin Indicator when active */}
       {isAdmin && (
-        <div className="absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#070b14]/75 border border-amber-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(245,158,11,0.1)] backdrop-blur-xl">
+        <div className="absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl liquid-glass-dock border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_32px_rgba(0,0,0,0.6)]">
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
           <span className="text-[11px] font-bold text-amber-300">ئەدمین چالاکە</span>
           {onOpenAddFact && (
             <button
               onClick={onOpenAddFact}
-              className="mr-1.5 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold transition-colors cursor-pointer"
+              className="mr-1.5 flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-amber-300 text-[10px] font-bold transition-colors cursor-pointer"
             >
               <Plus className="w-3 h-3" />
               <span>زیادکردنی بابەت</span>

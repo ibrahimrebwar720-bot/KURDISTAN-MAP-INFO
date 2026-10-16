@@ -70,6 +70,83 @@ export function formatKurdishYearRange(startYear?: number, endYear?: number): st
 }
 
 /**
+ * Convert a century number (e.g. 4 for 4th century) and BC flag into start and end years.
+ * e.g. 4th century BC -> startYear: -400, endYear: -301
+ * e.g. 12th century AD -> startYear: 1101, endYear: 1200
+ */
+export function centuryToYearSpan(century: number, isBC: boolean): { startYear: number; endYear: number } {
+  const c = Math.max(1, Math.abs(century));
+  if (isBC) {
+    const s = -c * 100;
+    const e = -(c - 1) * 100 - 1;
+    return { startYear: s, endYear: e };
+  }
+  const s = (c - 1) * 100 + 1;
+  const e = c * 100;
+  return { startYear: s, endYear: e };
+}
+
+/**
+ * Convert a century range into start and end years.
+ * Can cross eras (e.g. 4th BC to 2nd AD).
+ */
+export function centuryRangeToYearSpan(
+  startCentury: number,
+  startBC: boolean,
+  endCentury: number,
+  endBC: boolean
+): { startYear: number; endYear: number } {
+  const span1 = centuryToYearSpan(startCentury, startBC);
+  const span2 = centuryToYearSpan(endCentury, endBC);
+  const s = Math.min(span1.startYear, span2.startYear);
+  const e = Math.max(span1.endYear, span2.endYear);
+  return { startYear: s, endYear: e };
+}
+
+/**
+ * Format a single century in Kurdish: e.g. "سەدەی ٤ی پ.ز" or "سەدەی ١٢ی زایینی"
+ */
+export function formatKurdishCentury(century: number, isBC: boolean, long = false): string {
+  const c = Math.max(1, Math.abs(century));
+  const eraLabel = isBC ? (long ? 'پێش زایین' : 'پ.ز') : (long ? 'زایینی' : 'ز');
+  return `سەدەی ${toKurdishDigits(c)}ی ${eraLabel}`;
+}
+
+/**
+ * Format a century range in Kurdish: e.g.
+ * - "سەدەی ٤ی پ.ز - سەدەی ٢ی ز" (cross-era)
+ * - "سەدەی ١٠ - ١٢ی زایینی"
+ * - "سەدەی ٧ - ٦ی پێش زایین"
+ */
+export function formatKurdishCenturyRange(
+  startCentury: number,
+  startBC: boolean,
+  endCentury: number,
+  endBC: boolean,
+  long = false
+): string {
+  const c1 = Math.max(1, Math.abs(startCentury));
+  const c2 = Math.max(1, Math.abs(endCentury));
+
+  if (startBC && !endBC) {
+    return `سەدەی ${toKurdishDigits(c1)}ی پ.ز - سەدەی ${toKurdishDigits(c2)}ی ز`;
+  }
+  if (!startBC && endBC) {
+    return `سەدەی ${toKurdishDigits(c2)}ی پ.ز - سەدەی ${toKurdishDigits(c1)}ی ز`;
+  }
+  if (startBC && endBC) {
+    const minC = Math.min(c1, c2);
+    const maxC = Math.max(c1, c2);
+    const eraLabel = long ? 'پێش زایین' : 'پ.ز';
+    return `سەدەی ${toKurdishDigits(maxC)} - ${toKurdishDigits(minC)}ی ${eraLabel}`;
+  }
+  const minC = Math.min(c1, c2);
+  const maxC = Math.max(c1, c2);
+  const eraLabel = long ? 'زایینی' : 'ز';
+  return `سەدەی ${toKurdishDigits(minC)} - ${toKurdishDigits(maxC)}ی ${eraLabel}`;
+}
+
+/**
  * Extract numeric startYear and endYear from any FactItem.
  * Handles explicit startYear/endYear, birthYear/deathYear, or falls back to parsing year text.
  */

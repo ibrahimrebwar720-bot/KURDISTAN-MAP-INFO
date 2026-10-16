@@ -6,7 +6,8 @@ export type CategoryId =
   | 'official'
   | 'other_figure'
   | 'castle'
-  | 'battle';
+  | 'battle'
+  | 'monument';
 
 export interface CategoryItem {
   id: CategoryId | 'all' | string;
@@ -22,7 +23,7 @@ export type CollectionItem = CategoryItem;
 export const ADMIN_SECRET_CODE = '200076';
 
 /**
- * ٨ پۆلێنی یەکگرتووی سەرەکی بەپێی داواکاری بەکارهێنەر:
+ * ٩ پۆلێنی یەکگرتووی سەرەکی:
  * - میرنشینەکان
  * - شارستانییەتەکان 
  * - ئیمپراتۆرییەتەکان
@@ -31,6 +32,7 @@ export const ADMIN_SECRET_CODE = '200076';
  * - کەسایەتی تر
  * - قەڵاکان
  * - جەنگ و ڕووداوەکان
+ * - شوێنەوار
  */
 export const UNIFIED_CATEGORIES: CategoryItem[] = [
   {
@@ -48,7 +50,7 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
   {
     id: 'civilization',
     name: 'شارستانییەتەکان',
-    description: 'شارستانییەتە دێرینەکان و شوێنەوارە شارستانییەکان',
+    description: 'شارستانییەتە دێرینەکان و سەردەمە کۆنەکان',
     color: '#10b981',
   },
   {
@@ -86,6 +88,12 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
     name: 'جەنگ و ڕووداوەکان',
     description: 'جەنگە چارەنووسسازەکان، شۆڕش و ڕووداوەکان',
     color: '#ef4444',
+  },
+  {
+    id: 'monument',
+    name: 'شوێنەوار',
+    description: 'شوێنەوارە مێژووییەکان، ئەشکەوت، نەخشە بەردینەکان و شوێنە کۆنەکان',
+    color: '#14b8a6',
   },
 ];
 
@@ -129,8 +137,20 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
   ) {
     return { id: 'official', name: 'وەزیر و کاربەدەستان', color: '#3b82f6' };
   }
-  if (raw === 'castle' || raw === 'capital' || raw === 'monuments' || raw === 'قەڵاکان' || raw === 'قەڵا') {
+  if (raw === 'castle' || raw === 'capital' || raw === 'قەڵاکان' || raw === 'قەڵا') {
     return { id: 'castle', name: 'قەڵاکان', color: '#8b5cf6' };
+  }
+  if (
+    raw === 'monument' ||
+    raw === 'monuments' ||
+    raw === 'archaeology' ||
+    raw === 'ruins' ||
+    raw === 'heritage' ||
+    raw === 'شوێنەوار' ||
+    raw === 'شوێنەوارەکان' ||
+    raw === 'شوێنەواری'
+  ) {
+    return { id: 'monument', name: 'شوێنەوار', color: '#14b8a6' };
   }
   if (raw === 'battle' || raw === 'battles' || raw === 'جەنگ و ڕووداوەکان' || raw === 'جەنگ') {
     return { id: 'battle', name: 'جەنگ و ڕووداوەکان', color: '#ef4444' };

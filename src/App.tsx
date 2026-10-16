@@ -344,8 +344,9 @@ export default function App() {
             />
 
             {/* Drawer Content - Starts directly from Search with close button */}
-            <aside className="relative w-full sm:w-[400px] md:w-[460px] h-full bg-[#070b14]/85 border-r sm:border-r-0 sm:border-l border-amber-500/25 shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(245,158,11,0.1)] backdrop-blur-2xl flex flex-col z-10 animate-slide-left text-right">
-              <div className="flex-1 overflow-hidden p-2 sm:p-3">
+            <aside className="relative w-full sm:w-[400px] md:w-[460px] h-full liquid-glass-dock border-y-0 rounded-none border-r sm:border-r-0 sm:border-l border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_0_60px_rgba(0,0,0,0.95)] backdrop-blur-3xl flex flex-col z-10 animate-slide-left text-right overflow-hidden">
+              <div className="glass-specular-ray" />
+              <div className="flex-1 overflow-hidden p-2 sm:p-3 relative z-10">
                 <FactsList
                   facts={facts}
                   selectedFact={selectedFact}

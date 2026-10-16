@@ -189,11 +189,13 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       {/* Subtle Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-      {/* Top Header Bar */}
-      <div className="relative z-20 flex items-center justify-between pb-3 border-b border-amber-500/20 shrink-0">
+      {/* Top Header Bar - Liquid Glass Dock */}
+      <div className="relative z-20 flex items-center justify-between p-3 rounded-2xl sm:rounded-3xl liquid-glass-dock shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_15px_40px_rgba(0,0,0,0.85)] shrink-0 overflow-hidden">
+        <div className="glass-specular-ray" />
+
         {/* Title and Kurdish Sun Emblem */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] shrink-0">
+          <div className="w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] shrink-0">
             <span className="text-base select-none leading-none">☀️</span>
           </div>
           <div className="min-w-0">
@@ -201,11 +203,11 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               <h2 className="text-sm sm:text-base font-black font-heading text-white tracking-wide truncate">
                 گەلەری مێژوویی کوردستان
               </h2>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/40">
                 {total} وێنە
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-amber-200/70 truncate">
+            <p className="text-[10px] sm:text-[11px] text-amber-200/80 truncate">
               وێنە و زانیارییە تۆمارکراوەکانی کوردستان
             </p>
           </div>
@@ -215,7 +217,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* کاتی پەخشی وێنە: ٥، ٧، ٩ چرکە و کوژانەوەی کات */}
           {total > 1 && (
-            <div className="flex items-center gap-1 bg-[#070b14] border border-amber-500/35 p-1 rounded-xl shadow-xs">
+            <div className="flex items-center gap-1 liquid-glass-subtle p-1 rounded-xl shadow-xs">
               <span className="text-[10px] text-amber-300 font-bold px-1 hidden md:inline">
                 کات:
               </span>
@@ -229,8 +231,8 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                   }}
                   className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                     intervalSeconds === sec
-                      ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.4)]'
-                      : 'text-slate-300 hover:text-amber-300 hover:bg-white/5'
+                      ? 'liquid-glass-btn-active text-black shadow-sm'
+                      : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
                   }`}
                   title={`گۆڕینی وێنە لە ${sec} چرکەدا`}
                 >
@@ -244,10 +246,10 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                   setIntervalSeconds((prev) => (prev === 0 ? 7 : 0));
                   setProgress(0);
                 }}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   intervalSeconds === 0
-                    ? 'bg-rose-950 text-rose-300 border border-rose-800'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-rose-950/80 text-rose-300 border border-rose-700/80'
+                    : 'liquid-glass-btn text-slate-300 hover:text-white'
                 }`}
                 title={intervalSeconds === 0 ? 'کاتی گۆڕین کوژاوەتەوە' : 'کوژانەوەی کات'}
               >
@@ -266,7 +268,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
           {/* Fullscreen Button */}
           <button
             onClick={handleToggleFullscreen}
-            className="p-2 rounded-xl bg-black/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 transition-colors cursor-pointer"
+            className="p-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
             title={isFullscreen ? 'دەرچوون لە شاشەی پڕ' : 'شاشەی پڕ (Fullscreen)'}
           >
             {isFullscreen ? (
@@ -279,7 +281,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
           {/* Close Modal Button */}
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-black/60 hover:bg-red-950/70 text-slate-300 hover:text-red-300 border border-slate-700/80 hover:border-red-800/60 transition-colors cursor-pointer"
+            className="p-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-red-300 transition-colors cursor-pointer"
             title="داخستن (Escape)"
           >
             <X className="w-4 h-4" />
@@ -320,7 +322,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                   <>
                     <button
                       onClick={handlePrev}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/70 hover:bg-amber-500 text-white hover:text-black border border-amber-500/40 backdrop-blur-md transition-all shadow-xl cursor-pointer hover:scale-110 active:scale-95"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full liquid-glass-btn text-white hover:text-black hover:liquid-glass-btn-active backdrop-blur-xl transition-all shadow-xl cursor-pointer hover:scale-110 active:scale-95 z-30"
                       title="وێنەی پێشوو (تیرەی ڕاست)"
                     >
                       <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -328,7 +330,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
                     <button
                       onClick={handleNext}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full bg-black/70 hover:bg-amber-500 text-white hover:text-black border border-amber-500/40 backdrop-blur-md transition-all shadow-xl cursor-pointer hover:scale-110 active:scale-95"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full liquid-glass-btn text-white hover:text-black hover:liquid-glass-btn-active backdrop-blur-xl transition-all shadow-xl cursor-pointer hover:scale-110 active:scale-95 z-30"
                       title="وێنەی داهاتوو (تیرەی چەپ)"
                     >
                       <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -337,7 +339,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                 )}
 
                 {/* Image Counter Badge on top corner */}
-                <div className="absolute top-3 right-3 px-3 py-1 rounded-xl bg-black/80 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold backdrop-blur-md shadow-md flex items-center gap-1.5">
+                <div className="absolute top-3 right-3 px-3 py-1 rounded-xl liquid-glass-dock text-amber-300 font-mono text-xs font-bold shadow-md flex items-center gap-1.5 z-20">
                   <Camera className="w-3.5 h-3.5 text-amber-400" />
                   <span>
                     {currentIndex + 1} / {total}
@@ -346,10 +348,12 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Information Strictly UNDER the Image ("زانیاری ژێر وێنە") */}
-            <div className="w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-2xl bg-[#070b14]/90 border border-amber-500/30 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl text-right transition-all">
+            {/* Information Strictly UNDER the Image ("زانیاری ژێر وێنە") - Liquid Glass Panel */}
+            <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl liquid-glass-panel shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_15px_40px_rgba(0,0,0,0.85)] text-right transition-all overflow-hidden">
+              <div className="glass-specular-ray" />
+
               {/* Title & Badges Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-500/20">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-white/10">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
                   <h3 className="text-base sm:text-lg font-bold font-heading text-white truncate drop-shadow-xs">
@@ -359,13 +363,13 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
                 <div className="flex items-center gap-2">
                   {currentItem.year && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-300 font-mono text-xs font-bold">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-subtle text-amber-300 font-mono text-xs font-bold shadow-xs">
                       <Calendar className="w-3 h-3 text-amber-400" />
                       <span>{currentItem.year}</span>
                     </span>
                   )}
                   {currentItem.eraName && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/50 border border-slate-700 text-slate-300 text-[11px]">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-subtle text-slate-300 text-[11px]">
                       <span>{currentItem.eraName}</span>
                     </span>
                   )}
@@ -375,7 +379,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         onClose();
                         onFlyToFact(currentItem.fact!);
                       }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-bold transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
                       title="فڕین بۆ شوێنی ئەم بابەتە لەسەر نەخشە"
                     >
                       <MapPin className="w-3 h-3 text-amber-400" />
@@ -418,7 +422,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
       {/* Bottom Thumbnail Strip (Only when multiple images exist) */}
       {total > 1 && (
-        <div className="relative z-20 pt-2 pb-1 border-t border-amber-500/20 bg-black/40 backdrop-blur-xl shrink-0 flex flex-col gap-2">
+        <div className="relative z-20 pt-2.5 pb-2 border-t border-white/10 liquid-glass-dock border-x-0 border-b-0 rounded-none shrink-0 flex flex-col gap-2 shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
           {/* Thumbnails row */}
           <div className="flex items-center justify-center gap-2 px-2 overflow-x-auto scrollbar-none max-w-full">
             {galleryItems.map((item, idx) => {

@@ -464,18 +464,18 @@ export const TimelineSlider: React.FC<Props> = ({
               value={directInputYear}
               onChange={(e) => setDirectInputYear(e.target.value)}
               placeholder="1940، 1890، 612 پ.ز..."
-              className="flex-1 bg-black/60 text-white px-2 py-0.5 sm:py-1 rounded-lg border border-amber-500/20 text-[10px] sm:text-xs focus:outline-none focus:border-amber-400 font-mono"
+              className="flex-1 liquid-glass-input text-white px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs focus:outline-none font-mono"
             />
             <button
               type="submit"
-              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
+              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg liquid-glass-btn-active text-black font-extrabold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
             >
               بڕۆ
             </button>
             <button
               type="button"
               onClick={() => setShowDirectInput(false)}
-              className="p-0.5 sm:p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+              className="p-0.5 sm:p-1 rounded-lg liquid-glass-btn text-slate-300 hover:text-white"
             >
               <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
