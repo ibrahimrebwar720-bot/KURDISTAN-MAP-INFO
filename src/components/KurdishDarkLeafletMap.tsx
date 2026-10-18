@@ -45,6 +45,7 @@ import {
   Film,
   Play,
   Pause,
+  Medal,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -118,6 +119,14 @@ export const TAG_FILTER_OPTIONS = [
     icon: Crown,
     color: '#f97316',
     accentClass: 'text-orange-400',
+  },
+  {
+    id: 'leader',
+    label: 'سەرکردەکان',
+    shortLabel: 'سەرکردەکان',
+    icon: Medal,
+    color: '#f43f5e',
+    accentClass: 'text-rose-400',
   },
   {
     id: 'scholar',

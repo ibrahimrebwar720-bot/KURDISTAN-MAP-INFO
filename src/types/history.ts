@@ -2,6 +2,7 @@ export type CategoryId =
   | 'principality'
   | 'civilization'
   | 'empire'
+  | 'leader'
   | 'scholar'
   | 'official'
   | 'other_figure'
@@ -23,10 +24,11 @@ export type CollectionItem = CategoryItem;
 export const ADMIN_SECRET_CODE = '200076';
 
 /**
- * ٩ پۆلێنی یەکگرتووی سەرەکی:
+ * ١٠ پۆلێنی یەکگرتووی سەرەکی:
  * - میرنشینەکان
  * - شارستانییەتەکان 
  * - ئیمپراتۆرییەتەکان
+ * - سەرکردەکان
  * - زانایان
  * - وەزیر و کاربەدەستان
  * - کەسایەتی تر
@@ -58,6 +60,12 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
     name: 'ئیمپراتۆرییەتەکان',
     description: 'ئیمپراتۆریەتە مەزنەکان و دەسەڵاتە فەرمانڕەواکان',
     color: '#f97316',
+  },
+  {
+    id: 'leader',
+    name: 'سەرکردەکان',
+    description: 'سەرکردە، فەرماندە و پێشەوا مێژوویی و نەتەوەییەکانی کوردستان',
+    color: '#f43f5e',
   },
   {
     id: 'scholar',
@@ -103,7 +111,7 @@ export const DEFAULT_COLLECTIONS: CategoryItem[] = UNIFIED_CATEGORIES;
 /**
  * دۆزینەوەی ناوی کوردی و ناسنامەی پۆلێنی هەر بابەتێک بە یەکگرتوویی
  */
-export function getCategoryInfo(fact: { category?: string; tag?: string; collectionId?: string } | null | undefined): {
+export function getCategoryInfo(fact: { category?: string; tag?: string; collectionId?: string; name?: string; desc?: string } | null | undefined): {
   id: CategoryId;
   name: string;
   color: string;
@@ -122,6 +130,22 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
   }
   if (raw === 'empire' || raw === 'ئیمپراتۆرییەتەکان' || raw === 'ئیمپراتۆریەت') {
     return { id: 'empire', name: 'ئیمپراتۆرییەتەکان', color: '#f97316' };
+  }
+  if (
+    raw === 'leader' ||
+    raw === 'leaders' ||
+    raw === 'commander' ||
+    raw === 'commanders' ||
+    raw === 'سەرکردەکان' ||
+    raw === 'سەرکردە' ||
+    raw === 'فەرماندە' ||
+    raw === 'فەرماندەکان' ||
+    raw === 'ڕابەر' ||
+    raw === 'ڕابەران' ||
+    raw === 'پێشەوا' ||
+    raw === 'پێشەوایان'
+  ) {
+    return { id: 'leader', name: 'سەرکردەکان', color: '#f43f5e' };
   }
   if (raw === 'scholar' || raw === 'scholars' || raw === 'زانایان' || raw === 'زانا') {
     return { id: 'scholar', name: 'زانایان', color: '#06b6d4' };
@@ -154,6 +178,50 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
   }
   if (raw === 'battle' || raw === 'battles' || raw === 'جەنگ و ڕووداوەکان' || raw === 'جەنگ') {
     return { id: 'battle', name: 'جەنگ و ڕووداوەکان', color: '#ef4444' };
+  }
+
+  // Detect leader from category/tag or historical names/titles
+  const nameDesc = `${fact.name || ''} ${fact.desc || ''}`.toLowerCase();
+  if (
+    raw === 'leader' ||
+    raw === 'leaders' ||
+    raw === 'commander' ||
+    raw === 'commanders' ||
+    raw === 'rulers' ||
+    raw === 'سەرکردەکان' ||
+    raw === 'سەرکردە' ||
+    raw === 'فەرماندە' ||
+    raw === 'فەرماندەکان' ||
+    raw === 'ڕابەر' ||
+    raw === 'ڕابەران' ||
+    raw === 'پێشەوا' ||
+    raw === 'پێشەوایان' ||
+    raw === 'سەرۆک' ||
+    nameDesc.includes('سەرکردە') ||
+    nameDesc.includes('فەرماندە') ||
+    nameDesc.includes('پێشەوا') ||
+    nameDesc.includes('ڕابەر') ||
+    nameDesc.includes('مەلیک') ||
+    nameDesc.includes('سەرۆک') ||
+    nameDesc.includes('قازی محەمەد') ||
+    nameDesc.includes('شێخ مەحموود') ||
+    nameDesc.includes('شێخ مەحمود') ||
+    nameDesc.includes('سەڵاحەدین') ||
+    nameDesc.includes('شێخ سەعید') ||
+    nameDesc.includes('سەید ڕەزا') ||
+    nameDesc.includes('ئیحسان نوری') ||
+    nameDesc.includes('سمکۆ') ||
+    nameDesc.includes('مستەفا بارزانی') ||
+    nameDesc.includes('شێخ عوبەیدوڵڵا') ||
+    nameDesc.includes('خان لەپ زێڕین') ||
+    nameDesc.includes('بەدرخان پاشا') ||
+    nameDesc.includes('پاشای گەورە') ||
+    nameDesc.includes('پاشای کۆرە') ||
+    nameDesc.includes('کەریم خانی زەند') ||
+    nameDesc.includes('جەنەراڵ') ||
+    nameDesc.includes('سەردار')
+  ) {
+    return { id: 'leader', name: 'سەرکردەکان', color: '#f43f5e' };
   }
 
   return { id: 'other_figure', name: 'کەسایەتی تر', color: '#ec4899' };

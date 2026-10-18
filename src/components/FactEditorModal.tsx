@@ -106,6 +106,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
   // Is this fact a historical person / figure?
   const isPerson =
+    selectedCategory === 'leader' ||
     selectedCategory === 'scholar' ||
     selectedCategory === 'official' ||
     selectedCategory === 'other_figure';
@@ -666,7 +667,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   <Layers className="w-3.5 h-3.5 text-amber-400" />
                   <span>پۆلێنی بابەت <span className="text-amber-400">*</span></span>
                 </span>
-                <span className="text-[10px] text-slate-400">یەکێک لە ٩ پۆلێنە سەرەکییەکە هەڵبژێرە</span>
+                <span className="text-[10px] text-slate-400">یەکێک لە ١٠ پۆلێنە سەرەکییەکە هەڵبژێرە</span>
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

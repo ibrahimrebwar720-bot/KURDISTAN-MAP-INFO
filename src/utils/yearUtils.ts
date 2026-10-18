@@ -183,6 +183,7 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
   }
 
   const isPersonTag =
+    fact.tag === 'leader' ||
     fact.tag === 'figure' ||
     fact.tag === 'scholar' ||
     fact.tag === 'minister' ||
