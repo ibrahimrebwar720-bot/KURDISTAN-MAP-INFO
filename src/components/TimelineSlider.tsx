@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  Play,
-  Pause,
   ChevronRight,
   ChevronLeft,
   Calendar,
   Layers,
   Search,
   X,
+  Film,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
@@ -24,6 +23,8 @@ interface Props {
   onYearChange: (year: number | 'all') => void;
   filteredCount: number;
   totalCount: number;
+  isTourActive?: boolean;
+  onToggleTour?: () => void;
 }
 
 interface RulerMark {
@@ -39,11 +40,13 @@ export const TimelineSlider: React.FC<Props> = ({
   onYearChange,
   filteredCount,
   totalCount,
+  isTourActive = false,
+  onToggleTour,
 }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [directInputYear, setDirectInputYear] = useState('');
   const [showDirectInput, setShowDirectInput] = useState(false);
-  const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [scrubYear, setScrubYear] = useState<number | null>(null);
+
   const selectedYearRef = useRef(selectedYear);
   selectedYearRef.current = selectedYear;
 
@@ -60,7 +63,9 @@ export const TimelineSlider: React.FC<Props> = ({
   // Horizontal scroll container ref for the ruler
   const rulerContainerRef = useRef<HTMLDivElement>(null);
   const isUserInteractingRef = useRef(false);
-  const wheelTimeoutRef = useRef<any>(null);
+  const isProgrammaticScrollRef = useRef(false);
+  const programmaticScrollTimerRef = useRef<any>(null);
+  const scrollDebounceTimerRef = useRef<any>(null);
 
   // Mouse Drag state for desktop ruler scrubbing
   const [isDragging, setIsDragging] = useState(false);
@@ -147,101 +152,100 @@ export const TimelineSlider: React.FC<Props> = ({
     return marks.sort((a, b) => a.year - b.year);
   }, [facts]);
 
-  // Read which year is currently aligned under the ruler center needle
-  const syncYearFromRulerCenter = useCallback(() => {
-    if (!rulerContainerRef.current) return;
+  // Fast O(log N) needle detection: find the tick element closest to the center needle
+  const getYearAtNeedle = useCallback((): number | null => {
     const container = rulerContainerRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const containerCenter = containerRect.left + containerRect.width / 2;
+    if (!container) return null;
+    const children = container.children;
+    if (!children || children.length === 0) return null;
 
-    const tickElements = container.querySelectorAll<HTMLElement>('[data-ruler-year]');
-    let closestYear: number | null = null;
+    const needleX = container.scrollLeft + container.clientWidth / 2;
+    let low = 0;
+    let high = children.length - 1;
+    let closestEl: HTMLElement | null = null;
     let minDiff = Infinity;
 
-    tickElements.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      const tickCenter = rect.left + rect.width / 2;
-      const diff = Math.abs(tickCenter - containerCenter);
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const child = children[mid] as HTMLElement;
+      const childCenter = child.offsetLeft + child.offsetWidth / 2;
+      const diff = Math.abs(childCenter - needleX);
+
       if (diff < minDiff) {
         minDiff = diff;
-        closestYear = Number(el.dataset.rulerYear);
+        closestEl = child;
       }
+
+      if (childCenter < needleX) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (closestEl && closestEl.dataset.rulerYear) {
+      const yr = Number(closestEl.dataset.rulerYear);
+      return Number.isNaN(yr) ? null : yr;
+    }
+    return null;
+  }, []);
+
+  // Programmatically center a year mark in the ruler viewport
+  const scrollToYear = useCallback((year: number, smooth = true) => {
+    const container = rulerContainerRef.current;
+    if (!container) return;
+
+    const activeEl = container.querySelector(
+      `[data-ruler-year="${year}"]`
+    ) as HTMLElement | null;
+    if (!activeEl) return;
+
+    isProgrammaticScrollRef.current = true;
+    if (programmaticScrollTimerRef.current) {
+      clearTimeout(programmaticScrollTimerRef.current);
+    }
+
+    activeEl.scrollIntoView({
+      behavior: smooth ? 'smooth' : 'auto',
+      inline: 'center',
+      block: 'nearest',
     });
 
-    if (closestYear !== null && closestYear !== selectedYearRef.current) {
-      onYearChange(closestYear);
-    }
-  }, [onYearChange]);
+    programmaticScrollTimerRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, smooth ? 450 : 100);
+  }, []);
 
-  // Center active ruler mark in the ruler viewport when selectedYear changes programmatically
+  // Center active ruler mark when selectedYear changes externally (not during active user drag/scroll)
   useEffect(() => {
-    if (rulerContainerRef.current && typeof selectedYear === 'number' && !isUserInteractingRef.current) {
-      const activeEl = rulerContainerRef.current.querySelector(
-        `[data-ruler-year="${selectedYear}"]`
-      ) as HTMLElement | null;
-      if (activeEl) {
-        activeEl.scrollIntoView({
-          behavior: 'smooth',
-          inline: 'center',
-          block: 'nearest',
-        });
-      }
+    if (typeof selectedYear === 'number' && !isUserInteractingRef.current && !isDragging) {
+      scrollToYear(selectedYear, true);
     }
-  }, [selectedYear]);
+  }, [selectedYear, isDragging, scrollToYear]);
 
-  // Auto-play history animation
+  // Initial scroll into view on mount without triggering onYearChange
   useEffect(() => {
-    if (isPlaying) {
-      playIntervalRef.current = setInterval(() => {
-        const prevYear = selectedYearRef.current;
-        const current = typeof prevYear === 'number' ? prevYear : MIN_HISTORICAL_YEAR;
-        if (current >= MAX_HISTORICAL_YEAR) {
-          setIsPlaying(false);
-          onYearChange(MAX_HISTORICAL_YEAR);
-        } else {
-          let step = 1;
-          if (current < -500) step = 50;
-          else if (current < 1500) step = 20;
-          else if (current < 1800) step = 10;
-          else if (current >= 1800) step = 2;
-
-          const next = Math.min(current + step, MAX_HISTORICAL_YEAR);
-          onYearChange(next);
-        }
-      }, 900);
-    } else {
-      if (playIntervalRef.current) {
-        clearInterval(playIntervalRef.current);
-        playIntervalRef.current = null;
-      }
-    }
+    const timer = setTimeout(() => {
+      const initialYear = typeof selectedYear === 'number' ? selectedYear : 1940;
+      scrollToYear(initialYear, false);
+    }, 150);
 
     return () => {
-      if (playIntervalRef.current) {
-        clearInterval(playIntervalRef.current);
-      }
+      clearTimeout(timer);
+      if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+      if (scrollDebounceTimerRef.current) clearTimeout(scrollDebounceTimerRef.current);
     };
-  }, [isPlaying, onYearChange]);
+  }, [scrollToYear]);
 
-  const togglePlay = () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-    } else {
-      if (selectedYear === 'all' || selectedYear >= MAX_HISTORICAL_YEAR) {
-        onYearChange(1800);
-      }
-      setIsPlaying(true);
-    }
-  };
-
+  // Step Year buttons
   const handleStepYear = (delta: number) => {
-    setIsPlaying(false);
     isUserInteractingRef.current = false;
     const current = typeof selectedYear === 'number' ? selectedYear : 1940;
     const next = Math.max(MIN_HISTORICAL_YEAR, Math.min(MAX_HISTORICAL_YEAR, current + delta));
     onYearChange(next);
   };
 
+  // Direct Jump Submit
   const handleDirectJumpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!directInputYear.trim()) return;
@@ -253,7 +257,6 @@ export const TimelineSlider: React.FC<Props> = ({
         num = -Math.abs(num);
       }
       if (num >= MIN_HISTORICAL_YEAR && num <= MAX_HISTORICAL_YEAR) {
-        setIsPlaying(false);
         isUserInteractingRef.current = false;
         onYearChange(num);
         setShowDirectInput(false);
@@ -262,32 +265,22 @@ export const TimelineSlider: React.FC<Props> = ({
     }
   };
 
-  // Wheel handling on the ruler
+  // Wheel & Trackpad scrolling
   const handleWheel = (e: React.WheelEvent) => {
-    if (rulerContainerRef.current) {
-      isUserInteractingRef.current = true;
-      rulerContainerRef.current.scrollLeft += e.deltaY;
-      syncYearFromRulerCenter();
-
-      clearTimeout(wheelTimeoutRef.current);
-      wheelTimeoutRef.current = setTimeout(() => {
-        isUserInteractingRef.current = false;
-      }, 250);
-    }
+    if (!rulerContainerRef.current) return;
+    isUserInteractingRef.current = true;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    rulerContainerRef.current.scrollLeft += delta;
   };
 
-  // Button nudges
+  // Button nudges (scroll left / scroll right)
   const handleScrollRuler = (direction: 'left' | 'right') => {
     if (rulerContainerRef.current) {
-      isUserInteractingRef.current = true;
+      const offset = direction === 'left' ? -220 : 220;
       rulerContainerRef.current.scrollBy({
-        left: direction === 'left' ? -200 : 200,
+        left: offset,
         behavior: 'smooth',
       });
-      setTimeout(() => {
-        syncYearFromRulerCenter();
-        isUserInteractingRef.current = false;
-      }, 250);
     }
   };
 
@@ -296,25 +289,21 @@ export const TimelineSlider: React.FC<Props> = ({
     if (!rulerContainerRef.current) return;
     setIsDragging(true);
     isUserInteractingRef.current = true;
-    dragStartXRef.current = e.pageX - rulerContainerRef.current.offsetLeft;
+    dragStartXRef.current = e.clientX;
     dragScrollLeftRef.current = rulerContainerRef.current.scrollLeft;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !rulerContainerRef.current) return;
     e.preventDefault();
-    const x = e.pageX - rulerContainerRef.current.offsetLeft;
-    const walk = (x - dragStartXRef.current) * 1.5;
-    rulerContainerRef.current.scrollLeft = dragScrollLeftRef.current - walk;
-    syncYearFromRulerCenter();
+    isUserInteractingRef.current = true;
+    const deltaX = e.clientX - dragStartXRef.current;
+    rulerContainerRef.current.scrollLeft = dragScrollLeftRef.current - deltaX;
   };
 
   const handleMouseUpOrLeave = () => {
     if (isDragging) {
       setIsDragging(false);
-      setTimeout(() => {
-        isUserInteractingRef.current = false;
-      }, 200);
     }
   };
 
@@ -324,22 +313,38 @@ export const TimelineSlider: React.FC<Props> = ({
   };
 
   const handleTouchEnd = () => {
-    setTimeout(() => {
-      syncYearFromRulerCenter();
-      isUserInteractingRef.current = false;
-    }, 200);
+    // Scroll end handled by onScroll debouncer
   };
 
-  // Native scroll listener on container (synchronizes top year as ruler moves)
+  // Native scroll listener on container (synchronizes on swipe, trackpad, inertia)
   const handleScroll = () => {
-    if (isUserInteractingRef.current) {
-      syncYearFromRulerCenter();
+    if (isProgrammaticScrollRef.current) return;
+    if (!rulerContainerRef.current) return;
+
+    isUserInteractingRef.current = true;
+    const detectedYear = getYearAtNeedle();
+    if (detectedYear !== null) {
+      setScrubYear(detectedYear);
     }
+
+    // Debounce pushing year to parent to prevent layout thrashing and setState-in-render
+    if (scrollDebounceTimerRef.current) {
+      clearTimeout(scrollDebounceTimerRef.current);
+    }
+    scrollDebounceTimerRef.current = setTimeout(() => {
+      if (!isProgrammaticScrollRef.current && rulerContainerRef.current) {
+        const finalYear = getYearAtNeedle();
+        if (finalYear !== null && finalYear !== selectedYearRef.current) {
+          onYearChange(finalYear);
+        }
+      }
+      setScrubYear(null);
+      isUserInteractingRef.current = false;
+    }, 90);
   };
 
   // Toggle "All" button: Clicking when active toggles it off and restores previous year!
   const handleToggleAllYears = () => {
-    setIsPlaying(false);
     isUserInteractingRef.current = false;
     if (selectedYear === 'all') {
       onYearChange(lastNumericYearRef.current || 1940);
@@ -347,6 +352,8 @@ export const TimelineSlider: React.FC<Props> = ({
       onYearChange('all');
     }
   };
+
+  const activeDisplayYear = scrubYear !== null ? scrubYear : selectedYear;
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-right select-none transition-all">
@@ -367,9 +374,9 @@ export const TimelineSlider: React.FC<Props> = ({
             <div className="flex items-baseline gap-1.5 truncate">
               {/* ئەو ساڵەی لەسەرەوەیە ڕاستەوخۆ نوێ دەبێتەوە */}
               <span className="font-bold text-white text-[11px] sm:text-sm font-mono tracking-wide">
-                {selectedYear === 'all'
+                {activeDisplayYear === 'all'
                   ? 'هەموو ساڵەکان'
-                  : formatKurdishYear(selectedYear)}
+                  : formatKurdishYear(activeDisplayYear)}
               </span>
 
               {/* Fact Count Pill */}
@@ -390,22 +397,24 @@ export const TimelineSlider: React.FC<Props> = ({
               <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
             </button>
 
-            {/* Play / Pause Toggle Button */}
-            <button
-              onClick={togglePlay}
-              title={isPlaying ? 'وەستاندنی تایملاین' : 'پەخشکردنی مێژوو بەپێی ڕاستە'}
-              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                isPlaying
-                  ? 'liquid-glass-btn-active animate-pulse'
-                  : 'liquid-glass-btn text-amber-400'
-              }`}
-            >
-              {isPlaying ? (
-                <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />
-              ) : (
-                <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current ml-0.5" />
-              )}
-            </button>
+            {/* Cinematic Guided Tour / Story Mode (گەشتی بینراوی مێژوویی) */}
+            {onToggleTour && (
+              <button
+                onClick={onToggleTour}
+                title={
+                  isTourActive
+                    ? 'وەستاندنی گەشتی بینراوی مێژوویی (Story Mode)'
+                    : 'گەشتی بینراوی مێژوویی (Cinematic Guided Tour / Story Mode)'
+                }
+                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                  isTourActive
+                    ? 'liquid-glass-btn-active shadow-[0_0_12px_rgba(245,158,11,0.9)] animate-pulse text-black'
+                    : 'liquid-glass-btn text-amber-300 hover:text-white'
+                }`}
+              >
+                <Film className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              </button>
+            )}
 
             {/* Step +1 Year */}
             <button
@@ -487,11 +496,11 @@ export const TimelineSlider: React.FC<Props> = ({
           Each centimeter is a graduated measure; user drags or scrolls it like a physical ruler!
         */}
         <div className="relative w-full flex items-center gap-1 sm:gap-1.5 border-t border-white/10 pt-1">
-          {/* Scroll left nudge */}
+          {/* Scroll forward / right nudge */}
           <button
             type="button"
-            onClick={() => handleScrollRuler('left')}
-            title="سکرۆڵکردنی ڕاستە بۆ چەپ"
+            onClick={() => handleScrollRuler('right')}
+            title="سکرۆڵکردنی ڕاستە بۆ پێشەوە"
             className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
           >
             <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
@@ -516,7 +525,8 @@ export const TimelineSlider: React.FC<Props> = ({
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
               onScroll={handleScroll}
-              className={`timeline-ruler-container flex items-end gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5 sm:py-1.5 px-10 sm:px-24 scroll-smooth min-h-[26px] sm:min-h-[44px] select-none ${
+              dir="ltr"
+              className={`timeline-ruler-container flex items-end gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5 sm:py-1.5 px-10 sm:px-24 min-h-[26px] sm:min-h-[44px] select-none ${
                 isDragging ? 'cursor-grabbing' : 'cursor-grab'
               }`}
               style={{ touchAction: 'pan-x' }}
@@ -529,7 +539,6 @@ export const TimelineSlider: React.FC<Props> = ({
                     key={`${mark.year}-${idx}`}
                     data-ruler-year={mark.year}
                     onClick={() => {
-                      setIsPlaying(false);
                       isUserInteractingRef.current = false;
                       onYearChange(mark.year);
                     }}
@@ -571,11 +580,11 @@ export const TimelineSlider: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Scroll right nudge */}
+          {/* Scroll backward / left nudge */}
           <button
             type="button"
-            onClick={() => handleScrollRuler('right')}
-            title="سکرۆڵکردنی ڕاستە بۆ ڕاست"
+            onClick={() => handleScrollRuler('left')}
+            title="سکرۆڵکردنی ڕاستە بۆ دواوە"
             className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
           >
             <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />

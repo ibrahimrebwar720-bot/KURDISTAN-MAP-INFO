@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { FactItem, GREAT_KURDISTAN_POLYGON } from '../data/kurdishHistoryData';
@@ -42,11 +42,16 @@ import {
   Maximize2,
   Image as ImageIcon,
   Images,
+  Film,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
   filterFactsByActiveYear,
   formatKurdishYear,
+  toKurdishDigits,
+  getFactChronologicalYear,
 } from '../utils/yearUtils';
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 import { getCategoryInfo } from '../types/history';
@@ -481,20 +486,145 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     }
   }, [showPolygon]);
 
+  // Cinematic Guided Tour / Story Mode (گەشتی بینراوی مێژوویی)
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [tourIndex, setTourIndex] = useState(0);
+  const [isTourPaused, setIsTourPaused] = useState(false);
+  const [tourSpeed, setTourSpeed] = useState<number>(7); // seconds per stop
+  const [tourProgress, setTourProgress] = useState(0); // 0 to 100%
+
   // Filter facts based on Active Year and Category Tag
   const visibleFacts = useMemo(() => {
     let list = facts;
-    // 1. Active Year Filter (Checks startYear <= selectedYear <= endYear)
-    if (selectedYear !== 'all') {
-      list = filterFactsByActiveYear(list, selectedYear);
-    }
-
-    // 2. Category Filter (پۆلێن)
+    // 1. Category Filter (پۆلێن)
     if (activeTagFilter !== 'all') {
       list = list.filter((fact) => getCategoryInfo(fact).id === activeTagFilter);
     }
+
+    // 2. Active Year Filter (Only if not in tour mode, and when specific year is chosen)
+    if (!isTourActive && selectedYear !== 'all') {
+      list = filterFactsByActiveYear(list, selectedYear);
+    }
+
     return list;
-  }, [facts, activeTagFilter, selectedYear]);
+  }, [facts, activeTagFilter, selectedYear, isTourActive]);
+
+  // Chronologically sorted facts for the Cinematic Story Mode
+  // ALWAYS includes all historical places (never filtered down by single year)
+  const tourList = useMemo(() => {
+    let list = facts;
+    if (activeTagFilter !== 'all') {
+      const catFiltered = list.filter((fact) => getCategoryInfo(fact).id === activeTagFilter);
+      if (catFiltered.length > 0) list = catFiltered;
+    }
+    return [...list].sort((a, b) => {
+      const yearA = getFactChronologicalYear(a);
+      const yearB = getFactChronologicalYear(b);
+      if (yearA !== yearB) return yearA - yearB;
+      return a.id - b.id;
+    });
+  }, [facts, activeTagFilter]);
+
+  const currentTourFact: FactItem | undefined = tourList[tourIndex];
+
+  // Smooth cinematic flight to target fact
+  const flyToTourFact = useCallback(
+    (targetFact: FactItem) => {
+      const map = mapInstanceRef.current;
+      if (!map || !targetFact) return;
+
+      onSelectFact(targetFact);
+
+      if (onYearChange && typeof targetFact.startYear === 'number') {
+        onYearChange(targetFact.startYear);
+      }
+
+      try {
+        const targetZoom = Math.max(targetFact.zoom || 9, 8);
+        map.flyTo([targetFact.lat, targetFact.lng], targetZoom, {
+          animate: true,
+          duration: 2.2,
+          easeLinearity: 0.25,
+        });
+      } catch (err) {
+        console.warn('Tour flyTo error:', err);
+      }
+    },
+    [onSelectFact, onYearChange]
+  );
+
+  // Toggle Story Mode / Cinematic Tour
+  const handleToggleTour = useCallback(() => {
+    if (isTourActive) {
+      setIsTourActive(false);
+      setIsTourPaused(false);
+      setTourProgress(0);
+      setShowQuickSummary(false);
+      if (onYearChange) {
+        onYearChange('all');
+      }
+    } else {
+      if (tourList.length === 0) {
+        setFilterNotification('هیچ بابەتێک بەردەست نییە بۆ گەشت');
+        return;
+      }
+
+      setShowAllMarkers(true);
+
+      let startIdx = 0;
+      if (selectedFact) {
+        const found = tourList.findIndex((f) => f.id === selectedFact.id);
+        if (found !== -1) startIdx = found;
+      }
+
+      setTourIndex(startIdx);
+      setIsTourActive(true);
+      setIsTourPaused(false);
+      setTourProgress(0);
+      setShowQuickSummary(false);
+      setIsMoreMenuOpen(false);
+      setIsFilterMenuOpen(false);
+      flyToTourFact(tourList[startIdx]);
+    }
+  }, [isTourActive, tourList, selectedFact, flyToTourFact, onYearChange, setShowAllMarkers]);
+
+  const handleNextTourFact = useCallback(() => {
+    if (tourList.length === 0) return;
+    const nextIdx = (tourIndex + 1) % tourList.length;
+    setTourIndex(nextIdx);
+    setTourProgress(0);
+    flyToTourFact(tourList[nextIdx]);
+  }, [tourIndex, tourList, flyToTourFact]);
+
+  const handlePrevTourFact = useCallback(() => {
+    if (tourList.length === 0) return;
+    const prevIdx = (tourIndex - 1 + tourList.length) % tourList.length;
+    setTourIndex(prevIdx);
+    setTourProgress(0);
+    flyToTourFact(tourList[prevIdx]);
+  }, [tourIndex, tourList, flyToTourFact]);
+
+  // Auto-advance timer for Cinematic Tour
+  useEffect(() => {
+    if (!isTourActive || isTourPaused || tourList.length === 0) {
+      return;
+    }
+
+    const intervalMs = 100;
+    const stepIncrement = (intervalMs / (tourSpeed * 1000)) * 100;
+
+    const timer = setInterval(() => {
+      setTourProgress((prev) => {
+        if (prev + stepIncrement >= 100) {
+          handleNextTourFact();
+          return 0;
+        }
+        return prev + stepIncrement;
+      });
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [isTourActive, isTourPaused, tourSpeed, tourList.length, handleNextTourFact]);
 
   // Update Markers
   useEffect(() => {
@@ -504,10 +634,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
     markersLayer.clearLayers();
 
-    visibleFacts.forEach((fact) => {
+    // In Tour Mode, display all facts from the tour.
+    // In normal mode, display visibleFacts (filtered by active year and active category)
+    const factsToRender = isTourActive ? tourList : visibleFacts;
+
+    factsToRender.forEach((fact) => {
       const isSelected = selectedFact?.id === fact.id;
 
-      if (!showAllMarkers && !isSelected) {
+      if (!showAllMarkers && !isSelected && !isTourActive) {
         return;
       }
 
@@ -587,7 +721,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         console.warn('Failed to add marker:', err);
       }
     });
-  }, [visibleFacts, selectedFact?.id, showAllMarkers]);
+  }, [visibleFacts, selectedFact?.id, showAllMarkers, isTourActive, tourList]);
 
   // Smooth camera flyTo on selectedFact change (disabled while intro is running)
   useEffect(() => {
@@ -910,6 +1044,31 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </button>
             )}
 
+            {/* گەشتی بینراوی مێژوویی (Cinematic Guided Tour / Story Mode) */}
+            <button
+              onClick={() => {
+                setIsMoreMenuOpen(false);
+                handleToggleTour();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-xs ${
+                isTourActive
+                  ? 'liquid-glass-btn-active font-bold'
+                  : 'liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Film className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium">گەشتی بینراوی مێژوویی (Story Mode)</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                isTourActive
+                  ? 'bg-black/30 text-black font-extrabold'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}>
+                {isTourActive ? 'چالاکە' : 'دەستپێکردن'}
+              </span>
+            </button>
+
             {/* 5. گۆڕینی شێوازی نەخشە: تاریک / مانگی دەستکرد */}
             <button
               onClick={() => {
@@ -1217,8 +1376,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           onYearChange={(newYear) => {
             if (onYearChange) onYearChange(newYear);
           }}
-          filteredCount={visibleFacts.length}
+          filteredCount={isTourActive ? tourList.length : visibleFacts.length}
           totalCount={facts.length}
+          isTourActive={isTourActive}
+          onToggleTour={handleToggleTour}
         />
 
         {/* Selected Fact Capsule (Liquid Glass Pill) */}
@@ -1306,6 +1467,176 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* 5. گەشتی بینراوی مێژوویی (Cinematic Guided Tour / Story Mode Overlay) */}
+      {isTourActive && currentTourFact && (
+        <>
+          {/* Cinematic Letterbox Vignettes */}
+          <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none z-30 animate-fade-in" />
+          <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none z-30 animate-fade-in" />
+
+          {/* Floating Cinematic Story Card */}
+          <div className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-[94%] max-w-lg z-40 pointer-events-auto animate-fade-in text-right">
+            <div className="relative liquid-glass-panel rounded-3xl p-3.5 sm:p-4 border border-amber-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.25)] overflow-hidden">
+              <div className="glass-specular-ray" />
+
+              {/* Card Header: Mode Badge, Progress Counter, Speed Selector, Close */}
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs">
+                    <Film className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-amber-300 font-heading tracking-wide truncate">
+                        گەشتی بینراوی مێژوویی
+                      </span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-300">
+                      شوێنی {toKurdishDigits(tourIndex + 1)} لە {toKurdishDigits(tourList.length)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Speed selector & Exit button */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center p-0.5 rounded-lg liquid-glass-subtle text-[10px] font-mono" dir="ltr">
+                    {[5, 7, 10].map((sec) => (
+                      <button
+                        key={sec}
+                        onClick={() => setTourSpeed(sec)}
+                        title={`خێرایی پەڕینەوە: ${sec} چرکە`}
+                        className={`px-1.5 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
+                          tourSpeed === sec
+                            ? 'liquid-glass-btn-active text-black'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {sec}s
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleToggleTour}
+                    className="w-7 h-7 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
+                    title="داخستنی گەشت"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Animated Timeline Countdown Bar */}
+              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden my-2.5">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all duration-100 ease-linear rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]"
+                  style={{ width: `${tourProgress}%` }}
+                />
+              </div>
+
+              {/* Story Content Row */}
+              <div className="flex gap-3 items-start my-1">
+                {currentTourFact.imageUrl && (
+                  <img
+                    src={currentTourFact.imageUrl}
+                    alt={currentTourFact.name}
+                    onClick={() =>
+                      setLightboxImage({
+                        url: currentTourFact.imageUrl!,
+                        title: currentTourFact.name,
+                        caption: currentTourFact.imageCaption || currentTourFact.desc,
+                      })
+                    }
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0 border border-white/20 cursor-pointer shadow-md hover:scale-105 transition-transform"
+                    title="کلیک بکە بۆ گەورەکردنی وێنە"
+                  />
+                )}
+
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <h3 className="text-sm sm:text-base font-extrabold text-white truncate tracking-wide">
+                      {currentTourFact.name}
+                    </h3>
+                    {(currentTourFact.year || currentTourFact.century) && (
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/30 shrink-0">
+                        {currentTourFact.year || currentTourFact.century}
+                      </span>
+                    )}
+                    {currentTourFact.eraName && (
+                      <span className="text-[9px] text-slate-300 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 shrink-0">
+                        {currentTourFact.eraName}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] sm:text-xs text-slate-200 line-clamp-2 leading-relaxed">
+                    {currentTourFact.desc || currentTourFact.fullText}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Interactive Navigation & Action Dock */}
+              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-white/10 text-xs">
+                {/* Media Controls (Prev, Pause/Play, Next) */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handlePrevTourFact}
+                    title="شوێنی پێشوو"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-[11px]"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">پێشوو</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsTourPaused(!isTourPaused)}
+                    title={isTourPaused ? 'دەستپێکردنەوەی گەشت' : 'وەستاندنی کاتی'}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-xl font-bold transition-all cursor-pointer text-[11px] ${
+                      isTourPaused
+                        ? 'liquid-glass-btn-active text-black shadow-md animate-pulse'
+                        : 'liquid-glass-btn text-amber-300 hover:text-white'
+                    }`}
+                  >
+                    {isTourPaused ? (
+                      <>
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>بەردەوامی</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="w-3.5 h-3.5 fill-current" />
+                        <span>وەستان</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleNextTourFact}
+                    title="شوێنی دواتر"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-[11px]"
+                  >
+                    <span className="hidden sm:inline">دواتر</span>
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* View Details Button */}
+                {onOpenDetail && (
+                  <button
+                    onClick={() => onOpenDetail(currentTourFact)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-subtle hover:liquid-glass-btn text-amber-300 hover:text-white transition-all cursor-pointer text-[11px] font-bold"
+                  >
+                    <Maximize2 className="w-3 h-3 text-amber-400" />
+                    <span>وردەکاری تەواو</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

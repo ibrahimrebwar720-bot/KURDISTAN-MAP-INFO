@@ -367,12 +367,13 @@
     transform: translateZ(0);
   }
 
-  /* Ultra-smooth 60Hz - 120Hz smooth scrolling for Timeline ruler */
+  /* Ultra-smooth 60Hz - 120Hz scrolling for Timeline ruler */
   .timeline-ruler-container {
-    scroll-behavior: smooth;
+    direction: ltr !important;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
-    will-change: scroll-position, transform;
-    transform: translate3d(0, 0, 0);
+    will-change: scroll-position;
   }
 }
 
