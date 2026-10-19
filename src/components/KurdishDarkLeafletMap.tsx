@@ -46,6 +46,7 @@ import {
   Play,
   Pause,
   Medal,
+  Palette,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -56,6 +57,9 @@ import {
 } from '../utils/yearUtils';
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 import { getCategoryInfo } from '../types/history';
+import { useTheme } from '../context/ThemeContext';
+import { THEME_LIST } from '../types/theme';
+import { ThemeSelectorModal } from './ThemeSelectorModal';
 
 interface Props {
   facts: FactItem[];
@@ -68,6 +72,7 @@ interface Props {
   setShowPolygon: (val: boolean) => void;
   onOpenMenu?: () => void;
   onOpenGallery?: () => void;
+  onOpenTheme?: () => void;
   activeTagFilter: string;
   setActiveTagFilter: (tag: string) => void;
   // Year & Timeline Slider Props
@@ -189,6 +194,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   setShowPolygon,
   onOpenMenu,
   onOpenGallery,
+  onOpenTheme,
   activeTagFilter,
   setActiveTagFilter,
   selectedYear = 'all',
@@ -224,6 +230,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     caption?: string;
     title: string;
   } | null>(null);
+
+  // Theme Context & Modal state
+  const { theme, themeId, setTheme } = useTheme();
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   // Filter Menu Popover & Toast state
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -483,17 +493,17 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
     if (showPolygon) {
       const polygon = L.polygon(GREAT_KURDISTAN_POLYGON, {
-        color: '#f59e0b',
+        color: theme.primaryColor || '#f59e0b',
         weight: 1.8,
-        opacity: 0.75,
-        fillColor: '#f59e0b',
-        fillOpacity: 0.05,
+        opacity: 0.8,
+        fillColor: theme.primaryColor || '#f59e0b',
+        fillOpacity: 0.06,
         dashArray: '6, 6',
       }).addTo(map);
 
       polygonLayerRef.current = polygon;
     }
-  }, [showPolygon]);
+  }, [showPolygon, theme.primaryColor]);
 
   // Cinematic Guided Tour / Story Mode (گەشتی بینراوی مێژوویی)
   const [isTourActive, setIsTourActive] = useState(false);
@@ -979,6 +989,60 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 <span className="font-medium">پێڕست و بابەتەکان</span>
               </div>
             </button>
+
+            {/* بەشی ڕووکار (Theme & Appearance) */}
+            <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs">
+              <button
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  if (onOpenTheme) onOpenTheme();
+                  else setIsThemeModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-1 rounded-xl text-xs hover:bg-white/10 text-slate-200 hover:text-white transition-all cursor-pointer group"
+                title="گۆڕینی ستایل و ڕەنگەکانی بەرنامە"
+              >
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" style={{ color: theme.primaryColor }} />
+                  <span className="font-bold text-white">بەشی ڕووکار</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shadow-xs border border-white/40"
+                    style={{ backgroundColor: theme.primaryColor }}
+                  />
+                  <span className="text-[10px] text-amber-300 font-bold truncate max-w-[85px]">
+                    {theme.name.split(' ')[0]}
+                  </span>
+                </div>
+              </button>
+
+              {/* 7 Theme Quick-Pick Swatch Bubbles */}
+              <div className="flex items-center justify-between px-1 pt-0.5">
+                <span className="text-[9px] text-slate-400 font-medium">ستایلەکان:</span>
+                <div className="flex items-center gap-1">
+                  {THEME_LIST.map((t) => {
+                    const isCur = themeId === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTheme(t.id);
+                        }}
+                        className={`w-4 h-4 rounded-full transition-all cursor-pointer border ${
+                          isCur
+                            ? 'scale-125 border-white ring-2 ring-white/60 shadow-[0_0_8px_var(--theme-accent)] z-10'
+                            : 'border-black/50 opacity-75 hover:opacity-100 hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: t.primaryColor }}
+                        title={`${t.name} (${t.englishName})`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
 
             {/* 2. فلتەری پۆلێنەکان (Categories Filter) */}
             <button
@@ -1647,6 +1711,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           </div>
         </>
       )}
+
+      {/* Theme Selector Modal (بەشی ڕووکار و ستایلی نەخشە) */}
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+      />
     </div>
   );
 };

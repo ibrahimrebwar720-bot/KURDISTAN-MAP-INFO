@@ -12,6 +12,7 @@ import {
   Layers,
   MapPin,
   Images,
+  Palette,
 } from 'lucide-react';
 
 interface Props {
@@ -30,6 +31,7 @@ interface Props {
   onOpenEditFact?: (fact: FactItem) => void;
   onOpenCollectionManager?: () => void;
   onOpenGallery?: () => void;
+  onOpenTheme?: () => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
 }
@@ -52,6 +54,7 @@ export const FactsList: React.FC<Props> = ({
   onOpenEditFact,
   onOpenCollectionManager,
   onOpenGallery,
+  onOpenTheme,
   onClose,
   onLogoutAdmin,
 }) => {
@@ -138,6 +141,19 @@ export const FactsList: React.FC<Props> = ({
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenTheme && (
+              <button
+                onClick={() => {
+                  if (onClose) onClose();
+                  onOpenTheme();
+                }}
+                className="p-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white transition-all cursor-pointer flex items-center justify-center shadow-xs"
+                title="بەشی ڕووکار (Theme)"
+                aria-label="بەشی ڕووکار"
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            )}
             {onOpenGallery && (
               <button
                 onClick={() => {

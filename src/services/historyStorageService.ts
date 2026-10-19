@@ -24,6 +24,25 @@ export function inferCollectionForFact(fact: FactItem): string {
   const t = fact.fullText.toLowerCase();
 
   if (
+    fact.tag === 'leader' ||
+    n.includes('سەرکردە') ||
+    n.includes('فەرماندە') ||
+    n.includes('پێشەوا') ||
+    n.includes('ڕابەر') ||
+    n.includes('قازی محەمەد') ||
+    n.includes('شێخ مەحموود') ||
+    n.includes('شێخ مەحمود') ||
+    n.includes('مستەفا بارزانی') ||
+    n.includes('شێخ سەعید') ||
+    n.includes('سەید ڕەزا') ||
+    n.includes('ئیحسان نوری') ||
+    n.includes('سمکۆ') ||
+    n.includes('شێخ عوبەیدوڵڵا')
+  ) {
+    return 'leader';
+  }
+
+  if (
     n.includes('پاشا') ||
     n.includes('ئەتابەگ') ||
     n.includes('سوڵتان') ||

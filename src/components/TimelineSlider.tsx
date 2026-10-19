@@ -159,7 +159,9 @@ export const TimelineSlider: React.FC<Props> = ({
     const children = container.children;
     if (!children || children.length === 0) return null;
 
-    const needleX = container.scrollLeft + container.clientWidth / 2;
+    const containerRect = container.getBoundingClientRect();
+    const needleScreenX = containerRect.left + containerRect.width / 2;
+
     let low = 0;
     let high = children.length - 1;
     let closestEl: HTMLElement | null = null;
@@ -168,15 +170,16 @@ export const TimelineSlider: React.FC<Props> = ({
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       const child = children[mid] as HTMLElement;
-      const childCenter = child.offsetLeft + child.offsetWidth / 2;
-      const diff = Math.abs(childCenter - needleX);
+      const childRect = child.getBoundingClientRect();
+      const childCenterScreenX = childRect.left + childRect.width / 2;
+      const diff = Math.abs(childCenterScreenX - needleScreenX);
 
       if (diff < minDiff) {
         minDiff = diff;
         closestEl = child;
       }
 
-      if (childCenter < needleX) {
+      if (childCenterScreenX < needleScreenX) {
         low = mid + 1;
       } else {
         high = mid - 1;
@@ -509,7 +512,10 @@ export const TimelineSlider: React.FC<Props> = ({
           {/* Precision Ruler Strip (شوشەی شلە بە دەرزی زێڕینی پێوانە) */}
           <div className="relative flex-1 liquid-glass-subtle rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1 shadow-inner">
             {/* Center Fixed Hairline Indicator (دەرزی پێوانەی ناوەڕاست) */}
-            <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 bg-amber-400 z-20 pointer-events-none shadow-[0_0_8px_#f59e0b] flex flex-col justify-between items-center">
+            <div
+              className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 bg-amber-400 z-20 pointer-events-none flex flex-col justify-between items-center"
+              style={{ boxShadow: '0 0 10px var(--theme-accent)' }}
+            >
               <span className="text-[5px] sm:text-[7px] text-amber-400 -mt-0.5 leading-none select-none">▼</span>
               <span className="text-[5px] sm:text-[7px] text-amber-400 -mb-0.5 leading-none select-none">▲</span>
             </div>

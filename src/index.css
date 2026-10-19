@@ -4,6 +4,116 @@
   :root {
     --font-sans: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-heading: 'Noto Kufi Arabic', 'Vazirmatn', sans-serif;
+
+    /* Global Theme Variables (Default: Kurdish Gold & Obsidian) */
+    --theme-accent: #f59e0b;
+    --theme-accent-light: #fbbf24;
+    --theme-accent-dark: #d97706;
+    --theme-accent-soft: rgba(245, 158, 11, 0.2);
+    --theme-accent-glow: rgba(245, 158, 11, 0.45);
+    --theme-secondary: #fbbf24;
+    --theme-bg: #030712;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(6, 11, 24, 0.78) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, rgba(251, 191, 36, 0.98) 0%, rgba(217, 119, 6, 0.92) 100%);
+    --theme-btn-active-text: #060913;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(245, 158, 11, 0.32) 0%, rgba(245, 158, 11, 0.12) 100%);
+    --theme-border-accent: rgba(251, 191, 36, 0.55);
+  }
+
+  /* 1. Neon Orange & Porcelain */
+  [data-theme="neon-orange-porcelain"] {
+    --theme-accent: #ff5f00;
+    --theme-accent-light: #ff7d2b;
+    --theme-accent-dark: #cc4c00;
+    --theme-accent-soft: rgba(255, 95, 0, 0.22);
+    --theme-accent-glow: rgba(255, 95, 0, 0.55);
+    --theme-secondary: #f4f4f7;
+    --theme-bg: #0a0d14;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 95, 0, 0.09) 50%, rgba(10, 13, 20, 0.86) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, #ff7a1a 0%, #d94e00 100%);
+    --theme-btn-active-text: #ffffff;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(255, 95, 0, 0.35) 0%, rgba(255, 95, 0, 0.14) 100%);
+    --theme-border-accent: rgba(255, 122, 26, 0.65);
+  }
+
+  /* 2. Forest Graphite & Acid Mint */
+  [data-theme="forest-graphite-acid-mint"] {
+    --theme-accent: #00ff9d;
+    --theme-accent-light: #38ffb0;
+    --theme-accent-dark: #00cc7d;
+    --theme-accent-soft: rgba(0, 255, 157, 0.22);
+    --theme-accent-glow: rgba(0, 255, 157, 0.55);
+    --theme-secondary: #203328;
+    --theme-bg: #06110c;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(0, 255, 157, 0.13) 0%, rgba(32, 51, 40, 0.35) 50%, rgba(6, 17, 12, 0.88) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, #00ff9d 0%, #00b86e 100%);
+    --theme-btn-active-text: #04160d;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(0, 255, 157, 0.32) 0%, rgba(0, 255, 157, 0.12) 100%);
+    --theme-border-accent: rgba(0, 255, 157, 0.6);
+  }
+
+  /* 3. Signal Violet & Mist Gray */
+  [data-theme="signal-violet-mist-gray"] {
+    --theme-accent: #a855f7;
+    --theme-accent-light: #c084fc;
+    --theme-accent-dark: #7e22ce;
+    --theme-accent-soft: rgba(168, 85, 247, 0.22);
+    --theme-accent-glow: rgba(168, 85, 247, 0.52);
+    --theme-secondary: #cbd5e1;
+    --theme-bg: #0c0915;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(203, 213, 225, 0.08) 50%, rgba(12, 9, 21, 0.88) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, #c084fc 0%, #9333ea 100%);
+    --theme-btn-active-text: #ffffff;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(168, 85, 247, 0.35) 0%, rgba(168, 85, 247, 0.12) 100%);
+    --theme-border-accent: rgba(192, 132, 252, 0.65);
+  }
+
+  /* 4. Prompt Blue & AI Green */
+  [data-theme="prompt-blue-ai-green"] {
+    --theme-accent: #0084ff;
+    --theme-accent-light: #38bdf8;
+    --theme-accent-dark: #0066cc;
+    --theme-accent-soft: rgba(0, 132, 255, 0.22);
+    --theme-accent-glow: rgba(0, 132, 255, 0.52);
+    --theme-secondary: #00f59b;
+    --theme-bg: #050d18;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(0, 132, 255, 0.15) 0%, rgba(0, 245, 155, 0.10) 50%, rgba(5, 13, 24, 0.88) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, #0084ff 0%, #00f59b 100%);
+    --theme-btn-active-text: #021020;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(0, 132, 255, 0.35) 0%, rgba(0, 245, 155, 0.12) 100%);
+    --theme-border-accent: rgba(56, 189, 248, 0.65);
+  }
+
+  /* 5. Inkberry & Peach */
+  [data-theme="inkberry-peach"] {
+    --theme-accent: #ff9371;
+    --theme-accent-light: #ffaa8e;
+    --theme-accent-dark: #ea580c;
+    --theme-accent-soft: rgba(255, 147, 113, 0.22);
+    --theme-accent-glow: rgba(255, 147, 113, 0.52);
+    --theme-secondary: #4a154b;
+    --theme-bg: #120716;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(255, 147, 113, 0.15) 0%, rgba(74, 21, 75, 0.35) 50%, rgba(18, 7, 22, 0.90) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, #ffaa8e 0%, #ea580c 100%);
+    --theme-btn-active-text: #2a0820;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(255, 147, 113, 0.35) 0%, rgba(255, 147, 113, 0.12) 100%);
+    --theme-border-accent: rgba(255, 170, 142, 0.65);
+  }
+
+  /* 6. Clay Brown & Soft Butter */
+  [data-theme="clay-brown-soft-butter"] {
+    --theme-accent: #fde047;
+    --theme-accent-light: #fef08a;
+    --theme-accent-dark: #ca8a04;
+    --theme-accent-soft: rgba(253, 224, 71, 0.22);
+    --theme-accent-glow: rgba(253, 224, 71, 0.50);
+    --theme-secondary: #9a3412;
+    --theme-bg: #150d09;
+    --theme-panel-gradient: linear-gradient(135deg, rgba(254, 240, 138, 0.15) 0%, rgba(154, 52, 18, 0.30) 50%, rgba(21, 13, 9, 0.90) 100%);
+    --theme-btn-active-bg: linear-gradient(180deg, #fde047 0%, #b45309 100%);
+    --theme-btn-active-text: #261205;
+    --theme-btn-hover-bg: linear-gradient(180deg, rgba(253, 224, 71, 0.35) 0%, rgba(154, 52, 18, 0.18) 100%);
+    --theme-border-accent: rgba(254, 240, 138, 0.65);
   }
 
   html, body {
@@ -21,8 +131,9 @@
   body {
     font-family: var(--font-sans);
     direction: rtl;
-    background-color: #030712;
+    background-color: var(--theme-bg, #030712);
     color: #f3f4f6;
+    transition: background-color 0.3s ease;
   }
 
   #root {
@@ -38,14 +149,14 @@
   }
 }
 
-/* Custom Scrollbars in Dark & Amber Gold theme */
+/* Custom Scrollbars tied to active theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #050812;
+  background: var(--theme-bg, #050812);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -54,7 +165,7 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #f59e0b;
+  background: var(--theme-accent, #f59e0b);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -67,12 +178,38 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(245, 158, 11, 0.25);
+  background: var(--theme-accent-soft, rgba(245, 158, 11, 0.25));
   border-radius: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 158, 11, 0.6);
+  background: var(--theme-accent, rgba(245, 158, 11, 0.6));
+}
+
+/* Dynamic theme overrides for amber highlights */
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-400 {
+  color: var(--theme-accent) !important;
+}
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-300 {
+  color: var(--theme-accent-light) !important;
+}
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-200 {
+  color: var(--theme-accent-light) !important;
+}
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400,
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/50,
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/40,
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/30,
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-500\/30 {
+  border-color: var(--theme-accent-soft) !important;
+}
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-400 {
+  background-color: var(--theme-accent) !important;
+}
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-500\/20,
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-400\/10,
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-500\/10 {
+  background-color: var(--theme-accent-soft) !important;
 }
 
 @keyframes shake {
@@ -87,7 +224,7 @@
 
 /* Liquid Glass (شوشەی شلە و شوشەی ڕوون) Comprehensive Design System */
 .liquid-glass-panel {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(6, 11, 24, 0.78) 100%);
+  background: var(--theme-panel-gradient, linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(6, 11, 24, 0.78) 100%));
   backdrop-filter: blur(28px) saturate(210%) brightness(108%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(108%);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -97,11 +234,11 @@
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.5),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4),
     0 24px 60px -10px rgba(0, 0, 0, 0.88),
-    0 0 35px 0 rgba(245, 158, 11, 0.12);
+    0 0 35px 0 var(--theme-accent-glow, rgba(245, 158, 11, 0.12));
 }
 
 .liquid-glass-dock {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(4, 8, 18, 0.82) 100%);
+  background: var(--theme-panel-gradient, linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(4, 8, 18, 0.82) 100%));
   backdrop-filter: blur(32px) saturate(220%) brightness(110%);
   -webkit-backdrop-filter: blur(32px) saturate(220%) brightness(110%);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -110,11 +247,11 @@
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.55),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.45),
     0 20px 50px rgba(0, 0, 0, 0.9),
-    0 0 30px rgba(245, 158, 11, 0.16);
+    0 0 30px var(--theme-accent-glow, rgba(245, 158, 11, 0.16));
 }
 
 .liquid-glass-card {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(5, 9, 20, 0.82) 100%);
+  background: var(--theme-panel-gradient, linear-gradient(145deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(5, 9, 20, 0.82) 100%));
   backdrop-filter: blur(24px) saturate(200%) brightness(106%);
   -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(106%);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -123,7 +260,7 @@
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.42),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.35),
     0 18px 45px rgba(0, 0, 0, 0.8),
-    0 0 25px rgba(245, 158, 11, 0.12);
+    0 0 25px var(--theme-accent-glow, rgba(245, 158, 11, 0.12));
 }
 
 .liquid-glass-subtle {
@@ -150,25 +287,25 @@
 }
 
 .liquid-glass-btn:hover {
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.32) 0%, rgba(245, 158, 11, 0.12) 100%);
-  border-color: rgba(251, 191, 36, 0.55);
+  background: var(--theme-btn-hover-bg, linear-gradient(180deg, rgba(245, 158, 11, 0.32) 0%, rgba(245, 158, 11, 0.12) 100%));
+  border-color: var(--theme-border-accent, rgba(251, 191, 36, 0.55));
   border-top-color: rgba(255, 255, 255, 0.75);
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.6),
-    0 8px 25px rgba(245, 158, 11, 0.4);
+    0 8px 25px var(--theme-accent-glow, rgba(245, 158, 11, 0.4));
   transform: translateY(-1px);
 }
 
 .liquid-glass-btn-active {
-  background: linear-gradient(180deg, rgba(251, 191, 36, 0.98) 0%, rgba(217, 119, 6, 0.92) 100%);
+  background: var(--theme-btn-active-bg, linear-gradient(180deg, rgba(251, 191, 36, 0.98) 0%, rgba(217, 119, 6, 0.92) 100%));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(254, 243, 199, 0.9);
   border-top: 1px solid #ffffff;
-  color: #060913;
+  color: var(--theme-btn-active-text, #060913);
   box-shadow:
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.9),
-    0 0 30px rgba(245, 158, 11, 0.7),
+    0 0 30px var(--theme-accent-glow, rgba(245, 158, 11, 0.7)),
     0 6px 20px rgba(0, 0, 0, 0.65);
 }
 
@@ -185,11 +322,11 @@
 }
 
 .liquid-glass-input:focus {
-  border-color: rgba(245, 158, 11, 0.8);
-  border-top-color: rgba(251, 191, 36, 0.95);
+  border-color: var(--theme-accent, rgba(245, 158, 11, 0.8));
+  border-top-color: var(--theme-accent-light, rgba(251, 191, 36, 0.95));
   box-shadow:
     inset 0 1px 2px 0 rgba(0, 0, 0, 0.3),
-    0 0 25px rgba(245, 158, 11, 0.42);
+    0 0 25px var(--theme-accent-glow, rgba(245, 158, 11, 0.42));
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(3, 7, 18, 0.92) 100%);
 }
 

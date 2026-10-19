@@ -23,6 +23,7 @@ import { AdminPinModal } from './components/AdminPinModal';
 import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
 import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
+import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState<boolean>(true);
@@ -47,6 +48,7 @@ export default function App() {
   const [factToEdit, setFactToEdit] = useState<FactItem | null>(null);
   const [isCollectionManagerOpen, setIsCollectionManagerOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   // Map Point Picking state
   const [isPickingLocation, setIsPickingLocation] = useState(false);
@@ -317,6 +319,7 @@ export default function App() {
           setShowPolygon={setShowPolygon}
           onOpenMenu={() => setIsMenuOpen(true)}
           onOpenGallery={() => setIsGalleryOpen(true)}
+          onOpenTheme={() => setIsThemeModalOpen(true)}
           activeTagFilter={selectedCategory}
           setActiveTagFilter={setSelectedCategory}
           selectedYear={selectedYear}
@@ -364,6 +367,7 @@ export default function App() {
                   onOpenEditFact={handleOpenEditFact}
                   onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
                   onOpenGallery={() => setIsGalleryOpen(true)}
+                  onOpenTheme={() => setIsThemeModalOpen(true)}
                   onClose={() => setIsMenuOpen(false)}
                   onLogoutAdmin={handleAdminLogout}
                 />
@@ -428,6 +432,12 @@ export default function App() {
         onAddCollection={handleAddCollection}
         onUpdateCollection={handleUpdateCollection}
         onDeleteCollection={handleDeleteCollection}
+      />
+
+      {/* App Theme & Color Customizer Modal (بەشی ڕووکار) */}
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
       />
     </div>
   );
