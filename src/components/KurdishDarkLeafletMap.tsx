@@ -47,6 +47,7 @@ import {
   Pause,
   Medal,
   Palette,
+  Link2,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -58,6 +59,7 @@ import {
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 import { getCategoryInfo } from '../types/history';
 import { useTheme } from '../context/ThemeContext';
+import { getLinkedFacts } from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 
@@ -235,11 +237,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const { theme, themeId, setTheme } = useTheme();
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
-  // Filter Menu Popover & Toast state
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  // Menu state
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [filterNotification, setFilterNotification] = useState<string | null>(null);
-  const filterNotificationTimeoutRef = useRef<any>(null);
 
   // Admin secret 6-tap tracking
   const [adminTapCount, setAdminTapCount] = useState(0);
@@ -255,6 +254,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     return counts;
   }, [facts]);
 
+  // Selected Fact's linked historical entities & figures
+  const selectedLinked = useMemo(() => {
+    return getLinkedFacts(selectedFact, facts);
+  }, [selectedFact, facts]);
+
   // Active filter object definition
   const currentFilterObj = useMemo(() => {
     return (
@@ -263,27 +267,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     );
   }, [activeTagFilter]);
 
-  // Handle changing filter with beautiful notification
+  // Handle changing filter
   const handleSelectTagFilter = (tagId: string) => {
     setActiveTagFilter(tagId);
-    setIsFilterMenuOpen(false);
     setIsMoreMenuOpen(false);
-
-    const targetOpt = TAG_FILTER_OPTIONS.find((t) => t.id === tagId) || TAG_FILTER_OPTIONS[0];
-    setFilterNotification(targetOpt.label);
-
-    if (filterNotificationTimeoutRef.current) {
-      clearTimeout(filterNotificationTimeoutRef.current);
-    }
-    filterNotificationTimeoutRef.current = setTimeout(() => {
-      setFilterNotification(null);
-    }, 3500);
-  };
-
-  // Toggle or open filter menu and automatically close more menu
-  const handleFilterButtonClick = () => {
-    setIsMoreMenuOpen(false);
-    setIsFilterMenuOpen((prev) => !prev);
   };
 
   const handleAdminIconClick = () => {
@@ -394,7 +381,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       if (isPickingLocation && onPickLocation) {
         onPickLocation(e.latlng.lat, e.latlng.lng);
       }
-      setIsFilterMenuOpen(false);
     };
 
     map.on('click', handleMapClick);
@@ -584,7 +570,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       }
     } else {
       if (tourList.length === 0) {
-        setFilterNotification('هیچ بابەتێک بەردەست نییە بۆ گەشت');
         return;
       }
 
@@ -602,7 +587,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       setTourProgress(0);
       setShowQuickSummary(false);
       setIsMoreMenuOpen(false);
-      setIsFilterMenuOpen(false);
       flyToTourFact(tourList[startIdx]);
     }
   }, [isTourActive, tourList, selectedFact, flyToTourFact, onYearChange, setShowAllMarkers]);
@@ -863,13 +847,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Filter Notification Toast (Pops up when switched) */}
-        {filterNotification && activeTagFilter === 'all' && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3 py-1 rounded-full liquid-glass-dock border border-white/15 text-amber-300 text-[11px] font-medium shadow-xl animate-fade-in">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-            <span>فلتەر: {filterNotification}</span>
-          </div>
-        )}
       </div>
 
       {/* 3. Top-Left Admin Indicator when active */}
@@ -899,21 +876,32 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         </div>
       )}
 
-      {/* 4. "زیاتر" Button & 3D Glass Marbles Dock ("تۆپ تۆپ وەک هەڵمات بکەونە سەر یەک بە گرافیکێکی زۆر شاز") */}
+      {/* 4. Top Action Buttons: پێڕست + گەلەری + زیاتر */}
       {/* Backdrop to close menu when tapping anywhere on map */}
-      {/* Backdrop to close menu when tapping anywhere on map */}
-      {(isMoreMenuOpen || isFilterMenuOpen) && (
+      {isMoreMenuOpen && (
         <div
           className="fixed inset-0 z-28 bg-black/40 backdrop-blur-xs transition-opacity animate-fade-in cursor-pointer"
           onClick={() => {
             setIsMoreMenuOpen(false);
-            setIsFilterMenuOpen(false);
           }}
         />
       )}
 
       <div className="absolute top-3 right-3 z-30 pointer-events-auto flex flex-col items-end gap-2">
         <div className="flex items-center gap-1.5">
+          {/* دوگمەی سەرەکی پێڕست - کردنەوەی ڕاستەوخۆ بەبێ لق و پۆپی زیادە */}
+          {onOpenMenu && (
+            <button
+              onClick={onOpenMenu}
+              className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-2xl liquid-glass-btn text-amber-300 hover:text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-2xl transition-all cursor-pointer active:scale-95 group overflow-hidden"
+              title="پێڕستی بابەتەکان"
+            >
+              <div className="glass-specular-ray" />
+              <Menu className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="font-heading font-bold text-xs">پێڕست</span>
+            </button>
+          )}
+
           {/* ئایکۆنی گەلەری بە شێوازی شوشەی شلە (Liquid Glass) */}
           {onOpenGallery && (
             <button
@@ -931,7 +919,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           <button
             onClick={() => {
               setIsMoreMenuOpen(!isMoreMenuOpen);
-              if (isMoreMenuOpen) setIsFilterMenuOpen(false);
             }}
             className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-2xl backdrop-blur-2xl transition-all duration-200 shadow-xl cursor-pointer select-none overflow-hidden ${
               isMoreMenuOpen
@@ -959,36 +946,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="glass-specular-ray" />
-
-            {/* 0. گەلەری */}
-            {onOpenGallery && (
-              <button
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  setIsFilterMenuOpen(false);
-                  onOpenGallery();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/50 text-amber-200 transition-all cursor-pointer group shadow-xs"
-              >
-                <Images className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-                <span className="font-bold">گەلەری</span>
-              </button>
-            )}
-
-            {/* 1. پێڕست و بابەتەکان (Menu & Drawer) */}
-            <button
-              onClick={() => {
-                setIsMoreMenuOpen(false);
-                setIsFilterMenuOpen(false);
-                if (onOpenMenu) onOpenMenu();
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200 transition-all cursor-pointer group shadow-xs"
-            >
-              <div className="flex items-center gap-2.5">
-                <Menu className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-                <span className="font-medium">پێڕست و بابەتەکان</span>
-              </div>
-            </button>
 
             {/* بەشی ڕووکار (Theme & Appearance) */}
             <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs">
@@ -1044,31 +1001,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* 2. فلتەری پۆلێنەکان (Categories Filter) */}
-            <button
-              onClick={() => {
-                setIsMoreMenuOpen(false);
-                setIsFilterMenuOpen(true);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
-                activeTagFilter !== 'all'
-                  ? 'liquid-glass-btn-active font-bold'
-                  : 'liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <SlidersHorizontal className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-medium">پۆلێنەکان</span>
-              </div>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                activeTagFilter !== 'all'
-                  ? 'bg-black/30 text-black font-extrabold'
-                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-              }`}>
-                {currentFilterObj.label}
-              </span>
-            </button>
-
             {/* 3. مارکەرەکان (Layers Toggle) */}
             <button
               onClick={() => {
@@ -1091,7 +1023,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               onClick={() => {
                 handleResetCamera();
                 setIsMoreMenuOpen(false);
-                setIsFilterMenuOpen(false);
               }}
               className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200 transition-all cursor-pointer shadow-xs"
             >
@@ -1099,47 +1030,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 <Compass className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="font-medium">تەواوی نەخشە</span>
               </div>
-            </button>
-
-            {/* دووبارەکردنەوەی ئینترۆی تیشکی نەخشە */}
-            {onReplayIntro && (
-              <button
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  onReplayIntro();
-                }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200 transition-all cursor-pointer shadow-xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="font-medium">دووبارەکردنەوەی ئینترۆی نەخشە</span>
-                </div>
-              </button>
-            )}
-
-            {/* گەشتی بینراوی مێژوویی (Cinematic Guided Tour / Story Mode) */}
-            <button
-              onClick={() => {
-                setIsMoreMenuOpen(false);
-                handleToggleTour();
-              }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-xs ${
-                isTourActive
-                  ? 'liquid-glass-btn-active font-bold'
-                  : 'liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Film className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-medium">گەشتی بینراوی مێژوویی (Story Mode)</span>
-              </div>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                isTourActive
-                  ? 'bg-black/30 text-black font-extrabold'
-                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-              }`}>
-                {isTourActive ? 'چالاکە' : 'دەستپێکردن'}
-              </span>
             </button>
 
             {/* 5. گۆڕینی شێوازی نەخشە: تاریک / مانگی دەستکرد */}
@@ -1201,73 +1091,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 </span>
               </div>
             </button>
-          </div>
-        )}
-
-        {/* Interactive Popover Menu for Category Filters - Liquid Glass */}
-        {isFilterMenuOpen && (
-          <div
-            className="relative w-68 liquid-glass-card rounded-3xl p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_60px_rgba(0,0,0,0.9),0_0_25px_rgba(245,158,11,0.15)] backdrop-blur-3xl z-40 text-right animate-menu-dropdown space-y-2 mt-1 overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="glass-specular-ray" />
-            <div className="flex items-center justify-between pb-2 border-b border-white/10 px-1 text-amber-300">
-              <div className="flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-xs font-bold text-amber-200">
-                  پۆلێنەکان
-                </span>
-              </div>
-              <button
-                onClick={() => setIsFilterMenuOpen(false)}
-                className="p-1 rounded-lg text-amber-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                title="داخستن"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              {TAG_FILTER_OPTIONS.map((opt) => {
-                const isSelected = activeTagFilter === opt.id;
-                const IconComp = opt.icon;
-                const count = tagCounts[opt.id] || 0;
-
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleSelectTagFilter(opt.id)}
-                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
-                      isSelected
-                        ? 'liquid-glass-btn-active font-extrabold shadow-md'
-                        : 'liquid-glass-subtle text-slate-200 hover:border-amber-400/40 hover:text-amber-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <IconComp
-                        className={`w-4 h-4 shrink-0 ${
-                          isSelected ? 'text-black' : 'text-amber-400'
-                        }`}
-                      />
-                      <span className="truncate">{opt.label}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span
-                        className={`font-mono text-[9px] px-1.5 py-0.5 rounded-full ${
-                          isSelected
-                            ? 'bg-black/30 text-black font-bold'
-                            : 'bg-white/10 text-amber-300/90 border border-white/10'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                      {isSelected && <Check className="w-3 h-3 text-black font-bold" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
       </div>
@@ -1400,6 +1223,68 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 {selectedFact.fullText || selectedFact.desc}
               </p>
             </div>
+
+            {/* Linked Topics Quick Pills */}
+            {selectedLinked.allRelated.length > 0 && (
+              <div className="mt-2.5 p-2 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-amber-300 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>بابەت و کەسایەتییە پەیوەندیدارەکان ({selectedLinked.allRelated.length}):</span>
+                  </span>
+                  {selectedLinked.allRelated.length > 3 && onOpenDetail && (
+                    <button
+                      onClick={() => {
+                        setShowQuickSummary(false);
+                        onOpenDetail(selectedFact);
+                      }}
+                      className="text-[10px] text-amber-400 hover:text-amber-200 hover:underline cursor-pointer"
+                    >
+                      هەموو بابەتەکان
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  {selectedLinked.allRelated.slice(0, 6).map((lf) => {
+                    const c = getCategoryInfo(lf);
+                    return (
+                      <button
+                        key={lf.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectFact(lf);
+                        }}
+                        className="px-2 py-1 rounded-lg text-[10px] font-medium shrink-0 flex items-center gap-1 border transition-all cursor-pointer hover:border-amber-400 active:scale-95"
+                        style={{
+                          backgroundColor: `${c.color}20`,
+                          borderColor: `${c.color}45`,
+                          color: '#fff',
+                        }}
+                        title={`کلیک بکە بۆ نیشاندانی «${lf.name}»`}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        <span className="truncate max-w-[130px] font-bold">{lf.name}</span>
+                      </button>
+                    );
+                  })}
+                  {selectedLinked.allRelated.length > 6 && onOpenDetail && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowQuickSummary(false);
+                        onOpenDetail(selectedFact);
+                      }}
+                      className="px-2 py-1 rounded-lg liquid-glass-btn text-[10px] text-amber-300 shrink-0 font-bold"
+                    >
+                      +{selectedLinked.allRelated.length - 6}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Action Footer */}
             <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-white/10">

@@ -11,7 +11,7 @@ const origError = console.error;
 console.error = (...args: unknown[]) => {
   origError.apply(console, args);
   const msg = args.map((a) => String(a)).join(' ');
-  if (msg.includes('OverQuotaMapError') || msg.includes('QuotaExceededError')) {
+  if (msg.includes('OverQuotaMapError') || (msg.includes('google.maps') && msg.includes('Quota'))) {
     window.dispatchEvent(new CustomEvent('gmp-quota-exceeded'));
   }
 };

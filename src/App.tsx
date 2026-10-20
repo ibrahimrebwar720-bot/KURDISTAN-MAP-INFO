@@ -12,6 +12,7 @@ import {
   saveFactToCloud,
   deleteFactFromCloud,
   saveNotesToCloud,
+  updateFactRelationsInCloud,
   subscribeToCloudCollections,
   saveCollectionToCloud,
   deleteCollectionFromCloud,
@@ -237,6 +238,44 @@ export default function App() {
     });
   };
 
+  // Save relations / topic linking
+  const handleSaveLinks = async (
+    sourceFactId: number,
+    targetFactIds: number[],
+    parentFactId?: number
+  ) => {
+    // 1. Optimistic local update
+    setFacts((prev) =>
+      prev.map((f) => {
+        if (f.id === sourceFactId) {
+          return {
+            ...f,
+            relatedFactIds: targetFactIds,
+            parentFactId: typeof parentFactId === 'number' ? parentFactId : f.parentFactId,
+          };
+        }
+        return f;
+      })
+    );
+
+    if (detailFact && detailFact.id === sourceFactId) {
+      setDetailFact((prev) =>
+        prev
+          ? {
+              ...prev,
+              relatedFactIds: targetFactIds,
+              parentFactId: typeof parentFactId === 'number' ? parentFactId : prev.parentFactId,
+            }
+          : null
+      );
+    }
+
+    // 2. Cloud Firestore update
+    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId).catch((err) => {
+      console.error('Failed to sync fact relations to cloud:', err);
+    });
+  };
+
   // Map Point Picking flow
   const handleStartPickLocation = () => {
     setIsFactEditorOpen(false);
@@ -287,24 +326,6 @@ export default function App() {
 
   return (
     <div className="h-full h-[100dvh] w-full overflow-hidden bg-[#05070e] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs">
-      {/* Google Maps Platform quota defense notification banner */}
-      {isGmpQuotaExceeded && (
-        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
-          <span>
-            Google Maps Platform quota reached. If you are the app owner, visit{' '}
-            <a
-              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-semibold text-amber-950 hover:text-amber-800"
-            >
-              maps developer site
-            </a>{' '}
-            for instructions to update your account.
-          </span>
-        </div>
-      )}
-
       {/* Main Screen: Leaflet CartoDB Dark Matter */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
         {/* Full Viewport Interactive Kurdish Clean Dark Map */}
@@ -337,47 +358,36 @@ export default function App() {
           onMapIntroComplete={() => setShowIntro(false)}
         />
 
-        {/* Slide-Over Menu Drawer */}
+        {/* Full-Screen Grid Dashboard for پێڕست (وەک دیزاینی وێنەکە بە شێوازی Grid) */}
         {isMenuOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-              onClick={() => setIsMenuOpen(false)}
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#070913]/98 backdrop-blur-2xl animate-fade-in overflow-hidden">
+            <FactsList
+              facts={facts}
+              selectedFact={selectedFact}
+              onSelectFact={(fact) => {
+                handleSelectFact(fact);
+                setIsMenuOpen(false);
+              }}
+              onOpenDetail={(fact) => setDetailFact(fact)}
+              collections={collections}
+              selectedCollectionId={selectedCategory}
+              onSelectCollection={setSelectedCategory}
+              activeCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              isAdmin={isAdmin}
+              onOpenAddFact={handleOpenAddFact}
+              onOpenEditFact={handleOpenEditFact}
+              onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
+              onOpenGallery={() => setIsGalleryOpen(true)}
+              onOpenTheme={() => setIsThemeModalOpen(true)}
+              onClose={() => setIsMenuOpen(false)}
+              onLogoutAdmin={handleAdminLogout}
             />
-
-            {/* Drawer Content - Starts directly from Search with close button */}
-            <aside className="relative w-full sm:w-[400px] md:w-[460px] h-full liquid-glass-dock border-y-0 rounded-none border-r sm:border-r-0 sm:border-l border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_0_60px_rgba(0,0,0,0.95)] backdrop-blur-3xl flex flex-col z-10 animate-slide-left text-right overflow-hidden">
-              <div className="glass-specular-ray" />
-              <div className="flex-1 overflow-hidden p-2 sm:p-3 relative z-10">
-                <FactsList
-                  facts={facts}
-                  selectedFact={selectedFact}
-                  onSelectFact={(fact) => {
-                    handleSelectFact(fact);
-                  }}
-                  onOpenDetail={(fact) => setDetailFact(fact)}
-                  collections={collections}
-                  selectedCollectionId={selectedCategory}
-                  onSelectCollection={setSelectedCategory}
-                  activeCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
-                  isAdmin={isAdmin}
-                  onOpenAddFact={handleOpenAddFact}
-                  onOpenEditFact={handleOpenEditFact}
-                  onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
-                  onOpenGallery={() => setIsGalleryOpen(true)}
-                  onOpenTheme={() => setIsThemeModalOpen(true)}
-                  onClose={() => setIsMenuOpen(false)}
-                  onLogoutAdmin={handleAdminLogout}
-                />
-              </div>
-            </aside>
           </div>
         )}
       </main>
 
-      {/* Fact Detail Modal (With Additional Notes Box in place of Gemini) */}
+      {/* Fact Detail Modal (With Related Topics & Documents) */}
       <FactDetailModal
         fact={detailFact}
         onClose={() => setDetailFact(null)}
@@ -391,6 +401,12 @@ export default function App() {
         onSaveNotes={handleSaveNotes}
         onOpenGallery={() => setIsGalleryOpen(true)}
         totalFactsCount={facts.length}
+        allFacts={facts}
+        onSelectFact={(fact) => {
+          setDetailFact(fact);
+          handleSelectFact(fact);
+        }}
+        onSaveLinks={handleSaveLinks}
       />
 
       {/* Kurdish Historical Gallery Modal with 6-second auto slideshow */}
@@ -411,12 +427,13 @@ export default function App() {
         onSuccess={handleAdminSuccess}
       />
 
-      {/* Fact Editor Modal (Add/Edit Fact, Map Coordinates, Additional Notes) */}
+      {/* Fact Editor Modal (Add/Edit Fact, Relations Linking, Coordinates, Notes) */}
       <FactEditorModal
         isOpen={isFactEditorOpen}
         onClose={() => setIsFactEditorOpen(false)}
         factToEdit={factToEdit}
         collections={collections}
+        allFacts={facts}
         onSave={handleSaveFact}
         onDelete={handleDeleteFact}
         onStartPickLocation={handleStartPickLocation}

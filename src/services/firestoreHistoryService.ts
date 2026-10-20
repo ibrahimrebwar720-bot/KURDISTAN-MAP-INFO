@@ -176,6 +176,39 @@ export async function saveNotesToCloud(
 }
 
 /**
+ * Update linked and parent facts in Firestore and local storage
+ */
+export async function updateFactRelationsInCloud(
+  factId: number,
+  relatedFactIds: number[],
+  parentFactId?: number
+): Promise<void> {
+  const docRef = doc(db, FACTS_COLLECTION, String(factId));
+  const payload: Record<string, any> = {
+    relatedFactIds,
+    updatedAt: Date.now(),
+  };
+  if (typeof parentFactId === 'number') {
+    payload.parentFactId = parentFactId;
+  }
+
+  await setDoc(docRef, payload, { merge: true });
+
+  const local = loadStoredFacts();
+  const updated = local.map((f) => {
+    if (f.id === factId) {
+      return {
+        ...f,
+        relatedFactIds,
+        ...(typeof parentFactId === 'number' ? { parentFactId } : {}),
+      };
+    }
+    return f;
+  });
+  saveStoredFacts(updated);
+}
+
+/**
  * Real-time subscription to cloud collections across all users worldwide
  */
 export function subscribeToCloudCollections(

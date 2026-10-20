@@ -142,7 +142,7 @@ export function saveStoredCollections(collections: CollectionItem[]): void {
   try {
     localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(collections));
   } catch (e) {
-    console.error('Failed to save collections to storage:', e);
+    console.warn('LocalStorage notice for collections storage:', e);
   }
 }
 
@@ -225,11 +225,54 @@ export function loadStoredFacts(): FactItem[] {
   return KURDISH_PROVINCES_CITIES;
 }
 
+function sanitizeFactForLocalStorage(fact: FactItem): FactItem {
+  let cleaned = fact;
+  if (typeof cleaned.imageUrl === 'string' && cleaned.imageUrl.startsWith('data:')) {
+    const { imageUrl, ...rest } = cleaned;
+    cleaned = rest as FactItem;
+  }
+  if (typeof cleaned.overlayImageUrl === 'string' && cleaned.overlayImageUrl.startsWith('data:')) {
+    const { overlayImageUrl, ...rest } = cleaned;
+    cleaned = rest as FactItem;
+  }
+  return cleaned;
+}
+
 export function saveStoredFacts(facts: FactItem[]): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(facts));
-  } catch (e) {
-    console.error('Failed to save facts to storage:', e);
+    // 1. Strip bulky inline base64 images so localStorage stays well below the 5MB browser quota
+    const safeFacts = facts.map(sanitizeFactForLocalStorage);
+    localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(safeFacts));
+  } catch (e: any) {
+    // 2. If storage quota is still exhausted, try a compact subset
+    try {
+      const compactFacts = facts.map((f) => ({
+        id: f.id,
+        num: f.num,
+        name: f.name,
+        lat: f.lat,
+        lng: f.lng,
+        category: f.category,
+        tag: f.tag,
+        collectionId: f.collectionId,
+        startYear: f.startYear,
+        endYear: f.endYear,
+        year: f.year,
+        century: f.century,
+        centuryNumber: f.centuryNumber,
+        desc: (f.desc || '').slice(0, 160),
+        parentFactId: f.parentFactId,
+        relatedFactIds: f.relatedFactIds,
+      }));
+      localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(compactFacts));
+    } catch {
+      // 3. Graceful fallback without throwing or error alerts; Firebase Cloud Firestore is the live source of truth
+      try {
+        // Clear old/cached item if quota is full
+        localStorage.removeItem(STORAGE_KEYS.FACTS);
+      } catch {}
+      console.warn('LocalStorage quota limit reached; relying on Firebase Cloud Firestore for live state.');
+    }
   }
 }
 

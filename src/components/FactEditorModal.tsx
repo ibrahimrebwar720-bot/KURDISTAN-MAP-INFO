@@ -31,8 +31,12 @@ import {
   Image as ImageIcon,
   Upload,
   Link as LinkIcon,
+  Link2,
+  Landmark,
+  Plus,
   Eye,
 } from 'lucide-react';
+import { FactRelationsModal } from './FactRelationsModal';
 import {
   compressImageFile,
 } from '../utils/imageUtils';
@@ -58,6 +62,7 @@ interface Props {
   onClose: () => void;
   factToEdit?: FactItem | null;
   collections: CollectionItem[];
+  allFacts?: FactItem[];
   onSave: (fact: FactItem) => void;
   onDelete?: (factId: number) => void;
   onStartPickLocation: () => void;
@@ -70,6 +75,7 @@ export const FactEditorModal: React.FC<Props> = ({
   onClose,
   factToEdit,
   collections,
+  allFacts = [],
   onSave,
   onDelete,
   onStartPickLocation,
@@ -85,6 +91,12 @@ export const FactEditorModal: React.FC<Props> = ({
   const [showManualCoords, setShowManualCoords] = useState(false);
   // Unified single category state (میرنشینەکان، شارستانییەتەکان، ئیمپراتۆرییەتەکان، زانایان، وەزیر و کاربەدەستان، کەسایەتی تر، قەڵاکان، جەنگ و ڕووداوەکان)
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('principality');
+
+  // Hierarchy & Topic Linking state
+  const [parentFactId, setParentFactId] = useState<number | undefined>(undefined);
+  const [relatedFactIds, setRelatedFactIds] = useState<number[]>([]);
+  const [isLinkingModalOpen, setIsLinkingModalOpen] = useState(false);
+
   // Time format mode: 'single_year' (ساڵێک) | 'year_range' (دوو ساڵ) | 'single_century' (تەنیا یەک سەدە) | 'century_range' (نێوان دوو سەدە)
   const [timeMode, setTimeMode] = useState<
     'single_year' | 'year_range' | 'single_century' | 'century_range'
@@ -177,6 +189,10 @@ export const FactEditorModal: React.FC<Props> = ({
         // Unified Category
         const catInfo = getCategoryInfo(factToEdit);
         setSelectedCategory(catInfo.id);
+
+        // Topic Hierarchy & Relations
+        setParentFactId(factToEdit.parentFactId);
+        setRelatedFactIds(Array.isArray(factToEdit.relatedFactIds) ? factToEdit.relatedFactIds : []);
 
         // Load Time Mode & Values
         if (factToEdit.timeSpanType) {
@@ -298,6 +314,8 @@ export const FactEditorModal: React.FC<Props> = ({
           setHasLocationPicked(false);
         }
         setSelectedCategory('principality');
+        setParentFactId(undefined);
+        setRelatedFactIds([]);
         setImageUrl('');
         setImageCaption('');
       }
@@ -580,6 +598,8 @@ export const FactEditorModal: React.FC<Props> = ({
       category: selectedCategory,
       imageUrl: imageUrl.trim() || undefined,
       imageCaption: imageCaption.trim() || undefined,
+      parentFactId: typeof parentFactId === 'number' ? parentFactId : undefined,
+      relatedFactIds: relatedFactIds.length > 0 ? relatedFactIds : undefined,
       isCustom: true,
     };
 
@@ -1592,6 +1612,113 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* SECTION 6: بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان (Linking & Associations) */}
+          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                  06
+                </span>
+                <span>بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان</span>
+              </span>
+              <span className="text-[11px] text-amber-300/80">میرنشین، میر، زانا، قەڵا، جەنگ</span>
+            </div>
+
+            <p className="text-[11px] text-slate-300 leading-relaxed liquid-glass-subtle p-3 rounded-xl">
+              دەتوانیت ئەم بابەتە ببەستیتەوە بە دەسەڵات یان میرنشینێکی سەرەکی (وەک «میرنشینی سۆران»، «میرنشینی بابان» یان «ئیمپراتۆریەتی ماد»)، وە هەروەها چەندین میر، زانا، قەڵا یان جەنگی پێوە لینک بکەیت تا لە پەڕەی زانیارییەکاندا پێکەوە دەربکەون و بەکارهێنەر بتوانێت ڕاستەوخۆ بچێتە ناویانەوە.
+            </p>
+
+            {/* Parent Entity Selector */}
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                <Landmark className="w-3.5 h-3.5 text-amber-400" />
+                <span>دەسەڵات یان میرنشینی سەرەکی (Parent Entity)</span>
+              </label>
+              <select
+                value={parentFactId || ''}
+                onChange={(e) =>
+                  setParentFactId(e.target.value ? Number(e.target.value) : undefined)
+                }
+                className="w-full liquid-glass-input text-slate-100 p-2.5 rounded-xl text-xs cursor-pointer focus:outline-none"
+              >
+                <option value="" className="bg-slate-900 text-slate-300">
+                  -- بەبێ دەسەڵاتی دایک (سەربەخۆ یان خۆی دەسەڵاتی سەرەکییە) --
+                </option>
+                {allFacts
+                  .filter((f) => {
+                    const c = getCategoryInfo(f).id;
+                    return (
+                      (c === 'principality' || c === 'empire' || c === 'civilization') &&
+                      (!factToEdit || f.id !== factToEdit.id)
+                    );
+                  })
+                  .map((ent) => (
+                    <option key={ent.id} value={ent.id} className="bg-slate-900 text-slate-100">
+                      {ent.name} ({ent.desc})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Linked Facts Selector / Chips */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>بابەت و کەسایەتییە بەستراوەکان ({relatedFactIds.length})</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsLinkingModalOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[11px] font-bold cursor-pointer"
+                >
+                  <Plus className="w-3 h-3 text-amber-400" />
+                  <span>دیاریکردن و گەڕان بۆ بەستنەوە</span>
+                </button>
+              </div>
+
+              {relatedFactIds.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 p-3 rounded-xl liquid-glass-subtle">
+                  {relatedFactIds.map((rfId) => {
+                    const found = allFacts.find((f) => f.id === rfId);
+                    if (!found) return null;
+                    const cat = getCategoryInfo(found);
+                    return (
+                      <span
+                        key={rfId}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border"
+                        style={{
+                          backgroundColor: `${cat.color}15`,
+                          borderColor: `${cat.color}40`,
+                          color: '#fff',
+                        }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <span>{found.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRelatedFactIds((prev) => prev.filter((id) => id !== rfId))
+                          }
+                          className="p-0.5 rounded-md hover:bg-white/20 text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-2.5 px-3 rounded-xl liquid-glass-subtle text-slate-400 text-xs">
+                  هێشتا هیچ بابەتی تر نەبەستراوەتەوە. کلیک لە دوگمەی سەرەوە بکە بۆ بەستنەوە.
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Action Buttons Bar */}
           <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/10 shrink-0">
             {/* Delete button (when editing) */}
@@ -1652,6 +1779,38 @@ export const FactEditorModal: React.FC<Props> = ({
           </div>
         </form>
       </div>
+
+      {/* Fact Relations Linker Modal */}
+      {isLinkingModalOpen && (
+        <FactRelationsModal
+          isOpen={isLinkingModalOpen}
+          onClose={() => setIsLinkingModalOpen(false)}
+          currentFact={
+            factToEdit || {
+              id: 999999999,
+              num: 0,
+              eraId: 1,
+              eraName: '',
+              eraPeriod: '',
+              name: name.trim() || 'بابەتی نوێ',
+              desc: desc.trim() || '',
+              fullText: fullText.trim() || '',
+              lat: Number(lat) || 36.8,
+              lng: Number(lng) || 44.5,
+              tag: selectedCategory,
+              relatedFactIds,
+              parentFactId,
+            }
+          }
+          allFacts={allFacts}
+          onSaveLinks={async (_sourceId, targetIds, newParentId) => {
+            setRelatedFactIds(targetIds);
+            if (typeof newParentId === 'number' || newParentId === undefined) {
+              setParentFactId(newParentId);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -35,6 +35,8 @@ export interface FactItem {
   overlayBounds?: [[number, number], [number, number]];
   imageUrl?: string;
   imageCaption?: string;
+  parentFactId?: number;
+  relatedFactIds?: number[];
 }
 
 export interface EraInfo {

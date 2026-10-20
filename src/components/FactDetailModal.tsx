@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
   X,
@@ -20,8 +20,15 @@ import {
   Maximize2,
   Image as ImageIcon,
   Images,
+  Link2,
+  Plus,
+  GitFork,
+  Layers,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
+import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
+import { FactRelationsModal } from './FactRelationsModal';
+import { getCategoryInfo } from '../types/history';
 
 const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
 
@@ -35,6 +42,9 @@ interface Props {
   onSaveNotes?: (factId: number, notes: string) => void;
   onOpenGallery?: () => void;
   totalFactsCount?: number;
+  allFacts?: FactItem[];
+  onSelectFact?: (fact: FactItem) => void;
+  onSaveLinks?: (sourceFactId: number, targetFactIds: number[], parentFactId?: number) => void;
 }
 
 export const FactDetailModal: React.FC<Props> = ({
@@ -46,6 +56,9 @@ export const FactDetailModal: React.FC<Props> = ({
   onEditFact,
   onSaveNotes,
   onOpenGallery,
+  allFacts = [],
+  onSelectFact,
+  onSaveLinks,
   totalFactsCount = 350,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -55,6 +68,26 @@ export const FactDetailModal: React.FC<Props> = ({
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesContent, setNotesContent] = useState('');
   const [notesSaved, setNotesSaved] = useState(false);
+
+  // Related Topics State & Filtering
+  const [relationFilter, setRelationFilter] = useState<
+    'all' | 'leaders' | 'scholars' | 'castles' | 'battles' | 'monuments' | 'others'
+  >('all');
+  const [isRelationsModalOpen, setIsRelationsModalOpen] = useState(false);
+
+  const linkedData = useMemo(() => {
+    return getLinkedFacts(fact, allFacts);
+  }, [fact, allFacts]);
+
+  const filteredRelatedItems = useMemo(() => {
+    if (relationFilter === 'all') return linkedData.allRelated;
+    if (relationFilter === 'leaders') return linkedData.byCategory.leaders;
+    if (relationFilter === 'scholars') return linkedData.byCategory.scholars;
+    if (relationFilter === 'castles') return linkedData.byCategory.castles;
+    if (relationFilter === 'battles') return linkedData.byCategory.battles;
+    if (relationFilter === 'monuments') return linkedData.byCategory.monuments;
+    return linkedData.byCategory.others;
+  }, [linkedData, relationFilter]);
 
   // Fetch Wikipedia or Scholarly Dossier information when fact changes
   useEffect(() => {
@@ -261,6 +294,198 @@ export const FactDetailModal: React.FC<Props> = ({
             <p className="whitespace-pre-line leading-relaxed">{fact.fullText}</p>
           </div>
 
+          {/* بەشی بابەت و کەسایەتییە پەیوەندیدارەکان (Linked Historical Entities & Figures) */}
+          <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card shadow-md space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                <Link2 className="w-4 h-4 text-amber-400" />
+                <span>بابەت و کەسایەتییە پەیوەندیدارەکان</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold liquid-glass-subtle text-amber-300 border border-amber-400/30">
+                  {linkedData.allRelated.length}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setIsRelationsModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer hover:border-amber-400/50"
+              >
+                <Plus className="w-3 h-3 text-amber-400" />
+                <span>بەستنەوەی بابەت</span>
+              </button>
+            </div>
+
+            {/* Parent Entity Card (دەسەڵاتی دایک) */}
+            {linkedData.parents.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5 text-amber-200 min-w-0">
+                  <Landmark className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-[11px] font-medium text-slate-300 shrink-0">سەر بە دەسەڵاتی دایک:</span>
+                  <span className="font-bold text-amber-300 truncate">{linkedData.parents[0].name}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (onSelectFact) onSelectFact(linkedData.parents[0]);
+                  }}
+                  className="px-2.5 py-1 rounded-lg liquid-glass-btn text-[10px] font-bold text-amber-300 hover:text-white cursor-pointer shrink-0"
+                >
+                  چوونە ناو دەسەڵات
+                </button>
+              </div>
+            )}
+
+            {/* Relation Filter Tabs */}
+            {linkedData.allRelated.length > 1 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[10px]">
+                <button
+                  onClick={() => setRelationFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                    relationFilter === 'all'
+                      ? 'liquid-glass-btn-active text-black'
+                      : 'liquid-glass-subtle text-slate-300 hover:text-white'
+                  }`}
+                >
+                  هەموو ({linkedData.allRelated.length})
+                </button>
+                {linkedData.byCategory.leaders.length > 0 && (
+                  <button
+                    onClick={() => setRelationFilter('leaders')}
+                    className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                      relationFilter === 'leaders'
+                        ? 'liquid-glass-btn-active text-black'
+                        : 'liquid-glass-subtle text-rose-300 hover:text-rose-200'
+                    }`}
+                  >
+                    میر و سەرکردە ({linkedData.byCategory.leaders.length})
+                  </button>
+                )}
+                {linkedData.byCategory.scholars.length > 0 && (
+                  <button
+                    onClick={() => setRelationFilter('scholars')}
+                    className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                      relationFilter === 'scholars'
+                        ? 'liquid-glass-btn-active text-black'
+                        : 'liquid-glass-subtle text-cyan-300 hover:text-cyan-200'
+                    }`}
+                  >
+                    زانایان ({linkedData.byCategory.scholars.length})
+                  </button>
+                )}
+                {linkedData.byCategory.castles.length > 0 && (
+                  <button
+                    onClick={() => setRelationFilter('castles')}
+                    className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                      relationFilter === 'castles'
+                        ? 'liquid-glass-btn-active text-black'
+                        : 'liquid-glass-subtle text-purple-300 hover:text-purple-200'
+                    }`}
+                  >
+                    قەڵا و پایتەخت ({linkedData.byCategory.castles.length})
+                  </button>
+                )}
+                {linkedData.byCategory.battles.length > 0 && (
+                  <button
+                    onClick={() => setRelationFilter('battles')}
+                    className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                      relationFilter === 'battles'
+                        ? 'liquid-glass-btn-active text-black'
+                        : 'liquid-glass-subtle text-red-300 hover:text-red-200'
+                    }`}
+                  >
+                    جەنگ و ڕووداو ({linkedData.byCategory.battles.length})
+                  </button>
+                )}
+                {linkedData.byCategory.monuments.length > 0 && (
+                  <button
+                    onClick={() => setRelationFilter('monuments')}
+                    className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                      relationFilter === 'monuments'
+                        ? 'liquid-glass-btn-active text-black'
+                        : 'liquid-glass-subtle text-emerald-300 hover:text-emerald-200'
+                    }`}
+                  >
+                    شوێنەوار ({linkedData.byCategory.monuments.length})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Related Items Cards Grid */}
+            {filteredRelatedItems.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-64 overflow-y-auto custom-scrollbar pr-0.5">
+                {filteredRelatedItems.map((item) => {
+                  const itemCat = getCategoryInfo(item);
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl liquid-glass-subtle border border-white/5 hover:border-amber-400/30 transition-all flex flex-col justify-between gap-2 group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span
+                            className="text-[9px] px-1.5 py-0.2 rounded-md font-bold"
+                            style={{
+                              backgroundColor: `${itemCat.color}20`,
+                              color: itemCat.color,
+                              border: `1px solid ${itemCat.color}40`,
+                            }}
+                          >
+                            {itemCat.name}
+                          </span>
+                          {(item.year || item.century) && (
+                            <span className="text-[9px] text-amber-200/80 font-mono">
+                              {item.year || item.century}
+                            </span>
+                          )}
+                        </div>
+                        <h5 className="font-bold text-xs text-white group-hover:text-amber-300 transition-colors truncate">
+                          {item.name}
+                        </h5>
+                        <p className="text-[11px] text-slate-300 line-clamp-2 mt-0.5 leading-relaxed">
+                          {item.desc}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-white/5">
+                        <button
+                          onClick={() => {
+                            onFlyToMap(item);
+                            onClose();
+                          }}
+                          className="px-2 py-1 rounded-lg liquid-glass-btn text-[10px] text-slate-300 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                          title="نیشاندان لە نەخشە"
+                        >
+                          <MapPin className="w-2.5 h-2.5 text-amber-400" />
+                          <span>نەخشە</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (onSelectFact) {
+                              onSelectFact(item);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg liquid-glass-btn-active text-black text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                        >
+                          <span>چوونە ناو بابەت</span>
+                          <ChevronLeft className="w-3 h-3 text-black" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-3 px-3.5 rounded-xl liquid-glass-subtle text-slate-400 text-xs flex items-center justify-between gap-2">
+                <span>هێشتا هیچ میر، زانا، قەڵا یان ڕووداوێک بەم بابەتەوە نەبەستراوەتەوە.</span>
+                <button
+                  onClick={() => setIsRelationsModalOpen(true)}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer shrink-0"
+                >
+                  + بەستنەوەی بابەت
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* زانیاری زیاتر (Additional Information Box) */}
           <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card shadow-md space-y-2.5">
             <div className="flex items-center justify-between pb-1 border-b border-white/10">
@@ -396,6 +621,21 @@ export const FactDetailModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {/* Fact Relations Linker Modal */}
+      {isRelationsModalOpen && (
+        <FactRelationsModal
+          isOpen={isRelationsModalOpen}
+          onClose={() => setIsRelationsModalOpen(false)}
+          currentFact={fact}
+          allFacts={allFacts}
+          onSaveLinks={async (sourceId, targetIds, parentId) => {
+            if (onSaveLinks) {
+              await onSaveLinks(sourceId, targetIds, parentId);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
