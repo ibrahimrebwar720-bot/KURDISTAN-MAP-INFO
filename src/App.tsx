@@ -238,12 +238,17 @@ export default function App() {
     });
   };
 
-  // Save relations / topic linking
+  // Save relations / topic linking (Strictly Admin only)
   const handleSaveLinks = async (
     sourceFactId: number,
     targetFactIds: number[],
     parentFactId?: number
   ) => {
+    if (!isAdmin) {
+      console.warn('Unauthorized: Only Admin can link or modify topic relationships.');
+      return;
+    }
+
     // 1. Optimistic local update
     setFacts((prev) =>
       prev.map((f) => {

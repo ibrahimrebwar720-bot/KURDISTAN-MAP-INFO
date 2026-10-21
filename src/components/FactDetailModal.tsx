@@ -294,25 +294,29 @@ export const FactDetailModal: React.FC<Props> = ({
             <p className="whitespace-pre-line leading-relaxed">{fact.fullText}</p>
           </div>
 
-          {/* بەشی بابەت و کەسایەتییە پەیوەندیدارەکان (Linked Historical Entities & Figures) */}
-          <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card shadow-md space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
-                <Link2 className="w-4 h-4 text-amber-400" />
-                <span>بابەت و کەسایەتییە پەیوەندیدارەکان</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold liquid-glass-subtle text-amber-300 border border-amber-400/30">
-                  {linkedData.allRelated.length}
-                </span>
-              </div>
+          {/* بەشی بابەت و کەسایەتییە پەیوەندیدارەکان (تەنها کاتێک ئەدمینە یان بابەتی بەستراوە هەیە پیشان دەدرێت) */}
+          {(isAdmin || linkedData.allRelated.length > 0 || linkedData.parents.length > 0) && (
+            <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card shadow-md space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                  <Link2 className="w-4 h-4 text-amber-400" />
+                  <span>بابەت و کەسایەتییە پەیوەندیدارەکان</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold liquid-glass-subtle text-amber-300 border border-amber-400/30">
+                    {linkedData.allRelated.length}
+                  </span>
+                </div>
 
-              <button
-                onClick={() => setIsRelationsModalOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer hover:border-amber-400/50"
-              >
-                <Plus className="w-3 h-3 text-amber-400" />
-                <span>بەستنەوەی بابەت</span>
-              </button>
-            </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => setIsRelationsModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer hover:border-amber-400/50"
+                    title="تەنها ئەدمین دەتوانێت بابەتەکان ببەستێتەوە"
+                  >
+                    <Plus className="w-3 h-3 text-amber-400" />
+                    <span>{linkedData.allRelated.length > 0 ? 'دەستکاریی بەستنەوە' : 'بەستنەوەی بابەت'}</span>
+                  </button>
+                )}
+              </div>
 
             {/* Parent Entity Card (دەسەڵاتی دایک) */}
             {linkedData.parents.length > 0 && (
@@ -474,17 +478,20 @@ export const FactDetailModal: React.FC<Props> = ({
                 })}
               </div>
             ) : (
-              <div className="py-3 px-3.5 rounded-xl liquid-glass-subtle text-slate-400 text-xs flex items-center justify-between gap-2">
-                <span>هێشتا هیچ میر، زانا، قەڵا یان ڕووداوێک بەم بابەتەوە نەبەستراوەتەوە.</span>
-                <button
-                  onClick={() => setIsRelationsModalOpen(true)}
-                  className="text-xs text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer shrink-0"
-                >
-                  + بەستنەوەی بابەت
-                </button>
-              </div>
+              isAdmin ? (
+                <div className="py-3 px-3.5 rounded-xl liquid-glass-subtle text-slate-400 text-xs flex items-center justify-between gap-2">
+                  <span>هێشتا هیچ میر، زانا، قەڵا یان ڕووداوێک بەم بابەتەوە نەبەستراوەتەوە.</span>
+                  <button
+                    onClick={() => setIsRelationsModalOpen(true)}
+                    className="text-xs text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer shrink-0"
+                  >
+                    + بەستنەوەی بابەت
+                  </button>
+                </div>
+              ) : null
             )}
           </div>
+        )}
 
           {/* زانیاری زیاتر (Additional Information Box) */}
           <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass-card shadow-md space-y-2.5">
@@ -622,15 +629,15 @@ export const FactDetailModal: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Fact Relations Linker Modal */}
-      {isRelationsModalOpen && (
+      {/* Fact Relations Linker Modal (Only for Admin) */}
+      {isAdmin && isRelationsModalOpen && (
         <FactRelationsModal
           isOpen={isRelationsModalOpen}
           onClose={() => setIsRelationsModalOpen(false)}
           currentFact={fact}
           allFacts={allFacts}
           onSaveLinks={async (sourceId, targetIds, parentId) => {
-            if (onSaveLinks) {
+            if (isAdmin && onSaveLinks) {
               await onSaveLinks(sourceId, targetIds, parentId);
             }
           }}
