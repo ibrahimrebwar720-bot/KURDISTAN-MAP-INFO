@@ -6,17 +6,13 @@ import {
   loadStoredCollections,
   getAdminState,
   setAdminState,
+  saveSingleFact,
+  deleteSingleFact,
+  saveFactNotesLocally,
+  updateFactRelationsLocally,
+  saveSingleCollection,
+  deleteSingleCollection,
 } from './services/historyStorageService';
-import {
-  subscribeToCloudFacts,
-  saveFactToCloud,
-  deleteFactFromCloud,
-  saveNotesToCloud,
-  updateFactRelationsInCloud,
-  subscribeToCloudCollections,
-  saveCollectionToCloud,
-  deleteCollectionFromCloud,
-} from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
 import { FactDetailModal } from './components/FactDetailModal';
@@ -25,6 +21,7 @@ import { FactEditorModal } from './components/FactEditorModal';
 import { CollectionManagerModal } from './components/CollectionManagerModal';
 import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
+import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState<boolean>(true);
@@ -37,6 +34,19 @@ export default function App() {
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(null);
   const [detailFact, setDetailFact] = useState<FactItem | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Split View & Mobile Bottom Sheet states for Menu
+  const [isSplitMode, setIsSplitMode] = useState<boolean>(true);
+  const [mobileSheetState, setMobileSheetState] = useState<'peek' | 'half' | 'full'>('half');
+
+  // Documentary Tour state & Map FlyTo bridge
+  const [isDocumentaryTourOpen, setIsDocumentaryTourOpen] = useState(false);
+  const [externalFlyTo, setExternalFlyTo] = useState<{
+    lat: number;
+    lng: number;
+    zoom?: number;
+    id?: string;
+  } | null>(null);
 
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
@@ -67,33 +77,7 @@ export default function App() {
     return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
   }, []);
 
-  // 1. Real-time Firebase Cloud Database synchronization for all users worldwide
-  useEffect(() => {
-    const unsubFacts = subscribeToCloudFacts((cloudFacts) => {
-      setFacts(cloudFacts);
-      // Keep selected fact synced
-      setSelectedFact((prev) => {
-        if (!prev) return null;
-        const found = cloudFacts.find((f) => f.id === prev.id);
-        return found || null;
-      });
-      // Keep detail fact synced
-      setDetailFact((prev) => {
-        if (!prev) return null;
-        const found = cloudFacts.find((f) => f.id === prev.id);
-        return found || null;
-      });
-    });
 
-    const unsubCollections = subscribeToCloudCollections((cloudCols) => {
-      setCollections(cloudCols);
-    });
-
-    return () => {
-      unsubFacts();
-      unsubCollections();
-    };
-  }, []);
 
   // Keyboard navigation & escape to close menu/modal
   useEffect(() => {
@@ -129,9 +113,25 @@ export default function App() {
     isPickingLocation,
   ]);
 
-  // Fact Selection
+  // Fact Selection & Smooth Map FlyTo Bridge
   const handleSelectFact = (fact: FactItem) => {
     setSelectedFact(fact);
+    setExternalFlyTo({
+      lat: fact.lat,
+      lng: fact.lng,
+      zoom: 8.5,
+      id: `fact-${fact.id}-${Date.now()}`,
+    });
+  };
+
+  // Documentary Tour Map FlyTo Bridge
+  const handleDocumentaryFlyTo = (lat: number, lng: number, zoom: number, storyTitle: string) => {
+    setExternalFlyTo({
+      lat,
+      lng,
+      zoom,
+      id: `doc-${storyTitle}-${Date.now()}`,
+    });
   };
 
   // Detail Modal Navigation
@@ -177,27 +177,17 @@ export default function App() {
   };
 
   const handleSaveFact = (savedFact: FactItem) => {
-    // 1. Instant local optimistic update
-    const exists = facts.some((f) => f.id === savedFact.id);
-    const updatedList = exists
-      ? facts.map((f) => (f.id === savedFact.id ? savedFact : f))
-      : [savedFact, ...facts];
-
+    const updatedList = saveSingleFact(savedFact);
     setFacts(updatedList);
     setSelectedFact(savedFact);
     if (detailFact && detailFact.id === savedFact.id) {
       setDetailFact(savedFact);
     }
     setPickedCoords(null);
-
-    // 2. Persist to Firebase Cloud for ALL users
-    saveFactToCloud(savedFact).catch((err) => {
-      console.error('Failed to sync fact to cloud:', err);
-    });
   };
 
   const handleDeleteFact = (factId: number) => {
-    const updatedList = facts.filter((f) => f.id !== factId);
+    const updatedList = deleteSingleFact(factId);
     setFacts(updatedList);
 
     if (selectedFact?.id === factId) {
@@ -206,23 +196,11 @@ export default function App() {
     if (detailFact?.id === factId) {
       setDetailFact(null);
     }
-
-    // Persist delete to Firebase Cloud
-    deleteFactFromCloud(factId).catch((err) => {
-      console.error('Failed to delete fact from cloud:', err);
-    });
   };
 
   // Save additional notes inline
   const handleSaveNotes = (factId: number, notes: string) => {
-    const targetFact = facts.find((f) => f.id === factId);
-    const updatedList = facts.map((f) => {
-      if (f.id === factId) {
-        return { ...f, additionalNotes: notes };
-      }
-      return f;
-    });
-
+    const updatedList = saveFactNotesLocally(factId, notes);
     setFacts(updatedList);
 
     if (selectedFact && selectedFact.id === factId) {
@@ -231,11 +209,6 @@ export default function App() {
     if (detailFact && detailFact.id === factId) {
       setDetailFact({ ...detailFact, additionalNotes: notes });
     }
-
-    // Persist to Firebase Cloud
-    saveNotesToCloud(factId, notes, targetFact).catch((err) => {
-      console.error('Failed to save notes to cloud:', err);
-    });
   };
 
   // Save relations / topic linking (Strictly Admin only)
@@ -249,36 +222,13 @@ export default function App() {
       return;
     }
 
-    // 1. Optimistic local update
-    setFacts((prev) =>
-      prev.map((f) => {
-        if (f.id === sourceFactId) {
-          return {
-            ...f,
-            relatedFactIds: targetFactIds,
-            parentFactId: typeof parentFactId === 'number' ? parentFactId : f.parentFactId,
-          };
-        }
-        return f;
-      })
-    );
+    const updatedList = updateFactRelationsLocally(sourceFactId, targetFactIds, parentFactId);
+    setFacts(updatedList);
 
     if (detailFact && detailFact.id === sourceFactId) {
-      setDetailFact((prev) =>
-        prev
-          ? {
-              ...prev,
-              relatedFactIds: targetFactIds,
-              parentFactId: typeof parentFactId === 'number' ? parentFactId : prev.parentFactId,
-            }
-          : null
-      );
+      const found = updatedList.find((f) => f.id === sourceFactId);
+      setDetailFact(found || null);
     }
-
-    // 2. Cloud Firestore update
-    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId).catch((err) => {
-      console.error('Failed to sync fact relations to cloud:', err);
-    });
   };
 
   // Map Point Picking flow
@@ -299,34 +249,23 @@ export default function App() {
     setIsFactEditorOpen(true);
   };
 
-  // Collections handlers (Synced to Firebase Cloud)
+  // Collections handlers (Local storage)
   const handleAddCollection = (newCol: CollectionItem) => {
-    const updated = [...collections, newCol];
+    const updated = saveSingleCollection(newCol);
     setCollections(updated);
-    saveCollectionToCloud(newCol).catch((err) => {
-      console.error('Failed to save collection to cloud:', err);
-    });
   };
 
   const handleUpdateCollection = (updatedCol: CollectionItem) => {
-    const updated = collections.map((c) =>
-      c.id === updatedCol.id ? updatedCol : c
-    );
+    const updated = saveSingleCollection(updatedCol);
     setCollections(updated);
-    saveCollectionToCloud(updatedCol).catch((err) => {
-      console.error('Failed to update collection in cloud:', err);
-    });
   };
 
   const handleDeleteCollection = (colId: string) => {
-    const updated = collections.filter((c) => c.id !== colId);
+    const updated = deleteSingleCollection(colId);
     setCollections(updated);
     if (selectedCategory === colId) {
       setSelectedCategory('all');
     }
-    deleteCollectionFromCloud(colId).catch((err) => {
-      console.error('Failed to delete collection from cloud:', err);
-    });
   };
 
   return (
@@ -361,36 +300,105 @@ export default function App() {
           onReplayIntro={() => setShowIntro(true)}
           playMapIntro={showIntro}
           onMapIntroComplete={() => setShowIntro(false)}
+          onOpenDocumentaryTour={() => setIsDocumentaryTourOpen(true)}
+          externalFlyTo={externalFlyTo}
         />
 
-        {/* Full-Screen Grid Dashboard for پێڕست (وەک دیزاینی وێنەکە بە شێوازی Grid) */}
+        {/* Split Screen / Fullscreen / Mobile Bottom Sheet for پێڕست */}
         {isMenuOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-[#070913]/98 backdrop-blur-2xl animate-fade-in overflow-hidden">
-            <FactsList
-              facts={facts}
-              selectedFact={selectedFact}
-              onSelectFact={(fact) => {
-                handleSelectFact(fact);
-                setIsMenuOpen(false);
-              }}
-              onOpenDetail={(fact) => setDetailFact(fact)}
-              collections={collections}
-              selectedCollectionId={selectedCategory}
-              onSelectCollection={setSelectedCategory}
-              activeCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              isAdmin={isAdmin}
-              onOpenAddFact={handleOpenAddFact}
-              onOpenEditFact={handleOpenEditFact}
-              onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
-              onOpenGallery={() => setIsGalleryOpen(true)}
-              onOpenTheme={() => setIsThemeModalOpen(true)}
-              onClose={() => setIsMenuOpen(false)}
-              onLogoutAdmin={handleAdminLogout}
-            />
-          </div>
+          <>
+            {/* Desktop / Tablet: Split Screen Side Panel OR Fullscreen View */}
+            <div
+              className={`hidden sm:flex flex-col bg-[#070913]/95 backdrop-blur-3xl overflow-hidden transition-all duration-300 z-40 ${
+                isSplitMode
+                  ? 'fixed top-0 bottom-0 right-0 w-full sm:w-[480px] md:w-[540px] lg:w-[620px] xl:w-[680px] border-l border-white/10 shadow-[-25px_0_60px_rgba(0,0,0,0.95)] animate-slide-in-right'
+                  : 'fixed inset-0 z-50 bg-[#070913]/98 animate-fade-in'
+              }`}
+            >
+              <FactsList
+                facts={facts}
+                selectedFact={selectedFact}
+                onSelectFact={(fact) => {
+                  handleSelectFact(fact);
+                  if (!isSplitMode) {
+                    setIsMenuOpen(false);
+                  }
+                }}
+                onHoverFact={(fact) => {
+                  if (isSplitMode) {
+                    handleSelectFact(fact);
+                  }
+                }}
+                isSplitMode={isSplitMode}
+                onToggleSplitMode={() => setIsSplitMode(!isSplitMode)}
+                onOpenDetail={(fact) => setDetailFact(fact)}
+                collections={collections}
+                selectedCollectionId={selectedCategory}
+                onSelectCollection={setSelectedCategory}
+                activeCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                isAdmin={isAdmin}
+                onOpenAddFact={handleOpenAddFact}
+                onOpenEditFact={handleOpenEditFact}
+                onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
+                onOpenGallery={() => setIsGalleryOpen(true)}
+                onOpenTheme={() => setIsThemeModalOpen(true)}
+                onClose={() => setIsMenuOpen(false)}
+                onLogoutAdmin={handleAdminLogout}
+              />
+            </div>
+
+            {/* Mobile Responsive Interactive Bottom Sheet (دەستکاری بە یەک پەنجە: Peek 38%, Half 65%, Full 94%) */}
+            <div
+              className={`sm:hidden fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl border-t border-amber-400/30 bg-[#070913]/96 backdrop-blur-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.95)] transition-all duration-300 flex flex-col overflow-hidden ${
+                mobileSheetState === 'peek'
+                  ? 'h-[38dvh]'
+                  : mobileSheetState === 'half'
+                  ? 'h-[65dvh]'
+                  : 'h-[94dvh]'
+              }`}
+            >
+              <FactsList
+                facts={facts}
+                selectedFact={selectedFact}
+                onSelectFact={(fact) => {
+                  handleSelectFact(fact);
+                  setMobileSheetState('peek');
+                }}
+                isSplitMode={true}
+                mobileSheetState={mobileSheetState}
+                onToggleMobileSheet={(st) => setMobileSheetState(st)}
+                onOpenDetail={(fact) => setDetailFact(fact)}
+                collections={collections}
+                selectedCollectionId={selectedCategory}
+                onSelectCollection={setSelectedCategory}
+                activeCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                isAdmin={isAdmin}
+                onOpenAddFact={handleOpenAddFact}
+                onOpenEditFact={handleOpenEditFact}
+                onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
+                onOpenGallery={() => setIsGalleryOpen(true)}
+                onOpenTheme={() => setIsThemeModalOpen(true)}
+                onClose={() => setIsMenuOpen(false)}
+                onLogoutAdmin={handleAdminLogout}
+              />
+            </div>
+          </>
         )}
       </main>
+
+      {/* Documentary Scrollytelling Modal (گەشت بەناو ڕووداوە گەورەکاندا) */}
+      <DocumentaryScrollytellingModal
+        isOpen={isDocumentaryTourOpen}
+        onClose={() => setIsDocumentaryTourOpen(false)}
+        onFlyToCoords={handleDocumentaryFlyTo}
+        facts={facts}
+        onOpenFactDetail={(fact) => {
+          setIsDocumentaryTourOpen(false);
+          setDetailFact(fact);
+        }}
+      />
 
       {/* Fact Detail Modal (With Related Topics & Documents) */}
       <FactDetailModal

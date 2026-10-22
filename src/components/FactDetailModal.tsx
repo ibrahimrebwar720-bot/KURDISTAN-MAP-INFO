@@ -29,6 +29,7 @@ import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaSe
 import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
 import { FactRelationsModal } from './FactRelationsModal';
 import { getCategoryInfo } from '../types/history';
+import { getFactDisplayImage } from '../utils/historicalImages';
 
 const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
 
@@ -225,19 +226,21 @@ export const FactDetailModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Custom Topic Image in True Aspect Ratio (بە قیاسی تەواو بێ بڕین) */}
-          {fact.imageUrl && (
-            <div className="relative rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-xl group flex flex-col items-center justify-center p-1.5 sm:p-2">
-              <img
-                src={fact.imageUrl}
-                alt={fact.imageCaption || fact.name}
-                className="max-h-72 sm:max-h-80 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 shadow-md"
-              />
-              {fact.imageCaption && (
+          {/* Custom / Curated Topic Image in True Aspect Ratio (بە قیاسی تەواو بێ بڕین) */}
+          {(() => {
+            const displayImage = getFactDisplayImage(fact);
+            if (!displayImage) return null;
+            return (
+              <div className="relative rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-xl group flex flex-col items-center justify-center p-1.5 sm:p-2">
+                <img
+                  src={displayImage}
+                  alt={fact.imageCaption || fact.name}
+                  className="max-h-72 sm:max-h-80 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 shadow-md"
+                />
                 <div className="w-full mt-2 p-2 px-3 rounded-xl liquid-glass-subtle text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span className="font-medium text-[11px] sm:text-xs truncate">{fact.imageCaption}</span>
+                    <span className="font-medium text-[11px] sm:text-xs truncate">{fact.imageCaption || fact.name}</span>
                   </div>
                   {onOpenGallery && (
                     <button
@@ -255,9 +258,9 @@ export const FactDetailModal: React.FC<Props> = ({
                     </button>
                   )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* Historical Meta Badges if available */}
           {(wikiData?.historicalDates ||

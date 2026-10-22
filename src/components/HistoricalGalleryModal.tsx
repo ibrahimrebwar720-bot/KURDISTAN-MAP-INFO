@@ -18,6 +18,8 @@ import {
   Plus,
 } from 'lucide-react';
 
+import { resolveImageUrl } from '../utils/imageUtils';
+
 export interface GalleryItem {
   id: string | number;
   title: string;
@@ -44,22 +46,27 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   onFlyToFact,
   initialIndex = 0,
 }) => {
-  // Only display images added by the user in facts (no extra mock or preset images)
+  // Only display real images provided by the user for facts (no mock or preset images)
   const galleryItems: GalleryItem[] = useMemo(() => {
     const list: GalleryItem[] = [];
+    const seenUrls = new Set<string>();
 
     facts.forEach((fact) => {
       if (fact.imageUrl && fact.imageUrl.trim()) {
-        list.push({
-          id: `fact-${fact.id}`,
-          title: fact.name,
-          url: fact.imageUrl.trim(),
-          caption: fact.imageCaption || fact.desc || fact.name,
-          year: fact.year || fact.century,
-          eraName: fact.eraName,
-          tag: fact.tag,
-          fact: fact,
-        });
+        const resolved = resolveImageUrl(fact.imageUrl.trim());
+        if (resolved && !seenUrls.has(resolved)) {
+          seenUrls.add(resolved);
+          list.push({
+            id: `fact-${fact.id}`,
+            title: fact.name,
+            url: resolved,
+            caption: fact.imageCaption || fact.desc || fact.name,
+            year: fact.year || fact.century,
+            eraName: fact.eraName,
+            tag: fact.tag,
+            fact: fact,
+          });
+        }
       }
     });
 

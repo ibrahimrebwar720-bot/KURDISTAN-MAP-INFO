@@ -8,6 +8,7 @@ import {
   ADMIN_SECRET_CODE,
 } from '../types/history';
 import { inferCenturyAndYearForFact } from '../utils/centuryUtils';
+import { resolveImageUrl } from '../utils/imageUtils';
 
 const STORAGE_KEYS = {
   FACTS: 'kurdish_history_facts_v1',
@@ -162,7 +163,14 @@ export function sanitizeFact(fact: any): FactItem {
     year: fact?.year || dateInfo.year,
     century: fact?.century || dateInfo.century,
     centuryNumber: typeof fact?.centuryNumber === 'number' ? fact.centuryNumber : dateInfo.centuryNumber,
-    imageUrl: typeof fact?.imageUrl === 'string' && fact.imageUrl.trim() ? fact.imageUrl.trim() : undefined,
+    imageUrl: (() => {
+      if (typeof fact?.imageUrl !== 'string' || !fact.imageUrl.trim()) return undefined;
+      const trimmed = fact.imageUrl.trim();
+      // Drop bulky inline base64 images so Firestore quota is fully protected
+      if (trimmed.startsWith('data:')) return undefined;
+      const resolved = resolveImageUrl(trimmed);
+      return resolved || undefined;
+    })(),
     imageCaption: typeof fact?.imageCaption === 'string' && fact.imageCaption.trim() ? fact.imageCaption.trim() : undefined,
   };
 }
@@ -202,17 +210,18 @@ export function loadStoredFacts(): FactItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FACTS);
     if (!raw) {
-      return KURDISH_PROVINCES_CITIES;
+      return ALL_FACTS;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
+    if (Array.isArray(parsed) && parsed.length > 0) {
       // Filter out city facts / stations
       const cleaned = parsed
         .filter((f) => f && typeof f.id === 'number' && !isCityFact(f))
         .map((f) => sanitizeFact(f));
 
       const map = new Map<number, FactItem>();
-      KURDISH_PROVINCES_CITIES.forEach((loc) => map.set(loc.id, loc));
+      // Ensure all 350 historical facts exist as baseline
+      ALL_FACTS.forEach((fact) => map.set(fact.id, fact));
       cleaned.forEach((f) => map.set(f.id, f));
       const merged = Array.from(map.values());
 
@@ -222,29 +231,20 @@ export function loadStoredFacts(): FactItem[] {
     console.warn('Failed to load facts from storage:', e);
   }
 
-  return KURDISH_PROVINCES_CITIES;
+  return ALL_FACTS;
 }
 
 function sanitizeFactForLocalStorage(fact: FactItem): FactItem {
-  let cleaned = fact;
-  if (typeof cleaned.imageUrl === 'string' && cleaned.imageUrl.startsWith('data:')) {
-    const { imageUrl, ...rest } = cleaned;
-    cleaned = rest as FactItem;
-  }
-  if (typeof cleaned.overlayImageUrl === 'string' && cleaned.overlayImageUrl.startsWith('data:')) {
-    const { overlayImageUrl, ...rest } = cleaned;
-    cleaned = rest as FactItem;
-  }
-  return cleaned;
+  // Preserve image fields reliably
+  return fact;
 }
 
 export function saveStoredFacts(facts: FactItem[]): void {
   try {
-    // 1. Strip bulky inline base64 images so localStorage stays well below the 5MB browser quota
     const safeFacts = facts.map(sanitizeFactForLocalStorage);
     localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(safeFacts));
   } catch (e: any) {
-    // 2. If storage quota is still exhausted, try a compact subset
+    // If browser localStorage quota is reached, store essential fields including images
     try {
       const compactFacts = facts.map((f) => ({
         id: f.id,
@@ -263,17 +263,78 @@ export function saveStoredFacts(facts: FactItem[]): void {
         desc: (f.desc || '').slice(0, 160),
         parentFactId: f.parentFactId,
         relatedFactIds: f.relatedFactIds,
+        imageUrl: f.imageUrl,
+        imageCaption: f.imageCaption,
       }));
       localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(compactFacts));
     } catch {
-      // 3. Graceful fallback without throwing or error alerts; Firebase Cloud Firestore is the live source of truth
       try {
-        // Clear old/cached item if quota is full
         localStorage.removeItem(STORAGE_KEYS.FACTS);
       } catch {}
-      console.warn('LocalStorage quota limit reached; relying on Firebase Cloud Firestore for live state.');
     }
   }
+}
+
+export function saveSingleFact(fact: FactItem): FactItem[] {
+  const local = loadStoredFacts();
+  const sanitized = sanitizeFact(fact);
+  const exists = local.some((f) => f.id === sanitized.id);
+  const updated = exists
+    ? local.map((f) => (f.id === sanitized.id ? sanitized : f))
+    : [sanitized, ...local];
+  saveStoredFacts(updated);
+  return updated;
+}
+
+export function deleteSingleFact(factId: number): FactItem[] {
+  const local = loadStoredFacts();
+  const updated = local.filter((f) => f.id !== factId);
+  saveStoredFacts(updated);
+  return updated;
+}
+
+export function saveFactNotesLocally(factId: number, notes: string): FactItem[] {
+  const local = loadStoredFacts();
+  const updated = local.map((f) => (f.id === factId ? { ...f, additionalNotes: notes } : f));
+  saveStoredFacts(updated);
+  return updated;
+}
+
+export function updateFactRelationsLocally(
+  factId: number,
+  relatedFactIds: number[],
+  parentFactId?: number
+): FactItem[] {
+  const local = loadStoredFacts();
+  const updated = local.map((f) => {
+    if (f.id === factId) {
+      return {
+        ...f,
+        relatedFactIds,
+        ...(typeof parentFactId === 'number' ? { parentFactId } : {}),
+      };
+    }
+    return f;
+  });
+  saveStoredFacts(updated);
+  return updated;
+}
+
+export function saveSingleCollection(col: CollectionItem): CollectionItem[] {
+  const cols = loadStoredCollections();
+  const exists = cols.some((c) => c.id === col.id);
+  const updated = exists
+    ? cols.map((c) => (c.id === col.id ? col : c))
+    : [...cols, col];
+  saveStoredCollections(updated);
+  return updated;
+}
+
+export function deleteSingleCollection(colId: string): CollectionItem[] {
+  const cols = loadStoredCollections();
+  const updated = cols.filter((c) => c.id !== colId);
+  saveStoredCollections(updated);
+  return updated;
 }
 
 export function getAdminState(): boolean {

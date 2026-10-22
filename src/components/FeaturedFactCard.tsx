@@ -1,6 +1,7 @@
 import React from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { MapPin, ChevronRight, ChevronLeft, BookOpen, X, Edit3, Calendar, Hourglass } from 'lucide-react';
+import { getFactDisplayImage } from '../utils/historicalImages';
 
 interface Props {
   fact: FactItem;
@@ -98,21 +99,25 @@ export const FeaturedFactCard: React.FC<Props> = ({
       </div>
 
       {/* Topic Image if present */}
-      {fact.imageUrl && (
-        <div className="relative rounded-xl overflow-hidden border border-amber-500/25 bg-black/60 max-h-36">
-          <img
-            src={fact.imageUrl}
-            alt={fact.imageCaption || fact.name}
-            className="w-full h-32 object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-          {fact.imageCaption && (
-            <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/85 text-[10px] text-amber-200 border border-amber-500/20 backdrop-blur-xs truncate">
-              {fact.imageCaption}
-            </div>
-          )}
-        </div>
-      )}
+      {(() => {
+        const displayImg = getFactDisplayImage(fact);
+        if (!displayImg) return null;
+        return (
+          <div className="relative rounded-xl overflow-hidden border border-amber-500/25 bg-black/60 max-h-36">
+            <img
+              src={displayImg}
+              alt={fact.imageCaption || fact.name}
+              className="w-full h-32 object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+            {(fact.imageCaption || fact.name) && (
+              <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/85 text-[10px] text-amber-200 border border-amber-500/20 backdrop-blur-xs truncate">
+                {fact.imageCaption || fact.name}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Summary Text (Compact, legible) */}
       <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">

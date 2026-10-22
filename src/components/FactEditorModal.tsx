@@ -29,16 +29,19 @@ import {
   ChevronDown,
   Info,
   Image as ImageIcon,
-  Upload,
   Link as LinkIcon,
   Link2,
   Landmark,
   Plus,
   Eye,
+  ExternalLink,
+  Globe,
+  Copy,
 } from 'lucide-react';
 import { FactRelationsModal } from './FactRelationsModal';
 import {
-  compressImageFile,
+  resolveImageUrl,
+  getLinkTypeInfo,
 } from '../utils/imageUtils';
 import {
   getFactYearSpan,
@@ -123,32 +126,37 @@ export const FactEditorModal: React.FC<Props> = ({
     selectedCategory === 'official' ||
     selectedCategory === 'other_figure';
 
-  // Topic Image & Caption state
+  // Topic Image & Caption state (URL & Image Host only - protecting Firestore quota)
   const [imageUrl, setImageUrl] = useState('');
   const [imageCaption, setImageCaption] = useState('');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageLoadError, setImageLoadError] = useState<string | null>(null);
 
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const linkInfo = useMemo(() => getLinkTypeInfo(imageUrl), [imageUrl]);
 
-    setIsUploadingImage(true);
-    setImageUploadError(null);
+  const handleImageUrlChange = (rawUrl: string) => {
+    const trimmed = rawUrl.trim();
+    if (trimmed.startsWith('data:')) {
+      setImageLoadError('بارکردنی فایلی وێنە ناچالاک کراوە بۆ پاراستنی خێرایی و کەمکردنەوەی قەبارەی بەرنامە. تکایە تەنها لینکی وێنە دابنێ.');
+      return;
+    }
+    setImageLoadError(null);
+    const resolved = resolveImageUrl(trimmed);
+    setImageUrl(resolved);
+    if (resolved && !imageCaption.trim() && name.trim()) {
+      setImageCaption(`وێنەی تایبەت بە «${name.trim()}»`);
+    }
+  };
+
+  const handlePasteClipboard = async () => {
     try {
-      const compressedDataUrl = await compressImageFile(file);
-      setImageUrl(compressedDataUrl);
-      if (!imageCaption.trim() && name.trim()) {
-        setImageCaption(`وێنەی تایبەت بە «${name.trim()}»`);
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          handleImageUrlChange(text);
+        }
       }
-    } catch (err: any) {
-      setImageUploadError(err?.message || 'هەڵە لە بارکردنی وێنەکەدا ڕوویدا');
-    } finally {
-      setIsUploadingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    } catch {
+      // ignore clipboard permission error
     }
   };
 
@@ -174,7 +182,7 @@ export const FactEditorModal: React.FC<Props> = ({
       setPlaceSearchQuery('');
       setPlaceSearchResults([]);
       setShowManualCoords(false);
-      setImageUploadError(null);
+      setImageLoadError(null);
 
       if (factToEdit) {
         setName(factToEdit.name);
@@ -596,7 +604,7 @@ export const FactEditorModal: React.FC<Props> = ({
       tag: selectedCategory,
       collectionId: selectedCategory,
       category: selectedCategory,
-      imageUrl: imageUrl.trim() || undefined,
+      imageUrl: imageUrl.trim() ? resolveImageUrl(imageUrl.trim()) : undefined,
       imageCaption: imageCaption.trim() || undefined,
       parentFactId: typeof parentFactId === 'number' ? parentFactId : undefined,
       relatedFactIds: relatedFactIds.length > 0 ? relatedFactIds : undefined,
@@ -1471,86 +1479,151 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* SECTION 5: وێنە و ڕوونکردنەوەی وێنە (وێنەی تایبەت بە بابەت و زانیاری بچووک لەسەری) */}
+          {/* SECTION 5: بەستەری وێنە و هۆست ئیمەیج (Image URL & Hosts Only) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   05
                 </span>
-                <span>وێنەی تایبەت بە بابەت و زانیاری لەسەری</span>
+                <span>بەستەری وێنە و هۆست ئیمەیج (ویکیپێدیا و هۆستەکانی تر)</span>
               </span>
-              <span className="text-[11px] text-amber-300/80">یەک وێنە + نوسینی بچووک</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/40">
+                تەنها بەستەر • پاراستنی کوۆتا
+              </span>
             </div>
 
             {/* Explanatory note */}
-            <div className="text-[11px] text-slate-300 liquid-glass-subtle p-3 rounded-xl flex items-start gap-2 leading-relaxed">
+            <div className="text-[11px] text-slate-300 liquid-glass-subtle p-3 rounded-xl flex items-start gap-2.5 leading-relaxed">
               <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>
-                دەتوانیت یەک وێنەی تایبەت بەم بابەتە دابنێیت (لە مۆبایلەکەت، کۆمپیوتەرەکەت یان بە بەستەر). کاتێک بەکارهێنەر لەسەر نەخشە پۆینتەکە دادەگرێت، ئەم وێنەیە لەگەڵ کورتەی بابەت و ئەو زانیارییە بچووکەی لەسەری دەینووسیت بە جوانترین شێواز نیشان دەدرێت.
+                بۆ پاراستنی خێرایی بەرنامەکە و کەمکردنەوەی قەبارە، بارکردنی فایلی وێنە لە مۆبایل و کۆمپیوتەر ڕاگیراوە و تەنها بەستەری وێنە بەکاردێت. بەرنامەکە بە شێوەیەکی خۆکار بەستەری بینەری وێنەی <strong>ویکیپێدیا</strong>، <strong>ویکیمێدیا کۆمۆنز</strong>، <strong>Imgur</strong>، <strong>Google Drive</strong> و هەموو هۆستەکانی تر دەگۆڕێت بۆ فایلی ڕاستەوخۆ.
               </span>
             </div>
 
-            {/* Hidden File Input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageFileChange}
-            />
-
-            {/* Image Selection Buttons & URL Input */}
+            {/* URL Input & Quick Tools */}
             <div className="space-y-3">
               <div>
-                {/* Upload Button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingImage}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50"
-                >
-                  {isUploadingImage ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                  ) : (
-                    <Upload className="w-4 h-4 text-amber-400" />
-                  )}
-                  <span>{isUploadingImage ? 'کەمکردنەوەی قەبارە و بارکردن...' : 'هەڵبژاردنی وێنە لە مۆبایل یان کۆمپیوتەرەکەت'}</span>
-                </button>
-              </div>
-
-              {/* URL Input */}
-              <div className="relative">
-                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                  <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
-                  <span>یان بەستەری ڕاستەوخۆی وێنە لە ئینتەرنێتەوە (Image URL):</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://example.com/kurdish_history_image.jpg"
-                    className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-10"
-                    dir="ltr"
-                  />
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
+                    <span>بەستەری وێنە (ویکیپێدیا، ویکیمێدیا یان هەر هۆستێک):</span>
+                  </span>
                   {imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setImageUrl('')}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-400 cursor-pointer"
-                      title="سڕینەوەی بەستەر"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <span className="text-[10px] text-amber-300 font-mono px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/20">
+                      {linkInfo.label}
+                    </span>
                   )}
+                </label>
+
+                <div className="relative flex items-center gap-1.5">
+                  <div className="relative flex-1">
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={(e) => handleImageUrlChange(e.target.value)}
+                      placeholder="https://ckb.wikipedia.org/wiki/...#/media/پەڕگە:Simko_Sikaki.jpg"
+                      className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-9"
+                      dir="ltr"
+                    />
+                    {imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageUrl('');
+                          setImageLoadError(null);
+                        }}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-400 cursor-pointer"
+                        title="سڕینەوەی بەستەر"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePasteClipboard}
+                    className="shrink-0 px-3 py-2.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                    title="پەیستکردن لە کلیپبۆرد"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">پەیست</span>
+                  </button>
                 </div>
               </div>
 
-              {imageUploadError && (
+              {/* Conversion indicator if Wikipedia/Drive link was converted */}
+              {linkInfo.isConverted && (
+                <div className="p-2 px-3 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-fade-in shadow-sm">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>
+                    لینکی <strong>{linkInfo.label}</strong> ناسێندرا و بە سەرکەوتوویی گۆڕدرا بۆ بەستەری پەخشی ڕاستەوخۆ!
+                  </span>
+                </div>
+              )}
+
+              {/* Guidance Note for services like MEGA */}
+              {linkInfo.warningNote && (
+                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs flex items-start gap-2.5 leading-relaxed shadow-sm">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span>{linkInfo.warningNote}</span>
+                </div>
+              )}
+
+              {/* Free Image Hosting Helper Links */}
+              <div className="p-3 rounded-xl liquid-glass-subtle space-y-2">
+                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-amber-400" />
+                  <span>هۆستە بەخۆڕاییەکان بۆ وەرگرتنی لینکی وێنە:</span>
+                </span>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  ئەگەر وێنەکەت لەسەر مۆبایل یان کۆمپیوتەرەکەتە، لە یەکێک لەم ماڵپەڕە بەخۆڕاییانە باری بکە و لینکی وێنەکە لێرە دابنێ:
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <a
+                    href="https://imgbb.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
+                  >
+                    <span>ImgBB (بارکردنی ئاسان)</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                  <a
+                    href="https://postimages.org"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
+                  >
+                    <span>Postimages</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                  <a
+                    href="https://commons.wikimedia.org"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
+                  >
+                    <span>ویکیمێدیا کۆمۆنز</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                  <a
+                    href="https://ckb.wikipedia.org"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
+                  >
+                    <span>ویکیپیدیای کوردی</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+              </div>
+
+              {imageLoadError && (
                 <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{imageUploadError}</span>
+                  <span>{imageLoadError}</span>
                 </div>
               )}
 
@@ -1567,6 +1640,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       onClick={() => {
                         setImageUrl('');
                         setImageCaption('');
+                        setImageLoadError(null);
                       }}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-rose-300 text-[10px] cursor-pointer transition-colors"
                     >
@@ -1580,7 +1654,12 @@ export const FactEditorModal: React.FC<Props> = ({
                       src={imageUrl}
                       alt={imageCaption || name || 'Topic Image Preview'}
                       className="max-h-64 max-w-full w-auto h-auto object-contain mx-auto rounded-lg shadow-lg"
-                      onError={() => setImageUploadError('نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.')}
+                      onError={() =>
+                        setImageLoadError(
+                          'نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە یان لینکی ڕاستەوخۆ بەکاربهێنە.'
+                        )
+                      }
+                      onLoad={() => setImageLoadError(null)}
                     />
                     {imageCaption && (
                       <div className="w-full mt-2 p-2 rounded-lg liquid-glass-subtle text-amber-200 text-xs flex items-center gap-2">

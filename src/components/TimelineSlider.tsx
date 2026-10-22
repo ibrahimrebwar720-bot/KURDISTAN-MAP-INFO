@@ -7,6 +7,8 @@ import {
   Search,
   X,
   Film,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
@@ -16,6 +18,7 @@ import {
   toKurdishDigits,
   normalizeYearString,
 } from '../utils/yearUtils';
+import { playTimelineTick, getAudioMuted, setAudioMuted } from '../utils/audioEffects';
 
 interface Props {
   facts: FactItem[];
@@ -240,11 +243,24 @@ export const TimelineSlider: React.FC<Props> = ({
     };
   }, [scrollToYear]);
 
+  // Audio Mute State
+  const [isAudioMuted, setIsAudioMuted] = useState(getAudioMuted());
+
+  const handleToggleAudio = () => {
+    const next = !isAudioMuted;
+    setIsAudioMuted(next);
+    setAudioMuted(next);
+    if (!next) {
+      playTimelineTick(1200);
+    }
+  };
+
   // Step Year buttons
   const handleStepYear = (delta: number) => {
     isUserInteractingRef.current = false;
     const current = typeof selectedYear === 'number' ? selectedYear : 1940;
     const next = Math.max(MIN_HISTORICAL_YEAR, Math.min(MAX_HISTORICAL_YEAR, current + delta));
+    playTimelineTick(delta > 0 ? 1100 : 900);
     onYearChange(next);
   };
 
@@ -327,6 +343,9 @@ export const TimelineSlider: React.FC<Props> = ({
     isUserInteractingRef.current = true;
     const detectedYear = getYearAtNeedle();
     if (detectedYear !== null) {
+      if (detectedYear !== scrubYear) {
+        playTimelineTick(950 + (Math.abs(detectedYear) % 80));
+      }
       setScrubYear(detectedYear);
     }
 
@@ -426,6 +445,23 @@ export const TimelineSlider: React.FC<Props> = ({
               className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
             >
               <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            </button>
+
+            {/* Subtle Audio Toggle */}
+            <button
+              onClick={handleToggleAudio}
+              title={isAudioMuted ? 'چالاککردنی دەنگی ناسکی کاتژمێری مێژوو' : 'بێدەنگکردنی دەنگی کارلێک'}
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                !isAudioMuted
+                  ? 'liquid-glass-btn text-amber-300 hover:text-white'
+                  : 'liquid-glass-btn text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {!isAudioMuted ? (
+                <Volume2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              ) : (
+                <VolumeX className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              )}
             </button>
 
             {/* Search Toggle */}

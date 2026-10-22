@@ -1,120 +1,244 @@
 /**
- * Image compression and historical presets helper
+ * Universal Image URL normalization and resolvers
+ * Supports Google Drive, Dropbox, OneDrive, Wikipedia, Wikimedia Commons, Imgur, and Image Hosts
  */
 
-export interface HistoricalImagePreset {
-  id: string;
-  title: string;
-  url: string;
-  caption: string;
+export interface ResolvedLinkInfo {
+  resolvedUrl: string;
+  sourceType:
+    | 'wikipedia'
+    | 'wikimedia'
+    | 'gdrive'
+    | 'dropbox'
+    | 'onedrive'
+    | 'mega'
+    | 'imgur'
+    | 'imgbb'
+    | 'postimages'
+    | 'direct'
+    | 'other';
+  label: string;
+  isConverted: boolean;
+  warningNote?: string;
 }
 
-export const KURDISH_HISTORICAL_IMAGE_PRESETS: HistoricalImagePreset[] = [
-  {
-    id: 'erbil-citadel',
-    title: 'قەڵای دێرینی هەولێر',
-    url: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80',
-    caption: 'قەڵای مێژوویی و هەزاران ساڵەی هەولێر لە دڵی کوردستان، یەکێک لە کۆنترین شارە ئاوەدانەکانی جیهان',
-  },
-  {
-    id: 'sherwana-castle',
-    title: 'قەڵای شێروانە',
-    url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1000&q=80',
-    caption: 'قەڵای شێروانە لە کەلار، شاکاری بیناسازی سەردەمی میرنشینە کوردییەکان لە گەرمیان',
-  },
-  {
-    id: 'zagros-mountains',
-    title: 'چیاکانی زاگرۆس و قەڵای سەردەمی ماد',
-    url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1000&q=80',
-    caption: 'سروشت و چیا سەختەکانی زاگرۆس، مەکۆی بەرگری، سەرهەڵدان و فەرمانڕەوایی ئیمپراتۆریەتی ماد',
-  },
-  {
-    id: 'ancient-relief',
-    title: 'نەخشی بەردینی دێرین (لولوبی و گوتی)',
-    url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1000&q=80',
-    caption: 'نەخشی بەردینی پاشاکانی سەرپێڵی زەهاو (ئانووبانینی) و دەربەندی گاور لە چیاکانی کوردستان',
-  },
-  {
-    id: 'manuscript-parchment',
-    title: 'دەستنووسی مێژوویی و بەڵگەنامە',
-    url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1000&q=80',
-    caption: 'دەستنووسی دیوان و پەڕاوە دێرینەکانی میرنشینە کوردییەکان و بەڵگەنامە مێژووییەکان',
-  },
-  {
-    id: 'amadiya-fortress',
-    title: 'قەڵای ئامێدی لە بادینان',
-    url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1000&q=80',
-    caption: 'قەڵا و شاری مێژوویی ئامێدی لەسەر لووتکەی شاخ، پایتەختی دێرینی میرنشینی بادینان',
-  },
-  {
-    id: 'ishak-pasha-palace',
-    title: 'کۆشکی ئیسحاق پاشا',
-    url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1000&q=80',
-    caption: 'کۆشکی ئیسحاق پاشا لە بازید (باکووری کوردستان)، شاکاری هونەری تەلارسازی میرنشینی بایەزید',
-  },
-  {
-    id: 'alwand-khanaqin',
-    title: 'ڕووباری ئەڵوەن و خانەقین',
-    url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80',
-    caption: 'ڕووباری ئەڵوەن لە خانەقین، پێگەی مێژوویی دەروازەی باشووری ڕۆژهەڵاتی کوردستان',
-  },
-];
-
 /**
- * Compresses an image file from user device into a lightweight base64 data URL
- * to store reliably in Firestore and LocalStorage.
+ * Universal Image URL Resolver:
+ * Resolves cloud drive and encyclopedic links into direct streaming CDN image URLs:
+ * - Google Drive: converts share link to high-speed lh3.googleusercontent.com/d/ ID link
+ * - Dropbox: converts view link to direct streaming raw=1 link
+ * - Wikipedia / Wikimedia: converts viewer page links to direct Special:FilePath CDN links
+ * - Imgur: converts viewer page to direct .jpg CDN link
  */
-export async function compressImageFile(
-  file: File,
-  maxWidth = 1000,
-  maxHeight = 800,
-  quality = 0.78
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // If not an image, reject
-    if (!file.type.startsWith('image/')) {
-      reject(new Error('تکایە پەڕگەی وێنە هەڵبژێرە'));
-      return;
+export function resolveImageUrl(rawUrl: string | null | undefined): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+
+  // Reject bulky base64 data URLs to protect local storage and memory
+  if (trimmed.startsWith('data:')) {
+    return '';
+  }
+
+  try {
+    let decoded = trimmed;
+    try {
+      decoded = decodeURI(trimmed);
+    } catch {
+      // ignore URI decode error
     }
 
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('هەڵە لە خوێندنەوەی وێنەکەدا ڕوویدا'));
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = () => reject(new Error('هەڵە لە بارکردنی وێنەکەدا ڕوویدا'));
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+    // 1. Wikipedia / Wikimedia Media Viewer hash links:
+    // e.g. https://ckb.wikipedia.org/wiki/سمکۆی_شکاک#/media/پەڕگە:Simko_Sikaki.jpg
+    const mediaViewerMatch = decoded.match(
+      /#\/media\/(?:File|پەڕگە|ملف|پرونده|Dosya|Fichier|Datei|Wêne|Image|Файл):?\s*([^?#]+)/i
+    );
+    if (mediaViewerMatch) {
+      const rawFileName = mediaViewerMatch[1].trim().replace(/^_+|_+$/g, '');
+      const domainMatch = decoded.match(/https?:\/\/([^/]+)/i);
+      const domain = domainMatch ? domainMatch[1] : 'commons.wikimedia.org';
+      return `https://${domain}/wiki/Special:FilePath/${encodeURIComponent(rawFileName)}`;
+    }
 
-        // Calculate aspect-ratio scaling
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
+    // 2. Wikipedia / Wikimedia File page links:
+    // e.g. https://commons.wikimedia.org/wiki/File:Simko_Sikaki.jpg
+    const filePageMatch = decoded.match(
+      /\/wiki\/(?:File|پەڕگە|ملف|پرونده|Dosya|Fichier|Datei|Wêne|Image|Файл):([^?#/]+)/i
+    );
+    if (filePageMatch) {
+      const rawFileName = filePageMatch[1].trim();
+      const domainMatch = decoded.match(/https?:\/\/([^/]+)/i);
+      const domain = domainMatch ? domainMatch[1] : 'commons.wikimedia.org';
+      return `https://${domain}/wiki/Special:FilePath/${encodeURIComponent(rawFileName)}`;
+    }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+    // 3. Google Drive public share links:
+    // e.g. https://drive.google.com/file/d/1a2b3c4d5e/view?usp=sharing
+    // or https://drive.google.com/open?id=1a2b3c4d5e
+    // or https://drive.google.com/uc?id=1a2b3c4d5e
+    const gDriveMatch = trimmed.match(
+      /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=view&)?id=)([a-zA-Z0-9_-]+)/i
+    );
+    if (gDriveMatch) {
+      // Google high-speed direct image rendering CDN
+      return `https://lh3.googleusercontent.com/d/${gDriveMatch[1]}`;
+    }
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('نەتوانرا وێنەکە ڕێکبخرێت'));
-          return;
-        }
+    // 4. Dropbox share link (convert ?dl=0 to ?raw=1 or append ?raw=1)
+    if (trimmed.includes('dropbox.com')) {
+      if (trimmed.includes('dl=0')) {
+        return trimmed.replace('dl=0', 'raw=1');
+      }
+      if (!trimmed.includes('raw=1')) {
+        return trimmed.includes('?') ? `${trimmed}&raw=1` : `${trimmed}?raw=1`;
+      }
+      return trimmed;
+    }
 
-        // Draw and compress to JPEG
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+    // 5. OneDrive embed / download link
+    // e.g. https://1drv.ms/i/s!xyz or onedrive.live.com
+    if (trimmed.includes('1drv.ms') || trimmed.includes('onedrive.live.com')) {
+      if (trimmed.includes('1drv.ms') && !trimmed.includes('download=1')) {
+        return trimmed;
+      }
+    }
 
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      };
+    // 6. Imgur direct image resolver (e.g. https://imgur.com/aBcDeFg -> https://i.imgur.com/aBcDeFg.jpg)
+    const imgurMatch = trimmed.match(/^https?:\/\/(?:www\.)?imgur\.com\/([a-zA-Z0-9]+)$/i);
+    if (imgurMatch && !['a', 'gallery', 't'].includes(imgurMatch[1])) {
+      return `https://i.imgur.com/${imgurMatch[1]}.jpg`;
+    }
 
-      img.src = e.target?.result as string;
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
+ * Inspects a link and returns source metadata, conversion status, and drive guidance
+ */
+export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
+  const resolved = resolveImageUrl(url);
+  const isConverted = Boolean(url && resolved && url.trim() !== resolved);
+
+  if (!url || !url.trim()) {
+    return {
+      resolvedUrl: '',
+      sourceType: 'other',
+      label: 'بەتاڵ',
+      isConverted: false,
     };
+  }
 
-    reader.readAsDataURL(file);
-  });
+  const lower = url.toLowerCase();
+
+  // MEGA Links detection & guidance
+  if (lower.includes('mega.nz') || lower.includes('mega.io')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'mega',
+      label: 'MEGA Cloud',
+      isConverted: false,
+      warningNote:
+        'سێرڤەری MEGA فایلەکانی بە شێوەی کۆدکراوی تایبەت (End-to-End Encrypted) هەڵدەگرێت، بۆیە ڕێگە بە پەخشی ڕاستەوخۆ لەسەر وێب نادات. پێشنیار دەکرێت ئەم وێنەیە لە Google Drive یان ماڵپەڕی ImgBB دابنێیت تا بە خێرایی ڕاستەوخۆ پەخش ببێت.',
+    };
+  }
+
+  // Google Drive
+  if (lower.includes('drive.google.com') || lower.includes('googleusercontent.com')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'gdrive',
+      label: 'گووگڵ درایڤ (Google Drive)',
+      isConverted,
+    };
+  }
+
+  // Dropbox
+  if (lower.includes('dropbox.com')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'dropbox',
+      label: 'دراپبۆکس (Dropbox)',
+      isConverted,
+    };
+  }
+
+  // OneDrive
+  if (lower.includes('1drv.ms') || lower.includes('onedrive.live.com')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'onedrive',
+      label: 'وەن درایڤ (OneDrive)',
+      isConverted,
+    };
+  }
+
+  // Wikipedia
+  if (lower.includes('wikipedia.org')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'wikipedia',
+      label: 'ویکیپێدیا (Wikipedia)',
+      isConverted,
+    };
+  }
+
+  // Wikimedia
+  if (lower.includes('wikimedia.org')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'wikimedia',
+      label: 'ویکیمێدیا (Wikimedia Commons)',
+      isConverted,
+    };
+  }
+
+  // ImgBB
+  if (lower.includes('ibb.co')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'imgbb',
+      label: 'ImgBB',
+      isConverted,
+    };
+  }
+
+  // Postimages
+  if (lower.includes('postimg.cc') || lower.includes('postimages.org')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'postimages',
+      label: 'Postimages',
+      isConverted,
+    };
+  }
+
+  // Imgur
+  if (lower.includes('imgur.com')) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'imgur',
+      label: 'Imgur',
+      isConverted,
+    };
+  }
+
+  // Direct image file URL
+  if (/\.(jpg|jpeg|png|webp|svg|gif|avif)($|\?)/i.test(lower)) {
+    return {
+      resolvedUrl: resolved,
+      sourceType: 'direct',
+      label: 'بەستەری ڕاستەوخۆی وێنە',
+      isConverted,
+    };
+  }
+
+  return {
+    resolvedUrl: resolved,
+    sourceType: 'other',
+    label: 'هۆست ئیمەیج / وێب',
+    isConverted,
+  };
 }

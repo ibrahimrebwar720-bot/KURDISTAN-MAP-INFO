@@ -62,6 +62,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getLinkedFacts } from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
+import { getFactDisplayImage } from '../utils/historicalImages';
 
 interface Props {
   facts: FactItem[];
@@ -92,6 +93,8 @@ interface Props {
   onReplayIntro?: () => void;
   playMapIntro?: boolean;
   onMapIntroComplete?: () => void;
+  onOpenDocumentaryTour?: () => void;
+  externalFlyTo?: { lat: number; lng: number; zoom?: number; id?: string } | null;
 }
 
 export const TAG_FILTER_OPTIONS = [
@@ -212,6 +215,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   onReplayIntro,
   playMapIntro = false,
   onMapIntroComplete,
+  onOpenDocumentaryTour,
+  externalFlyTo,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -232,6 +237,58 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     caption?: string;
     title: string;
   } | null>(null);
+
+  // Dynamic Era Atmosphere & Lighting based on timeline year
+  // (سەردەمی دێرین تۆنی گەرم و قاوەیی، سەردەمی نوێ ڕووناکی و شین)
+  const eraAtmosphere = useMemo(() => {
+    if (selectedYear === 'all' || typeof selectedYear !== 'number') {
+      return null;
+    }
+    if (selectedYear < 0) {
+      return {
+        name: 'سەردەمی دێرین (بەرلە زایین)',
+        tintClass: 'bg-gradient-to-t from-amber-950/25 via-amber-900/15 to-transparent',
+        glowColor: 'rgba(217, 119, 6, 0.18)',
+        borderColor: 'border-amber-500/40',
+      };
+    }
+    if (selectedYear <= 1250) {
+      return {
+        name: 'سەردەمی ئیسلامی و ناوەڕاست',
+        tintClass: 'bg-gradient-to-t from-emerald-950/20 via-teal-900/12 to-transparent',
+        glowColor: 'rgba(16, 185, 129, 0.15)',
+        borderColor: 'border-emerald-500/40',
+      };
+    }
+    if (selectedYear <= 1850) {
+      return {
+        name: 'سەردەمی میرنشینەکان',
+        tintClass: 'bg-gradient-to-t from-amber-950/20 via-rose-950/12 to-transparent',
+        glowColor: 'rgba(245, 158, 11, 0.16)',
+        borderColor: 'border-orange-500/40',
+      };
+    }
+    return {
+      name: 'سەردەمی هاوچەرخ',
+      tintClass: 'bg-gradient-to-t from-blue-950/20 via-indigo-950/15 to-transparent',
+      glowColor: 'rgba(59, 130, 246, 0.15)',
+      borderColor: 'border-blue-500/40',
+    };
+  }, [selectedYear]);
+
+  // Handle external flyTo requests (e.g. from Documentary Tour or Split Screen)
+  useEffect(() => {
+    if (!externalFlyTo || !mapInstanceRef.current) return;
+    try {
+      mapInstanceRef.current.flyTo([externalFlyTo.lat, externalFlyTo.lng], externalFlyTo.zoom || 8, {
+        animate: true,
+        duration: 2.2,
+        easeLinearity: 0.25,
+      });
+    } catch (err) {
+      console.warn('externalFlyTo error:', err);
+    }
+  }, [externalFlyTo]);
 
   // Theme Context & Modal state
   const { theme, themeId, setTheme } = useTheme();
@@ -793,6 +850,16 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       {/* 1. Leaflet Map Viewport */}
       <div ref={mapContainerRef} className="w-full h-full z-0 bg-[#12161f]" />
 
+      {/* Dynamic Era Atmosphere Lighting & Vignette Overlay (کاریگەریی کەشی سەردەمەکان) */}
+      {eraAtmosphere && (
+        <div
+          className={`absolute inset-0 pointer-events-none z-10 transition-all duration-1000 ${eraAtmosphere.tintClass}`}
+          style={{
+            boxShadow: `inset 0 0 140px 30px ${eraAtmosphere.glowColor}`,
+          }}
+        />
+      )}
+
       {/* 2. 4-Second Kurdistan Border Light Beam Motion Graphic & Illumination directly on real map */}
       <KurdishMapBorderIllumination
         map={leafletMap}
@@ -899,6 +966,19 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               <div className="glass-specular-ray" />
               <Menu className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
               <span className="font-heading font-bold text-xs">پێڕست</span>
+            </button>
+          )}
+
+          {/* دوگمەی گەشت بەناو ڕووداوە گەورەکاندا (دۆخی چیرۆکبێژیی بەڵگەنامەیی) */}
+          {onOpenDocumentaryTour && (
+            <button
+              onClick={onOpenDocumentaryTour}
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-2xl liquid-glass-btn text-amber-300 hover:text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-2xl transition-all cursor-pointer active:scale-95 group overflow-hidden border border-amber-400/35"
+              title="گەشت بەناو ڕووداوە گەورەکاندا (دۆخی چیرۆکبێژیی بەڵگەنامەیی)"
+            >
+              <div className="glass-specular-ray" />
+              <Film className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="font-heading font-bold text-xs hidden sm:inline">گەشت</span>
             </button>
           )}
 
@@ -1151,27 +1231,29 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             </div>
 
             {/* Topic Image in True Aspect Ratio & Small Information Text (بە قیاسی تەواو بێ بڕین) */}
-            {selectedFact.imageUrl && (
-              <div className="relative mb-2.5 rounded-xl overflow-hidden border border-amber-500/30 bg-black/95 group shadow-[0_4px_20px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center p-1">
-                <img
-                  src={selectedFact.imageUrl}
-                  alt={selectedFact.imageCaption || selectedFact.name}
-                  className="max-h-56 max-w-full w-auto h-auto object-contain mx-auto rounded-lg group-hover:scale-[1.02] transition-transform duration-300 cursor-pointer shadow-lg"
-                  onClick={() =>
-                    setLightboxImage({
-                      url: selectedFact.imageUrl!,
-                      caption: selectedFact.imageCaption,
-                      title: selectedFact.name,
-                    })
-                  }
-                />
+            {(() => {
+              const displayImg = getFactDisplayImage(selectedFact);
+              if (!displayImg) return null;
+              return (
+                <div className="relative mb-2.5 rounded-xl overflow-hidden border border-amber-500/30 bg-black/95 group shadow-[0_4px_20px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center p-1">
+                  <img
+                    src={displayImg}
+                    alt={selectedFact.imageCaption || selectedFact.name}
+                    className="max-h-56 max-w-full w-auto h-auto object-contain mx-auto rounded-lg group-hover:scale-[1.02] transition-transform duration-300 cursor-pointer shadow-lg"
+                    onClick={() =>
+                      setLightboxImage({
+                        url: displayImg,
+                        caption: selectedFact.imageCaption,
+                        title: selectedFact.name,
+                      })
+                    }
+                  />
 
-                {/* Small Caption / Information on the image */}
-                {selectedFact.imageCaption && (
+                  {/* Small Caption / Information on the image */}
                   <div className="w-full mt-1.5 px-2.5 py-1.5 rounded-xl liquid-glass-subtle text-amber-200 text-[10px] sm:text-[11px] flex items-center justify-between gap-1.5 shadow-sm">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Camera className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="truncate font-medium">{selectedFact.imageCaption}</span>
+                      <span className="truncate font-medium">{selectedFact.imageCaption || selectedFact.name}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {onOpenGallery && (
@@ -1193,7 +1275,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           setLightboxImage({
-                            url: selectedFact.imageUrl!,
+                            url: displayImg,
                             caption: selectedFact.imageCaption,
                             title: selectedFact.name,
                           });
@@ -1205,9 +1287,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* Location Description */}
             {selectedFact.desc && (
@@ -1497,21 +1579,25 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
               {/* Story Content Row */}
               <div className="flex gap-3 items-start my-1">
-                {currentTourFact.imageUrl && (
-                  <img
-                    src={currentTourFact.imageUrl}
-                    alt={currentTourFact.name}
-                    onClick={() =>
-                      setLightboxImage({
-                        url: currentTourFact.imageUrl!,
-                        title: currentTourFact.name,
-                        caption: currentTourFact.imageCaption || currentTourFact.desc,
-                      })
-                    }
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0 border border-white/20 cursor-pointer shadow-md hover:scale-105 transition-transform"
-                    title="کلیک بکە بۆ گەورەکردنی وێنە"
-                  />
-                )}
+                {(() => {
+                  const tourImg = getFactDisplayImage(currentTourFact);
+                  if (!tourImg) return null;
+                  return (
+                    <img
+                      src={tourImg}
+                      alt={currentTourFact.name}
+                      onClick={() =>
+                        setLightboxImage({
+                          url: tourImg,
+                          title: currentTourFact.name,
+                          caption: currentTourFact.imageCaption || currentTourFact.desc,
+                        })
+                      }
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0 border border-white/20 cursor-pointer shadow-md hover:scale-105 transition-transform"
+                      title="کلیک بکە بۆ گەورەکردنی وێنە"
+                    />
+                  );
+                })()}
 
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-1.5">
