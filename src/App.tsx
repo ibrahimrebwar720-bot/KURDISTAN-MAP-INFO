@@ -6,13 +6,17 @@ import {
   loadStoredCollections,
   getAdminState,
   setAdminState,
-  saveSingleFact,
-  deleteSingleFact,
-  saveFactNotesLocally,
-  updateFactRelationsLocally,
-  saveSingleCollection,
-  deleteSingleCollection,
 } from './services/historyStorageService';
+import {
+  subscribeToCloudFacts,
+  saveFactToCloud,
+  deleteFactFromCloud,
+  saveNotesToCloud,
+  updateFactRelationsInCloud,
+  subscribeToCloudCollections,
+  saveCollectionToCloud,
+  deleteCollectionFromCloud,
+} from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
 import { FactDetailModal } from './components/FactDetailModal';
@@ -34,10 +38,6 @@ export default function App() {
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(null);
   const [detailFact, setDetailFact] = useState<FactItem | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // Split View & Mobile Bottom Sheet states for Menu
-  const [isSplitMode, setIsSplitMode] = useState<boolean>(true);
-  const [mobileSheetState, setMobileSheetState] = useState<'peek' | 'half' | 'full'>('half');
 
   // Documentary Tour state & Map FlyTo bridge
   const [isDocumentaryTourOpen, setIsDocumentaryTourOpen] = useState(false);
@@ -77,9 +77,33 @@ export default function App() {
     return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
   }, []);
 
+  // 1. Real-time Firebase Cloud Database synchronization for all users worldwide
+  useEffect(() => {
+    const unsubFacts = subscribeToCloudFacts((cloudFacts) => {
+      setFacts(cloudFacts);
+      // Keep selected fact synced
+      setSelectedFact((prev) => {
+        if (!prev) return null;
+        const found = cloudFacts.find((f) => f.id === prev.id);
+        return found || null;
+      });
+      // Keep detail fact synced
+      setDetailFact((prev) => {
+        if (!prev) return null;
+        const found = cloudFacts.find((f) => f.id === prev.id);
+        return found || null;
+      });
+    });
 
+    const unsubCollections = subscribeToCloudCollections((cloudCols) => {
+      setCollections(cloudCols);
+    });
 
-  // Keyboard navigation & escape to close menu/modal
+    return () => {
+      unsubFacts();
+      unsubCollections();
+    };
+  }, []);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -177,17 +201,26 @@ export default function App() {
   };
 
   const handleSaveFact = (savedFact: FactItem) => {
-    const updatedList = saveSingleFact(savedFact);
+    const exists = facts.some((f) => f.id === savedFact.id);
+    const updatedList = exists
+      ? facts.map((f) => (f.id === savedFact.id ? savedFact : f))
+      : [savedFact, ...facts];
+
     setFacts(updatedList);
     setSelectedFact(savedFact);
     if (detailFact && detailFact.id === savedFact.id) {
       setDetailFact(savedFact);
     }
     setPickedCoords(null);
+
+    // Persist text/topic data to Firestore cloud (URLs only, zero binary uploads)
+    saveFactToCloud(savedFact).catch((err) => {
+      console.error('Failed to sync fact to cloud:', err);
+    });
   };
 
   const handleDeleteFact = (factId: number) => {
-    const updatedList = deleteSingleFact(factId);
+    const updatedList = facts.filter((f) => f.id !== factId);
     setFacts(updatedList);
 
     if (selectedFact?.id === factId) {
@@ -196,11 +229,23 @@ export default function App() {
     if (detailFact?.id === factId) {
       setDetailFact(null);
     }
+
+    // Persist delete to Firestore cloud
+    deleteFactFromCloud(factId).catch((err) => {
+      console.error('Failed to delete fact from cloud:', err);
+    });
   };
 
   // Save additional notes inline
   const handleSaveNotes = (factId: number, notes: string) => {
-    const updatedList = saveFactNotesLocally(factId, notes);
+    const targetFact = facts.find((f) => f.id === factId);
+    const updatedList = facts.map((f) => {
+      if (f.id === factId) {
+        return { ...f, additionalNotes: notes };
+      }
+      return f;
+    });
+
     setFacts(updatedList);
 
     if (selectedFact && selectedFact.id === factId) {
@@ -209,6 +254,11 @@ export default function App() {
     if (detailFact && detailFact.id === factId) {
       setDetailFact({ ...detailFact, additionalNotes: notes });
     }
+
+    // Persist to Firestore cloud
+    saveNotesToCloud(factId, notes, targetFact).catch((err) => {
+      console.error('Failed to save notes to cloud:', err);
+    });
   };
 
   // Save relations / topic linking (Strictly Admin only)
@@ -222,13 +272,36 @@ export default function App() {
       return;
     }
 
-    const updatedList = updateFactRelationsLocally(sourceFactId, targetFactIds, parentFactId);
-    setFacts(updatedList);
+    // 1. Optimistic local update
+    setFacts((prev) =>
+      prev.map((f) => {
+        if (f.id === sourceFactId) {
+          return {
+            ...f,
+            relatedFactIds: targetFactIds,
+            parentFactId: typeof parentFactId === 'number' ? parentFactId : f.parentFactId,
+          };
+        }
+        return f;
+      })
+    );
 
     if (detailFact && detailFact.id === sourceFactId) {
-      const found = updatedList.find((f) => f.id === sourceFactId);
-      setDetailFact(found || null);
+      setDetailFact((prev) =>
+        prev
+          ? {
+              ...prev,
+              relatedFactIds: targetFactIds,
+              parentFactId: typeof parentFactId === 'number' ? parentFactId : prev.parentFactId,
+            }
+          : null
+      );
     }
+
+    // 2. Cloud Firestore update
+    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId).catch((err) => {
+      console.error('Failed to sync fact relations to cloud:', err);
+    });
   };
 
   // Map Point Picking flow
@@ -249,23 +322,34 @@ export default function App() {
     setIsFactEditorOpen(true);
   };
 
-  // Collections handlers (Local storage)
+  // Collections handlers (Synced to Firestore cloud)
   const handleAddCollection = (newCol: CollectionItem) => {
-    const updated = saveSingleCollection(newCol);
+    const updated = [...collections, newCol];
     setCollections(updated);
+    saveCollectionToCloud(newCol).catch((err) => {
+      console.error('Failed to save collection to cloud:', err);
+    });
   };
 
   const handleUpdateCollection = (updatedCol: CollectionItem) => {
-    const updated = saveSingleCollection(updatedCol);
+    const updated = collections.map((c) =>
+      c.id === updatedCol.id ? updatedCol : c
+    );
     setCollections(updated);
+    saveCollectionToCloud(updatedCol).catch((err) => {
+      console.error('Failed to update collection in cloud:', err);
+    });
   };
 
   const handleDeleteCollection = (colId: string) => {
-    const updated = deleteSingleCollection(colId);
+    const updated = collections.filter((c) => c.id !== colId);
     setCollections(updated);
     if (selectedCategory === colId) {
       setSelectedCategory('all');
     }
+    deleteCollectionFromCloud(colId).catch((err) => {
+      console.error('Failed to delete collection from cloud:', err);
+    });
   };
 
   return (
@@ -304,87 +388,32 @@ export default function App() {
           externalFlyTo={externalFlyTo}
         />
 
-        {/* Split Screen / Fullscreen / Mobile Bottom Sheet for پێڕست */}
+        {/* Fullscreen View for پێڕست (کامل شاشە بێ نیشاندانی نەخشە وەک جاران) */}
         {isMenuOpen && (
-          <>
-            {/* Desktop / Tablet: Split Screen Side Panel OR Fullscreen View */}
-            <div
-              className={`hidden sm:flex flex-col bg-[#070913]/95 backdrop-blur-3xl overflow-hidden transition-all duration-300 z-40 ${
-                isSplitMode
-                  ? 'fixed top-0 bottom-0 right-0 w-full sm:w-[480px] md:w-[540px] lg:w-[620px] xl:w-[680px] border-l border-white/10 shadow-[-25px_0_60px_rgba(0,0,0,0.95)] animate-slide-in-right'
-                  : 'fixed inset-0 z-50 bg-[#070913]/98 animate-fade-in'
-              }`}
-            >
-              <FactsList
-                facts={facts}
-                selectedFact={selectedFact}
-                onSelectFact={(fact) => {
-                  handleSelectFact(fact);
-                  if (!isSplitMode) {
-                    setIsMenuOpen(false);
-                  }
-                }}
-                onHoverFact={(fact) => {
-                  if (isSplitMode) {
-                    handleSelectFact(fact);
-                  }
-                }}
-                isSplitMode={isSplitMode}
-                onToggleSplitMode={() => setIsSplitMode(!isSplitMode)}
-                onOpenDetail={(fact) => setDetailFact(fact)}
-                collections={collections}
-                selectedCollectionId={selectedCategory}
-                onSelectCollection={setSelectedCategory}
-                activeCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                isAdmin={isAdmin}
-                onOpenAddFact={handleOpenAddFact}
-                onOpenEditFact={handleOpenEditFact}
-                onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
-                onOpenGallery={() => setIsGalleryOpen(true)}
-                onOpenTheme={() => setIsThemeModalOpen(true)}
-                onClose={() => setIsMenuOpen(false)}
-                onLogoutAdmin={handleAdminLogout}
-              />
-            </div>
-
-            {/* Mobile Responsive Interactive Bottom Sheet (دەستکاری بە یەک پەنجە: Peek 38%, Half 65%, Full 94%) */}
-            <div
-              className={`sm:hidden fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl border-t border-amber-400/30 bg-[#070913]/96 backdrop-blur-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.95)] transition-all duration-300 flex flex-col overflow-hidden ${
-                mobileSheetState === 'peek'
-                  ? 'h-[38dvh]'
-                  : mobileSheetState === 'half'
-                  ? 'h-[65dvh]'
-                  : 'h-[94dvh]'
-              }`}
-            >
-              <FactsList
-                facts={facts}
-                selectedFact={selectedFact}
-                onSelectFact={(fact) => {
-                  handleSelectFact(fact);
-                  setMobileSheetState('peek');
-                }}
-                isSplitMode={true}
-                mobileSheetState={mobileSheetState}
-                onToggleMobileSheet={(st) => setMobileSheetState(st)}
-                onOpenDetail={(fact) => setDetailFact(fact)}
-                collections={collections}
-                selectedCollectionId={selectedCategory}
-                onSelectCollection={setSelectedCategory}
-                activeCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                isAdmin={isAdmin}
-                onOpenAddFact={handleOpenAddFact}
-                onOpenEditFact={handleOpenEditFact}
-                onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
-                onOpenGallery={() => setIsGalleryOpen(true)}
-                onOpenTheme={() => setIsThemeModalOpen(true)}
-                onClose={() => setIsMenuOpen(false)}
-                onLogoutAdmin={handleAdminLogout}
-              />
-            </div>
-          </>
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#05070e] text-slate-100 overflow-hidden animate-fade-in">
+            <FactsList
+              facts={facts}
+              selectedFact={selectedFact}
+              onSelectFact={(fact) => {
+                handleSelectFact(fact);
+                setIsMenuOpen(false);
+              }}
+              onOpenDetail={(fact) => setDetailFact(fact)}
+              collections={collections}
+              selectedCollectionId={selectedCategory}
+              onSelectCollection={setSelectedCategory}
+              activeCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              isAdmin={isAdmin}
+              onOpenAddFact={handleOpenAddFact}
+              onOpenEditFact={handleOpenEditFact}
+              onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
+              onOpenGallery={() => setIsGalleryOpen(true)}
+              onOpenTheme={() => setIsThemeModalOpen(true)}
+              onClose={() => setIsMenuOpen(false)}
+              onLogoutAdmin={handleAdminLogout}
+            />
+          </div>
         )}
       </main>
 

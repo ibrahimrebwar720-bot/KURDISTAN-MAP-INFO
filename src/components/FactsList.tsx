@@ -165,24 +165,6 @@ export const FactsList: React.FC<Props> = ({
     <div className="flex flex-col h-full w-full text-right select-none font-sans bg-[#070913] text-slate-100 overflow-hidden">
       {/* Top Header & Search Bar (دیزاینی ڕێکخستنی پێڕست وەک وێنەکە) */}
       <header className="px-4 py-3 sm:px-6 border-b border-white/10 shrink-0 bg-[#0c101d]/95 backdrop-blur-xl flex flex-col gap-3 z-10 shadow-lg">
-        {/* Mobile Swipe Grab Handle for Interactive Bottom Sheet */}
-        {onToggleMobileSheet && (
-          <div
-            className="sm:hidden flex items-center justify-center py-1 -mt-1 cursor-pointer group"
-            onClick={() => {
-              const next =
-                mobileSheetState === 'peek'
-                  ? 'half'
-                  : mobileSheetState === 'half'
-                  ? 'full'
-                  : 'peek';
-              onToggleMobileSheet(next);
-            }}
-            title="گۆڕینی بەرزونزمی کارتی پێڕست لەسەر نەخشە"
-          >
-            <div className="w-12 h-1.5 rounded-full bg-amber-400/50 group-hover:bg-amber-400 transition-colors" />
-          </div>
-        )}
 
         {/* Row 1: App Header & Global Search Bar */}
         <div className="flex items-center justify-between gap-3">
@@ -245,24 +227,7 @@ export const FactsList: React.FC<Props> = ({
               </button>
             )}
 
-            {/* Split Screen / Fullscreen Toggle Button */}
-            {onToggleSplitMode && (
-              <button
-                onClick={onToggleSplitMode}
-                className="hidden sm:flex w-9 h-9 items-center justify-center rounded-2xl liquid-glass-btn text-amber-300 hover:text-white transition-colors cursor-pointer shrink-0 border border-white/15"
-                title={
-                  isSplitMode
-                    ? 'فراوانکردن بۆ شاشەی تەواو (Fullscreen)'
-                    : 'دۆخی دووانەیی لەگەڵ نەخشە (Split Screen)'
-                }
-              >
-                {isSplitMode ? (
-                  <Maximize2 className="w-4 h-4" />
-                ) : (
-                  <Columns2 className="w-4 h-4" />
-                )}
-              </button>
-            )}
+
 
             {onClose && (
               <button
@@ -372,13 +337,7 @@ export const FactsList: React.FC<Props> = ({
             )}
           </div>
         ) : (
-          <div
-            className={`grid gap-3.5 sm:gap-4.5 ${
-              isSplitMode
-                ? 'grid-cols-1 md:grid-cols-1 lg:grid-cols-2'
-                : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
-            }`}
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5 sm:gap-4.5">
             {filteredFacts.map((fact) => {
               const isSelected = selectedFact?.id === fact.id;
               const catInfo = getCategoryInfo(fact);
