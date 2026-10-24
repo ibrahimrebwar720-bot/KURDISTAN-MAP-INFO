@@ -135,15 +135,13 @@ export const FactDetailModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-fade-in"
+      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-2xl animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl liquid-glass-panel rounded-3xl p-4 sm:p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden custom-scrollbar"
+        className="relative w-full max-w-xl glass-dock-2026 rounded-3xl p-5 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden custom-scrollbar animate-spatial-spring"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="glass-specular-ray" />
-
         {/* Subtle Background Layer: Kurdish Battles & Scholars Artwork */}
         <div className="absolute inset-0 pointer-events-none opacity-10 overflow-hidden z-0">
           <img
@@ -155,14 +153,14 @@ export const FactDetailModal: React.FC<Props> = ({
         </div>
 
         {/* Header row */}
-        <div className="relative z-10 flex items-center justify-between gap-3 border-b border-white/10 pb-3 mb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl liquid-glass-btn text-amber-300 font-mono font-bold text-xs flex items-center justify-center shadow-[0_0_12px_rgba(245,158,11,0.2)] shrink-0">
+        <div className="relative z-10 flex items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5 mb-3.5">
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] text-amber-300 font-mono font-bold text-xs flex items-center justify-center shadow-xs shrink-0 tabular-nums">
               #{fact.num}
             </span>
             <div>
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-300/80 font-mono">
-                <MapPin className="w-3 h-3 text-amber-400" />
+              <div className="flex items-center gap-1.5 text-xs text-amber-300/80 font-mono">
+                <MapPin className="w-3.5 h-3.5 text-amber-400" />
                 <span>
                   {Number.isFinite(fact.lat) ? fact.lat.toFixed(2) : '36.80'}° N,{' '}
                   {Number.isFinite(fact.lng) ? fact.lng.toFixed(2) : '44.50'}° E
@@ -171,11 +169,11 @@ export const FactDetailModal: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {isAdmin && onEditFact && (
               <button
                 onClick={() => onEditFact(fact)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-glass-btn text-amber-300 text-[11px] font-bold transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 text-xs font-semibold transition-all cursor-pointer border border-white/[0.08]"
                 title="دەستکاریکردنی ئەم دەسەڵاتە لەلایەن ئەدمینەوە"
               >
                 <Edit3 className="w-3.5 h-3.5 text-amber-400" />
@@ -185,7 +183,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-white liquid-glass-btn transition-all cursor-pointer"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] transition-all cursor-pointer border border-white/[0.08]"
               title="داخستن"
             >
               <X className="w-4 h-4" />
@@ -194,34 +192,38 @@ export const FactDetailModal: React.FC<Props> = ({
         </div>
 
         {/* Content Body */}
-        <div className="relative z-10 space-y-3.5 my-2">
+        <div className="relative z-10 space-y-4 my-2">
           <div>
-            <h3 className="text-base sm:text-lg font-bold font-heading text-white leading-snug drop-shadow-xs">
+            <h3 className="text-lg sm:text-xl font-extrabold font-heading text-white leading-snug drop-shadow-xs">
               {fact.name}
             </h3>
-            <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-200/90 font-medium">
+            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-amber-300/90 font-medium">
               <Compass className="w-3.5 h-3.5 shrink-0 text-amber-400" />
               <span>پێگەی جوگرافی: {fact.desc}</span>
             </div>
 
-            {/* Century & Year Historical Time Badges */}
-            <div className="flex flex-wrap items-center gap-2 mt-2.5 text-xs">
+            {/* Unboxed Metadata: Century · Year · Era */}
+            <div className="flex flex-wrap items-center gap-2 mt-2.5 text-xs text-slate-400">
               {fact.century && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl liquid-glass-subtle text-amber-200 font-bold shadow-xs">
-                  <Hourglass className="w-3.5 h-3.5 text-amber-400" />
+                <div className="flex items-center gap-1 text-slate-300 font-medium">
+                  <Hourglass className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <span>{fact.century}</span>
                 </div>
               )}
               {fact.year && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl liquid-glass-btn text-amber-300 font-mono font-bold shadow-xs">
-                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{fact.year}</span>
-                </div>
+                <>
+                  <span aria-hidden="true" className="text-slate-600 font-mono">·</span>
+                  <div className="flex items-center gap-1 text-amber-300 font-mono tabular-nums font-bold">
+                    <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>{fact.year}</span>
+                  </div>
+                </>
               )}
               {fact.eraName && (
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-subtle text-slate-300 text-[11px]">
-                  <span>{fact.eraName}</span>
-                </div>
+                <>
+                  <span aria-hidden="true" className="text-slate-600 font-mono">·</span>
+                  <span className="text-slate-400 text-xs font-semibold">{fact.eraName}</span>
+                </>
               )}
             </div>
           </div>

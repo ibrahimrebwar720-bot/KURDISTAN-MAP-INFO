@@ -88,7 +88,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md liquid-glass-panel rounded-3xl p-5 sm:p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden"
+        className="relative w-full max-w-md liquid-glass-panel rounded-3xl p-5 sm:p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden animate-modal-spring"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="glass-specular-ray" />

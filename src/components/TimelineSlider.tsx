@@ -379,30 +379,27 @@ export const TimelineSlider: React.FC<Props> = ({
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-right select-none transition-all">
-      {/* 
-        Two-Tone Precision Ruler Dock (ڕاستەی مێژوویی بە شێوازی شوشەی شلە - Liquid Glass)
-      */}
-      <div className="relative w-full liquid-glass-panel rounded-2xl sm:rounded-3xl p-2 sm:p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_16px_45px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.15)] flex flex-col gap-1 sm:gap-2 transition-all overflow-hidden">
-        <div className="glass-specular-ray" />
-
-        {/* Tier 1: Top Status Header (ڕاستەوخۆ بەپێی جوڵەی ڕاستەکە دەگۆڕێت) */}
-        <div className="flex items-center justify-between gap-1 sm:gap-1.5 w-full">
+      {/* 2026 Spatial Chronological Dock */}
+      <div className="relative w-full glass-dock-2026 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 flex flex-col gap-1.5 sm:gap-2.5 transition-all overflow-hidden shadow-2xl">
+        {/* Tier 1: Top Status Header */}
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
           {/* Right: Year Label & Fact Count */}
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs">
-              <Calendar className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-amber-400" />
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center shrink-0 shadow-xs">
+              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
             </div>
 
-            <div className="flex items-baseline gap-1.5 truncate">
-              {/* ئەو ساڵەی لەسەرەوەیە ڕاستەوخۆ نوێ دەبێتەوە */}
-              <span className="font-bold text-white text-[11px] sm:text-sm font-mono tracking-wide">
+            <div className="flex items-center gap-1.5 truncate">
+              {/* Year readout */}
+              <span className="font-extrabold text-white text-xs sm:text-sm font-mono tracking-wide">
                 {activeDisplayYear === 'all'
                   ? 'هەموو ساڵەکان'
                   : formatKurdishYear(activeDisplayYear)}
               </span>
 
-              {/* Fact Count Pill */}
-              <span className="text-[8px] sm:text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/10 text-amber-300 border border-white/15 shrink-0">
+              {/* Zero-pill unboxed metric */}
+              <span className="text-slate-600 font-mono text-xs">·</span>
+              <span className="text-[11px] sm:text-xs font-mono font-semibold text-amber-300/90 tabular-nums">
                 {toKurdishDigits(filteredCount)} شوێن
               </span>
             </div>
@@ -414,9 +411,9 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => handleStepYear(-1)}
               title="١ ساڵ بۆ دواوە"
-              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer border border-white/[0.08]"
             >
-              <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
 
             {/* Cinematic Guided Tour / Story Mode (گەشتی بینراوی مێژوویی) */}

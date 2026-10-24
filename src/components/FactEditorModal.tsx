@@ -617,33 +617,32 @@ export const FactEditorModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
+      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-2xl animate-fade-in text-right"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl liquid-glass-panel rounded-3xl p-5 sm:p-7 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.18)] max-h-[92vh] flex flex-col text-slate-100 overflow-hidden"
+        className="relative w-full max-w-3xl glass-dock-2026 rounded-3xl p-6 sm:p-8 shadow-[0_30px_90px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col text-slate-100 overflow-hidden animate-spatial-spring"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="glass-specular-ray" />
-
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5 shrink-0">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-5 shrink-0">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl liquid-glass-btn flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center shadow-md shrink-0">
               <Sparkles className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-white tracking-wide">
+                <h3 className="text-base sm:text-lg font-extrabold font-heading text-white tracking-wide">
                   {factToEdit ? 'دەستکاریکردنی دەسەڵات و بابەت' : 'زیادکردنی بابەت و شوێنی نوێ'}
                 </h3>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold liquid-glass-subtle text-amber-300 border border-amber-400/30">
-                  {factToEdit ? `#${factToEdit.num}` : 'نوێ'}
+                <span className="text-slate-600 font-mono text-xs">·</span>
+                <span className="text-xs font-mono tabular-nums font-bold text-amber-300">
+                  {factToEdit ? `#${factToEdit.num}` : 'تۆماری نوێ'}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-xs text-slate-400 mt-1">
                 {factToEdit
-                  ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و تایملاین`
+                  ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و ئەرشیف`
                   : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە دیاریکردنی ورد'}
               </p>
             </div>

@@ -26,6 +26,7 @@ import { CollectionManagerModal } from './components/CollectionManagerModal';
 import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
+import { playSoftClick } from './utils/audioEffects';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState<boolean>(true);
@@ -361,20 +362,33 @@ export default function App() {
           facts={facts}
           selectedFact={selectedFact}
           onSelectFact={handleSelectFact}
+          onDeselectFact={() => setSelectedFact(null)}
           onOpenDetail={(fact) => setDetailFact(fact)}
           showAllMarkers={showAllMarkers}
           setShowAllMarkers={setShowAllMarkers}
           showPolygon={showPolygon}
           setShowPolygon={setShowPolygon}
-          onOpenMenu={() => setIsMenuOpen(true)}
-          onOpenGallery={() => setIsGalleryOpen(true)}
-          onOpenTheme={() => setIsThemeModalOpen(true)}
+          onOpenMenu={() => {
+            playSoftClick();
+            setIsMenuOpen(true);
+          }}
+          onOpenGallery={() => {
+            playSoftClick();
+            setIsGalleryOpen(true);
+          }}
+          onOpenTheme={() => {
+            playSoftClick();
+            setIsThemeModalOpen(true);
+          }}
           activeTagFilter={selectedCategory}
           setActiveTagFilter={setSelectedCategory}
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           isAdmin={isAdmin}
-          onTriggerAdminPin={() => setIsAdminPinModalOpen(true)}
+          onTriggerAdminPin={() => {
+            playSoftClick();
+            setIsAdminPinModalOpen(true);
+          }}
           onOpenAddFact={handleOpenAddFact}
           onLogoutAdmin={handleAdminLogout}
           isPickingLocation={isPickingLocation}
@@ -384,21 +398,28 @@ export default function App() {
           onReplayIntro={() => setShowIntro(true)}
           playMapIntro={showIntro}
           onMapIntroComplete={() => setShowIntro(false)}
-          onOpenDocumentaryTour={() => setIsDocumentaryTourOpen(true)}
+          onOpenDocumentaryTour={() => {
+            playSoftClick();
+            setIsDocumentaryTourOpen(true);
+          }}
           externalFlyTo={externalFlyTo}
         />
 
-        {/* Fullscreen View for پێڕست (کامل شاشە بێ نیشاندانی نەخشە وەک جاران) */}
+        {/* Fullscreen View for پێڕست with 2026 Spatial Page Transition */}
         {isMenuOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-[#05070e] text-slate-100 overflow-hidden animate-fade-in">
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#030611] text-slate-100 overflow-hidden animate-page-enter">
             <FactsList
               facts={facts}
               selectedFact={selectedFact}
               onSelectFact={(fact) => {
+                playSoftClick();
                 handleSelectFact(fact);
                 setIsMenuOpen(false);
               }}
-              onOpenDetail={(fact) => setDetailFact(fact)}
+              onOpenDetail={(fact) => {
+                playSoftClick();
+                setDetailFact(fact);
+              }}
               collections={collections}
               selectedCollectionId={selectedCategory}
               onSelectCollection={setSelectedCategory}

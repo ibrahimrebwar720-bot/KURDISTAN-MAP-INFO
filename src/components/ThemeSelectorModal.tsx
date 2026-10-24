@@ -19,7 +19,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl liquid-glass-panel rounded-3xl p-5 sm:p-7 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_50px_var(--theme-accent-glow)] max-h-[92vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden flex flex-col gap-4"
+        className="relative w-full max-w-3xl liquid-glass-panel rounded-3xl p-5 sm:p-7 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_50px_var(--theme-accent-glow)] max-h-[92vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden flex flex-col gap-4 animate-modal-spring"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="glass-specular-ray" />

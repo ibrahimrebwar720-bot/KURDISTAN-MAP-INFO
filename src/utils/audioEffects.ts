@@ -135,3 +135,31 @@ export function playSoftClick() {
     // Ignore
   }
 }
+
+// Delicate crystal pop sound on marker / point selection
+export function playMarkerPopSound() {
+  if (isMuted) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(650, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.05);
+
+    gain.gain.setValueAtTime(0.035, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.085);
+  } catch {
+    // Ignore
+  }
+}
+

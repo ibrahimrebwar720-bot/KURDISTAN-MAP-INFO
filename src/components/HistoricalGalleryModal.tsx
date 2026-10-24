@@ -188,7 +188,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c]/95 backdrop-blur-2xl text-slate-100 select-none overflow-hidden ${
+      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c]/95 backdrop-blur-2xl text-slate-100 select-none overflow-hidden animate-page-enter ${
         isFullscreen ? 'p-2 sm:p-4' : 'p-2 sm:p-6'
       }`}
       dir="rtl"
@@ -196,26 +196,25 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       {/* Subtle Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-      {/* Top Header Bar - Liquid Glass Dock */}
-      <div className="relative z-20 flex items-center justify-between p-3 rounded-2xl sm:rounded-3xl liquid-glass-dock shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_15px_40px_rgba(0,0,0,0.85)] shrink-0 overflow-hidden">
-        <div className="glass-specular-ray" />
-
+      {/* Top Header Bar - 2026 Spatial Glass Dock */}
+      <div className="relative z-20 flex items-center justify-between p-3.5 rounded-2xl sm:rounded-3xl glass-dock-2026 shadow-2xl shrink-0 overflow-hidden">
         {/* Title and Kurdish Sun Emblem */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-amber-400 shadow-md shrink-0">
             <span className="text-base select-none leading-none">☀️</span>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base font-black font-heading text-white tracking-wide truncate">
+              <h2 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide truncate">
                 گەلەری مێژوویی کوردستان
               </h2>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/40">
+              <span className="text-slate-600 font-mono text-xs">·</span>
+              <span className="text-xs font-mono tabular-nums text-amber-300 font-bold">
                 {total} وێنە
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-amber-200/80 truncate">
-              وێنە و زانیارییە تۆمارکراوەکانی کوردستان
+            <p className="text-[11px] text-slate-400 truncate mt-0.5 font-medium">
+              ئەرشیفی بینراوی دەسەڵات و شوێنەوارەکانی کوردستان
             </p>
           </div>
         </div>

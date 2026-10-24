@@ -430,8 +430,8 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Center Cinematic Scrollytelling Story Card (کارتێکی ڕازاوەی سینەمایی لە دەستەڕاست یان خوارەوە) */}
-      <div className="pointer-events-auto max-w-xl w-full mx-auto sm:mr-6 sm:ml-auto p-3 sm:p-5 mb-3 sm:mb-6 animate-slide-up">
+      {/* Center Cinematic Scrollytelling Story Card */}
+      <div className="pointer-events-auto max-w-xl w-full mx-auto sm:mr-6 sm:ml-auto p-3 sm:p-5 mb-3 sm:mb-6 animate-spatial-spring">
         <div
           className="relative rounded-3xl liquid-glass-card p-5 sm:p-6 shadow-[0_25px_60px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.4)] border border-white/15 backdrop-blur-3xl overflow-hidden text-right"
           style={{

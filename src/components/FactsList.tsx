@@ -54,7 +54,7 @@ interface Props {
   onLogoutAdmin?: () => void;
 }
 
-type SortOption = 'year_asc' | 'year_desc' | 'category' | 'num';
+type SortOption = 'latest_added' | 'year_asc' | 'year_desc' | 'category' | 'num';
 
 const getCategoryIconComponent = (catId: string) => {
   switch (catId) {
@@ -127,6 +127,14 @@ export const FactsList: React.FC<Props> = ({
 
     // Sort by selected criteria
     return [...list].sort((a, b) => {
+      if (sortBy === 'latest_added') {
+        const isCustomA = !!a.isCustom || a.id > 1000000;
+        const isCustomB = !!b.isCustom || b.id > 1000000;
+        if (isCustomA && !isCustomB) return -1;
+        if (!isCustomA && isCustomB) return 1;
+        if (b.id !== a.id) return b.id - a.id;
+        return b.num - a.num;
+      }
       if (sortBy === 'year_asc') {
         const yearA = getFactChronologicalYear(a);
         const yearB = getFactChronologicalYear(b);
@@ -162,95 +170,106 @@ export const FactsList: React.FC<Props> = ({
   }, [facts]);
 
   return (
-    <div className="flex flex-col h-full w-full text-right select-none font-sans bg-[#070913] text-slate-100 overflow-hidden">
-      {/* Top Header & Search Bar (دیزاینی ڕێکخستنی پێڕست وەک وێنەکە) */}
-      <header className="px-4 py-3 sm:px-6 border-b border-white/10 shrink-0 bg-[#0c101d]/95 backdrop-blur-xl flex flex-col gap-3 z-10 shadow-lg">
-
-        {/* Row 1: App Header & Global Search Bar */}
-        <div className="flex items-center justify-between gap-3">
-          {/* Logo / Title Icon */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-9 h-9 rounded-2xl liquid-glass-btn flex items-center justify-center text-amber-400 shadow-sm border border-amber-400/30">
-              <BookOpen className="w-5 h-5" />
+    <div className="flex flex-col h-full w-full text-right select-none font-sans bg-[#030611] text-slate-100 overflow-hidden">
+      {/* 2026 Spatial Command Header */}
+      <header className="px-4 py-3.5 sm:px-6 border-b border-white/[0.08] shrink-0 bg-[#070b16]/90 backdrop-blur-2xl flex flex-col gap-3.5 z-10 shadow-2xl">
+        {/* Row 1: Brand / Title + Command Search + Action Dock */}
+        <div className="flex items-center justify-between gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
+          {/* Logo & Headline */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-10 h-10 rounded-2xl glass-dock-2026 flex items-center justify-center text-amber-400 shadow-md">
+              <BookOpen className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold font-heading text-white tracking-wide">
-                پێڕستی بابەتەکان
-              </h2>
-              <span className="text-[10px] text-amber-300 font-mono font-bold">
-                {filteredFacts.length} لە {facts.length} بابەت
-              </span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide">
+                  ئەرشیفی دەسەڵاتە مێژووییەکان
+                </h2>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded-md bg-amber-400/10 text-amber-300 border border-amber-400/20 font-semibold tracking-wider">
+                  2026 HUD
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5 font-medium">
+                <span className="font-mono tabular-nums text-amber-300 font-bold">{filteredFacts.length}</span>
+                <span className="text-slate-600">/</span>
+                <span className="font-mono tabular-nums text-slate-400">{facts.length}</span>
+                <span className="text-slate-500 text-[11px]">بابەت لە ئەرشیفدا</span>
+              </div>
             </div>
           </div>
 
-          {/* Search Input ("Search Anything..." وەک وێنەکە) */}
-          <div className="relative flex-1 max-w-lg">
+          {/* 2026 Command Search Input */}
+          <div className="relative flex-1 max-w-xl min-w-[260px] order-3 sm:order-2 w-full sm:w-auto">
             <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="گەڕان لە هەموو بابەتەکان بەپێی ناو، دەسەڵات، ساڵ، شوێن..."
-              className="w-full liquid-glass-input text-slate-100 placeholder:text-slate-400 text-xs pr-10 pl-8 py-2 rounded-2xl focus:border-amber-400 focus:outline-none transition-all text-right h-10 border border-white/10"
+              placeholder="گەڕان بەپێی ناوی میرنشین، سەرکردە، سەدە، شار یان ناوچە..."
+              className="w-full bg-white/[0.04] hover:bg-white/[0.06] text-slate-100 placeholder:text-slate-500 text-xs pr-10 pl-16 py-2.5 rounded-2xl border border-white/[0.1] focus:border-amber-400/80 focus:bg-white/[0.08] focus:outline-none transition-all text-right h-10.5 shadow-inner"
             />
-            {searchTerm && (
+            {searchTerm ? (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer transition-colors"
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer transition-colors"
                 title="سڕینەوە"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
+            ) : (
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] font-mono text-slate-400 pointer-events-none bg-white/[0.05] px-1.5 py-0.5 rounded-md border border-white/5">
+                <span>⌘K</span>
+              </div>
             )}
           </div>
 
-          {/* Top-Right Quick Actions (Admin, Split/Fullscreen & Close) */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Actions: Admin + Close Fullscreen */}
+          <div className="flex items-center gap-2 shrink-0 order-2 sm:order-3">
             {isAdmin && onOpenAddFact && (
               <button
                 onClick={onOpenAddFact}
-                className="flex items-center gap-1.5 px-3 h-9 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 h-9.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
                 title="زیادکردنی بابەتی نوێ"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span className="hidden sm:inline">زیادکردنی بابەت</span>
+                <span className="hidden md:inline">زیادکردنی بابەت</span>
               </button>
             )}
 
             {isAdmin && onLogoutAdmin && (
               <button
                 onClick={onLogoutAdmin}
-                className="px-2.5 h-9 rounded-xl text-[10px] font-bold text-red-300 bg-red-950/70 hover:bg-red-900/70 border border-red-800/60 transition-colors cursor-pointer shrink-0"
+                className="px-3 h-9.5 rounded-xl text-xs font-semibold text-rose-300 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/40 transition-colors cursor-pointer"
                 title="دەرچوون لە ئەدمین"
               >
                 دەرچوون
               </button>
             )}
 
-
-
             {onClose && (
               <button
                 onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center rounded-2xl liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 border border-white/15"
-                title="داخستنی پێڕست و گەڕانەوە بۆ نەخشە"
+                className="h-9.5 px-3 sm:px-3.5 flex items-center gap-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white transition-all cursor-pointer border border-white/[0.1] active:scale-95"
+                title="داخستن و گەڕانەوە بۆ نەخشە"
               >
-                <X className="w-4 h-4" />
+                <span className="text-xs font-medium hidden sm:inline">گەڕانەوە بۆ نەخشە</span>
+                <X className="w-4 h-4 text-amber-400" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Row 2: Filter Controls Strip (وەک فلتەرەکانی وێنەکە: All Status, All Sources, بەبێ Export) */}
-        <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Filter by Category Dropdown ("All Status" وەک وێنەکە) */}
-            <div className="flex items-center gap-1.5 liquid-glass-dock rounded-xl px-2.5 h-8.5 border border-white/10 text-xs">
+        {/* Row 2: Precision Filter & Chronological Sorting Dock */}
+        <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-white/[0.06] flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+            {/* Category Dropdown with Specular Glass */}
+            <div className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] rounded-xl px-3 h-9 border border-white/[0.09] text-xs transition-colors">
               <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">پۆلێن:</span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-xs font-semibold text-slate-100 focus:outline-none cursor-pointer pr-1"
                 title="فلتەر بەپێی پۆلێن"
               >
                 <option value="all" className="bg-[#0c101d] text-slate-100">
@@ -264,38 +283,42 @@ export const FactsList: React.FC<Props> = ({
               </select>
             </div>
 
-            {/* Sort by Year / Category Dropdown ("All Sources" وەک وێنەکە) */}
-            <div className="flex items-center gap-1.5 liquid-glass-dock rounded-xl px-2.5 h-8.5 border border-white/10 text-xs">
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] rounded-xl px-3 h-9 border border-white/[0.09] text-xs transition-colors">
               <ArrowUpDown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">ڕیزکردن:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer pr-1"
-                title="ڕیزبەندی بەپێی ساڵ و پۆلێن"
+                className="bg-transparent text-xs font-semibold text-slate-100 focus:outline-none cursor-pointer pr-1"
+                title="ڕیزبەندی بابەتەکان"
               >
+                <option value="latest_added" className="bg-[#0c101d] text-slate-100 font-bold text-amber-300">
+                  دوایین و کۆتا تۆمارکراو
+                </option>
                 <option value="year_asc" className="bg-[#0c101d] text-slate-100">
-                  ڕیزبەندی: ساڵ (کۆن بۆ نوێ)
+                  ساڵ (کۆن بۆ نوێ)
                 </option>
                 <option value="year_desc" className="bg-[#0c101d] text-slate-100">
-                  ڕیزبەندی: ساڵ (نوێ بۆ کۆن)
+                  ساڵ (نوێ بۆ کۆن)
                 </option>
                 <option value="category" className="bg-[#0c101d] text-slate-100">
-                  ڕیزبەندی: بەپێی پۆلێن
+                  بەپێی جۆری دەسەڵات
                 </option>
                 <option value="num" className="bg-[#0c101d] text-slate-100">
-                  ڕیزبەندی: بەپێی زنجیرە (#1-350)
+                  ژمارەی بابەت (#1 - 350)
                 </option>
               </select>
             </div>
 
-            {/* Reset Filters button if any filter is applied */}
+            {/* Reset Filter Button */}
             {(categoryFilter !== 'all' || searchTerm) && (
               <button
                 onClick={() => {
                   setCategoryFilter('all');
                   setSearchTerm('');
                 }}
-                className="flex items-center gap-1 px-2.5 h-8.5 rounded-xl liquid-glass-btn text-amber-300 text-[11px] font-bold cursor-pointer hover:text-white"
+                className="flex items-center gap-1.5 px-3 h-9 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold cursor-pointer border border-amber-400/20 transition-all"
                 title="پاککردنەوەی هەموو فلتەرەکان"
               >
                 <X className="w-3 h-3" />
@@ -304,24 +327,26 @@ export const FactsList: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Fact Count Indicator */}
-          <div className="text-[11px] text-slate-400 font-medium">
-            نیشاندانی <span className="text-amber-400 font-bold font-mono">{filteredFacts.length}</span> بابەت لە شێوازی کارت
+          {/* Status Metric */}
+          <div className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+            <span>نیشاندراو:</span>
+            <span className="font-mono tabular-nums text-amber-300 font-bold">{filteredFacts.length}</span>
+            <span className="text-slate-600">دەسەڵات و تۆمار</span>
           </div>
         </div>
       </header>
 
-      {/* Main Responsive Grid Layout for Facts (شێوازی Grid وەک وێنەکە بە وێنەی سوچ) */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+      {/* Main Responsive Grid Layout for Facts */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 custom-scrollbar">
         {filteredFacts.length === 0 ? (
-          <div className="h-full min-h-[350px] flex flex-col items-center justify-center p-8 text-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl liquid-glass-btn mx-auto flex items-center justify-center text-amber-400">
-              <Search className="w-7 h-7" />
+          <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center space-y-4">
+            <div className="w-16 h-16 rounded-3xl glass-dock-2026 mx-auto flex items-center justify-center text-amber-400">
+              <Search className="w-8 h-8 stroke-[1.8]" />
             </div>
             <div>
-              <h4 className="font-bold text-base text-slate-200">هیچ بابەتێک نەدۆزرایەوە</h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                دەتوانیت پۆلێنەکە بگۆڕیت، شێوازی ڕیزبەندی بگۆڕیت یان دەستەواژەی گەڕانەکەت پاک بکەیتەوە.
+              <h4 className="font-extrabold text-lg text-white font-heading">هیچ بابەتێک نەدۆزرایەوە</h4>
+              <p className="text-xs text-slate-400 mt-1.5 max-w-sm leading-relaxed">
+                دەتوانیت پۆلێنەکە بگۆڕیت، شێوازی ڕیزبەندی ڕێکبخەیتەوە یان وشەی گەڕانەکەت پاک بکەیتەوە.
               </p>
             </div>
             {(categoryFilter !== 'all' || searchTerm) && (
@@ -330,14 +355,14 @@ export const FactsList: React.FC<Props> = ({
                   setCategoryFilter('all');
                   setSearchTerm('');
                 }}
-                className="px-4 py-2 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs cursor-pointer hover:text-white"
+                className="px-4 py-2 rounded-xl bg-amber-400 text-black font-extrabold text-xs cursor-pointer hover:bg-amber-300 transition-all shadow-md active:scale-95"
               >
                 پاککردنەوەی فلتەر
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5 sm:gap-4.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
             {filteredFacts.map((fact) => {
               const isSelected = selectedFact?.id === fact.id;
               const catInfo = getCategoryInfo(fact);
@@ -357,17 +382,17 @@ export const FactsList: React.FC<Props> = ({
                     playSoftClick();
                     onSelectFact(fact);
                   }}
-                  className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 cursor-pointer text-right border ${
+                  className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 cursor-pointer text-right ${
                     isSelected
-                      ? 'bg-amber-500/15 border-amber-400/80 shadow-[0_0_25px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/50'
-                      : 'liquid-glass-card hover:border-amber-400/50 hover:shadow-xl hover:-translate-y-0.5'
+                      ? 'bg-amber-500/[0.12] border border-amber-400/80 shadow-[0_0_30px_rgba(245,158,11,0.22)] ring-1 ring-amber-400/40 -translate-y-0.5'
+                      : 'card-editorial-2026 hover:border-amber-400/40 hover:-translate-y-1'
                   }`}
                 >
                   <div className="space-y-3">
-                    {/* Top Row: Corner Avatar/Image + Title + Year (وەک کارتی ناو وێنەکە) */}
+                    {/* Header Row: Corner Media Avatar + Title + Tabular Number */}
                     <div className="flex items-start gap-3">
-                      {/* Corner Avatar Image (لە سوچێکی هەر بابەتێک وێنەکەی دیاربێت) */}
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-amber-400/35 bg-black/60 shadow-md group-hover:scale-105 group-hover:border-amber-400/80 transition-all flex items-center justify-center">
+                      {/* Avatar Image in High-Precision Aspect Circle */}
+                      <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.12] bg-[#050814] shadow-md group-hover:scale-105 group-hover:border-amber-400/60 transition-all flex items-center justify-center">
                         {displayImage ? (
                           <img
                             src={displayImage}
@@ -377,87 +402,72 @@ export const FactsList: React.FC<Props> = ({
                           />
                         ) : (
                           <div
-                            className="w-full h-full flex flex-col items-center justify-center text-center p-1"
-                            style={{
-                              backgroundColor: `${catInfo.color}25`,
-                            }}
+                            className="w-full h-full flex items-center justify-center"
+                            style={{ backgroundColor: `${catInfo.color}18` }}
                           >
                             <CatIcon className="w-5 h-5" style={{ color: catInfo.color }} />
                           </div>
                         )}
                       </div>
 
-                      {/* Title & Chronology Date */}
+                      {/* Title & Chronology */}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center justify-between gap-1.5">
                           <h3
-                            className={`text-xs sm:text-[13px] font-bold line-clamp-1 transition-colors ${
-                              isSelected ? 'text-white' : 'text-slate-100 group-hover:text-amber-300'
+                            className={`text-xs sm:text-[13px] font-extrabold font-heading line-clamp-1 transition-colors ${
+                              isSelected ? 'text-amber-300' : 'text-slate-100 group-hover:text-amber-300'
                             }`}
                           >
                             {fact.name}
                           </h3>
-                          <span className="font-mono text-[9px] text-slate-400 shrink-0">
+                          <span className="font-mono tabular-nums text-[10px] text-slate-500 shrink-0 font-semibold">
                             #{fact.num}
                           </span>
                         </div>
 
-                        {/* Date / Century subtitle (Today 10:30PM لە وێنەکەدا) */}
-                        {(fact.century || fact.year) && (
-                          <div className="flex items-center gap-1 text-[10px] text-amber-300 font-mono mt-0.5">
-                            <Calendar className="w-3 h-3 text-amber-400 shrink-0" />
-                            <span className="truncate">{fact.year || fact.century}</span>
-                          </div>
-                        )}
+                        {/* Unboxed Metadata: Category · Year/Century */}
+                        <div className="flex items-center gap-1.5 text-[11px] mt-1 text-slate-400">
+                          <span className="font-semibold" style={{ color: catInfo.color }}>
+                            {catInfo.name}
+                          </span>
+                          <span aria-hidden="true" className="text-slate-600 font-mono">·</span>
+                          <span className="font-mono tabular-nums text-amber-300/90 font-medium">
+                            {fact.year || fact.century || 'سەردەمی دێرین'}
+                          </span>
+                        </div>
 
-                        {/* Location / Region row with MapPin */}
+                        {/* Location / Geography */}
                         {fact.desc && (
                           <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate mt-1">
-                            <MapPin className="w-3 h-3 text-amber-400/80 shrink-0" />
+                            <MapPin className="w-3 h-3 text-amber-400/70 shrink-0" />
                             <span className="truncate">{fact.desc}</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Brief description / Summary (Body text) */}
-                    <p className="text-[11px] text-slate-300/85 line-clamp-2 leading-relaxed">
+                    {/* Summary Body */}
+                    <p className="text-[11px] text-slate-300/80 line-clamp-2 leading-relaxed">
                       {fact.fullText || fact.desc}
                     </p>
                   </div>
 
-                  {/* Card Bottom: Status Pill Badge & Detail Action Button */}
-                  <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-2">
-                    {/* Category Status Pill (وەک "In Process" / "Dead" / "Recycled" بە ڕەنگی تایبەت) */}
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className="text-[10px] font-bold border px-2.5 py-0.5 rounded-full shrink-0 flex items-center gap-1.5"
-                        style={{
-                          backgroundColor: `${catInfo.color}20`,
-                          color: catInfo.color,
-                          borderColor: `${catInfo.color}45`,
-                        }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: catInfo.color }}
-                        />
-                        <span className="truncate max-w-[100px]">{catInfo.name}</span>
-                      </span>
-
-                      {/* Linked Topics Indicator */}
+                  {/* Card Bottom: Unboxed Indicators & Precision Actions */}
+                  <div className="mt-3.5 pt-2.5 border-t border-white/[0.07] flex items-center justify-between gap-2">
+                    {/* Unboxed Relation Indicator */}
+                    <div className="flex items-center gap-2 min-w-0 text-slate-400 text-[10px]">
                       {hasLinks && (
                         <span
-                          className="inline-flex items-center gap-0.5 text-[8px] bg-white/10 text-amber-300 px-1.5 py-0.5 rounded-md border border-white/10 shrink-0 font-bold"
-                          title="خاوەنی بابەتی بەستراوەیە"
+                          className="inline-flex items-center gap-1 font-mono text-[10px] text-amber-300/90 font-semibold"
+                          title="خاوەنی بابەتی پەیوەندیدارە"
                         >
-                          <Link2 className="w-2.5 h-2.5" />
-                          <span>{fact.relatedFactIds?.length || 1}</span>
+                          <Link2 className="w-3 h-3 text-amber-400" />
+                          <span className="tabular-nums">{fact.relatedFactIds?.length || 1} پەیوەندیدار</span>
                         </span>
                       )}
                     </div>
 
-                    {/* Action Buttons: Detail & Admin Edit */}
+                    {/* Actions: Admin Edit & Detail Button */}
                     <div className="flex items-center gap-1 shrink-0">
                       {isAdmin && onOpenEditFact && (
                         <button
@@ -466,7 +476,7 @@ export const FactsList: React.FC<Props> = ({
                             onOpenEditFact(fact);
                           }}
                           title="دەستکاریکردنی ئەم دەسەڵاتە"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-white/10 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-white/[0.08] transition-colors cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
@@ -478,7 +488,7 @@ export const FactsList: React.FC<Props> = ({
                           onOpenDetail(fact);
                         }}
                         title="بینینی تەواوی زانیاری و سەرچاوەکان"
-                        className="px-2.5 py-1 rounded-xl liquid-glass-btn text-amber-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold border border-white/10"
+                        className="px-2.5 py-1 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold border border-white/[0.08]"
                       >
                         <span>زانیاری</span>
                         <BookOpen className="w-3 h-3 text-amber-400" />
