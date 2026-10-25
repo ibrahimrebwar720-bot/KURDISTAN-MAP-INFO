@@ -373,7 +373,7 @@ export const FactDetailModal: React.FC<Props> = ({
                         : 'liquid-glass-subtle text-cyan-300 hover:text-cyan-200'
                     }`}
                   >
-                    زانایان ({linkedData.byCategory.scholars.length})
+                    زانا و شاعیر و ئەدیبان ({linkedData.byCategory.scholars.length})
                   </button>
                 )}
                 {linkedData.byCategory.castles.length > 0 && (

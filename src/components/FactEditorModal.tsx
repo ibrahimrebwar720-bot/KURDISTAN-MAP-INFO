@@ -92,7 +92,7 @@ export const FactEditorModal: React.FC<Props> = ({
   const [lat, setLat] = useState<number>(36.8);
   const [lng, setLng] = useState<number>(44.5);
   const [showManualCoords, setShowManualCoords] = useState(false);
-  // Unified single category state (میرنشینەکان، شارستانییەتەکان، ئیمپراتۆرییەتەکان، زانایان، وەزیر و کاربەدەستان، کەسایەتی تر، قەڵاکان، جەنگ و ڕووداوەکان)
+  // Unified single category state (میرنشینەکان، شارستانییەتەکان، ئیمپراتۆرییەتەکان، زانا و شاعیر و ئەدیبان، وەزیر و کاربەدەستان، کەسایەتی تر، قەڵاکان، جەنگ و ڕووداوەکان)
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('principality');
 
   // Hierarchy & Topic Linking state

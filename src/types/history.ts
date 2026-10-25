@@ -29,7 +29,7 @@ export const ADMIN_SECRET_CODE = '200076';
  * - شارستانییەتەکان 
  * - ئیمپراتۆرییەتەکان
  * - سەرکردەکان
- * - زانایان
+ * - زانا و شاعیر و ئەدیبان
  * - وەزیر و کاربەدەستان
  * - کەسایەتی تر
  * - قەڵاکان
@@ -69,8 +69,8 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
   },
   {
     id: 'scholar',
-    name: 'زانایان',
-    description: 'زانایان، فەیلەسوفان و مێژوونووسانی کورد',
+    name: 'زانا و شاعیر و ئەدیبان',
+    description: 'زانایان، شاعیران، ئەدیبان، فەیلەسوفان و مێژوونووسانی کورد',
     color: '#06b6d4',
   },
   {
@@ -82,7 +82,7 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
   {
     id: 'other_figure',
     name: 'کەسایەتی تر',
-    description: 'سەرکردە، شاعیر و کەسایەتییە کاریگەرەکانی تر',
+    description: 'کەسایەتییە کاریگەر، هونەری و مێژووییەکانی تر',
     color: '#ec4899',
   },
   {
@@ -147,8 +147,18 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
   ) {
     return { id: 'leader', name: 'سەرکردەکان', color: '#f43f5e' };
   }
-  if (raw === 'scholar' || raw === 'scholars' || raw === 'زانایان' || raw === 'زانا') {
-    return { id: 'scholar', name: 'زانایان', color: '#06b6d4' };
+  if (
+    raw === 'scholar' ||
+    raw === 'scholars' ||
+    raw === 'زانایان' ||
+    raw === 'زانا' ||
+    raw === 'زانا و شاعیر و ئەدیبان' ||
+    raw === 'شاعیر' ||
+    raw === 'شاعیران' ||
+    raw === 'ئەدیب' ||
+    raw === 'ئەدیبان'
+  ) {
+    return { id: 'scholar', name: 'زانا و شاعیر و ئەدیبان', color: '#06b6d4' };
   }
   if (
     raw === 'official' ||

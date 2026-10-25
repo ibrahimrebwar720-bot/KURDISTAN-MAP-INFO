@@ -141,8 +141,8 @@ export const TAG_FILTER_OPTIONS = [
   },
   {
     id: 'scholar',
-    label: 'زانایان',
-    shortLabel: 'زانایان',
+    label: 'زانا و شاعیر و ئەدیبان',
+    shortLabel: 'زانا و شاعیر و ئەدیبان',
     icon: BookOpen,
     color: '#06b6d4',
     accentClass: 'text-cyan-400',
