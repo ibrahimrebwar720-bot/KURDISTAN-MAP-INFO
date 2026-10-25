@@ -154,18 +154,15 @@ export const FactDetailModal: React.FC<Props> = ({
 
         {/* Header row */}
         <div className="relative z-10 flex items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5 mb-3.5">
-          <div className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] text-amber-300 font-mono font-bold text-xs flex items-center justify-center shadow-xs shrink-0 tabular-nums">
-              #{fact.num}
-            </span>
-            <div>
-              <div className="flex items-center gap-1.5 text-xs text-amber-300/80 font-mono">
-                <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                <span>
-                  {Number.isFinite(fact.lat) ? fact.lat.toFixed(2) : '36.80'}° N,{' '}
-                  {Number.isFinite(fact.lng) ? fact.lng.toFixed(2) : '44.50'}° E
-                </span>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/[0.1] text-amber-400 flex items-center justify-center shadow-xs shrink-0">
+              <MapPin className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-xs text-amber-300/90 font-mono font-medium">
+              <span>
+                {Number.isFinite(fact.lat) ? fact.lat.toFixed(2) : '36.80'}° N,{' '}
+                {Number.isFinite(fact.lng) ? fact.lng.toFixed(2) : '44.50'}° E
+              </span>
             </div>
           </div>
 

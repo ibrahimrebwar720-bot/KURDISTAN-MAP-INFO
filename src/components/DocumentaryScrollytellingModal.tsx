@@ -16,7 +16,6 @@ import {
   MapPin,
   CheckCircle2,
 } from 'lucide-react';
-import { playEraTransitionChime, playTimelineTick } from '../utils/audioEffects';
 
 export interface MilestoneStory {
   id: string;
@@ -298,8 +297,6 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
       const target = DOCUMENTARY_MILESTONES[index];
       if (!target) return;
       setCurrentIndex(index);
-      playTimelineTick(900 + index * 40);
-      playEraTransitionChime(Boolean(target.isBC));
       onFlyToCoords(target.lat, target.lng, target.zoom, target.title);
     },
     [onFlyToCoords]
@@ -317,7 +314,6 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
         const next = (prev + 1) % DOCUMENTARY_MILESTONES.length;
         const target = DOCUMENTARY_MILESTONES[next];
         onFlyToCoords(target.lat, target.lng, target.zoom, target.title);
-        playTimelineTick(1000);
         return next;
       });
     }, 8500);
@@ -332,7 +328,6 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
     if (isOpen) {
       const target = DOCUMENTARY_MILESTONES[0];
       onFlyToCoords(target.lat, target.lng, target.zoom, target.title);
-      playEraTransitionChime(true);
     }
   }, [isOpen, onFlyToCoords]);
 

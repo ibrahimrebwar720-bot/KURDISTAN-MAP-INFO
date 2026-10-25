@@ -635,10 +635,6 @@ export const FactEditorModal: React.FC<Props> = ({
                 <h3 className="text-base sm:text-lg font-extrabold font-heading text-white tracking-wide">
                   {factToEdit ? 'دەستکاریکردنی دەسەڵات و بابەت' : 'زیادکردنی بابەت و شوێنی نوێ'}
                 </h3>
-                <span className="text-slate-600 font-mono text-xs">·</span>
-                <span className="text-xs font-mono tabular-nums font-bold text-amber-300">
-                  {factToEdit ? `#${factToEdit.num}` : 'تۆماری نوێ'}
-                </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
                 {factToEdit
@@ -1492,21 +1488,13 @@ export const FactEditorModal: React.FC<Props> = ({
               </span>
             </div>
 
-            {/* Explanatory note */}
-            <div className="text-[11px] text-slate-300 liquid-glass-subtle p-3 rounded-xl flex items-start gap-2.5 leading-relaxed">
-              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>
-                بۆ پاراستنی خێرایی بەرنامەکە و کەمکردنەوەی قەبارە، بارکردنی فایلی وێنە لە مۆبایل و کۆمپیوتەر ڕاگیراوە و تەنها بەستەری وێنە بەکاردێت. بەرنامەکە بە شێوەیەکی خۆکار بەستەری بینەری وێنەی <strong>ویکیپێدیا</strong>، <strong>ویکیمێدیا کۆمۆنز</strong>، <strong>Imgur</strong>، <strong>Google Drive</strong> و هەموو هۆستەکانی تر دەگۆڕێت بۆ فایلی ڕاستەوخۆ.
-              </span>
-            </div>
-
             {/* URL Input & Quick Tools */}
             <div className="space-y-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
-                    <span>بەستەری وێنە (ویکیپێدیا، ویکیمێدیا یان هەر هۆستێک):</span>
+                    <span>بەستەری وێنە:</span>
                   </span>
                   {imageUrl && (
                     <span className="text-[10px] text-amber-300 font-mono px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/20">
@@ -1521,7 +1509,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       type="url"
                       value={imageUrl}
                       onChange={(e) => handleImageUrlChange(e.target.value)}
-                      placeholder="https://ckb.wikipedia.org/wiki/...#/media/پەڕگە:Simko_Sikaki.jpg"
+                      placeholder="لینکی وێنەکە لێرە دابنێ (Wikipedia, ImgBB, Drive...)"
                       className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-9"
                       dir="ltr"
                     />
@@ -1569,55 +1557,6 @@ export const FactEditorModal: React.FC<Props> = ({
                   <span>{linkInfo.warningNote}</span>
                 </div>
               )}
-
-              {/* Free Image Hosting Helper Links */}
-              <div className="p-3 rounded-xl liquid-glass-subtle space-y-2">
-                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-amber-400" />
-                  <span>هۆستە بەخۆڕاییەکان بۆ وەرگرتنی لینکی وێنە:</span>
-                </span>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  ئەگەر وێنەکەت لەسەر مۆبایل یان کۆمپیوتەرەکەتە، لە یەکێک لەم ماڵپەڕە بەخۆڕاییانە باری بکە و لینکی وێنەکە لێرە دابنێ:
-                </p>
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <a
-                    href="https://imgbb.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
-                  >
-                    <span>ImgBB (بارکردنی ئاسان)</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <a
-                    href="https://postimages.org"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
-                  >
-                    <span>Postimages</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <a
-                    href="https://commons.wikimedia.org"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
-                  >
-                    <span>ویکیمێدیا کۆمۆنز</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <a
-                    href="https://ckb.wikipedia.org"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30 text-amber-300 hover:text-white text-[10px] font-bold transition-colors"
-                  >
-                    <span>ویکیپیدیای کوردی</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                </div>
-              </div>
 
               {imageLoadError && (
                 <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2">
@@ -1702,9 +1641,6 @@ export const FactEditorModal: React.FC<Props> = ({
               <span className="text-[11px] text-amber-300/80">میرنشین، میر، زانا، قەڵا، جەنگ</span>
             </div>
 
-            <p className="text-[11px] text-slate-300 leading-relaxed liquid-glass-subtle p-3 rounded-xl">
-              دەتوانیت ئەم بابەتە ببەستیتەوە بە دەسەڵات یان میرنشینێکی سەرەکی (وەک «میرنشینی سۆران»، «میرنشینی بابان» یان «ئیمپراتۆریەتی ماد»)، وە هەروەها چەندین میر، زانا، قەڵا یان جەنگی پێوە لینک بکەیت تا لە پەڕەی زانیارییەکاندا پێکەوە دەربکەون و بەکارهێنەر بتوانێت ڕاستەوخۆ بچێتە ناویانەوە.
-            </p>
 
             {/* Parent Entity Selector */}
             <div>

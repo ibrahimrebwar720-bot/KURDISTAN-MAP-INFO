@@ -63,7 +63,6 @@ import { getLinkedFacts } from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { getFactDisplayImage } from '../utils/historicalImages';
-import { playMarkerPopSound, playSoftClick } from '../utils/audioEffects';
 
 interface Props {
   facts: FactItem[];
@@ -790,7 +789,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           if (e && e.originalEvent) {
             L.DomEvent.stopPropagation(e);
           }
-          playMarkerPopSound();
           onSelectFact(fact);
           setShowQuickSummary(true);
         });

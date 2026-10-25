@@ -4,8 +4,6 @@ import {
   Pause,
   SkipForward,
   SkipBack,
-  Volume2,
-  VolumeX,
   X,
   Compass,
   MapPin,
@@ -27,7 +25,6 @@ import {
   CINEMATIC_EPOCHS,
   CinematicStation,
 } from '../data/cinematicTimeMachineData';
-import { ambientAudio } from '../services/ambientAudioService';
 
 interface Props {
   isOpen: boolean;
@@ -44,7 +41,6 @@ export const CinematicTimeMachine: React.FC<Props> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
   const [isCardMinimized, setIsCardMinimized] = useState(false);
   const [tourProgress, setTourProgress] = useState(0);
 
@@ -53,19 +49,15 @@ export const CinematicTimeMachine: React.FC<Props> = ({
   const progressIntervalRef = useRef<any>(null);
   const STATION_DURATION = 9000; // 9 seconds per station in auto-play mode
 
-  // Handle flying camera and sound on station change
+  // Handle flying camera on station change
   const navigateToStation = useCallback(
-    (index: number, playChime = true) => {
+    (index: number, _playChime?: boolean) => {
       const validIndex = (index + CINEMATIC_STATIONS.length) % CINEMATIC_STATIONS.length;
       setCurrentIndex(validIndex);
       setTourProgress(0);
 
       const target = CINEMATIC_STATIONS[validIndex];
       onFlyToStation(target.lat, target.lng, target.zoom, target.territoryId);
-
-      if (playChime) {
-        ambientAudio.playStationTransitionChime();
-      }
     },
     [onFlyToStation]
   );
@@ -73,12 +65,10 @@ export const CinematicTimeMachine: React.FC<Props> = ({
   // Initial flight when opening
   useEffect(() => {
     if (isOpen) {
-      navigateToStation(currentIndex, false);
-      ambientAudio.startAtmosphere();
+      navigateToStation(currentIndex);
       setIsPlaying(true);
       setTourProgress(0);
     } else {
-      ambientAudio.stopAtmosphere();
       setIsPlaying(false);
       setTourProgress(0);
     }
@@ -135,15 +125,10 @@ export const CinematicTimeMachine: React.FC<Props> = ({
     setIsPlaying(!isPlaying);
   };
 
-  const handleToggleMute = () => {
-    const muted = ambientAudio.toggleMute();
-    setIsMuted(muted);
-  };
-
   const handleEpochSelect = (epochId: string) => {
     const targetIdx = CINEMATIC_STATIONS.findIndex((s) => s.epochId === epochId);
     if (targetIdx !== -1) {
-      navigateToStation(targetIdx, true);
+      navigateToStation(targetIdx);
     }
   };
 
@@ -153,7 +138,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 pointer-events-none flex flex-col justify-between select-none overflow-hidden font-sans">
       {/* 1. Cinematic Letterbox Bar - Top HUD */}
       <header className="pointer-events-auto w-full bg-gradient-to-b from-black via-black/90 to-transparent pt-3 pb-8 px-4 md:px-8 flex items-center justify-between z-50">
-        {/* Left: Close & Audio */}
+        {/* Left: Close & Actions */}
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
@@ -162,18 +147,6 @@ export const CinematicTimeMachine: React.FC<Props> = ({
           >
             <X className="w-4 h-4" />
             <span className="font-heading font-medium">داخستن</span>
-          </button>
-
-          <button
-            onClick={handleToggleMute}
-            className={`p-2 rounded-full border backdrop-blur-md transition-all cursor-pointer ${
-              isMuted
-                ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                : 'bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-            }`}
-            title={isMuted ? 'چالاککردنی دەنگی کەشوهەوا' : 'بێدەنگکردن'}
-          >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
 
           {/* Minimize / Maximize Card */}

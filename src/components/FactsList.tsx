@@ -26,7 +26,7 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
-import { playSoftClick } from '../utils/audioEffects';
+
 
 interface Props {
   facts: FactItem[];
@@ -306,7 +306,7 @@ export const FactsList: React.FC<Props> = ({
                   بەپێی جۆری دەسەڵات
                 </option>
                 <option value="num" className="bg-[#0c101d] text-slate-100">
-                  ژمارەی بابەت (#1 - 350)
+                  بەپێی تۆمارکردنی سەرەتا
                 </option>
               </select>
             </div>
@@ -379,7 +379,6 @@ export const FactsList: React.FC<Props> = ({
                     if (onHoverFact) onHoverFact(fact);
                   }}
                   onClick={() => {
-                    playSoftClick();
                     onSelectFact(fact);
                   }}
                   className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 cursor-pointer text-right ${
@@ -420,9 +419,6 @@ export const FactsList: React.FC<Props> = ({
                           >
                             {fact.name}
                           </h3>
-                          <span className="font-mono tabular-nums text-[10px] text-slate-500 shrink-0 font-semibold">
-                            #{fact.num}
-                          </span>
                         </div>
 
                         {/* Unboxed Metadata: Category · Year/Century */}

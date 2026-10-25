@@ -26,10 +26,9 @@ import { CollectionManagerModal } from './components/CollectionManagerModal';
 import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
-import { playSoftClick } from './utils/audioEffects';
 
 export default function App() {
-  const [showIntro, setShowIntro] = useState<boolean>(true);
+  const [showIntro, setShowIntro] = useState<boolean>(false);
   const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
   const [collections, setCollections] = useState<CollectionItem[]>(() =>
     loadStoredCollections()
@@ -369,15 +368,12 @@ export default function App() {
           showPolygon={showPolygon}
           setShowPolygon={setShowPolygon}
           onOpenMenu={() => {
-            playSoftClick();
             setIsMenuOpen(true);
           }}
           onOpenGallery={() => {
-            playSoftClick();
             setIsGalleryOpen(true);
           }}
           onOpenTheme={() => {
-            playSoftClick();
             setIsThemeModalOpen(true);
           }}
           activeTagFilter={selectedCategory}
@@ -386,7 +382,6 @@ export default function App() {
           onYearChange={setSelectedYear}
           isAdmin={isAdmin}
           onTriggerAdminPin={() => {
-            playSoftClick();
             setIsAdminPinModalOpen(true);
           }}
           onOpenAddFact={handleOpenAddFact}
@@ -399,7 +394,6 @@ export default function App() {
           playMapIntro={showIntro}
           onMapIntroComplete={() => setShowIntro(false)}
           onOpenDocumentaryTour={() => {
-            playSoftClick();
             setIsDocumentaryTourOpen(true);
           }}
           externalFlyTo={externalFlyTo}
@@ -412,12 +406,10 @@ export default function App() {
               facts={facts}
               selectedFact={selectedFact}
               onSelectFact={(fact) => {
-                playSoftClick();
                 handleSelectFact(fact);
                 setIsMenuOpen(false);
               }}
               onOpenDetail={(fact) => {
-                playSoftClick();
                 setDetailFact(fact);
               }}
               collections={collections}

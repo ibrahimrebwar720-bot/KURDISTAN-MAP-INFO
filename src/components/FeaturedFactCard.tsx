@@ -33,9 +33,6 @@ export const FeaturedFactCard: React.FC<Props> = ({
       {/* Header Row */}
       <div className="flex items-center justify-between gap-2 border-b border-amber-500/15 pb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-lg border border-amber-500/30 shrink-0">
-            #{fact.num}
-          </span>
           <h2 className="text-xs sm:text-sm font-bold text-white truncate">
             {fact.name}
           </h2>
