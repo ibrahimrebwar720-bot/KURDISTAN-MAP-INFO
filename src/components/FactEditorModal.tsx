@@ -37,6 +37,7 @@ import {
   ExternalLink,
   Globe,
   Copy,
+  Images,
 } from 'lucide-react';
 import { FactRelationsModal } from './FactRelationsModal';
 import {
@@ -131,6 +132,16 @@ export const FactEditorModal: React.FC<Props> = ({
   const [imageCaption, setImageCaption] = useState('');
   const [imageLoadError, setImageLoadError] = useState<string | null>(null);
 
+  // Additional 9 images state (total up to 10 images with imageUrl as Image #1)
+  const [extraImages, setExtraImages] = useState<Array<{ url: string; caption: string }>>(() =>
+    Array.from({ length: 9 }, () => ({ url: '', caption: '' }))
+  );
+  const [showExtraImages, setShowExtraImages] = useState<boolean>(false);
+
+  const filledExtraCount = useMemo(() => {
+    return extraImages.filter((img) => img.url.trim().length > 0).length;
+  }, [extraImages]);
+
   const linkInfo = useMemo(() => getLinkTypeInfo(imageUrl), [imageUrl]);
 
   const handleImageUrlChange = (rawUrl: string) => {
@@ -158,6 +169,50 @@ export const FactEditorModal: React.FC<Props> = ({
     } catch {
       // ignore clipboard permission error
     }
+  };
+
+  const handleExtraImageChange = (index: number, field: 'url' | 'caption', val: string) => {
+    setExtraImages((prev) => {
+      const next = [...prev];
+      if (field === 'url') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('data:')) {
+          setImageLoadError('بارکردنی فایلی وێنە ناچالاک کراوە. تکایە تەنها لینکی وێنە دابنێ.');
+          return prev;
+        }
+        const resolved = resolveImageUrl(trimmed);
+        const currentCaption = next[index]?.caption || '';
+        next[index] = {
+          url: resolved,
+          caption: currentCaption.trim() ? currentCaption : (name.trim() ? `وێنەی #${index + 2} ی «${name.trim()}»` : ''),
+        };
+      } else {
+        next[index] = {
+          ...next[index],
+          caption: val,
+        };
+      }
+      return next;
+    });
+  };
+
+  const handlePasteExtraClipboard = async (index: number) => {
+    try {
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          handleExtraImageChange(index, 'url', text);
+        }
+      }
+    } catch {}
+  };
+
+  const handleClearExtraImage = (index: number) => {
+    setExtraImages((prev) => {
+      const next = [...prev];
+      next[index] = { url: '', caption: '' };
+      return next;
+    });
   };
 
   // Google Maps Place Search state with high-performance debounce
@@ -189,9 +244,29 @@ export const FactEditorModal: React.FC<Props> = ({
         setDesc(factToEdit.desc);
         setSelectedPlaceName(factToEdit.desc || null);
         setFullText(factToEdit.fullText);
-        setAdditionalNotes(factToEdit.additionalNotes || '');
         setImageUrl(factToEdit.imageUrl || '');
         setImageCaption(factToEdit.imageCaption || '');
+
+        // Populate the 9 extra image slots from factToEdit.images (items beyond Image #1)
+        const initialExtras = Array.from({ length: 9 }, () => ({ url: '', caption: '' }));
+        let hasExistingExtras = false;
+        if (Array.isArray(factToEdit.images) && factToEdit.images.length > 0) {
+          // If first image in images matches factToEdit.imageUrl, extra are images.slice(1)
+          // Otherwise, collect remaining items
+          const extrasList = factToEdit.images.slice(1, 10);
+          extrasList.forEach((item, idx) => {
+            if (idx < 9 && item) {
+              const u = typeof item === 'string' ? item : item.url;
+              const c = typeof item === 'object' ? item.caption : '';
+              if (u && u.trim()) {
+                initialExtras[idx] = { url: u.trim(), caption: c?.trim() || '' };
+                hasExistingExtras = true;
+              }
+            }
+          });
+        }
+        setExtraImages(initialExtras);
+        setShowExtraImages(hasExistingExtras);
         setLat(factToEdit.lat);
         setLng(factToEdit.lng);
         // Unified Category
@@ -326,6 +401,8 @@ export const FactEditorModal: React.FC<Props> = ({
         setRelatedFactIds([]);
         setImageUrl('');
         setImageCaption('');
+        setExtraImages(Array.from({ length: 9 }, () => ({ url: '', caption: '' })));
+        setShowExtraImages(false);
       }
       setYearError(null);
       setConfirmDelete(false);
@@ -575,6 +652,31 @@ export const FactEditorModal: React.FC<Props> = ({
       }
     }
 
+    // Collect all valid images up to 10 (Primary Image + 9 Additional Images)
+    const allImagesList: Array<{ url: string; caption?: string }> = [];
+    const resolvedPrimary = imageUrl.trim() ? resolveImageUrl(imageUrl.trim()) : '';
+    if (resolvedPrimary) {
+      allImagesList.push({
+        url: resolvedPrimary,
+        caption: imageCaption.trim() || undefined,
+      });
+    }
+
+    extraImages.forEach((extra) => {
+      if (extra.url && extra.url.trim()) {
+        const res = resolveImageUrl(extra.url.trim());
+        if (res) {
+          allImagesList.push({
+            url: res,
+            caption: extra.caption.trim() || undefined,
+          });
+        }
+      }
+    });
+
+    const finalImagesArray = allImagesList.slice(0, 10);
+    const finalPrimaryImage = finalImagesArray[0];
+
     const item: FactItem = {
       id: factToEdit ? factToEdit.id : Date.now(),
       num: factToEdit ? factToEdit.num : totalFactsCount + 1,
@@ -604,8 +706,9 @@ export const FactEditorModal: React.FC<Props> = ({
       tag: selectedCategory,
       collectionId: selectedCategory,
       category: selectedCategory,
-      imageUrl: imageUrl.trim() ? resolveImageUrl(imageUrl.trim()) : undefined,
-      imageCaption: imageCaption.trim() || undefined,
+      imageUrl: finalPrimaryImage ? finalPrimaryImage.url : undefined,
+      imageCaption: finalPrimaryImage ? finalPrimaryImage.caption : undefined,
+      images: finalImagesArray.length > 0 ? finalImagesArray : undefined,
       parentFactId: typeof parentFactId === 'number' ? parentFactId : undefined,
       relatedFactIds: relatedFactIds.length > 0 ? relatedFactIds : undefined,
       isCustom: true,
@@ -1474,43 +1577,52 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* SECTION 5: بەستەری وێنە و هۆست ئیمەیج (Image URL & Hosts Only) */}
+          {/* SECTION 5: وێنەکان (تا ١٠ وێنەی ڕاستەقینە • وێنەی سەرەکی و ٩ وێنەی تر) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   05
                 </span>
-                <span>بەستەری وێنە و هۆست ئیمەیج (ویکیپێدیا و هۆستەکانی تر)</span>
+                <span>بەستەری وێنەکان (تا ١٠ وێنە • وێنەی سەرەکی و وێنە زیاترەکان)</span>
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/40">
-                تەنها بەستەر • پاراستنی کوۆتا
+                تا ١٠ وێنە • بەستەری ڕاستەوخۆ
               </span>
             </div>
 
-            {/* URL Input & Quick Tools */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
-                    <span>بەستەری وێنە:</span>
+            {/* وێنەی سەرەکی #١ (Image #1 - Primary) */}
+            <div className="p-3.5 rounded-2xl liquid-glass-subtle border border-amber-400/25 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-amber-400 text-black font-extrabold text-[10px] font-heading shadow-xs">
+                    وێنەی سەرەکی #١
                   </span>
-                  {imageUrl && (
-                    <span className="text-[10px] text-amber-300 font-mono px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/20">
-                      {linkInfo.label}
-                    </span>
-                  )}
-                </label>
+                  <span className="text-xs font-bold text-white">
+                    پێشاندانی سەر نەخشە و بەرگی سەرەکی بابەت
+                  </span>
+                </div>
+                {imageUrl && (
+                  <span className="text-[10px] text-amber-300 font-mono px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/20">
+                    {linkInfo.label}
+                  </span>
+                )}
+              </div>
 
+              {/* URL Input #1 */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
+                  <span>بەستەری وێنەی سەرەکی (#١):</span>
+                </label>
                 <div className="relative flex items-center gap-1.5">
                   <div className="relative flex-1">
                     <input
                       type="url"
                       value={imageUrl}
                       onChange={(e) => handleImageUrlChange(e.target.value)}
-                      placeholder="لینکی وێنەکە لێرە دابنێ (Wikipedia, ImgBB, Drive...)"
-                      className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-9"
+                      placeholder="لینکی وێنەی سەرەکی لێرە دابنێ (Wikipedia, ImgBB, Drive...)"
+                      className="w-full liquid-glass-input text-white px-3.5 py-2 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-9"
                       dir="ltr"
                     />
                     {imageUrl && (
@@ -1527,11 +1639,10 @@ export const FactEditorModal: React.FC<Props> = ({
                       </button>
                     )}
                   </div>
-
                   <button
                     type="button"
                     onClick={handlePasteClipboard}
-                    className="shrink-0 px-3 py-2.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                    className="shrink-0 px-3 py-2 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
                     title="پەیستکردن لە کلیپبۆرد"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -1540,93 +1651,241 @@ export const FactEditorModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Conversion indicator if Wikipedia/Drive link was converted */}
-              {linkInfo.isConverted && (
-                <div className="p-2 px-3 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-fade-in shadow-sm">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>
-                    لینکی <strong>{linkInfo.label}</strong> ناسێندرا و بە سەرکەوتوویی گۆڕدرا بۆ بەستەری پەخشی ڕاستەوخۆ!
-                  </span>
-                </div>
-              )}
-
-              {/* Guidance Note for services like MEGA */}
-              {linkInfo.warningNote && (
-                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs flex items-start gap-2.5 leading-relaxed shadow-sm">
-                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <span>{linkInfo.warningNote}</span>
-                </div>
-              )}
-
-              {imageLoadError && (
-                <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{imageLoadError}</span>
-                </div>
-              )}
-
-              {/* Image Preview & Caption Field (بە قیاسی تەواو بێ بڕین) */}
-              {imageUrl && (
-                <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-3 shadow-md">
-                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                      <Eye className="w-3.5 h-3.5 text-amber-400" />
-                      <span>پێشبینینی وێنەکە بە قیاسی تەواو</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImageUrl('');
-                        setImageCaption('');
-                        setImageLoadError(null);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-rose-300 text-[10px] cursor-pointer transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>لابردنی وێنە</span>
-                    </button>
-                  </div>
-
-                  <div className="relative rounded-xl overflow-hidden border border-amber-400/40 bg-black/95 flex flex-col items-center justify-center p-2 min-h-[160px]">
-                    <img
-                      src={imageUrl}
-                      alt={imageCaption || name || 'Topic Image Preview'}
-                      className="max-h-64 max-w-full w-auto h-auto object-contain mx-auto rounded-lg shadow-lg"
-                      onError={() =>
-                        setImageLoadError(
-                          'نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە یان لینکی ڕاستەوخۆ بەکاربهێنە.'
-                        )
-                      }
-                      onLoad={() => setImageLoadError(null)}
-                    />
-                    {imageCaption && (
-                      <div className="w-full mt-2 p-2 rounded-lg liquid-glass-subtle text-amber-200 text-xs flex items-center gap-2">
-                        <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="font-medium text-right">{imageCaption}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Small Caption / Description about Image */}
+              {/* Caption Input #1 */}
               <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
-                  <span>زانیاری لەسەر وێنەکە (بە نوسینێکی بچووک نیشان دەدرێت)</span>
+                  <span>تێبینی و وەسف لەسەر وێنەی سەرەکی (#١):</span>
                 </label>
                 <input
                   type="text"
                   value={imageCaption}
                   onChange={(e) => setImageCaption(e.target.value)}
-                  placeholder="بۆ نموونە: دیمەنی قەڵاکە لە سەرەتای سەدەی بیستەم، یان نیگاری پاشا لەسەر بەردی دێرین..."
-                  className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
+                  placeholder="بۆ نموونە: نیگاری کەسایەتی، قەڵاکە لە سەدەی بیستەم، یاخود نەخشەی پایتەخت..."
+                  className="w-full liquid-glass-input text-white px-3.5 py-2 rounded-xl text-xs placeholder:text-slate-500"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  ئەم نوسینە بە قەبارەیەکی بچووک و جوان لە ژێر یان لەسەر وێنەکە لە کاتی داگرتنی پۆینت نیشان دەدرێت.
-                </p>
               </div>
+
+              {/* Preview of Image #1 */}
+              {imageUrl && (
+                <div className="relative rounded-xl overflow-hidden border border-amber-400/40 bg-black/90 flex flex-col items-center justify-center p-2 min-h-[140px]">
+                  <img
+                    src={imageUrl}
+                    alt={imageCaption || name || 'Primary Image Preview'}
+                    className="max-h-52 max-w-full w-auto h-auto object-contain mx-auto rounded-lg shadow-md"
+                    onError={() =>
+                      setImageLoadError(
+                        'نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.'
+                      )
+                    }
+                    onLoad={() => setImageLoadError(null)}
+                  />
+                  {imageCaption && (
+                    <div className="w-full mt-2 p-1.5 px-2.5 rounded-lg liquid-glass-subtle text-amber-200 text-xs flex items-center gap-1.5">
+                      <ImageIcon className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="font-medium text-right text-[11px] truncate">{imageCaption}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {imageLoadError && (
+                <div className="p-2 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{imageLoadError}</span>
+                </div>
+              )}
             </div>
+
+            {/* دوگمەی کردنەوەی بۆشایی ٩ لینکەکەی تر و ٩ بۆشایی تێبینییەکان */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowExtraImages(!showExtraImages)}
+                className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                  showExtraImages
+                    ? 'bg-amber-500/15 border-amber-400/60 shadow-[0_4px_20px_rgba(245,158,11,0.15)]'
+                    : 'liquid-glass-subtle hover:border-amber-400/40 border-white/10'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all ${
+                      filledExtraCount > 0
+                        ? 'bg-amber-400 text-black font-extrabold shadow-sm'
+                        : 'bg-white/10 text-amber-300 border border-amber-400/30'
+                    }`}
+                  >
+                    +9
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white font-heading">
+                        {showExtraImages
+                          ? 'شاردنەوەی ٩ بۆشایی وێنەکەی تر'
+                          : 'زیادکردنی وێنەی تر (کردنەوەی ٩ لینکی تر و ٩ تێبینی)'}
+                      </span>
+                      {filledExtraCount > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold">
+                          {toKurdishDigits(filledExtraCount)} لە ٩ وێنە پڕکراوەتەوە
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 text-[10px]">
+                          تا ٩ وێنەی زیاتر
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {showExtraImages
+                        ? 'کلیک بکە بۆ داخستنی خانەکان'
+                        : 'کلیک بکە بۆ نیشاندانی بۆشایی ٩ لینک و ٩ تێبینی بۆ ئەلبوومی وێنەکان'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs shrink-0">
+                  <span className="hidden sm:inline">
+                    {showExtraImages ? 'داخستن' : 'کردنەوە'}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-300 ${
+                      showExtraImages ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+            </div>
+
+            {/* خانەکانی ٩ وێنەکەی تر و ٩ تێبینییەکەیان کاتێک دوگمەکە دادەگیرێت */}
+            {showExtraImages && (
+              <div className="space-y-3.5 pt-1 animate-fade-in">
+                <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-200 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Images className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="font-bold text-[11px]">
+                      ٩ بۆشایی وێنەی زیاتر و ٩ بۆشایی تێبینی (وێنەی #٢ تا #١٠)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-300 font-mono">
+                    کۆی گشتی بەردەست: ١٠ وێنە
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {extraImages.map((extra, idx) => {
+                    const imgNumber = idx + 2;
+                    const isFilled = extra.url.trim().length > 0;
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3 sm:p-3.5 rounded-2xl transition-all border ${
+                          isFilled
+                            ? 'bg-amber-950/20 border-amber-400/35 shadow-xs'
+                            : 'liquid-glass-subtle border-white/[0.08]'
+                        }`}
+                      >
+                        {/* Slot Header */}
+                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08]">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                                isFilled
+                                  ? 'bg-amber-400 text-black shadow-xs'
+                                  : 'bg-white/10 text-slate-300'
+                              }`}
+                            >
+                              وێنەی #{toKurdishDigits(imgNumber)}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-300">
+                              {isFilled ? 'وێنەکە دیاریکراوە' : 'بۆشایی بەتاڵ'}
+                            </span>
+                          </div>
+
+                          {isFilled && (
+                            <button
+                              type="button"
+                              onClick={() => handleClearExtraImage(idx)}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-lg liquid-glass-btn text-rose-300 hover:text-rose-200 text-[10px] cursor-pointer"
+                              title="سڕینەوەی ئەم وێنەیە"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>سڕینەوە</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Fields: URL + Caption */}
+                        <div className="space-y-2.5">
+                          {/* 1. بۆشایی لینکی وێنە */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <LinkIcon className="w-3 h-3 text-amber-400" />
+                                <span>بۆشایی لینکی وێنەی #{toKurdishDigits(imgNumber)}:</span>
+                              </span>
+                            </label>
+                            <div className="relative flex items-center gap-1.5">
+                              <input
+                                type="url"
+                                value={extra.url}
+                                onChange={(e) => handleExtraImageChange(idx, 'url', e.target.value)}
+                                placeholder={`لینکی وێنەی #${toKurdishDigits(imgNumber)} (Wikipedia, ImgBB, Drive...)`}
+                                className="w-full liquid-glass-input text-white px-3 py-1.5 rounded-xl text-xs font-mono placeholder:text-slate-600"
+                                dir="ltr"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handlePasteExtraClipboard(idx)}
+                                className="shrink-0 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                                title="پەیستکردن لە کلیپبۆرد"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span className="hidden sm:inline">پەیست</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 2. بۆشایی تێبینی لەسەر وێنە */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                              <FileText className="w-3 h-3 text-amber-400" />
+                              <span>بۆشایی تێبینی لەسەر وێنەی #{toKurdishDigits(imgNumber)}:</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={extra.caption}
+                              onChange={(e) => handleExtraImageChange(idx, 'caption', e.target.value)}
+                              placeholder={`تێبینی، شوێن یان وەسفی وێنەی #${toKurdishDigits(imgNumber)}...`}
+                              className="w-full liquid-glass-input text-white px-3 py-1.5 rounded-xl text-xs placeholder:text-slate-500"
+                            />
+                          </div>
+
+                          {/* Thumbnail preview if URL is set */}
+                          {isFilled && (
+                            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-black/60 border border-white/10 mt-1">
+                              <img
+                                src={extra.url}
+                                alt={extra.caption || `وێنەی #${imgNumber}`}
+                                className="w-12 h-12 object-cover rounded-lg border border-amber-400/40 shrink-0"
+                                loading="lazy"
+                              />
+                              <div className="min-w-0 flex-1 text-right">
+                                <p className="text-[11px] font-bold text-amber-300 truncate">
+                                  {extra.caption || `وێنەی #${toKurdishDigits(imgNumber)}`}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-mono truncate" dir="ltr">
+                                  {extra.url}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* SECTION 6: بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان (Linking & Associations) */}

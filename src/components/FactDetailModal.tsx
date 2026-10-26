@@ -29,7 +29,8 @@ import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaSe
 import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
 import { FactRelationsModal } from './FactRelationsModal';
 import { getCategoryInfo } from '../types/history';
-import { getFactDisplayImage } from '../utils/historicalImages';
+import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages';
+import { toKurdishDigits } from '../utils/yearUtils';
 
 const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
 
@@ -65,6 +66,10 @@ export const FactDetailModal: React.FC<Props> = ({
   const [copied, setCopied] = useState(false);
   const [wikiData, setWikiData] = useState<WikipediaResult | null>(null);
 
+  // Multi-image gallery state (up to 10 images)
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const allImages = useMemo(() => getAllFactImages(fact), [fact]);
+
   // Additional Notes Inline Editing state for Admin
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesContent, setNotesContent] = useState('');
@@ -96,6 +101,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
     let isMounted = true;
     setWikiData(null);
+    setActiveImageIndex(0);
     setIsEditingNotes(false);
     setNotesContent(fact.additionalNotes || '');
 
@@ -225,21 +231,106 @@ export const FactDetailModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Custom / Curated Topic Image in True Aspect Ratio (بە قیاسی تەواو بێ بڕین) */}
+          {/* Custom / Curated Topic Images Carousel (تا ١٠ وێنە لەگەڵ تێبینی و شریتی وێنەکان) */}
           {(() => {
-            const displayImage = getFactDisplayImage(fact);
-            if (!displayImage) return null;
+            if (allImages.length === 0) return null;
+            const currentImg = allImages[activeImageIndex] || allImages[0];
+            const hasMultiple = allImages.length > 1;
+
             return (
-              <div className="relative rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-xl group flex flex-col items-center justify-center p-1.5 sm:p-2">
-                <img
-                  src={displayImage}
-                  alt={fact.imageCaption || fact.name}
-                  className="max-h-72 sm:max-h-80 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 shadow-md"
-                />
-                <div className="w-full mt-2 p-2 px-3 rounded-xl liquid-glass-subtle text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
+              <div className="relative rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-xl flex flex-col items-center justify-center p-2 sm:p-2.5 space-y-2">
+                {/* Header with Counter Badge if multiple images */}
+                {hasMultiple && (
+                  <div className="w-full flex items-center justify-between px-2 pt-0.5 text-xs">
+                    <span className="flex items-center gap-1.5 text-amber-300 font-bold font-heading text-[11px]">
+                      <Images className="w-3.5 h-3.5 text-amber-400" />
+                      <span>ئەلبوومی وێنەکان</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/35 font-mono text-[10px] font-bold">
+                      وێنەی {toKurdishDigits(activeImageIndex + 1)} لە {toKurdishDigits(allImages.length)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Main View Area */}
+                <div className="relative w-full overflow-hidden rounded-xl bg-black/95 flex items-center justify-center min-h-[180px] max-h-72 sm:max-h-84 group">
+                  <img
+                    key={currentImg.url}
+                    src={currentImg.url}
+                    alt={currentImg.caption || fact.name}
+                    className="max-h-72 sm:max-h-84 max-w-full w-auto h-auto object-contain mx-auto rounded-xl transition-all duration-300 shadow-md animate-fade-in"
+                  />
+
+                  {/* Previous / Next Navigation Arrows */}
+                  {hasMultiple && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full glass-dock-2026 text-white hover:text-amber-300 flex items-center justify-center border border-white/20 hover:border-amber-400/50 transition-all active:scale-90 cursor-pointer shadow-lg z-20"
+                        title="وێنەی پێشوو"
+                        aria-label="وێنەی پێشوو"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIndex((prev) => (prev + 1) % allImages.length);
+                        }}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full glass-dock-2026 text-white hover:text-amber-300 flex items-center justify-center border border-white/20 hover:border-amber-400/50 transition-all active:scale-90 cursor-pointer shadow-lg z-20"
+                        title="وێنەی دواتر"
+                        aria-label="وێنەی دواتر"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Thumbnail Strip for Multi-Images */}
+                {hasMultiple && (
+                  <div className="w-full flex items-center gap-1.5 overflow-x-auto py-1 px-1 scrollbar-none snap-x touch-pan-x">
+                    {allImages.map((imgItem, idx) => {
+                      const isSelected = idx === activeImageIndex;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setActiveImageIndex(idx)}
+                          className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200 cursor-pointer snap-start ${
+                            isSelected
+                              ? 'border-amber-400 ring-2 ring-amber-400/70 scale-105 shadow-[0_0_12px_rgba(245,158,11,0.5)] z-10'
+                              : 'border-white/20 hover:border-amber-400/60 opacity-70 hover:opacity-100'
+                          }`}
+                          title={`وێنەی ${toKurdishDigits(idx + 1)}: ${imgItem.caption || fact.name}`}
+                        >
+                          <img
+                            src={imgItem.url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-mono font-bold text-center text-amber-300">
+                            {toKurdishDigits(idx + 1)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Bottom Caption & Gallery Launch Bar */}
+                <div className="w-full p-2 px-3 rounded-xl liquid-glass-subtle text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span className="font-medium text-[11px] sm:text-xs truncate">{fact.imageCaption || fact.name}</span>
+                    <span className="font-medium text-[11px] sm:text-xs truncate">
+                      {currentImg.caption || (activeImageIndex === 0 ? fact.imageCaption : '') || fact.name}
+                    </span>
                   </div>
                   {onOpenGallery && (
                     <button

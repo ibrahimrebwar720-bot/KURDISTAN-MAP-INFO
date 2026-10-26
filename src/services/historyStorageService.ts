@@ -172,6 +172,25 @@ export function sanitizeFact(fact: any): FactItem {
       return resolved || undefined;
     })(),
     imageCaption: typeof fact?.imageCaption === 'string' && fact.imageCaption.trim() ? fact.imageCaption.trim() : undefined,
+    images: (() => {
+      if (!Array.isArray(fact?.images)) return undefined;
+      const validImages: Array<{ url: string; caption?: string }> = [];
+      fact.images.forEach((img: any) => {
+        if (!img) return;
+        const rawUrl = typeof img === 'string' ? img : img.url;
+        const caption = typeof img === 'object' && typeof img.caption === 'string' ? img.caption.trim() : undefined;
+        if (typeof rawUrl === 'string' && rawUrl.trim() && !rawUrl.trim().startsWith('data:')) {
+          const resolved = resolveImageUrl(rawUrl.trim());
+          if (resolved) {
+            validImages.push({
+              url: resolved,
+              caption: caption || undefined,
+            });
+          }
+        }
+      });
+      return validImages.length > 0 ? validImages.slice(0, 10) : undefined;
+    })(),
   };
 }
 

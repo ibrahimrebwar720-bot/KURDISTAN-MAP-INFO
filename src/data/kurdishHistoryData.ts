@@ -1,3 +1,8 @@
+export interface FactImageItem {
+  url: string;
+  caption?: string;
+}
+
 export interface FactItem {
   id: number;
   num: number;
@@ -35,6 +40,7 @@ export interface FactItem {
   overlayBounds?: [[number, number], [number, number]];
   imageUrl?: string;
   imageCaption?: string;
+  images?: FactImageItem[];
   parentFactId?: number;
   relatedFactIds?: number[];
 }

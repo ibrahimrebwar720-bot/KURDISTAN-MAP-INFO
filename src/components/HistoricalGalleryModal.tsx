@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 import { resolveImageUrl } from '../utils/imageUtils';
+import { getAllFactImages } from '../utils/historicalImages';
 
 export interface GalleryItem {
   id: string | number;
@@ -46,28 +47,28 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   onFlyToFact,
   initialIndex = 0,
 }) => {
-  // Only display real images provided by the user for facts (no mock or preset images)
+  // Display real images provided by the user for facts (up to 10 images per fact)
   const galleryItems: GalleryItem[] = useMemo(() => {
     const list: GalleryItem[] = [];
     const seenUrls = new Set<string>();
 
     facts.forEach((fact) => {
-      if (fact.imageUrl && fact.imageUrl.trim()) {
-        const resolved = resolveImageUrl(fact.imageUrl.trim());
-        if (resolved && !seenUrls.has(resolved)) {
-          seenUrls.add(resolved);
+      const factImages = getAllFactImages(fact);
+      factImages.forEach((img, idx) => {
+        if (img.url && !seenUrls.has(img.url)) {
+          seenUrls.add(img.url);
           list.push({
-            id: `fact-${fact.id}`,
+            id: `fact-${fact.id}-img-${idx}`,
             title: fact.name,
-            url: resolved,
-            caption: fact.imageCaption || fact.desc || fact.name,
+            url: img.url,
+            caption: img.caption || (idx === 0 ? fact.imageCaption : '') || fact.desc || fact.name,
             year: fact.year || fact.century,
             eraName: fact.eraName,
             tag: fact.tag,
             fact: fact,
           });
         }
-      }
+      });
     });
 
     return list;

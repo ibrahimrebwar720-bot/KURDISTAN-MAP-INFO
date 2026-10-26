@@ -126,6 +126,16 @@ export async function saveFactToCloud(fact: FactItem): Promise<void> {
     updatedAt: Date.now(),
   };
 
+  if (Array.isArray(sanitized.images)) {
+    payload.images = sanitized.images.map((item) => {
+      const cleanImg: Record<string, string> = { url: item.url };
+      if (item.caption && item.caption.trim()) {
+        cleanImg.caption = item.caption.trim();
+      }
+      return cleanImg;
+    });
+  }
+
   // Remove any undefined keys to prevent Firestore validation errors
   Object.keys(payload).forEach((key) => {
     if (payload[key] === undefined) {
