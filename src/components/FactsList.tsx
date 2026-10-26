@@ -25,6 +25,7 @@ import {
   Columns2,
   Maximize2,
   Minimize2,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 
@@ -45,7 +46,7 @@ interface Props {
   onSelectCategory?: (id: string) => void;
   isAdmin?: boolean;
   onOpenAdminPin?: () => void;
-  onOpenAddFact?: () => void;
+  onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
   onOpenEditFact?: (fact: FactItem) => void;
   onOpenCollectionManager?: () => void;
   onOpenGallery?: () => void;
@@ -226,14 +227,24 @@ export const FactsList: React.FC<Props> = ({
           {/* Actions: Admin + Close Fullscreen */}
           <div className="flex items-center gap-2 shrink-0 order-2 sm:order-3">
             {isAdmin && onOpenAddFact && (
-              <button
-                onClick={onOpenAddFact}
-                className="flex items-center gap-1.5 px-3.5 h-9.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
-                title="زیادکردنی بابەتی نوێ"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span className="hidden md:inline">زیادکردنی بابەت</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => onOpenAddFact('photo_only')}
+                  className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
+                  title="زیادکردنی وێنەی مێژوویی (فۆڕمی تایبەت)"
+                >
+                  <ImageIcon className="w-4 h-4 stroke-[2.5]" />
+                  <span className="hidden sm:inline">وێنەی مێژوویی</span>
+                </button>
+                <button
+                  onClick={() => onOpenAddFact('standard')}
+                  className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white font-bold text-xs transition-all cursor-pointer active:scale-95"
+                  title="زیادکردنی بابەتی گشتی"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span className="hidden sm:inline">بابەتی نوێ</span>
+                </button>
+              </div>
             )}
 
             {isAdmin && onLogoutAdmin && (

@@ -85,7 +85,7 @@ interface Props {
   // Admin Props
   isAdmin?: boolean;
   onTriggerAdminPin: () => void;
-  onOpenAddFact?: () => void;
+  onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
   onLogoutAdmin?: () => void;
   isPickingLocation?: boolean;
   onPickLocation?: (lat: number, lng: number) => void;
@@ -1058,13 +1058,24 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
           <span className="text-[11px] font-bold text-amber-300">ئەدمین چالاکە</span>
           {onOpenAddFact && (
-            <button
-              onClick={onOpenAddFact}
-              className="mr-1.5 flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-amber-300 text-[10px] font-bold transition-colors cursor-pointer"
-            >
-              <Plus className="w-3 h-3" />
-              <span>زیادکردنی بابەت</span>
-            </button>
+            <div className="mr-1.5 flex items-center gap-1">
+              <button
+                onClick={() => onOpenAddFact('photo_only')}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/40 text-amber-200 text-[10px] font-bold transition-all cursor-pointer shadow-xs"
+                title="فۆڕمی وێنەی مێژوویی"
+              >
+                <ImageIcon className="w-3 h-3 text-amber-400" />
+                <span>وێنەی نوێ</span>
+              </button>
+              <button
+                onClick={() => onOpenAddFact('standard')}
+                className="flex items-center gap-1 px-2 py-1 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                title="فۆڕمی گشتی بابەت"
+              >
+                <Plus className="w-3 h-3 text-emerald-400" />
+                <span>بابەت</span>
+              </button>
+            </div>
           )}
           {onLogoutAdmin && (
             <button
@@ -1343,20 +1354,34 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </button>
 
-            {/* 6. زیادکردنی بابەت (کاتێک ئەدمین چالاکە) */}
+            {/* 6. زیادکردنی بابەت و وێنە (کاتێک ئەدمین چالاکە) */}
             {isAdmin && onOpenAddFact && (
-              <button
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  onOpenAddFact();
-                }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Plus className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="font-bold">زیادکردنی بابەت</span>
-                </div>
-              </button>
+              <div className="flex flex-col gap-1.5 w-full">
+                <button
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    onOpenAddFact('photo_only');
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/50 text-amber-200 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ImageIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="font-bold">فۆڕمی وێنەی مێژوویی</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    onOpenAddFact('standard');
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Plus className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="font-bold">فۆڕمی گشتی بابەت</span>
+                  </div>
+                </button>
+              </div>
             )}
 
             {/* 7. بەڕێوەبردن (Admin Secret Mode) */}

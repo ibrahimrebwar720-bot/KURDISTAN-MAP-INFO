@@ -65,6 +65,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   factToEdit?: FactItem | null;
+  initialMode?: 'photo_only' | 'standard';
   collections: CollectionItem[];
   allFacts?: FactItem[];
   onSave: (fact: FactItem) => void;
@@ -78,6 +79,7 @@ export const FactEditorModal: React.FC<Props> = ({
   isOpen,
   onClose,
   factToEdit,
+  initialMode = 'photo_only',
   collections,
   allFacts = [],
   onSave,
@@ -86,6 +88,7 @@ export const FactEditorModal: React.FC<Props> = ({
   pickedCoords,
   totalFactsCount,
 }) => {
+  const [formMode, setFormMode] = useState<'photo_only' | 'standard'>('photo_only');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [fullText, setFullText] = useState('');
@@ -240,6 +243,10 @@ export const FactEditorModal: React.FC<Props> = ({
       setImageLoadError(null);
 
       if (factToEdit) {
+        const isPhotoItem =
+          factToEdit.tag === 'وێنەی مێژوویی' ||
+          (!!factToEdit.imageUrl && !factToEdit.additionalNotes && factToEdit.category === 'monument');
+        setFormMode(isPhotoItem ? 'photo_only' : 'standard');
         setName(factToEdit.name);
         setDesc(factToEdit.desc);
         setSelectedPlaceName(factToEdit.desc || null);
@@ -403,11 +410,12 @@ export const FactEditorModal: React.FC<Props> = ({
         setImageCaption('');
         setExtraImages(Array.from({ length: 9 }, () => ({ url: '', caption: '' })));
         setShowExtraImages(false);
+        setFormMode(initialMode);
       }
       setYearError(null);
       setConfirmDelete(false);
     }
-  }, [isOpen, factToEdit]);
+  }, [isOpen, factToEdit, initialMode]);
 
   const handlePlaceSearch = (query: string) => {
     setPlaceSearchQuery(query);
@@ -553,6 +561,89 @@ export const FactEditorModal: React.FC<Props> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formMode === 'photo_only') {
+      if (!imageUrl.trim()) {
+        setImageLoadError('تکایە لینکی وێنەکە لێرە بنووسە یان پەیستی بکە.');
+        return;
+      }
+      const normStart = normalizeYearString(startYearInput.trim());
+      const startNum = normStart ? parseInt(normStart, 10) : NaN;
+      if (isNaN(startNum)) {
+        setYearError('تکایە ساڵی وێنەکە بە درووستی بنووسە.');
+        return;
+      }
+      const actualYear = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
+      const formattedYear = formatKurdishYear(actualYear);
+      const centuryNum = actualYear < 0 ? -Math.ceil(Math.abs(actualYear) / 100) : Math.ceil(actualYear / 100);
+      const centuryLabel = formatKurdishCentury(Math.abs(centuryNum), actualYear < 0, true);
+
+      let eraId = 4;
+      let eraName = 'میرنشین و دەسەڵاتە ئیسلامییەکان';
+      if (actualYear < -800) {
+        eraId = 1;
+        eraName = 'دەسەڵات و گەلە دێرینەکانی پێش ماد';
+      } else if (actualYear < -500) {
+        eraId = 2;
+        eraName = 'ئیمپراتۆریەتی ماد و سەردەمی کۆن';
+      } else if (actualYear < 650) {
+        eraId = 3;
+        eraName = actualYear < 0 ? 'سەردەمی پێش و دوای زایین' : 'سەردەمی کلاسیک و کۆن';
+      } else if (actualYear < 1918) {
+        eraId = 4;
+        eraName = 'میرنشین و دەسەڵاتە ئیسلامییەکان';
+      } else {
+        eraId = 5;
+        eraName = 'سەردەمی هاوچەرخ';
+      }
+
+      const resolvedPrimary = resolveImageUrl(imageUrl.trim());
+      const finalTitle =
+        name.trim() ||
+        selectedPlaceName ||
+        (imageCaption.trim()
+          ? imageCaption.trim().slice(0, 45)
+          : fullText.trim()
+          ? fullText.trim().slice(0, 45)
+          : 'وێنەی مێژوویی');
+      const finalCaption = imageCaption.trim() || fullText.trim() || finalTitle;
+      const finalDesc = selectedPlaceName || desc.trim() || 'کوردستان';
+      const finalFullText = fullText.trim() || finalCaption;
+
+      const item: FactItem = {
+        id: factToEdit ? factToEdit.id : Date.now(),
+        num: factToEdit ? factToEdit.num : totalFactsCount + 1,
+        eraId: factToEdit ? factToEdit.eraId : eraId,
+        eraName: factToEdit ? factToEdit.eraName : eraName,
+        eraPeriod: factToEdit ? factToEdit.eraPeriod : 'مێژووی کوردستان',
+        name: finalTitle,
+        desc: finalDesc,
+        fullText: finalFullText,
+        additionalNotes: additionalNotes.trim(),
+        timeSpanType: 'single_year',
+        year: formattedYear,
+        startYear: actualYear,
+        endYear: actualYear,
+        isBC: actualYear < 0,
+        century: centuryLabel,
+        centuryNumber: centuryNum,
+        lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
+        lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
+        zoom: factToEdit?.zoom || 8,
+        tag: 'وێنەی مێژوویی',
+        collectionId: 'monument',
+        category: 'monument',
+        imageUrl: resolvedPrimary,
+        imageCaption: finalCaption,
+        images: [{ url: resolvedPrimary, caption: finalCaption }],
+        isCustom: true,
+      };
+
+      onSave(item);
+      onClose();
+      return;
+    }
+
     if (!name.trim()) return;
 
     let finalStart = 0;
@@ -728,21 +819,29 @@ export const FactEditorModal: React.FC<Props> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-5 shrink-0">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center shadow-md shrink-0">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5 mb-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center shadow-md shrink-0">
+              {formMode === 'photo_only' ? (
+                <ImageIcon className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Sparkles className="w-5 h-5 text-amber-400" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-extrabold font-heading text-white tracking-wide">
-                  {factToEdit ? 'دەستکاریکردنی دەسەڵات و بابەت' : 'زیادکردنی بابەت و شوێنی نوێ'}
+                <h3 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide">
+                  {factToEdit
+                    ? (formMode === 'photo_only' ? 'دەستکاریکردنی وێنەی مێژوویی' : 'دەستکاریکردنی دەسەڵات و بابەت')
+                    : (formMode === 'photo_only' ? 'فۆڕمی تایبەتی وێنەی مێژوویی' : 'زیادکردنی بابەت و شوێنی نوێ')}
                 </h3>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {factToEdit
-                  ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و ئەرشیف`
-                  : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە دیاریکردنی ورد'}
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {formMode === 'photo_only'
+                  ? 'دانانی وێنەی مێژوویی لەسەر نەخشە تەنها بە ٤ خانە: لینکی وێنە، ساڵ، شوێن، و زانیاری وێنە'
+                  : (factToEdit
+                      ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و ئەرشیف`
+                      : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە وردەکاریی تەواو')}
               </p>
             </div>
           </div>
@@ -756,18 +855,360 @@ export const FactEditorModal: React.FC<Props> = ({
           </button>
         </div>
 
+        {/* Form Mode Selector: فۆڕمی وێنەی مێژوویی vs فۆڕمی تەواوی بابەت */}
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] mb-4 shrink-0">
+          <button
+            type="button"
+            onClick={() => setFormMode('photo_only')}
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+              formMode === 'photo_only'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/25'
+                : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4 shrink-0" />
+            <span>فۆڕمی وێنەی مێژوویی (تەنها ٤ خانەکە)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormMode('standard')}
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+              formMode === 'standard'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/25'
+                : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            <FileText className="w-4 h-4 shrink-0" />
+            <span>فۆڕمی گشتی (تەواوی بابەت)</span>
+          </button>
+        </div>
+
         {/* Scrollable Form Body with Refined Structure */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-5 text-xs flex-1 custom-scrollbar">
+        <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-4 text-xs flex-1 custom-scrollbar">
           
-          {/* SECTION 1: ناو و پۆلێنبەندی (Basic Information & Classification) */}
-          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
-                  01
-                </span>
-                <span>ناونیشان و پۆلێنبەندی بابەت</span>
-              </span>
+          {formMode === 'photo_only' ? (
+            <div className="space-y-4 animate-fade-in">
+              {/* Guidance Banner */}
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/20 flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="text-right">
+                  <h4 className="text-xs font-bold text-amber-300">فۆڕمی خێرا و سەربەخۆی وێنەی مێژوویی</h4>
+                  <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                    تەنها بە پڕکردنەوەی ئەم ٤ خانەیە، وێنە مێژووییەکە لەسەر نەخشەی وێنەیی و شریتەکەی خوارەوە بە خێرایی پیشان دەدرێت.
+                  </p>
+                </div>
+              </div>
+
+              {/* 1. بەستەری وێنە (Image Link / URL) */}
+              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                      01
+                    </span>
+                    <ImageIcon className="w-4 h-4 text-amber-400" />
+                    <span>لینکی وێنە (بەستەری وێنەی مێژوویی)</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">بەستەری سەرەکی</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    بەستەری وێنە (Image URL) <span className="text-amber-400">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="url"
+                        value={imageUrl}
+                        onChange={(e) => handleImageUrlChange(e.target.value)}
+                        placeholder="https://... لینکی ڕاستەوخۆی وێنە لێرە دابنێ"
+                        dir="ltr"
+                        className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs pr-10 pl-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-mono"
+                      />
+                      {imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setImageUrl('')}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer"
+                          title="سڕینەوە"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePasteClipboard}
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl liquid-glass-btn hover:border-amber-400/50 text-slate-200 hover:text-amber-300 text-xs font-semibold shrink-0 cursor-pointer transition-all"
+                      title="پەیستکردن لە کلیپبۆرد"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>پەیست</span>
+                    </button>
+                  </div>
+
+                  {imageLoadError && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-rose-950/50 border border-rose-800/60 text-rose-200 text-xs flex items-center gap-2 animate-fade-in">
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>{imageLoadError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Real-time Image Preview Frame */}
+                {imageUrl ? (
+                  <div className="rounded-2xl overflow-hidden border border-white/15 bg-black/70 p-2.5 flex flex-col items-center justify-center gap-2">
+                    <div className="w-full max-h-72 overflow-hidden rounded-xl flex items-center justify-center bg-black/90">
+                      <img
+                        src={imageUrl}
+                        alt="پێشبینینی وێنەی مێژوویی"
+                        className="max-h-72 w-auto object-contain rounded-lg shadow-lg"
+                        onError={() => setImageLoadError('نەتوانرا ئەم وێنەیە باربکرێت، تکایە دڵنیابە لە درووستی بەستەرەکە.')}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between w-full px-2 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>پێشبینینی وێنە ئامادەیە</span>
+                      </div>
+                      {linkInfo && (
+                        <span className="font-mono text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                          {linkInfo.label}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex flex-col items-center justify-center text-center gap-1.5 text-slate-400">
+                    <ImageIcon className="w-7 h-7 text-slate-500 mb-1" />
+                    <span className="text-xs font-medium text-slate-300">هیچ بەستەرێکی وێنە دانەنراوە</span>
+                    <span className="text-[11px] text-slate-500">
+                      دەتوانیت هەر لینکێکی وێنە لە ویکیپیدیا، ئیمگەر یان وێب لێرە دابنێیت.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. ساڵ و کات (Year) */}
+              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                      02
+                    </span>
+                    <Calendar className="w-4 h-4 text-amber-400" />
+                    <span>ساڵ و ڕێکەوت</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">کاتی وێنە لە مێژوودا</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                      ساڵ <span className="text-amber-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={startYearInput}
+                      onChange={(e) => {
+                        setStartYearInput(e.target.value);
+                        setYearError(null);
+                      }}
+                      placeholder="بۆ نموونە: 1920 یان 1187"
+                      dir="ltr"
+                      className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                      سەردەم (زایینی / پێش زایین)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 bg-black/40 p-1 rounded-xl border border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setStartEra('AD')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          startEra === 'AD'
+                            ? 'bg-amber-500 text-black shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        زایینی (ز)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStartEra('BC')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          startEra === 'BC'
+                            ? 'bg-amber-500 text-black shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        پێش زایین (پ.ز)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {previewTimeSpan && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-amber-300">
+                    <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="font-semibold">{previewTimeSpan.label}</span>
+                    <span className="text-slate-500">·</span>
+                    <span className="text-slate-300">{previewTimeSpan.subLabel}</span>
+                  </div>
+                )}
+
+                {yearError && (
+                  <div className="p-2.5 rounded-xl bg-rose-950/50 border border-rose-800/60 text-rose-200 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{yearError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. شوێن لەسەر نەخشە (Location on Map) */}
+              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                      03
+                    </span>
+                    <MapPin className="w-4 h-4 text-amber-400" />
+                    <span>شوێن لەسەر نەخشە</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">دیاریکردنی خاڵ</span>
+                </div>
+
+                {/* Place Search */}
+                <div className="relative">
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    گەڕان بۆ شوێن یان شار (Google Places)
+                  </label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={placeSearchQuery}
+                      onChange={(e) => handlePlaceSearch(e.target.value)}
+                      placeholder="بۆ نموونە: قەڵای هەولێر، سلێمانی، ئامەد، مەهاباد، زاخۆ، کرماشان..."
+                      className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs pr-10 pl-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all"
+                    />
+                    {isSearchingPlaces && (
+                      <Loader2 className="w-4 h-4 text-amber-400 absolute left-3 top-1/2 -translate-y-1/2 animate-spin pointer-events-none" />
+                    )}
+                  </div>
+
+                  {/* Place Results */}
+                  {placeSearchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 z-30 max-h-48 overflow-y-auto rounded-xl bg-[#0b0f19] border border-white/15 shadow-2xl p-1 space-y-1">
+                      {placeSearchResults.map((place, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectSearchedPlace(place)}
+                          className="w-full text-right px-3 py-2 rounded-lg hover:bg-white/10 flex items-center justify-between text-xs text-slate-200 transition-colors cursor-pointer"
+                        >
+                          <div>
+                            <div className="font-bold text-white">{place.name}</div>
+                            <div className="text-[10px] text-slate-400">{place.formattedAddress}</div>
+                          </div>
+                          <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Current Coords Display + Pick on Map Action */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hasLocationPicked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-slate-400'}`}>
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white">
+                        {selectedPlaceName ? selectedPlaceName : (hasLocationPicked ? 'شوێن دیاریکراوە' : 'شوێن دیاری نەکراوە')}
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-400">
+                        پۆوتانەکان: {lat.toFixed(4)}, {lng.toFixed(4)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onStartPickLocation}
+                    className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                  >
+                    <Crosshair className="w-3.5 h-3.5" />
+                    <span>دیاریکردن بە دەست لەسەر نەخشە</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. زانیاری لەسەر وێنە (Information on Image / Caption) */}
+              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                      04
+                    </span>
+                    <Info className="w-4 h-4 text-amber-400" />
+                    <span>زانیاری لەسەر وێنە</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">تێبینی و وەسفی مێژوویی</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    ناونیشانی وێنە (ناوی کورت یان سەردێڕ) <span className="text-amber-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="بۆ نموونە: وێنەی شێخ مەحمودی حەفید، قەڵای دمدم، دیمەنی کۆنی سلێمانی..."
+                    className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    زانیاری و وەسفی تەواوی وێنە <span className="text-amber-400">*</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={fullText}
+                    onChange={(e) => {
+                      setFullText(e.target.value);
+                      if (!imageCaption.trim()) {
+                        setImageCaption(e.target.value.slice(0, 100));
+                      }
+                    }}
+                    placeholder="زانیاری لەسەر ئەم وێنەیە، لە کوێ گیراوە، کێ تێیدایە، کات و سەردەم، و گرنگییە مێژوویییەکەی بنووسە..."
+                    className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs p-3.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all resize-y leading-relaxed"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* SECTION 1: ناو و پۆلێنبەندی (Basic Information & Classification) */}
+              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                      01
+                    </span>
+                    <span>ناونیشان و پۆلێنبەندی بابەت</span>
+                  </span>
               <span className="text-[11px] text-slate-400">زانیارییە سەرەکییەکان</span>
             </div>
 
@@ -1991,6 +2432,8 @@ export const FactEditorModal: React.FC<Props> = ({
               )}
             </div>
           </div>
+        </>
+      )}
 
           {/* Action Buttons Bar */}
           <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/10 shrink-0">
@@ -2045,8 +2488,17 @@ export const FactEditorModal: React.FC<Props> = ({
                 type="submit"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all cursor-pointer active:scale-95"
               >
-                <Save className="w-4 h-4 text-black" />
-                <span>پاشەکەوتکردنی زانیارییەکان</span>
+                {formMode === 'photo_only' ? (
+                  <>
+                    <ImageIcon className="w-4 h-4 text-black" />
+                    <span>تۆمارکردن و دانانی وێنە لەسەر نەخشە</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 text-black" />
+                    <span>پاشەکەوتکردنی زانیارییەکان</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

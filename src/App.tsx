@@ -185,12 +185,15 @@ export default function App() {
     setAdminState(false);
   };
 
+  const [factEditorMode, setFactEditorMode] = useState<'photo_only' | 'standard'>('photo_only');
+
   // Add / Edit Fact (Immediately opens form!)
-  const handleOpenAddFact = () => {
+  const handleOpenAddFact = (mode: 'photo_only' | 'standard' = 'photo_only') => {
     setFactToEdit(null);
     setPickedCoords(null);
     setIsMenuOpen(false);
     setIsPickingLocation(false);
+    setFactEditorMode(mode);
     setIsFactEditorOpen(true);
   };
 
@@ -487,6 +490,7 @@ export default function App() {
         isOpen={isFactEditorOpen}
         onClose={() => setIsFactEditorOpen(false)}
         factToEdit={factToEdit}
+        initialMode={factEditorMode}
         collections={collections}
         allFacts={facts}
         onSave={handleSaveFact}
