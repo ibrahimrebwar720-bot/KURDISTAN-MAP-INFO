@@ -189,6 +189,26 @@ export const TAG_FILTER_OPTIONS = [
   },
 ];
 
+const getCategoryEmoji = (categoryOrTag: string | undefined): string => {
+  const cat = (categoryOrTag || '').toLowerCase();
+  if (cat.includes('principality') || cat.includes('میرنشین')) return '🏰';
+  if (cat.includes('civilization') || cat.includes('شارستانییەت')) return '🏛️';
+  if (cat.includes('rebellion') || cat.includes('شۆڕش')) return '⚔️';
+  if (
+    cat.includes('scholar') ||
+    cat.includes('زانا') ||
+    cat.includes('شاعیر') ||
+    cat.includes('ئەدیب')
+  )
+    return '📜';
+  if (cat.includes('heritage') || cat.includes('کەلەپوور') || cat.includes('شوێنەوار'))
+    return '🌟';
+  if (cat.includes('battle') || cat.includes('شەڕ') || cat.includes('جەنگ'))
+    return '🛡️';
+  if (cat.includes('capital') || cat.includes('پایتەخت')) return '👑';
+  return '📍';
+};
+
 export const KurdishDarkLeafletMap: React.FC<Props> = ({
   facts,
   selectedFact,
@@ -230,6 +250,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
   // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite)
   const [mapMode, setMapMode] = useState<'dark' | 'satellite'>('dark');
+
+  // Marker Display Mode: 'points' (Classic Pins - Default) vs 'photo' (Image Pins & Squares)
+  // داواکراو: هەر کە وێبسایتەکە دەکەیتەوە بە خاڵەکان (points) بێت نەک وێنەیی
+  const [markerViewMode, setMarkerViewMode] = useState<'photo' | 'points'>('points');
+
+  // Bottom Photo Strip toggle: تەنها لەگەڵ شێوازی وێنەیی بەردەست دەبێت و لەخۆڕاش ناکرێتەوە تا دوگمەی وێنەکانی خوارەوە دادەگیرێت
+  const [showBottomPhotoStrip, setShowBottomPhotoStrip] = useState<boolean>(false);
 
   // Quick Topic Summary Card state for bottom dock
   const [showQuickSummary, setShowQuickSummary] = useState(false);
@@ -585,6 +612,20 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     return list;
   }, [facts, activeTagFilter, selectedYear, isTourActive]);
 
+  // Facts with verified images for Photo Mode and Bottom Photo Strip
+  const visibleFactsWithImages = useMemo(() => {
+    const withImgs = visibleFacts.filter((f) => {
+      const img = getFactDisplayImage(f);
+      return typeof img === 'string' && img.trim().length > 0;
+    });
+    if (withImgs.length > 0) return withImgs;
+    // Fallback: facts having images across the dataset
+    return facts.filter((f) => {
+      const img = getFactDisplayImage(f);
+      return typeof img === 'string' && img.trim().length > 0;
+    });
+  }, [visibleFacts, facts]);
+
   // Chronologically sorted facts for the Cinematic Story Mode
   // ALWAYS includes all historical places (never filtered down by single year)
   const tourList = useMemo(() => {
@@ -723,47 +764,115 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       const catInfo = getCategoryInfo(fact);
       const tagColor = catInfo.color;
       const glowColor = `${tagColor}d9`;
+      const catEmoji = getCategoryEmoji(catInfo.id || fact.tag);
+      const displayImg = getFactDisplayImage(fact);
+      const safeName = (fact.name || '').replace(/"/g, '&quot;');
 
       let iconHtml = '';
+      let iconSize: [number, number] = [16, 16];
+      let iconAnchor: [number, number] = [8, 8];
 
-      if (isSelected) {
-        iconHtml = `
-          <div class="relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop">
-            <!-- Fluid expanding spatial luminous wave -->
-            <div class="absolute -inset-2 rounded-full luminous-spatial-ring pointer-events-none" style="background-color: ${glowColor}35; box-shadow: 0 0 16px ${glowColor};"></div>
-            
-            <!-- Secondary soft breathing halo -->
-            <div class="absolute -inset-0.5 rounded-full pointer-events-none opacity-60 animate-pulse" style="background-color: ${glowColor};"></div>
-            
-            <!-- Central Pin Dot with fluid physics -->
-            <div class="relative w-5 h-5 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-xl z-10 transition-transform duration-200 hover:scale-115 active:scale-90" style="background-color: ${tagColor}; box-shadow: 0 0 20px ${glowColor};">
-              <div class="w-1.5 h-1.5 rounded-full bg-white shadow-xs"></div>
-            </div>
+      if (markerViewMode === 'photo') {
+        // Photo Map Mode: small square image pins pointing directly to coordinates
+        if (isSelected) {
+          iconSize = [46, 56];
+          iconAnchor = [23, 56];
+          iconHtml = `
+            <div class="relative w-[46px] h-[56px] flex flex-col items-center select-none pointer-events-auto animate-marker-pop z-50">
+              <!-- Spatial luminous ring -->
+              <div class="absolute top-0 w-[46px] h-[46px] rounded-xl luminous-spatial-ring pointer-events-none" style="background-color: ${glowColor}35; box-shadow: 0 0 18px ${glowColor};"></div>
+              
+              <!-- Square Image Container -->
+              <div class="relative w-[44px] h-[44px] rounded-xl overflow-hidden border-2 border-white ring-2 ring-amber-400 bg-black shadow-[0_8px_25px_rgba(0,0,0,0.95),0_0_20px_${glowColor}] z-10 flex items-center justify-center">
+                ${
+                  displayImg
+                    ? `<img src="${displayImg}" alt="${safeName}" class="w-full h-full object-cover" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+                       <div class="hidden w-full h-full items-center justify-center bg-slate-900 text-sm font-bold text-amber-300">${catEmoji}</div>`
+                    : `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black text-lg select-none text-amber-300">${catEmoji}</div>`
+                }
+              </div>
 
-            <!-- Name Label Tag with Spring Appearance -->
-            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50 animate-spatial-spring">
-              <!-- Little arrow triangle pointing up to the pin dot -->
-              <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-amber-400/50 mx-auto -mb-1 shadow-xs"></div>
-              <!-- Badge Content in RTL -->
-              <div dir="rtl" class="px-3 py-1 rounded-xl bg-[#080c14]/95 border border-white/20 shadow-[0_8px_25px_rgba(0,0,0,0.9),0_0_15px_rgba(245,158,11,0.25)] backdrop-blur-xl whitespace-nowrap text-right">
-                <span class="text-xs font-extrabold text-white tracking-wide font-heading">${fact.name}</span>
+              <!-- Downward Pin Pointer Tip ("لە خوارەوە") -->
+              <div class="w-3 h-3 rotate-45 -mt-1.5 mx-auto relative z-0 border-r border-b border-black/40 bg-amber-400 shadow-sm"></div>
+
+              <!-- Name Label Tag Underneath -->
+              <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1 pointer-events-auto z-50 animate-spatial-spring">
+                <div dir="rtl" class="px-3 py-1 rounded-xl bg-[#080c14]/95 border border-white/20 shadow-[0_8px_25px_rgba(0,0,0,0.9),0_0_15px_rgba(245,158,11,0.25)] backdrop-blur-xl whitespace-nowrap text-right">
+                  <span class="text-xs font-extrabold text-white tracking-wide font-heading">${safeName}</span>
+                </div>
               </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          iconSize = [36, 44];
+          iconAnchor = [18, 44];
+          iconHtml = `
+            <div class="relative w-[36px] h-[44px] flex flex-col items-center select-none pointer-events-auto cursor-pointer group transition-transform duration-200 hover:scale-125 hover:z-50 active:scale-95">
+              <!-- Square Image Container -->
+              <div class="relative w-[34px] h-[34px] rounded-lg overflow-hidden border-2 bg-black shadow-[0_4px_14px_rgba(0,0,0,0.85)] z-10 flex items-center justify-center transition-all" style="border-color: ${tagColor}; box-shadow: 0 4px 12px rgba(0,0,0,0.8), 0 0 8px ${glowColor}60;">
+                ${
+                  displayImg
+                    ? `<img src="${displayImg}" alt="${safeName}" class="w-full h-full object-cover" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+                       <div class="hidden w-full h-full items-center justify-center bg-slate-900 text-xs" style="color: ${tagColor}; font-weight: bold;">${catEmoji}</div>`
+                    : `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black text-sm select-none" style="color: ${tagColor};">${catEmoji}</div>`
+                }
+              </div>
+
+              <!-- Downward Pin Pointer Tip ("لە خوارەوە") -->
+              <div class="w-2.5 h-2.5 rotate-45 -mt-1 mx-auto relative z-0 border-r border-b border-black/40 shadow-xs" style="background-color: ${tagColor};"></div>
+
+              <!-- Hover Tooltip -->
+              <div class="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap px-2 py-0.5 rounded-md bg-[#080c14]/95 border border-white/20 text-[10px] font-bold text-amber-300 shadow-[0_4px_12px_rgba(0,0,0,0.9)] backdrop-blur-md" dir="rtl">
+                ${safeName}
+              </div>
+            </div>
+          `;
+        }
       } else {
-        iconHtml = `
-          <div class="w-4 h-4 flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-200 hover:scale-135 active:scale-85 select-none">
-            <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-sm transition-all duration-200" style="background-color: ${tagColor}; box-shadow: 0 0 8px ${glowColor};"></div>
-          </div>
-        `;
+        // Standard Points Mode
+        if (isSelected) {
+          iconSize = [28, 28];
+          iconAnchor = [14, 14];
+          iconHtml = `
+            <div class="relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop">
+              <!-- Fluid expanding spatial luminous wave -->
+              <div class="absolute -inset-2 rounded-full luminous-spatial-ring pointer-events-none" style="background-color: ${glowColor}35; box-shadow: 0 0 16px ${glowColor};"></div>
+              
+              <!-- Secondary soft breathing halo -->
+              <div class="absolute -inset-0.5 rounded-full pointer-events-none opacity-60 animate-pulse" style="background-color: ${glowColor};"></div>
+              
+              <!-- Central Pin Dot with fluid physics -->
+              <div class="relative w-5 h-5 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-xl z-10 transition-transform duration-200 hover:scale-115 active:scale-90" style="background-color: ${tagColor}; box-shadow: 0 0 20px ${glowColor};">
+                <div class="w-1.5 h-1.5 rounded-full bg-white shadow-xs"></div>
+              </div>
+
+              <!-- Name Label Tag with Spring Appearance -->
+              <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50 animate-spatial-spring">
+                <!-- Little arrow triangle pointing up to the pin dot -->
+                <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-amber-400/50 mx-auto -mb-1 shadow-xs"></div>
+                <!-- Badge Content in RTL -->
+                <div dir="rtl" class="px-3 py-1 rounded-xl bg-[#080c14]/95 border border-white/20 shadow-[0_8px_25px_rgba(0,0,0,0.9),0_0_15px_rgba(245,158,11,0.25)] backdrop-blur-xl whitespace-nowrap text-right">
+                  <span class="text-xs font-extrabold text-white tracking-wide font-heading">${safeName}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          iconSize = [16, 16];
+          iconAnchor = [8, 8];
+          iconHtml = `
+            <div class="w-4 h-4 flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-200 hover:scale-135 active:scale-85 select-none">
+              <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-sm transition-all duration-200" style="background-color: ${tagColor}; box-shadow: 0 0 8px ${glowColor};"></div>
+            </div>
+          `;
+        }
       }
 
       const customIcon = L.divIcon({
         html: iconHtml,
         className: 'kurdish-map-marker-container',
-        iconSize: isSelected ? [28, 28] : [16, 16],
-        iconAnchor: isSelected ? [14, 14] : [8, 8],
+        iconSize,
+        iconAnchor,
       });
 
       const lat = Number(fact.lat);
@@ -798,7 +907,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         console.warn('Failed to add marker:', err);
       }
     });
-  }, [visibleFacts, selectedFact?.id, showAllMarkers, isTourActive, tourList]);
+  }, [visibleFacts, selectedFact?.id, showAllMarkers, isTourActive, tourList, markerViewMode]);
 
   // Smooth camera flyTo on selectedFact change (disabled while intro is running)
   useEffect(() => {
@@ -1011,6 +1120,37 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
           <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
 
+          {/* دوگمەی گۆڕینی شێوازی نەخشە: وێنەیی / خاڵەکان (Photo Map Mode) */}
+          <button
+            onClick={() => {
+              const nextMode = markerViewMode === 'photo' ? 'points' : 'photo';
+              setMarkerViewMode(nextMode);
+              if (nextMode !== 'photo') {
+                setShowBottomPhotoStrip(false);
+              }
+            }}
+            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group ${
+              markerViewMode === 'photo'
+                ? 'liquid-glass-btn text-amber-300 border border-amber-400/40 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                : 'text-slate-200 hover:text-white hover:bg-white/[0.08]'
+            }`}
+            title={
+              markerViewMode === 'photo'
+                ? 'شێوازی وێنەیی چالاکە - کلیک بکە بۆ گۆڕین بۆ خاڵەکان'
+                : 'گۆڕین بۆ شێوازی وێنەیی لەسەر نەخشە'
+            }
+          >
+            <ImageIcon className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+            <span className="font-heading font-extrabold text-xs hidden sm:inline">
+              {markerViewMode === 'photo' ? 'نەخشەی وێنەیی' : 'نیشاندانی وێنەیی'}
+            </span>
+            {markerViewMode === 'photo' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping hidden sm:block shrink-0" />
+            )}
+          </button>
+
+          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+
           {/* دوگمەی سەرەکی 'زیاتر' */}
           <button
             onClick={() => {
@@ -1041,6 +1181,66 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="glass-specular-ray" />
+
+            {/* شێوازی نیشاندانی مارکەرەکان (وێنەیی / خاڵەکان) */}
+            <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs text-right">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                  <span>شێوازی نەخشە</span>
+                </span>
+                <span className="text-[10px] text-amber-300 font-bold">
+                  {markerViewMode === 'photo' ? 'وێنەیی (چوارگۆشە)' : 'خاڵەکان'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMarkerViewMode('photo');
+                  }}
+                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    markerViewMode === 'photo'
+                      ? 'bg-amber-400 text-black shadow-md'
+                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
+                  }`}
+                >
+                  <ImageIcon className="w-3 h-3" />
+                  <span>وێنەیی</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMarkerViewMode('points');
+                    setShowBottomPhotoStrip(false);
+                  }}
+                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    markerViewMode === 'points'
+                      ? 'bg-amber-400 text-black shadow-md'
+                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
+                  }`}
+                >
+                  <MapPin className="w-3 h-3" />
+                  <span>خاڵەکان</span>
+                </button>
+              </div>
+
+              {/* Toggling Bottom Photo Strip */}
+              {markerViewMode === 'photo' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBottomPhotoStrip((prev) => !prev);
+                  }}
+                  className="w-full flex items-center justify-between px-2 py-1 rounded-lg text-[11px] text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors mt-1"
+                >
+                  <span>شریتی وێنەیی خوارەوە</span>
+                  <span className={`text-[10px] font-bold ${showBottomPhotoStrip ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    {showBottomPhotoStrip ? 'کراوەیە' : 'داخراوە'}
+                  </span>
+                </button>
+              )}
+            </div>
 
             {/* بەشی ڕووکار (Theme & Appearance) */}
             <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs">
@@ -1400,6 +1600,103 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* شریتی وێنەکانی خوارەوە (Bottom Photo Strip of Small Squares) */}
+        {markerViewMode === 'photo' && showBottomPhotoStrip && visibleFactsWithImages.length > 0 && !showQuickSummary && (
+          <div
+            className="w-full max-w-md sm:max-w-2xl px-2.5 py-2 mb-1 rounded-2xl glass-dock-2026 border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.85)] animate-spatial-spring text-right select-none"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header / Info bar */}
+            <div className="flex items-center justify-between mb-1.5 px-1 text-slate-300">
+              <div className="flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="text-[11px] font-heading font-extrabold text-white">
+                  وێنەی شوێنە مێژووییەکان لەسەر نەخشە
+                </span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  {visibleFactsWithImages.length} شوێن
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBottomPhotoStrip(false);
+                }}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="داخستنی شریتی وێنەکان"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Horizontal Scrollable Row of Small Square Thumbnails */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
+              {visibleFactsWithImages.map((f) => {
+                const img = getFactDisplayImage(f);
+                const isSelected = selectedFact?.id === f.id;
+                const cat = getCategoryInfo(f);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectFact(f);
+                      setShowQuickSummary(true);
+                      if (mapInstanceRef.current) {
+                        try {
+                          mapInstanceRef.current.flyTo([f.lat, f.lng], Math.max(mapInstanceRef.current.getZoom(), 8), {
+                            animate: true,
+                            duration: 1.2,
+                          });
+                        } catch {}
+                      }
+                    }}
+                    className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200 cursor-pointer snap-start group bg-black/90 ${
+                      isSelected
+                        ? 'border-amber-400 ring-2 ring-amber-400/80 scale-105 shadow-[0_0_16px_rgba(245,158,11,0.6)] z-10'
+                        : 'border-white/20 hover:border-amber-400/70 hover:scale-105 shadow-md'
+                    }`}
+                    style={!isSelected ? { borderColor: `${cat.color}99` } : undefined}
+                    title={`${f.name} (${f.year || f.century || ''})`}
+                  >
+                    <img
+                      src={img}
+                      alt={f.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-0.5 text-center">
+                      <span className="block text-[8px] sm:text-[9px] font-bold text-white truncate max-w-full leading-tight font-heading">
+                        {f.name}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Floating Reopen Button if strip is collapsed */}
+        {markerViewMode === 'photo' && !showBottomPhotoStrip && visibleFactsWithImages.length > 0 && !showQuickSummary && (
+          <button
+            type="button"
+            onClick={() => {
+              setShowBottomPhotoStrip(true);
+            }}
+            className="mb-1 flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-dock-2026 text-xs font-bold text-amber-300 hover:text-amber-200 border border-amber-400/40 shadow-[0_4px_20px_rgba(0,0,0,0.6)] cursor-pointer active:scale-95 transition-all animate-spatial-spring"
+            title="نیشاندانی وێنەکان لە خوارەوە"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>وێنەکانی خوارەوە</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 font-mono text-[10px] border border-amber-400/30 font-bold">
+              {visibleFactsWithImages.length}
+            </span>
+            <ChevronUp className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
+          </button>
         )}
 
         {/* Timeline Slider Component */}
