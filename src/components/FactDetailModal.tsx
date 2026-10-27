@@ -30,6 +30,7 @@ import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
 import { FactRelationsModal } from './FactRelationsModal';
 import { getCategoryInfo } from '../types/history';
 import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { toKurdishDigits } from '../utils/yearUtils';
 
 const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
@@ -256,8 +257,10 @@ export const FactDetailModal: React.FC<Props> = ({
                 <div className="relative w-full overflow-hidden rounded-xl bg-black/95 flex items-center justify-center min-h-[180px] max-h-72 sm:max-h-84 group">
                   <img
                     key={currentImg.url}
-                    src={currentImg.url}
+                    src={getOptimizedImageUrl(currentImg.url, 'full')}
                     alt={currentImg.caption || fact.name}
+                    loading="eager"
+                    decoding="async"
                     className="max-h-72 sm:max-h-84 max-w-full w-auto h-auto object-contain mx-auto rounded-xl transition-all duration-300 shadow-md animate-fade-in"
                   />
 
@@ -310,10 +313,11 @@ export const FactDetailModal: React.FC<Props> = ({
                           title={`وێنەی ${toKurdishDigits(idx + 1)}: ${imgItem.caption || fact.name}`}
                         >
                           <img
-                            src={imgItem.url}
+                            src={getOptimizedImageUrl(imgItem.url, 'thumb')}
                             alt=""
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            decoding="async"
                           />
                           <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-mono font-bold text-center text-amber-300">
                             {toKurdishDigits(idx + 1)}

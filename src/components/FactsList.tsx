@@ -3,6 +3,7 @@ import { FactItem } from '../data/kurdishHistoryData';
 import { CollectionItem, UNIFIED_CATEGORIES, getCategoryInfo } from '../types/history';
 import { getFactChronologicalYear } from '../utils/yearUtils';
 import { getFactDisplayImage } from '../utils/historicalImages';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import {
   Search,
   X,
@@ -405,10 +406,14 @@ export const FactsList: React.FC<Props> = ({
                       <div className="relative w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/[0.12] bg-[#050814] shadow-md group-hover:scale-105 group-hover:border-amber-400/60 transition-all flex items-center justify-center">
                         {displayImage ? (
                           <img
-                            src={displayImage}
+                            src={getOptimizedImageUrl(displayImage, 'thumb')}
                             alt={fact.name}
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
                           />
                         ) : (
                           <div

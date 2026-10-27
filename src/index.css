@@ -697,3 +697,14 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   will-change: transform;
 }
 
+/* Gallery Slideshow Progress (Zero React state updates, 100% GPU compositor scaleX) */
+@keyframes gallerySlideProgress {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+

@@ -63,6 +63,7 @@ import { getLinkedFacts } from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { getFactDisplayImage } from '../utils/historicalImages';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 interface Props {
   facts: FactItem[];
@@ -1688,10 +1689,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     title={`${f.name} (${f.year || f.century || ''})`}
                   >
                     <img
-                      src={img}
+                      src={getOptimizedImageUrl(img, 'thumb')}
                       alt={f.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-0.5 text-center">
                       <span className="block text-[8px] sm:text-[9px] font-bold text-white truncate max-w-full leading-tight font-heading">
@@ -1807,8 +1812,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             {/* Image display */}
             <div className="relative rounded-2xl overflow-hidden border border-white/20 max-h-[65vh] w-full flex items-center justify-center bg-black/90 shadow-2xl">
               <img
-                src={lightboxImage.url}
+                src={getOptimizedImageUrl(lightboxImage.url, 'full')}
                 alt={lightboxImage.caption || lightboxImage.title}
+                loading="eager"
+                decoding="async"
                 className="max-h-[65vh] w-auto max-w-full object-contain"
               />
             </div>
@@ -1899,8 +1906,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   if (!tourImg) return null;
                   return (
                     <img
-                      src={tourImg}
+                      src={getOptimizedImageUrl(tourImg, 'thumb')}
                       alt={currentTourFact.name}
+                      loading="lazy"
+                      decoding="async"
                       onClick={() =>
                         setLightboxImage({
                           url: tourImg,

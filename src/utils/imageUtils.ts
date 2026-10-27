@@ -116,6 +116,30 @@ export function resolveImageUrl(rawUrl: string | null | undefined): string {
 }
 
 /**
+ * Returns an optimized CDN-scaled image URL:
+ * - 'thumb': for small square thumbnails and list avatars (~240px, drastically speeds up loading & saves memory)
+ * - 'full': for main modal / gallery view (~1400px, high quality while avoiding 20MB uncompressed raw scans)
+ */
+export function getOptimizedImageUrl(rawUrl: string | null | undefined, size: 'thumb' | 'full' = 'full'): string {
+  const resolved = resolveImageUrl(rawUrl);
+  if (!resolved) return '';
+
+  // 1. Google Drive CDN (lh3.googleusercontent.com/d/...)
+  if (resolved.includes('googleusercontent.com/d/')) {
+    const base = resolved.split('=')[0];
+    return size === 'thumb' ? `${base}=w240-h240-c` : `${base}=w1400`;
+  }
+
+  // 2. Wikipedia & Wikimedia Commons CDN (Special:FilePath)
+  if (resolved.includes('/wiki/Special:FilePath/')) {
+    const base = resolved.split('?')[0];
+    return size === 'thumb' ? `${base}?width=240` : `${base}?width=1400`;
+  }
+
+  return resolved;
+}
+
+/**
  * Inspects a link and returns source metadata, conversion status, and drive guidance
  */
 export function getLinkTypeInfo(url: string): ResolvedLinkInfo {

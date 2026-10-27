@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { FactItem } from '../data/kurdishHistoryData';
 import {
   X,
-  Play,
   Pause,
   ChevronLeft,
   ChevronRight,
@@ -10,15 +9,13 @@ import {
   Minimize2,
   MapPin,
   Calendar,
-  Sparkles,
   Camera,
-  Layers,
-  Clock,
   RotateCcw,
-  Plus,
+  ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 
-import { resolveImageUrl } from '../utils/imageUtils';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAllFactImages } from '../utils/historicalImages';
 
 export interface GalleryItem {
@@ -40,6 +37,87 @@ interface Props {
   initialIndex?: number;
 }
 
+/**
+ * Hardware-accelerated GPU progress bar for slideshow.
+ * Runs completely on the GPU compositor via CSS scaleX animation.
+ * Triggers zero React state updates / re-renders during playback.
+ */
+const SlideshowProgressBar: React.FC<{
+  intervalSeconds: number;
+  slideKey: number;
+  onTimeout: () => void;
+}> = React.memo(({ intervalSeconds, slideKey, onTimeout }) => {
+  if (intervalSeconds === 0) return null;
+
+  return (
+    <div className="relative z-20 w-full h-1 bg-black/60 overflow-hidden shrink-0">
+      <div
+        key={`${slideKey}-${intervalSeconds}`}
+        className="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300 origin-right"
+        style={{
+          width: '100%',
+          animation: `gallerySlideProgress ${intervalSeconds}s linear forwards`,
+        }}
+        onAnimationEnd={onTimeout}
+      />
+    </div>
+  );
+});
+
+SlideshowProgressBar.displayName = 'SlideshowProgressBar';
+
+/**
+ * Isolated memoized thumbnail component.
+ * Only re-renders when selection state changes.
+ * Uses optimized 240px CDN thumbnails + lazy loading + async decoding.
+ */
+const ThumbnailButton: React.FC<{
+  item: GalleryItem;
+  index: number;
+  isSelected: boolean;
+  onSelect: (index: number) => void;
+}> = React.memo(({ item, index, isSelected, onSelect }) => {
+  const [thumbError, setThumbError] = useState(false);
+  const thumbUrl = useMemo(
+    () => getOptimizedImageUrl(item.url, 'thumb'),
+    [item.url]
+  );
+
+  return (
+    <button
+      type="button"
+      data-thumb-index={index}
+      onClick={() => onSelect(index)}
+      className={`relative w-12 h-10 sm:w-16 sm:h-12 rounded-xl overflow-hidden shrink-0 border transition-all cursor-pointer bg-black/80 ${
+        isSelected
+          ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-[0_0_12px_rgba(245,158,11,0.5)] z-10'
+          : 'border-slate-800 opacity-60 hover:opacity-100 hover:border-amber-500/40'
+      }`}
+      title={item.title}
+    >
+      {!thumbError ? (
+        <img
+          src={thumbUrl}
+          alt={item.title}
+          loading="lazy"
+          decoding="async"
+          onError={() => setThumbError(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-slate-900 text-amber-400/70">
+          <Camera className="w-3.5 h-3.5" />
+        </div>
+      )}
+      {isSelected && (
+        <div className="absolute inset-0 bg-amber-500/15 pointer-events-none" />
+      )}
+    </button>
+  );
+});
+
+ThumbnailButton.displayName = 'ThumbnailButton';
+
 export const HistoricalGalleryModal: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -47,14 +125,16 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   onFlyToFact,
   initialIndex = 0,
 }) => {
-  // Display real images provided by the user for facts (up to 10 images per fact)
+  // Extract all valid images from facts (cached until facts array changes)
   const galleryItems: GalleryItem[] = useMemo(() => {
+    if (!isOpen) return [];
     const list: GalleryItem[] = [];
     const seenUrls = new Set<string>();
 
-    facts.forEach((fact) => {
+    for (const fact of facts) {
       const factImages = getAllFactImages(fact);
-      factImages.forEach((img, idx) => {
+      for (let idx = 0; idx < factImages.length; idx++) {
+        const img = factImages[idx];
         if (img.url && !seenUrls.has(img.url)) {
           seenUrls.add(img.url);
           list.push({
@@ -68,18 +148,24 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
             fact: fact,
           });
         }
-      });
-    });
+      }
+    }
 
     return list;
-  }, [facts]);
+  }, [facts, isOpen]);
 
+  const total = galleryItems.length;
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   // Interval in seconds: 5, 7, 9 or 0 (کوژانەوەی کات / off)
   const [intervalSeconds, setIntervalSeconds] = useState<5 | 7 | 9 | 0>(7);
-  const [progress, setProgress] = useState(0); // 0 to 100%
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Main Image Loading & Error States
+  const [isMainImgLoading, setIsMainImgLoading] = useState(true);
+  const [mainImgHasError, setMainImgHasError] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const thumbStripRef = useRef<HTMLDivElement>(null);
 
   // Sync initialIndex when modal opens
   useEffect(() => {
@@ -89,49 +175,60 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       } else {
         setCurrentIndex(0);
       }
-      setProgress(0);
     }
   }, [isOpen, initialIndex, galleryItems.length]);
 
-  const total = galleryItems.length;
-  const currentItem = galleryItems[currentIndex] || galleryItems[0];
+  // Reset loading & error state whenever currentIndex changes
+  useEffect(() => {
+    setIsMainImgLoading(true);
+    setMainImgHasError(false);
+  }, [currentIndex]);
 
-  // Next / Previous Navigation
+  // Auto-scroll active thumbnail into view smoothly
+  useEffect(() => {
+    if (!thumbStripRef.current || total <= 1) return;
+    const activeThumb = thumbStripRef.current.querySelector<HTMLElement>(
+      `[data-thumb-index="${currentIndex}"]`
+    );
+    if (activeThumb) {
+      activeThumb.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [currentIndex, total]);
+
+  // Navigation callbacks
   const handleNext = useCallback(() => {
     if (total === 0) return;
     setCurrentIndex((prev) => (prev + 1) % total);
-    setProgress(0);
   }, [total]);
 
   const handlePrev = useCallback(() => {
     if (total === 0) return;
     setCurrentIndex((prev) => (prev - 1 + total) % total);
-    setProgress(0);
   }, [total]);
 
-  // Automatic Display Timer (5, 7, 9 seconds or 0 for off / کوژانەوەی کات)
+  // Smart background prefetching for the next & previous images (instant 0ms switching)
   useEffect(() => {
-    if (!isOpen || intervalSeconds === 0 || total <= 1) {
-      setProgress(0);
-      return;
+    if (!isOpen || total <= 1) return;
+
+    const nextIdx = (currentIndex + 1) % total;
+    const prevIdx = (currentIndex - 1 + total) % total;
+
+    const nextUrl = getOptimizedImageUrl(galleryItems[nextIdx]?.url, 'full');
+    const prevUrl = getOptimizedImageUrl(galleryItems[prevIdx]?.url, 'full');
+
+    if (nextUrl) {
+      const imgNext = new Image();
+      imgNext.src = nextUrl;
     }
-
-    const intervalMs = intervalSeconds * 1000;
-    const tickMs = 50; // Update progress bar every 50ms
-    const step = (tickMs / intervalMs) * 100;
-
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev + step >= 100) {
-          handleNext();
-          return 0;
-        }
-        return prev + step;
-      });
-    }, tickMs);
-
-    return () => clearInterval(timer);
-  }, [isOpen, intervalSeconds, total, handleNext]);
+    if (prevUrl) {
+      const imgPrev = new Image();
+      imgPrev.src = prevUrl;
+    }
+  }, [isOpen, currentIndex, total, galleryItems]);
 
   // Keyboard navigation: Escape to close, Arrows to navigate, Space to toggle autoplay
   useEffect(() => {
@@ -186,19 +283,24 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const currentItem = galleryItems[currentIndex] || galleryItems[0];
+  const fullOptimizedUrl = currentItem
+    ? getOptimizedImageUrl(currentItem.url, 'full')
+    : '';
+
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c]/95 backdrop-blur-2xl text-slate-100 select-none overflow-hidden animate-page-enter ${
+      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c]/95 backdrop-blur-xl text-slate-100 select-none overflow-hidden animate-page-enter ${
         isFullscreen ? 'p-2 sm:p-4' : 'p-2 sm:p-6'
       }`}
       dir="rtl"
     >
       {/* Subtle Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-amber-500/5 blur-[100px] rounded-full pointer-events-none z-0" />
 
-      {/* Top Header Bar - 2026 Spatial Glass Dock */}
-      <div className="relative z-20 flex items-center justify-between p-3.5 rounded-2xl sm:rounded-3xl glass-dock-2026 shadow-2xl shrink-0 overflow-hidden">
+      {/* Top Header Bar */}
+      <div className="relative z-20 flex items-center justify-between p-3 sm:p-3.5 rounded-2xl sm:rounded-3xl glass-dock-2026 shadow-2xl shrink-0 overflow-hidden">
         {/* Title and Kurdish Sun Emblem */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-amber-400 shadow-md shrink-0">
@@ -232,10 +334,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                 <button
                   key={sec}
                   type="button"
-                  onClick={() => {
-                    setIntervalSeconds(sec);
-                    setProgress(0);
-                  }}
+                  onClick={() => setIntervalSeconds(sec)}
                   className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                     intervalSeconds === sec
                       ? 'liquid-glass-btn-active text-black shadow-sm'
@@ -249,10 +348,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
               <button
                 type="button"
-                onClick={() => {
-                  setIntervalSeconds((prev) => (prev === 0 ? 7 : 0));
-                  setProgress(0);
-                }}
+                onClick={() => setIntervalSeconds((prev) => (prev === 0 ? 7 : 0))}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   intervalSeconds === 0
                     ? 'bg-rose-950/80 text-rose-300 border border-rose-700/80'
@@ -296,30 +392,85 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Slideshow Progress Bar (کاتی پەخش: ٥، ٧ یان ٩ چرکە) */}
-      {total > 1 && intervalSeconds > 0 && (
-        <div className="relative z-20 w-full h-1 bg-black/60 overflow-hidden shrink-0">
-          <div
-            className="h-full transition-all ease-linear bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+      {/* GPU Accelerated Slideshow Progress Bar */}
+      {total > 1 && (
+        <SlideshowProgressBar
+          intervalSeconds={intervalSeconds}
+          slideKey={currentIndex}
+          onTimeout={handleNext}
+        />
       )}
 
-      {/* Center Display: Focused strictly on Image and Info Under the Image ("بەس وێنە و زانیاری ژێر وێنەت تیا دانرێت") */}
+      {/* Center Display: Focused strictly on Image and Info Under the Image */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-2 sm:p-4 min-h-0 overflow-y-auto custom-scrollbar">
         {currentItem ? (
           <div className="w-full max-w-4xl flex flex-col items-center my-auto">
-            {/* The Image Container with Glass Border, Golden Aura and Smooth Transition */}
-            <div className="relative w-full rounded-2xl overflow-hidden border border-amber-500/35 bg-black/85 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] group">
-              {/* Main Image in 100% True Proportions (بێ بڕین و بە قیاسی تەواو) */}
-              <div className="relative w-full min-h-[240px] max-h-[60vh] flex items-center justify-center bg-black/95 p-2 sm:p-3">
-                <img
-                  key={currentItem.url}
-                  src={currentItem.url}
-                  alt={currentItem.caption || currentItem.title}
-                  className="max-h-[55vh] max-w-full w-auto h-auto object-contain mx-auto rounded-lg transition-transform duration-300 shadow-2xl"
-                />
+            {/* The Image Container */}
+            <div className="relative w-full rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] group">
+              <div className="relative w-full min-h-[240px] sm:min-h-[320px] max-h-[60vh] flex items-center justify-center bg-black/95 p-2 sm:p-3 overflow-hidden">
+                {/* Smooth Loading Spinner Skeleton */}
+                {isMainImgLoading && !mainImgHasError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 z-10 transition-opacity duration-200">
+                    <div className="relative w-12 h-12 flex items-center justify-center mb-2">
+                      <div className="w-10 h-10 rounded-full border-2 border-amber-500/25 border-t-amber-400 animate-spin" />
+                      <span className="absolute text-sm select-none">☀️</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-amber-300/80">
+                      بارکردنی خێرای وێنە...
+                    </span>
+                  </div>
+                )}
+
+                {/* Error Fallback Card if link fails or CORS blocked */}
+                {mainImgHasError ? (
+                  <div className="flex flex-col items-center justify-center p-6 text-center z-10 max-w-md my-6">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3">
+                      <AlertCircle className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <h4 className="text-sm font-bold text-white mb-1">
+                      وێنەکە بە شێوەی ڕاستەوخۆ بار نەکرا
+                    </h4>
+                    <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                      لەوانەیە بەستەرەکە لەلایەن سێرڤەری سەرەکییەوە سنووردار کرابێت یان پێویستی بە کردنەوە لە پەڕەی نوێ بێت.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={currentItem.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>کردنەوەی بەستەر</span>
+                      </a>
+                      {total > 1 && (
+                        <button
+                          type="button"
+                          onClick={handleNext}
+                          className="px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          وێنەی داهاتوو
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    key={currentItem.url}
+                    src={fullOptimizedUrl}
+                    alt={currentItem.caption || currentItem.title}
+                    loading="eager"
+                    decoding="async"
+                    onLoad={() => setIsMainImgLoading(false)}
+                    onError={() => {
+                      setIsMainImgLoading(false);
+                      setMainImgHasError(true);
+                    }}
+                    className={`max-h-[55vh] max-w-full w-auto h-auto object-contain mx-auto rounded-lg transition-opacity duration-300 shadow-2xl ${
+                      isMainImgLoading ? 'opacity-0' : 'opacity-100'
+                    }`}
+                  />
+                )}
 
                 {/* Subtle vignette border gradient */}
                 <div className="absolute inset-0 ring-1 ring-inset ring-amber-500/20 pointer-events-none rounded-2xl" />
@@ -355,7 +506,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Information Strictly UNDER the Image ("زانیاری ژێر وێنە") - Liquid Glass Panel */}
+            {/* Information Strictly UNDER the Image - Liquid Glass Panel */}
             <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl liquid-glass-panel shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_15px_40px_rgba(0,0,0,0.85)] text-right transition-all overflow-hidden">
               <div className="glass-specular-ray" />
 
@@ -396,7 +547,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* The Information Under the Image (زانیاری و ڕوونکردنەوەی ژێر وێنەکە) */}
+              {/* The Information Under the Image */}
               <div className="flex items-start gap-2.5 text-amber-100/90 text-xs sm:text-sm leading-relaxed">
                 <Camera className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="font-medium whitespace-pre-line">
@@ -427,38 +578,23 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Bottom Thumbnail Strip (Only when multiple images exist) */}
+      {/* Bottom Thumbnail Strip (Memoized, Lazy Loaded & Auto-centered) */}
       {total > 1 && (
         <div className="relative z-20 pt-2.5 pb-2 border-t border-white/10 liquid-glass-dock border-x-0 border-b-0 rounded-none shrink-0 flex flex-col gap-2 shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
           {/* Thumbnails row */}
-          <div className="flex items-center justify-center gap-2 px-2 overflow-x-auto scrollbar-none max-w-full">
-            {galleryItems.map((item, idx) => {
-              const isSelected = idx === currentIndex;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setCurrentIndex(idx);
-                    setProgress(0);
-                  }}
-                  className={`relative w-12 h-10 sm:w-16 sm:h-12 rounded-xl overflow-hidden shrink-0 border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
-                      : 'border-slate-800 opacity-60 hover:opacity-100 hover:border-amber-500/40'
-                  }`}
-                  title={item.title}
-                >
-                  <img
-                    src={item.url}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {isSelected && (
-                    <div className="absolute inset-0 bg-amber-500/15 pointer-events-none" />
-                  )}
-                </button>
-              );
-            })}
+          <div
+            ref={thumbStripRef}
+            className="flex items-center justify-start sm:justify-center gap-2 px-2 overflow-x-auto scrollbar-none max-w-full touch-pan-x"
+          >
+            {galleryItems.map((item, idx) => (
+              <ThumbnailButton
+                key={item.id}
+                item={item}
+                index={idx}
+                isSelected={idx === currentIndex}
+                onSelect={setCurrentIndex}
+              />
+            ))}
           </div>
 
           {/* Bottom controls helper text */}
@@ -471,10 +607,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  setCurrentIndex(0);
-                  setProgress(0);
-                }}
+                onClick={() => setCurrentIndex(0)}
                 className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1"
                 title="گەڕانەوە بۆ سەرەتا"
               >
