@@ -26,6 +26,7 @@ import { CollectionManagerModal } from './components/CollectionManagerModal';
 import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
+import { SocialCardGeneratorModal } from './components/SocialCardGeneratorModal';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState<boolean>(false);
@@ -37,6 +38,7 @@ export default function App() {
 
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(null);
   const [detailFact, setDetailFact] = useState<FactItem | null>(null);
+  const [socialCardFact, setSocialCardFact] = useState<FactItem | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Documentary Tour state & Map FlyTo bridge
@@ -426,6 +428,7 @@ export default function App() {
               onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
               onOpenGallery={() => setIsGalleryOpen(true)}
               onOpenTheme={() => setIsThemeModalOpen(true)}
+              onOpenSocialCard={(fact) => setSocialCardFact(fact)}
               onClose={() => setIsMenuOpen(false)}
               onLogoutAdmin={handleAdminLogout}
             />
@@ -515,6 +518,16 @@ export default function App() {
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
       />
+
+      {/* Social Media Story & Infographic Generator Modal */}
+      {socialCardFact && (
+        <SocialCardGeneratorModal
+          isOpen={!!socialCardFact}
+          onClose={() => setSocialCardFact(null)}
+          fact={socialCardFact}
+          allFacts={facts}
+        />
+      )}
     </div>
   );
 }

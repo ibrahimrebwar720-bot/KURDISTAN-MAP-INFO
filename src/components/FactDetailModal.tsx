@@ -24,10 +24,13 @@ import {
   Plus,
   GitFork,
   Layers,
+  Sparkles,
+  Share2,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
 import { FactRelationsModal } from './FactRelationsModal';
+import { SocialCardGeneratorModal } from './SocialCardGeneratorModal';
 import { getCategoryInfo } from '../types/history';
 import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -81,6 +84,7 @@ export const FactDetailModal: React.FC<Props> = ({
     'all' | 'leaders' | 'scholars' | 'castles' | 'battles' | 'monuments' | 'others'
   >('all');
   const [isRelationsModalOpen, setIsRelationsModalOpen] = useState(false);
+  const [isSocialCardOpen, setIsSocialCardOpen] = useState(false);
 
   const linkedData = useMemo(() => {
     return getLinkedFacts(fact, allFacts);
@@ -174,6 +178,15 @@ export const FactDetailModal: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSocialCardOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-bold transition-all cursor-pointer border border-amber-400/35 shadow-xs"
+              title="دروستکردنی کارتی بڵاوکردنەوە بۆ سۆشیال میدیا و ستۆری"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">کارتی بڵاوکردنەوە</span>
+            </button>
+
             {isAdmin && onEditFact && (
               <button
                 onClick={() => onEditFact(fact)}
@@ -690,6 +703,15 @@ export const FactDetailModal: React.FC<Props> = ({
             </button>
 
             <button
+              onClick={() => setIsSocialCardOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-400/10 hover:from-amber-500/30 hover:to-amber-400/20 text-amber-300 font-extrabold text-xs border border-amber-400/40 shadow-sm transition-all cursor-pointer active:scale-95"
+              title="دروستکردنی کارتی بڵاوکردنەوە بۆ سۆشیال میدیا و ستۆری (Instagram, TikTok, Facebook)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>دروستکردنی کارتی بڵاوکردنەوە</span>
+            </button>
+
+            <button
               onClick={handleCopyFact}
               className="px-3 py-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs cursor-pointer"
               title="لەبەرگرتنەوە"
@@ -725,6 +747,16 @@ export const FactDetailModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {/* Social Media Story & Infographic Generator Modal */}
+      {isSocialCardOpen && (
+        <SocialCardGeneratorModal
+          isOpen={isSocialCardOpen}
+          onClose={() => setIsSocialCardOpen(false)}
+          fact={fact}
+          allFacts={allFacts}
+        />
+      )}
 
       {/* Fact Relations Linker Modal (Only for Admin) */}
       {isAdmin && isRelationsModalOpen && (

@@ -52,6 +52,7 @@ interface Props {
   onOpenCollectionManager?: () => void;
   onOpenGallery?: () => void;
   onOpenTheme?: () => void;
+  onOpenSocialCard?: (fact: FactItem) => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
 }
@@ -94,6 +95,7 @@ export const FactsList: React.FC<Props> = ({
   isAdmin = false,
   onOpenAddFact,
   onOpenEditFact,
+  onOpenSocialCard,
   onClose,
   onLogoutAdmin,
 }) => {
@@ -491,6 +493,20 @@ export const FactsList: React.FC<Props> = ({
                           className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-white/[0.08] transition-colors cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {onOpenSocialCard && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenSocialCard(fact);
+                          }}
+                          title="دروستکردنی کارتی بڵاوکردنەوە بۆ سۆشیال میدیا و ستۆری"
+                          className="px-2 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold border border-amber-400/25"
+                        >
+                          <Sparkles className="w-3 h-3 text-amber-400" />
+                          <span className="hidden sm:inline">کارت</span>
                         </button>
                       )}
 
