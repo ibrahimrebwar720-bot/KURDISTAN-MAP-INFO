@@ -27,7 +27,11 @@ import {
   Maximize2,
   Minimize2,
   Image as ImageIcon,
+  Sun,
+  Moon,
+  Palette,
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 
 interface Props {
@@ -99,6 +103,7 @@ export const FactsList: React.FC<Props> = ({
   onClose,
   onLogoutAdmin,
 }) => {
+  const { colorMode, toggleColorMode } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('year_asc');
@@ -259,6 +264,26 @@ export const FactsList: React.FC<Props> = ({
                 دەرچوون
               </button>
             )}
+
+            {/* Quick Light/Dark Mode Toggle with Soft Fade Shadow */}
+            <button
+              onClick={toggleColorMode}
+              className={`h-9.5 px-3 flex items-center gap-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 ${
+                colorMode === 'light'
+                  ? 'liquid-glass-btn text-amber-600 border-amber-500/30 shadow-xs'
+                  : 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-400 border-white/[0.1]'
+              }`}
+              title={colorMode === 'light' ? 'گۆڕین بۆ دۆخی تاریک' : 'گۆڕین بۆ دۆخی ڕووناکی نەرم'}
+            >
+              {colorMode === 'light' ? (
+                <Sun className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Moon className="w-4 h-4 text-amber-400" />
+              )}
+              <span className="text-xs font-semibold hidden md:inline">
+                {colorMode === 'light' ? 'ڕووناک' : 'تاریک'}
+              </span>
+            </button>
 
             {onClose && (
               <button

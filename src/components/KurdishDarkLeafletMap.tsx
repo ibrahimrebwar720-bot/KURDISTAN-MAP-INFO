@@ -6,6 +6,7 @@ import {
   createCachedTileLayer,
   preloadKurdistanTiles,
   DARK_MAP_TILE_URL,
+  LIGHT_MAP_TILE_URL,
   SATELLITE_MAP_TILE_URL,
 } from '../services/mapTileCacheService';
 import {
@@ -48,6 +49,8 @@ import {
   Medal,
   Palette,
   Link2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -245,6 +248,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [leafletMap, setLeafletMap] = useState<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const currentTileUrlRef = useRef<string>('');
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
   const pickedMarkerRef = useRef<L.Marker | null>(null);
@@ -321,7 +325,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   }, [externalFlyTo]);
 
   // Theme Context & Modal state
-  const { theme, themeId, setTheme } = useTheme();
+  const { theme, themeId, setTheme, colorMode, setColorMode, toggleColorMode } = useTheme();
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   // Menu state
@@ -410,14 +414,16 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       wheelPxPerZoomLevel: 90,
     });
 
-    // Dark TileLayer with persistent CacheStorage - avoids black loading squares
-    const darkTileLayer = createCachedTileLayer(DARK_MAP_TILE_URL, {
+    // TileLayer with persistent CacheStorage - adapts to Dark or Soft Light mode
+    const initialTileUrl = colorMode === 'light' ? LIGHT_MAP_TILE_URL : DARK_MAP_TILE_URL;
+    const initialTileLayer = createCachedTileLayer(initialTileUrl, {
       maxZoom: 16,
       subdomains: ['server', 'services'],
     });
 
-    darkTileLayer.addTo(map);
-    tileLayerRef.current = darkTileLayer;
+    initialTileLayer.addTo(map);
+    tileLayerRef.current = initialTileLayer;
+    currentTileUrlRef.current = initialTileUrl;
 
     // Layer Group for markers
     const markersLayer = L.layerGroup().addTo(map);
@@ -430,12 +436,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       maxZoom: 6.2,
     });
 
-    // Invalidate size after layout settles to prevent NaN coordinates in flyTo
-    const timer = setTimeout(() => {
+    // Invalidate size after layout settles to prevent blank tiles or NaN coordinates
+    const timer1 = setTimeout(() => {
       try {
         map.invalidateSize();
       } catch {}
-    }, 150);
+    }, 100);
+
+    const timer2 = setTimeout(() => {
+      try {
+        map.invalidateSize();
+      } catch {}
+    }, 400);
 
     const handleResize = () => {
       try {
@@ -444,6 +456,16 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     };
     window.addEventListener('resize', handleResize);
 
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        try {
+          map.invalidateSize();
+        } catch {}
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     // Silently pre-cache Kurdistan region base map tiles in background
     preloadKurdistanTiles();
 
@@ -451,8 +473,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     setLeafletMap(map);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       window.removeEventListener('resize', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       map.remove();
       mapInstanceRef.current = null;
       setLeafletMap(null);
@@ -541,28 +567,44 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     }
   }, [pickedCoords]);
 
-  // Switch Tile Layer when mapMode changes (Cached & Smooth)
+  // Switch Tile Layer when mapMode or colorMode changes (Cached & Smooth)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
+    let targetTileUrl = '';
+    if (mapMode === 'satellite') {
+      targetTileUrl = SATELLITE_MAP_TILE_URL;
+    } else {
+      targetTileUrl = colorMode === 'light' ? LIGHT_MAP_TILE_URL : DARK_MAP_TILE_URL;
     }
 
-    if (mapMode === 'satellite') {
-      const satLayer = createCachedTileLayer(SATELLITE_MAP_TILE_URL, { maxZoom: 16 });
-      satLayer.addTo(map);
-      tileLayerRef.current = satLayer;
-    } else {
-      const darkLayer = createCachedTileLayer(DARK_MAP_TILE_URL, {
-        maxZoom: 16,
-        subdomains: ['server', 'services'],
-      });
-      darkLayer.addTo(map);
-      tileLayerRef.current = darkLayer;
+    // Do not unnecessarily remove and re-add layer if URL hasn't changed
+    if (targetTileUrl === currentTileUrlRef.current && tileLayerRef.current) {
+      return;
     }
-  }, [mapMode]);
+
+    if (tileLayerRef.current) {
+      try {
+        map.removeLayer(tileLayerRef.current);
+      } catch {}
+    }
+
+    const nextLayer = createCachedTileLayer(targetTileUrl, {
+      maxZoom: 16,
+      subdomains: ['server', 'services'],
+    });
+    nextLayer.addTo(map);
+    tileLayerRef.current = nextLayer;
+    currentTileUrlRef.current = targetTileUrl;
+
+    // Invalidate map size to ensure instant, complete tile coverage
+    setTimeout(() => {
+      try {
+        map.invalidateSize();
+      } catch {}
+    }, 60);
+  }, [mapMode, colorMode]);
 
   // Update Kurdistan Territory Polygon
   useEffect(() => {
@@ -970,15 +1012,26 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
   return (
     <div
-      className={`relative w-full h-full overflow-hidden bg-[#12161f] select-none ${
-        isPickingLocation ? 'cursor-crosshair' : ''
-      }`}
+      className={`relative w-full h-full overflow-hidden select-none transition-colors duration-300 ${
+        colorMode === 'light' ? 'bg-[#eae7de]' : 'bg-[#12161f]'
+      } ${isPickingLocation ? 'cursor-crosshair' : ''}`}
     >
       {/* 1. Leaflet Map Viewport */}
-      <div ref={mapContainerRef} className="w-full h-full z-0 bg-[#12161f]" />
+      <div
+        ref={mapContainerRef}
+        id="kurdish-leaflet-map-host"
+        className="w-full h-full z-0 leaflet-container"
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          inset: 0,
+          direction: 'ltr',
+        }}
+      />
 
-      {/* Dynamic Era Atmosphere Lighting & Vignette Overlay */}
-      {eraAtmosphere && (
+      {/* Dynamic Era Atmosphere Lighting & Vignette Overlay (Dark mode only) */}
+      {eraAtmosphere && colorMode !== 'light' && (
         <div
           className={`absolute inset-0 pointer-events-none z-10 transition-all duration-1000 ${eraAtmosphere.tintClass}`}
           style={{
@@ -1132,37 +1185,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
           <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
 
-          {/* دوگمەی گۆڕینی شێوازی نەخشە: وێنەیی / خاڵەکان (Photo Map Mode) */}
-          <button
-            onClick={() => {
-              const nextMode = markerViewMode === 'photo' ? 'points' : 'photo';
-              setMarkerViewMode(nextMode);
-              if (nextMode !== 'photo') {
-                setShowBottomPhotoStrip(false);
-              }
-            }}
-            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group ${
-              markerViewMode === 'photo'
-                ? 'liquid-glass-btn text-amber-300 border border-amber-400/40 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-                : 'text-slate-200 hover:text-white hover:bg-white/[0.08]'
-            }`}
-            title={
-              markerViewMode === 'photo'
-                ? 'شێوازی وێنەیی چالاکە - کلیک بکە بۆ گۆڕین بۆ خاڵەکان'
-                : 'گۆڕین بۆ شێوازی وێنەیی لەسەر نەخشە'
-            }
-          >
-            <ImageIcon className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-            <span className="font-heading font-extrabold text-xs hidden sm:inline">
-              {markerViewMode === 'photo' ? 'نەخشەی وێنەیی' : 'نیشاندانی وێنەیی'}
-            </span>
-            {markerViewMode === 'photo' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping hidden sm:block shrink-0" />
-            )}
-          </button>
-
-          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
-
           {/* دوگمەی سەرەکی 'زیاتر' */}
           <button
             onClick={() => {
@@ -1193,6 +1215,49 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="glass-specular-ray" />
+
+            {/* دۆخی دیمەن: ڕووناکی نەرم / تاریک (Appearance Mode) */}
+            <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs text-right">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                  {colorMode === 'light' ? (
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  <span>دۆخی دیمەن</span>
+                </span>
+                <span className="text-[10px] text-amber-400 font-bold">
+                  {colorMode === 'light' ? 'ڕووناکی نەرم' : 'تاریک'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setColorMode('light')}
+                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    colorMode === 'light'
+                      ? 'liquid-glass-btn-active text-white shadow-md'
+                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
+                  }`}
+                >
+                  <Sun className="w-3.5 h-3.5 text-amber-300" />
+                  <span>ڕووناک</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setColorMode('dark')}
+                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    colorMode === 'dark'
+                      ? 'liquid-glass-btn-active text-white shadow-md'
+                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
+                  }`}
+                >
+                  <Moon className="w-3.5 h-3.5 text-amber-300" />
+                  <span>تاریک</span>
+                </button>
+              </div>
+            </div>
 
             {/* شێوازی نیشاندانی مارکەرەکان (وێنەیی / خاڵەکان) */}
             <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs text-right">

@@ -7,6 +7,10 @@ const PRELOAD_FLAG_KEY = 'kurdish_map_precached_flag_v1';
 export const DARK_MAP_TILE_URL =
   'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 
+// ArcGIS World Light Gray Base URL (Crisp, elegant, soft parchment tone, 100% free)
+export const LIGHT_MAP_TILE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+
 // ArcGIS Satellite imagery URL
 export const SATELLITE_MAP_TILE_URL =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
@@ -25,87 +29,28 @@ export function lat2tile(lat: number, zoom: number): number {
 }
 
 /**
- * Custom Leaflet TileLayer that serves tiles from CacheStorage first.
- * Completely eliminates black loading squares and ensures fast, offline-ready map navigation.
+ * Custom Leaflet TileLayer that serves tiles with immediate fallback to native browser pipeline.
  */
 export const CachedTileLayer = L.TileLayer.extend({
   createTile(coords: L.Coords, done: (err: any, tile: HTMLElement) => void): HTMLElement {
     const tile = document.createElement('img');
     tile.alt = '';
     tile.setAttribute('role', 'presentation');
-    tile.style.backgroundColor = '#12161f'; // Match ArcGIS dark gray background to prevent black flashes
+    tile.style.backgroundColor = 'transparent';
 
     const url = (this as any).getTileUrl(coords);
 
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      caches
-        .open(MAP_TILE_CACHE_NAME)
-        .then((cache) => {
-          return cache.match(url).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse.blob().then((blob) => {
-                const objectUrl = URL.createObjectURL(blob);
-                tile.onload = () => {
-                  URL.revokeObjectURL(objectUrl);
-                  done(null, tile);
-                };
-                tile.onerror = () => {
-                  URL.revokeObjectURL(objectUrl);
-                  tile.src = url;
-                  done(null, tile);
-                };
-                tile.src = objectUrl;
-              });
-            }
-
-            // Not yet in cache: fetch with CORS, save to cache, and display
-            return fetch(url, { mode: 'cors' })
-              .then((networkResp) => {
-                if (networkResp.ok) {
-                  const toCache = networkResp.clone();
-                  cache.put(url, toCache).catch(() => {});
-                  return networkResp.blob();
-                }
-                throw new Error('Tile response not OK');
-              })
-              .then((blob) => {
-                const objectUrl = URL.createObjectURL(blob);
-                tile.onload = () => {
-                  URL.revokeObjectURL(objectUrl);
-                  done(null, tile);
-                };
-                tile.onerror = () => {
-                  URL.revokeObjectURL(objectUrl);
-                  tile.src = url;
-                  done(null, tile);
-                };
-                tile.src = objectUrl;
-              })
-              .catch(() => {
-                // Fallback to direct image load
-                tile.onload = () => done(null, tile);
-                tile.onerror = () => done(null, tile);
-                tile.src = url;
-              });
-          });
-        })
-        .catch(() => {
-          tile.onload = () => done(null, tile);
-          tile.onerror = () => done(null, tile);
-          tile.src = url;
-        });
-    } else {
-      tile.onload = () => done(null, tile);
-      tile.onerror = () => done(null, tile);
-      tile.src = url;
-    }
+    // Assign src synchronously so there is zero delay in rendering
+    tile.onload = () => done(null, tile);
+    tile.onerror = () => done(null, tile);
+    tile.src = url;
 
     return tile;
   },
 });
 
 /**
- * Factory for creating a cached TileLayer
+ * Factory for creating a robust TileLayer
  */
 export function createCachedTileLayer(
   urlTemplate: string,
@@ -113,20 +58,18 @@ export function createCachedTileLayer(
 ): L.TileLayer {
   const mergedOptions: L.TileLayerOptions = {
     maxZoom: 16,
-    keepBuffer: 12, // Keeps out-of-viewport tiles in memory for instantaneous panning
-    updateWhenIdle: false, // Continue loading immediately while panning
-    updateWhenZooming: true, // Retain existing tiles during zoom animations
-    crossOrigin: 'anonymous',
+    keepBuffer: 10,
+    updateWhenIdle: false,
+    updateWhenZooming: true,
     ...options,
   };
 
-  return new (CachedTileLayer as any)(urlTemplate, mergedOptions) as L.TileLayer;
+  return L.tileLayer(urlTemplate, mergedOptions);
 }
 
 /**
  * Background pre-caching of Kurdistan region base map tiles (Zooms 5, 6, 7).
- * Downloads ~35 small tiles (~150KB total) into browser CacheStorage so that
- * when the user navigates, the base map renders without black patches.
+ * Preloads small tiles into browser cache in the background.
  */
 export async function preloadKurdistanTiles(
   onProgress?: (progress: { loaded: number; total: number; done: boolean }) => void
@@ -161,7 +104,6 @@ export async function preloadKurdistanTiles(
     const total = urlsToCache.length;
     let loaded = 0;
 
-    // If already preloaded previously, verify quickly without blocking
     if (isAlreadyPreloaded) {
       if (onProgress) onProgress({ loaded: total, total, done: true });
       return;
@@ -176,8 +118,8 @@ export async function preloadKurdistanTiles(
           try {
             const hasMatch = await cache.match(url);
             if (!hasMatch) {
-              const resp = await fetch(url, { mode: 'cors' });
-              if (resp.ok) {
+              const resp = await fetch(url, { mode: 'no-cors' });
+              if (resp) {
                 await cache.put(url, resp);
               }
             }

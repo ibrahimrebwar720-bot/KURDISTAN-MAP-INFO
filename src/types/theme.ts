@@ -133,7 +133,30 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
 
 export const THEME_LIST = Object.values(THEMES);
 
+export type ColorMode = 'dark' | 'light';
+
 const THEME_STORAGE_KEY = 'kurdish_history_user_theme_v1';
+const COLOR_MODE_STORAGE_KEY = 'kurdish_history_color_mode_v1';
+
+export function loadStoredColorMode(): ColorMode {
+  try {
+    const saved = localStorage.getItem(COLOR_MODE_STORAGE_KEY) as ColorMode | null;
+    if (saved === 'dark' || saved === 'light') {
+      return saved;
+    }
+  } catch (e) {
+    console.warn('Failed to load color mode from localStorage:', e);
+  }
+  return 'dark';
+}
+
+export function saveStoredColorMode(mode: ColorMode): void {
+  try {
+    localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
+  } catch (e) {
+    console.warn('Failed to save color mode to localStorage:', e);
+  }
+}
 
 export function loadStoredTheme(): ThemeId {
   try {
@@ -155,25 +178,57 @@ export function saveStoredTheme(themeId: ThemeId): void {
   }
 }
 
-export function applyThemeToDom(themeId: ThemeId): void {
+export function applyThemeToDom(themeId: ThemeId, colorMode: ColorMode = 'dark'): void {
   const root = document.documentElement;
   const theme = THEMES[themeId] || THEMES['kurdish-gold'];
 
   root.setAttribute('data-theme', themeId);
+  root.setAttribute('data-color-mode', colorMode);
+
+  if (colorMode === 'light') {
+    root.classList.add('light');
+    root.classList.remove('dark');
+  } else {
+    root.classList.add('dark');
+    root.classList.remove('light');
+  }
+
   root.style.setProperty('--theme-accent', theme.primaryColor);
   root.style.setProperty('--theme-secondary', theme.secondaryColor);
-  root.style.setProperty('--theme-bg', theme.darkBg);
   root.style.setProperty('--theme-accent-glow', theme.glowColor);
-  root.style.setProperty('--theme-btn-active-bg', theme.activeBtnBg);
-  root.style.setProperty('--theme-btn-active-text', theme.activeBtnText);
-  root.style.setProperty('--theme-panel-gradient', theme.panelGradient);
 
-  // Update meta theme-color for browser address bars and mobile nav
+  if (colorMode === 'light') {
+    // Soft, warm ivory/parchment tone (not blinding harsh white)
+    root.style.setProperty('--theme-bg', '#f7f6f2');
+    root.style.setProperty('--theme-surface', 'rgba(255, 255, 255, 0.88)');
+    root.style.setProperty('--theme-text-primary', '#0f172a');
+    root.style.setProperty('--theme-text-secondary', '#334155');
+    root.style.setProperty('--theme-text-muted', '#64748b');
+    root.style.setProperty('--theme-border', 'rgba(0, 0, 0, 0.08)');
+    root.style.setProperty(
+      '--theme-panel-gradient',
+      'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 246, 241, 0.92) 100%)'
+    );
+    root.style.setProperty('--theme-btn-active-bg', theme.activeBtnBg);
+    root.style.setProperty('--theme-btn-active-text', '#ffffff');
+  } else {
+    root.style.setProperty('--theme-bg', theme.darkBg);
+    root.style.setProperty('--theme-surface', 'rgba(6, 11, 24, 0.78)');
+    root.style.setProperty('--theme-text-primary', '#f3f4f6');
+    root.style.setProperty('--theme-text-secondary', '#cbd5e1');
+    root.style.setProperty('--theme-text-muted', '#94a3b8');
+    root.style.setProperty('--theme-border', 'rgba(255, 255, 255, 0.14)');
+    root.style.setProperty('--theme-panel-gradient', theme.panelGradient);
+    root.style.setProperty('--theme-btn-active-bg', theme.activeBtnBg);
+    root.style.setProperty('--theme-btn-active-text', theme.activeBtnText);
+  }
+
+  // Update meta theme-color for mobile address bar
   let metaTheme = document.querySelector('meta[name="theme-color"]');
   if (!metaTheme) {
     metaTheme = document.createElement('meta');
     metaTheme.setAttribute('name', 'theme-color');
     document.head.appendChild(metaTheme);
   }
-  metaTheme.setAttribute('content', theme.darkBg);
+  metaTheme.setAttribute('content', colorMode === 'light' ? '#f7f6f2' : theme.darkBg);
 }

@@ -27,8 +27,10 @@ import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
 import { SocialCardGeneratorModal } from './components/SocialCardGeneratorModal';
+import { useTheme } from './context/ThemeContext';
 
 export default function App() {
+  const { colorMode } = useTheme();
   const [showIntro, setShowIntro] = useState<boolean>(false);
   const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
   const [collections, setCollections] = useState<CollectionItem[]>(() =>
@@ -358,7 +360,11 @@ export default function App() {
   };
 
   return (
-    <div className="h-full h-[100dvh] w-full overflow-hidden bg-[#05070e] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs">
+    <div
+      className={`h-full h-[100dvh] w-full overflow-hidden flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs transition-colors duration-300 ${
+        colorMode === 'light' ? 'bg-[#f7f6f2] text-slate-900' : 'bg-[#05070e] text-slate-100'
+      }`}
+    >
       {/* Main Screen: Leaflet CartoDB Dark Matter */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
         {/* Full Viewport Interactive Kurdish Clean Dark Map */}
@@ -406,7 +412,11 @@ export default function App() {
 
         {/* Fullscreen View for پێڕست with 2026 Spatial Page Transition */}
         {isMenuOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-[#030611] text-slate-100 overflow-hidden animate-page-enter">
+          <div
+            className={`fixed inset-0 z-50 flex flex-col overflow-hidden animate-page-enter transition-colors duration-300 ${
+              colorMode === 'light' ? 'bg-[#f7f6f2] text-slate-900' : 'bg-[#030611] text-slate-100'
+            }`}
+          >
             <FactsList
               facts={facts}
               selectedFact={selectedFact}

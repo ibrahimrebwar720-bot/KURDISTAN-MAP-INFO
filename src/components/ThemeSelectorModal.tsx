@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { THEME_LIST, ThemeId } from '../types/theme';
-import { X, Palette, Check, Sparkles, RotateCcw } from 'lucide-react';
+import { X, Palette, Check, Sparkles, RotateCcw, Sun, Moon } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { themeId, setTheme, resetTheme } = useTheme();
+  const { themeId, setTheme, resetTheme, colorMode, setColorMode } = useTheme();
 
   if (!isOpen) return null;
 
@@ -36,7 +36,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" style={{ color: 'var(--theme-accent)' }} />
               </h3>
               <p className="text-xs text-slate-300">
-                هەڵبژاردنی ستایل و تێکەڵەی ڕەنگەکان بەپێی دڵخوازی خۆت
+                هەڵبژاردنی دۆخی ڕووناکی، ستایل و تێکەڵەی ڕەنگەکان بەپێی دڵخوازی خۆت
               </p>
             </div>
           </div>
@@ -56,6 +56,54 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
               title="داخستن"
             >
               <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Color Mode Switch (ڕووناکی نەرم / دۆخی تاریک بە سێبەری فەید) */}
+        <div className="p-3 sm:p-4 rounded-2xl liquid-glass-subtle border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="w-9 h-9 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0">
+              {colorMode === 'light' ? (
+                <Sun className="w-4.5 h-4.5 text-amber-500" />
+              ) : (
+                <Moon className="w-4.5 h-4.5 text-amber-400" />
+              )}
+            </div>
+            <div>
+              <span className="text-xs sm:text-sm font-bold text-white block">
+                دۆخی دیمەن (ڕووناکی نەرم / تاریک)
+              </span>
+              <span className="text-[11px] text-slate-300 block">
+                سپێیەکی نەرمی کەرەیی و شوشەی پۆرسەلین بە سێبەری فەید بۆ دوگمەکان
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/15 border border-white/10 shrink-0 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setColorMode('light')}
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                colorMode === 'light'
+                  ? 'liquid-glass-btn-active text-white shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5 text-amber-300" />
+              <span>دۆخی ڕووناک (نەرم)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setColorMode('dark')}
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                colorMode === 'dark'
+                  ? 'liquid-glass-btn-active text-white shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5 text-amber-300" />
+              <span>دۆخی تاریک</span>
             </button>
           </div>
         </div>
