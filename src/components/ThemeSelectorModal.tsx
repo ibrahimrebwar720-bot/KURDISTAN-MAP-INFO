@@ -72,7 +72,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <span className="text-xs sm:text-sm font-bold text-white block">
-                دۆخی دیمەن (ڕووناکی نەرم / تاریک)
+                دۆخی دیمەن (ڕووناک / تاریک)
               </span>
               <span className="text-[11px] text-slate-300 block">
                 سپێیەکی نەرمی کەرەیی و شوشەی پۆرسەلین بە سێبەری فەید بۆ دوگمەکان
@@ -91,7 +91,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
               }`}
             >
               <Sun className="w-3.5 h-3.5 text-amber-300" />
-              <span>دۆخی ڕووناک (نەرم)</span>
+              <span>دۆخی ڕووناک</span>
             </button>
             <button
               type="button"

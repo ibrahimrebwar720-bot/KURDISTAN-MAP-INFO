@@ -728,249 +728,277 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
    تایبەتمەندی: سپێیەکی نەرمی کەرەیی و ئارامبەخش، سێبەری فەید بۆ هەموو دوگمەکان
    ========================================================================== */
 
+/* =========================================================================
+   LIGHT MODE DESIGN & CONTRAST ENGINE (چاککردنی تەواوی دۆخی ڕووناک بۆ ڕوونی نوسینەکان)
+   ========================================================================= */
 [data-color-mode="light"] {
   color-scheme: light;
+  --theme-bg: #f4f3ef;
+  --theme-surface: #ffffff;
 }
 
 [data-color-mode="light"] body {
-  background-color: #f7f6f2 !important;
-  color: #1e293b !important;
+  background-color: #f4f3ef !important;
+  color: #090d16 !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 [data-color-mode="light"] #root {
-  background-color: #f7f6f2 !important;
+  background-color: #f4f3ef !important;
+  color: #090d16 !important;
 }
 
-/* Soft Light Base Containers */
+/* 1. All Amber / Gold Texts converted to Deep Bronze in Light Mode (Contrast 7.5:1+) */
+[data-color-mode="light"] .text-amber-400,
+[data-color-mode="light"] .text-amber-300,
+[data-color-mode="light"] .text-amber-200,
+[data-color-mode="light"] .text-amber-500,
+[data-color-mode="light"] .text-yellow-400,
+[data-color-mode="light"] .text-yellow-300,
+[data-color-mode="light"] [class*="text-amber-300"],
+[data-color-mode="light"] [class*="text-amber-400"],
+[data-color-mode="light"] [class*="text-amber-200"],
+[data-color-mode="light"] [class*="text-amber-500"] {
+  color: #92400e !important;
+  font-weight: 600 !important;
+}
+
+/* 2. Primary / Heading Texts in Light Mode: Solid Deep Charcoal (Contrast 18:1) */
+[data-color-mode="light"] .text-white:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-slate-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] [class*="text-slate-100"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #090d16 !important;
+  font-weight: 700 !important;
+}
+
+/* 3. Secondary & Body Texts in Light Mode: Deep Slate (Contrast 11:1) */
+[data-color-mode="light"] .text-slate-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] [class*="text-slate-200"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-slate-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] [class*="text-slate-300"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #1e293b !important;
+  font-weight: 500 !important;
+}
+
+/* 4. Metadata, Years, Subtitles in Light Mode: High Contrast Charcoal-Slate */
+[data-color-mode="light"] .text-slate-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] [class*="text-slate-400"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #334155 !important;
+  font-weight: 500 !important;
+}
+
+[data-color-mode="light"] .text-slate-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-slate-600:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] [class*="text-slate-500"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] [class*="text-slate-600"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+/* 5. Headings Font Weight in Light Mode */
+[data-color-mode="light"] h1,
+[data-color-mode="light"] h2,
+[data-color-mode="light"] h3,
+[data-color-mode="light"] h4,
+[data-color-mode="light"] .font-heading {
+  font-weight: 800 !important;
+  color: #090d16;
+}
+
+/* 6. Base Containers & Non-Glaring Backgrounds in Light Mode */
 [data-color-mode="light"] .bg-\[\#030611\],
 [data-color-mode="light"] .bg-\[\#05070e\],
-[data-color-mode="light"] .bg-\[\#070b16\]\/90,
 [data-color-mode="light"] .bg-\[\#050814\] {
-  background-color: #f7f6f2 !important;
+  background-color: #f4f3ef !important;
+  color: #090d16 !important;
 }
 
-/* Modal Backdrops: Gentle diffused scrim instead of harsh black */
-[data-color-mode="light"] .fixed.inset-0.bg-black\/85,
-[data-color-mode="light"] .fixed.inset-0.bg-black\/80,
-[data-color-mode="light"] .fixed.inset-0.bg-black\/75 {
-  background-color: rgba(15, 23, 42, 0.45) !important;
+[data-color-mode="light"] .bg-\[\#070b16\]\/90 {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12) !important;
 }
 
-/* 1. Liquid Glass Panel & Modals in Light Mode */
-[data-color-mode="light"] .liquid-glass-panel {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 248, 244, 0.90) 100%) !important;
-  backdrop-filter: blur(28px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  border-top: 1px solid rgba(255, 255, 255, 1) !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.8) !important;
-  box-shadow:
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
-    0 24px 60px -10px rgba(0, 0, 0, 0.12),
-    0 6px 20px -3px rgba(0, 0, 0, 0.05),
-    0 0 35px 0 var(--theme-accent-glow, rgba(245, 158, 11, 0.12)) !important;
-  color: #1e293b !important;
-}
-
-/* 2. Liquid Glass Dock & Top Bar in Light Mode */
-[data-color-mode="light"] .liquid-glass-dock,
-[data-color-mode="light"] .glass-dock-2026 {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(250, 248, 243, 0.88) 100%) !important;
-  backdrop-filter: blur(28px) saturate(170%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(170%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  border-top: 1px solid rgba(255, 255, 255, 1) !important;
-  box-shadow:
-    inset 0 1px 2px 0 rgba(255, 255, 255, 0.95),
-    0 12px 36px -6px rgba(0, 0, 0, 0.08),
-    0 4px 12px -2px rgba(0, 0, 0, 0.04),
-    0 0 20px var(--theme-accent-glow, rgba(245, 158, 11, 0.12)) !important;
-  color: #1e293b !important;
-}
-
-/* 3. Cards & Editorial Items in Light Mode */
+/* 7. Cards & Fact Items in Light Mode */
 [data-color-mode="light"] .liquid-glass-card,
 [data-color-mode="light"] .card-editorial-2026 {
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.92) 0%, rgba(251, 249, 245, 0.88) 100%) !important;
-  backdrop-filter: blur(24px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.07) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.95) !important;
-  box-shadow:
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-    0 8px 24px -4px rgba(0, 0, 0, 0.06),
-    0 2px 6px -1px rgba(0, 0, 0, 0.03) !important;
-  color: #1e293b !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+  color: #090d16 !important;
 }
 
 [data-color-mode="light"] .card-editorial-2026:hover {
-  border-color: rgba(217, 119, 6, 0.35) !important;
-  border-top-color: rgba(255, 255, 255, 1) !important;
-  box-shadow:
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
-    0 18px 40px -8px rgba(0, 0, 0, 0.10),
-    0 4px 12px -2px rgba(0, 0, 0, 0.05),
-    0 0 24px -4px var(--theme-accent-glow, rgba(245, 158, 11, 0.2)) !important;
-  transform: translateY(-2.5px) scale(1.012) !important;
+  border-color: rgba(180, 83, 9, 0.5) !important;
+  box-shadow: 0 10px 28px rgba(180, 83, 9, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05) !important;
 }
 
-/* 4. Subtle Containers & Sub-panels in Light Mode */
+/* Selected Card in Light Mode */
+[data-color-mode="light"] .bg-amber-500\/\[0\.12\] {
+  background-color: rgba(180, 83, 9, 0.1) !important;
+  border-color: #b45309 !important;
+}
+
+/* 8. Liquid Glass Panels & Modals in Light Mode */
+[data-color-mode="light"] .liquid-glass-panel {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+  color: #090d16 !important;
+}
+
+[data-color-mode="light"] .liquid-glass-dock,
+[data-color-mode="light"] .glass-dock-2026 {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08) !important;
+  color: #090d16 !important;
+}
+
 [data-color-mode="light"] .liquid-glass-subtle {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(247, 245, 239, 0.80) 100%) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.9) !important;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.85),
-    0 4px 12px rgba(0, 0, 0, 0.04) !important;
-  color: #1e293b !important;
+  background: rgba(180, 83, 9, 0.08) !important;
+  border: 1px solid rgba(180, 83, 9, 0.25) !important;
+  color: #92400e !important;
 }
 
-/* 5. Button Faded Drop Shadow (دوگمەکان بە سێبەری فەیدی نەرم) */
+/* 9. Buttons in Light Mode */
 [data-color-mode="light"] .liquid-glass-btn {
-  background: linear-gradient(180deg, #ffffff 0%, #f9f7f2 100%) !important;
-  backdrop-filter: blur(18px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  border-top: 1px solid rgba(255, 255, 255, 1) !important;
-  color: #1e293b !important;
-  box-shadow:
-    0 4px 14px -1px rgba(0, 0, 0, 0.06),
-    0 2px 6px -1px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9) !important;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.16) !important;
+  color: #92400e !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+  font-weight: 700 !important;
 }
 
 [data-color-mode="light"] .liquid-glass-btn:hover {
-  background: linear-gradient(180deg, #ffffff 0%, #f4f1e6 100%) !important;
-  border-color: rgba(217, 119, 6, 0.35) !important;
-  border-top-color: #ffffff !important;
-  color: #0f172a !important;
-  box-shadow:
-    0 8px 24px -2px rgba(0, 0, 0, 0.09),
-    0 3px 8px -1px rgba(0, 0, 0, 0.04),
-    0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.25)),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 1) !important;
-  transform: translateY(-1.5px) !important;
+  background: #faf8f5 !important;
+  border-color: #b45309 !important;
+  color: #78350f !important;
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.15) !important;
 }
 
 [data-color-mode="light"] .liquid-glass-btn-active {
-  background: var(--theme-btn-active-bg, linear-gradient(180deg, #f59e0b 0%, #d97706 100%)) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
-  border: 1px solid rgba(217, 119, 6, 0.6) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.8) !important;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%) !important;
   color: #ffffff !important;
-  box-shadow:
-    0 6px 22px -2px rgba(217, 119, 6, 0.38),
-    0 2px 6px rgba(0, 0, 0, 0.06),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid #78350f !important;
+  box-shadow: 0 4px 16px rgba(180, 83, 9, 0.3) !important;
+  font-weight: 700 !important;
 }
 
-/* 6. Inputs & Search Fields in Light Mode */
+/* 10. Inputs, Search & Dropdowns in Light Mode */
+[data-color-mode="light"] input,
+[data-color-mode="light"] select,
+[data-color-mode="light"] textarea,
 [data-color-mode="light"] .liquid-glass-input {
   background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
-  border-top: 1px solid rgba(0, 0, 0, 0.15) !important;
-  box-shadow:
-    inset 0 1px 2px 0 rgba(0, 0, 0, 0.05),
-    0 1px 0 0 rgba(255, 255, 255, 0.9) !important;
+  color: #090d16 !important;
+  border: 1.5px solid rgba(15, 23, 42, 0.2) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  font-weight: 500 !important;
 }
 
+[data-color-mode="light"] input::placeholder,
+[data-color-mode="light"] textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+[data-color-mode="light"] input:focus,
+[data-color-mode="light"] select:focus,
+[data-color-mode="light"] textarea:focus,
 [data-color-mode="light"] .liquid-glass-input:focus {
-  border-color: var(--theme-accent, #f59e0b) !important;
-  box-shadow:
-    0 0 0 3px var(--theme-accent-soft, rgba(245, 158, 11, 0.18)),
-    inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  border-color: #b45309 !important;
+  box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.2) !important;
 }
 
-/* 7. Specular Ray in Light Mode */
-[data-color-mode="light"] .glass-specular-ray {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0) 100%) !important;
+[data-color-mode="light"] select option {
+  background: #ffffff !important;
+  color: #090d16 !important;
 }
 
-/* 8. Text Contrast System in Light Mode */
-[data-color-mode="light"] .text-white:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-slate-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
-  color: #0f172a;
-}
-
-[data-color-mode="light"] .text-slate-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
-  color: #1e293b;
-}
-
-[data-color-mode="light"] .text-slate-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
-  color: #334155;
-}
-
-[data-color-mode="light"] .text-slate-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
-  color: #64748b;
-}
-
-[data-color-mode="light"] .text-slate-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
-  color: #64748b;
-}
-
-/* Borders in Light Mode */
+/* 11. Borders in Light Mode */
 [data-color-mode="light"] .border-white\/10,
+[data-color-mode="light"] .border-white\/\[0\.07\],
 [data-color-mode="light"] .border-white\/\[0\.08\],
+[data-color-mode="light"] .border-white\/\[0\.09\],
 [data-color-mode="light"] .border-white\/\[0\.1\],
 [data-color-mode="light"] .border-white\/\[0\.12\],
 [data-color-mode="light"] .border-white\/20,
-[data-color-mode="light"] .border-white\/30 {
-  border-color: rgba(0, 0, 0, 0.08);
+[data-color-mode="light"] .border-white\/30,
+[data-color-mode="light"] [class*="border-white"] {
+  border-color: rgba(15, 23, 42, 0.12) !important;
 }
 
-/* 9. Leaflet Map in Light Mode */
+[data-color-mode="light"] .border-amber-400,
+[data-color-mode="light"] .border-amber-400\/40,
+[data-color-mode="light"] .border-amber-400\/30,
+[data-color-mode="light"] .border-amber-500\/30,
+[data-color-mode="light"] .border-amber-500\/35 {
+  border-color: rgba(180, 83, 9, 0.35) !important;
+}
+
+/* 12. Modal Backdrops */
+[data-color-mode="light"] .fixed.inset-0.bg-black\/85,
+[data-color-mode="light"] .fixed.inset-0.bg-black\/80,
+[data-color-mode="light"] .fixed.inset-0.bg-black\/75 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+
+/* 13. Leaflet Popups and Map in Light Mode */
 [data-color-mode="light"] .leaflet-container {
-  background: #eae7de !important;
+  background: #e7e5dc !important;
 }
 
 [data-color-mode="light"] .leaflet-popup-content-wrapper {
-  background: rgba(255, 255, 255, 0.97) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  border-top: 1px solid rgba(255, 255, 255, 1) !important;
-  border-radius: 18px !important;
-  box-shadow:
-    0 16px 36px -4px rgba(0, 0, 0, 0.12),
-    0 4px 10px -2px rgba(0, 0, 0, 0.05),
-    0 0 20px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
+  background: #ffffff !important;
+  color: #090d16 !important;
+  border: 1px solid rgba(15, 23, 42, 0.15) !important;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14) !important;
 }
 
 [data-color-mode="light"] .leaflet-popup-tip {
-  background: rgba(255, 255, 255, 0.97) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.15) !important;
 }
 
-/* Soft Esri Light Canvas Filter */
-.esri-light-canvas {
-  filter: contrast(1.05) saturate(0.92);
+/* 14. Preserve Contrast for Photographic / Scrim Sections */
+[data-color-mode="light"] #hero-section,
+[data-color-mode="light"] #hero-section .hero-title,
+[data-color-mode="light"] #hero-section .hero-subtitle,
+[data-color-mode="light"] #hero-section .hero-caption,
+[data-color-mode="light"] #journey-modal {
+  color: #ffffff !important;
 }
 
-/* 10. Scrollbars in Light Mode */
+[data-color-mode="light"] #journey-modal .journey-title {
+  color: #fde047 !important;
+}
+
+[data-color-mode="light"] #journey-modal .journey-summary {
+  color: #ffffff !important;
+}
+
+[data-color-mode="light"] #journey-modal .journey-year {
+  color: #fbbf24 !important;
+}
+
+[data-color-mode="light"] #journey-modal .journey-meta {
+  color: #cbd5e1 !important;
+}
+
+/* 15. Scrollbars in Light Mode */
 [data-color-mode="light"] ::-webkit-scrollbar-track {
-  background: #f1efe9;
+  background: #edeae2;
 }
 
 [data-color-mode="light"] ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8;
+  border-radius: 9999px;
 }
 
 [data-color-mode="light"] ::-webkit-scrollbar-thumb:hover {
-  background: var(--theme-accent, #f59e0b);
-}
-
-[data-color-mode="light"] .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(230, 227, 219, 0.6);
-}
-
-[data-color-mode="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--theme-accent-soft, rgba(245, 158, 11, 0.25));
+  background: #b45309;
 }
 
 

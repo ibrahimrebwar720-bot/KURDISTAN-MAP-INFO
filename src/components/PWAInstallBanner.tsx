@@ -91,7 +91,12 @@ export const PWAInstallBanner: React.FC = () => {
                   />
                 </div>
                 <div className="pb-3 text-right">
-                  <h3 className="text-base sm:text-lg font-black tracking-wide text-white drop-shadow-md">
+                  <h3
+                    className="text-base sm:text-lg font-black tracking-wide text-white"
+                    style={{
+                      textShadow: '0 2px 8px rgba(0, 0, 0, 0.85)',
+                    }}
+                  >
                     KURDISTAN INFO MAP
                   </h3>
                   <p className="text-[10px] text-amber-300/90 font-medium">

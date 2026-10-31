@@ -56,7 +56,6 @@ interface Props {
   onOpenCollectionManager?: () => void;
   onOpenGallery?: () => void;
   onOpenTheme?: () => void;
-  onOpenSocialCard?: (fact: FactItem) => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
 }
@@ -99,7 +98,6 @@ export const FactsList: React.FC<Props> = ({
   isAdmin = false,
   onOpenAddFact,
   onOpenEditFact,
-  onOpenSocialCard,
   onClose,
   onLogoutAdmin,
 }) => {
@@ -273,7 +271,7 @@ export const FactsList: React.FC<Props> = ({
                   ? 'liquid-glass-btn text-amber-600 border-amber-500/30 shadow-xs'
                   : 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-400 border-white/[0.1]'
               }`}
-              title={colorMode === 'light' ? 'گۆڕین بۆ دۆخی تاریک' : 'گۆڕین بۆ دۆخی ڕووناکی نەرم'}
+              title={colorMode === 'light' ? 'گۆڕین بۆ دۆخی تاریک' : 'گۆڕین بۆ دۆخی ڕووناک'}
             >
               {colorMode === 'light' ? (
                 <Sun className="w-4 h-4 text-amber-500" />
@@ -518,20 +516,6 @@ export const FactsList: React.FC<Props> = ({
                           className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-white/[0.08] transition-colors cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      {onOpenSocialCard && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenSocialCard(fact);
-                          }}
-                          title="دروستکردنی کارتی بڵاوکردنەوە بۆ سۆشیال میدیا و ستۆری"
-                          className="px-2 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold border border-amber-400/25"
-                        >
-                          <Sparkles className="w-3 h-3 text-amber-400" />
-                          <span className="hidden sm:inline">کارت</span>
                         </button>
                       )}
 

@@ -78,9 +78,18 @@ interface Props {
   setShowAllMarkers: (val: boolean) => void;
   showPolygon: boolean;
   setShowPolygon: (val: boolean) => void;
+  onOpenHero?: () => void;
+  onOpenSettings?: () => void;
   onOpenMenu?: () => void;
   onOpenGallery?: () => void;
+  onOpenJourney?: () => void;
   onOpenTheme?: () => void;
+  mapMode?: 'dark' | 'satellite';
+  setMapMode?: (mode: 'dark' | 'satellite') => void;
+  markerViewMode?: 'photo' | 'points';
+  setMarkerViewMode?: (mode: 'photo' | 'points') => void;
+  showBottomPhotoStrip?: boolean;
+  setShowBottomPhotoStrip?: React.Dispatch<React.SetStateAction<boolean>>;
   activeTagFilter: string;
   setActiveTagFilter: (tag: string) => void;
   // Year & Timeline Slider Props
@@ -223,9 +232,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   setShowAllMarkers,
   showPolygon,
   setShowPolygon,
+  onOpenHero,
+  onOpenSettings,
   onOpenMenu,
   onOpenGallery,
+  onOpenJourney,
   onOpenTheme,
+  mapMode: externalMapMode,
+  setMapMode: externalSetMapMode,
+  markerViewMode: externalMarkerViewMode,
+  setMarkerViewMode: externalSetMarkerViewMode,
+  showBottomPhotoStrip: externalShowBottomPhotoStrip,
+  setShowBottomPhotoStrip: externalSetShowBottomPhotoStrip,
   activeTagFilter,
   setActiveTagFilter,
   selectedYear = 'all',
@@ -254,14 +272,19 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const pickedMarkerRef = useRef<L.Marker | null>(null);
 
   // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite)
-  const [mapMode, setMapMode] = useState<'dark' | 'satellite'>('dark');
+  const [internalMapMode, setInternalMapMode] = useState<'dark' | 'satellite'>('dark');
+  const mapMode = externalMapMode ?? internalMapMode;
+  const setMapMode = externalSetMapMode ?? setInternalMapMode;
 
   // Marker Display Mode: 'points' (Classic Pins - Default) vs 'photo' (Image Pins & Squares)
-  // داواکراو: هەر کە وێبسایتەکە دەکەیتەوە بە خاڵەکان (points) بێت نەک وێنەیی
-  const [markerViewMode, setMarkerViewMode] = useState<'photo' | 'points'>('points');
+  const [internalMarkerViewMode, setInternalMarkerViewMode] = useState<'photo' | 'points'>('points');
+  const markerViewMode = externalMarkerViewMode ?? internalMarkerViewMode;
+  const setMarkerViewMode = externalSetMarkerViewMode ?? setInternalMarkerViewMode;
 
-  // Bottom Photo Strip toggle: تەنها لەگەڵ شێوازی وێنەیی بەردەست دەبێت و لەخۆڕاش ناکرێتەوە تا دوگمەی وێنەکانی خوارەوە دادەگیرێت
-  const [showBottomPhotoStrip, setShowBottomPhotoStrip] = useState<boolean>(false);
+  // Bottom Photo Strip toggle
+  const [internalShowBottomPhotoStrip, setInternalShowBottomPhotoStrip] = useState<boolean>(false);
+  const showBottomPhotoStrip = externalShowBottomPhotoStrip ?? internalShowBottomPhotoStrip;
+  const setShowBottomPhotoStrip = externalSetShowBottomPhotoStrip ?? setInternalShowBottomPhotoStrip;
 
   // Quick Topic Summary Card state for bottom dock
   const [showQuickSummary, setShowQuickSummary] = useState(false);
@@ -638,6 +661,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const [isTourPaused, setIsTourPaused] = useState(false);
   const [tourSpeed, setTourSpeed] = useState<number>(7); // seconds per stop
   const [tourProgress, setTourProgress] = useState(0); // 0 to 100%
+  const tourProgressRef = useRef(0);
 
   // Filter facts based on Active Year and Category Tag
   const visibleFacts = useMemo(() => {
@@ -718,6 +742,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     if (isTourActive) {
       setIsTourActive(false);
       setIsTourPaused(false);
+      tourProgressRef.current = 0;
       setTourProgress(0);
       setShowQuickSummary(false);
       if (onYearChange) {
@@ -739,6 +764,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       setTourIndex(startIdx);
       setIsTourActive(true);
       setIsTourPaused(false);
+      tourProgressRef.current = 0;
       setTourProgress(0);
       setShowQuickSummary(false);
       setIsMoreMenuOpen(false);
@@ -750,6 +776,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     if (tourList.length === 0) return;
     const nextIdx = (tourIndex + 1) % tourList.length;
     setTourIndex(nextIdx);
+    tourProgressRef.current = 0;
     setTourProgress(0);
     flyToTourFact(tourList[nextIdx]);
   }, [tourIndex, tourList, flyToTourFact]);
@@ -758,6 +785,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     if (tourList.length === 0) return;
     const prevIdx = (tourIndex - 1 + tourList.length) % tourList.length;
     setTourIndex(prevIdx);
+    tourProgressRef.current = 0;
     setTourProgress(0);
     flyToTourFact(tourList[prevIdx]);
   }, [tourIndex, tourList, flyToTourFact]);
@@ -772,13 +800,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     const stepIncrement = (intervalMs / (tourSpeed * 1000)) * 100;
 
     const timer = setInterval(() => {
-      setTourProgress((prev) => {
-        if (prev + stepIncrement >= 100) {
-          handleNextTourFact();
-          return 0;
-        }
-        return prev + stepIncrement;
-      });
+      const nextProgress = tourProgressRef.current + stepIncrement;
+      if (nextProgress >= 100) {
+        tourProgressRef.current = 0;
+        setTourProgress(0);
+        handleNextTourFact();
+      } else {
+        tourProgressRef.current = nextProgress;
+        setTourProgress(nextProgress);
+      }
     }, intervalMs);
 
     return () => clearInterval(timer);
@@ -1144,341 +1174,66 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         </div>
       )}
 
-      {/* 4. Top Action Buttons: پێڕست + گەلەری + زیاتر */}
-      {/* Backdrop to close menu when tapping anywhere on map */}
-      {isMoreMenuOpen && (
-        <div
-          className="fixed inset-0 z-28 bg-black/40 backdrop-blur-xs transition-opacity animate-fade-in cursor-pointer"
-          onClick={() => {
-            setIsMoreMenuOpen(false);
-          }}
-        />
-      )}
-
-      <div className="absolute top-3 right-3 z-30 pointer-events-auto flex flex-col items-end gap-2">
+      {/* 4. Top Action Buttons: سەرەکی (Hero Entrance) + گەلەری + ڕێکخستنەکان */}
+      <div className="absolute top-3 right-3 z-30 pointer-events-auto flex items-center gap-1.5">
         <div className="glass-dock-2026 rounded-2xl p-1 flex items-center gap-1 shadow-2xl">
-          {/* دوگمەی سەرەکی پێڕست */}
-          {onOpenMenu && (
+          {/* دوگمەی سەرەکی (چوون بۆ Hero Section) */}
+          {onOpenHero && (
             <button
-              onClick={onOpenMenu}
-              className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group"
-              title="پێڕستی بابەتەکان"
+              onClick={onOpenHero}
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group"
+              title="گەڕانەوە بۆ پەڕەی سەرەکی (Hero Section)"
             >
-              <Menu className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-              <span className="font-heading font-extrabold text-xs">پێڕست</span>
+              <Compass className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="font-heading font-extrabold text-xs">سەرەکی</span>
             </button>
           )}
-
-          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
 
           {/* ئایکۆنی گەلەری */}
           {onOpenGallery && (
-            <button
-              onClick={onOpenGallery}
-              className="relative p-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
-              title="گەلەری"
-              aria-label="گەلەری"
-            >
-              <Images className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-            </button>
+            <>
+              {onOpenHero && <div className="w-[1px] h-4 bg-white/10 mx-0.5" />}
+              <button
+                onClick={onOpenGallery}
+                className="relative p-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
+                title="گەلەری وێنە مێژووییەکان"
+                aria-label="گەلەری"
+              >
+                <Images className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              </button>
+            </>
           )}
 
-          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
-
-          {/* دوگمەی سەرەکی 'زیاتر' */}
-          <button
-            onClick={() => {
-              setIsMoreMenuOpen(!isMoreMenuOpen);
-            }}
-            className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer select-none ${
-              isMoreMenuOpen
-                ? 'bg-amber-400 text-black font-extrabold shadow-sm'
-                : 'text-slate-100 hover:text-amber-300 hover:bg-white/[0.08]'
-            }`}
-            title="زیاتر - کرداری خێرا و ئامرازەکانی نەخشە"
-          >
-            <span className="font-heading font-semibold text-xs">
-              {isMoreMenuOpen ? 'داخستن' : 'زیاتر'}
-            </span>
-            {isMoreMenuOpen ? (
-              <X className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
-            )}
-          </button>
-        </div>
-
-        {/* بەشی زیاتر: مێنیوی شوشەی شلە (Liquid Glass Menu) */}
-        {isMoreMenuOpen && (
-          <div
-            className="relative w-64 liquid-glass-card rounded-3xl p-2 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.15)] backdrop-blur-3xl text-right flex flex-col gap-1.5 animate-menu-dropdown z-30 overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="glass-specular-ray" />
-
-            {/* دۆخی دیمەن: ڕووناکی نەرم / تاریک (Appearance Mode) */}
-            <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs text-right">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                  {colorMode === 'light' ? (
-                    <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  ) : (
-                    <Moon className="w-3.5 h-3.5 text-amber-400" />
-                  )}
-                  <span>دۆخی دیمەن</span>
-                </span>
-                <span className="text-[10px] text-amber-400 font-bold">
-                  {colorMode === 'light' ? 'ڕووناکی نەرم' : 'تاریک'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-1 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => setColorMode('light')}
-                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    colorMode === 'light'
-                      ? 'liquid-glass-btn-active text-white shadow-md'
-                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
-                  }`}
-                >
-                  <Sun className="w-3.5 h-3.5 text-amber-300" />
-                  <span>ڕووناک</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setColorMode('dark')}
-                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    colorMode === 'dark'
-                      ? 'liquid-glass-btn-active text-white shadow-md'
-                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
-                  }`}
-                >
-                  <Moon className="w-3.5 h-3.5 text-amber-300" />
-                  <span>تاریک</span>
-                </button>
-              </div>
-            </div>
-
-            {/* شێوازی نیشاندانی مارکەرەکان (وێنەیی / خاڵەکان) */}
-            <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs text-right">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
-                  <span>شێوازی نەخشە</span>
-                </span>
-                <span className="text-[10px] text-amber-300 font-bold">
-                  {markerViewMode === 'photo' ? 'وێنەیی (چوارگۆشە)' : 'خاڵەکان'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-1 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMarkerViewMode('photo');
-                  }}
-                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    markerViewMode === 'photo'
-                      ? 'bg-amber-400 text-black shadow-md'
-                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
-                  }`}
-                >
-                  <ImageIcon className="w-3 h-3" />
-                  <span>وێنەیی</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMarkerViewMode('points');
-                    setShowBottomPhotoStrip(false);
-                  }}
-                  className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    markerViewMode === 'points'
-                      ? 'bg-amber-400 text-black shadow-md'
-                      : 'bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12]'
-                  }`}
-                >
-                  <MapPin className="w-3 h-3" />
-                  <span>خاڵەکان</span>
-                </button>
-              </div>
-
-              {/* Toggling Bottom Photo Strip */}
-              {markerViewMode === 'photo' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBottomPhotoStrip((prev) => !prev);
-                  }}
-                  className="w-full flex items-center justify-between px-2 py-1 rounded-lg text-[11px] text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors mt-1"
-                >
-                  <span>شریتی وێنەیی خوارەوە</span>
-                  <span className={`text-[10px] font-bold ${showBottomPhotoStrip ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    {showBottomPhotoStrip ? 'کراوەیە' : 'داخراوە'}
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* بەشی ڕووکار (Theme & Appearance) */}
-            <div className="p-2 rounded-2xl liquid-glass-subtle border border-white/10 space-y-1.5 shadow-xs">
+          {/* ئایکۆنی گشتی گەشتی مێژوویی (پۆستەرەکان) */}
+          {onOpenJourney && (
+            <>
+              {(onOpenHero || onOpenGallery) && <div className="w-[1px] h-4 bg-white/10 mx-0.5" />}
               <button
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  if (onOpenTheme) onOpenTheme();
-                  else setIsThemeModalOpen(true);
-                }}
-                className="w-full flex items-center justify-between p-1 rounded-xl text-xs hover:bg-white/10 text-slate-200 hover:text-white transition-all cursor-pointer group"
-                title="گۆڕینی ستایل و ڕەنگەکانی بەرنامە"
+                onClick={onOpenJourney}
+                className="relative p-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
+                title="گەشتی مێژوویی (پۆستەری مێژوویی)"
+                aria-label="گەشتی مێژوویی"
               >
-                <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" style={{ color: theme.primaryColor }} />
-                  <span className="font-bold text-white">بەشی ڕووکار</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shadow-xs border border-white/40"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  />
-                  <span className="text-[10px] text-amber-300 font-bold truncate max-w-[85px]">
-                    {theme.name.split(' ')[0]}
-                  </span>
-                </div>
+                <History className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
               </button>
+            </>
+          )}
 
-              {/* 7 Theme Quick-Pick Swatch Bubbles */}
-              <div className="flex items-center justify-between px-1 pt-0.5">
-                <span className="text-[9px] text-slate-400 font-medium">ستایلەکان:</span>
-                <div className="flex items-center gap-1">
-                  {THEME_LIST.map((t) => {
-                    const isCur = themeId === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTheme(t.id);
-                        }}
-                        className={`w-4 h-4 rounded-full transition-all cursor-pointer border ${
-                          isCur
-                            ? 'scale-125 border-white ring-2 ring-white/60 shadow-[0_0_8px_var(--theme-accent)] z-10'
-                            : 'border-black/50 opacity-75 hover:opacity-100 hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: t.primaryColor }}
-                        title={`${t.name} (${t.englishName})`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* 3. مارکەرەکان (Layers Toggle) */}
-            <button
-              onClick={() => {
-                setShowAllMarkers(!showAllMarkers);
-                setIsMoreMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200 transition-all cursor-pointer shadow-xs"
-            >
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-medium">نیشاندانی مارکەرەکان</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-slate-200 border border-white/10">
-                {showAllMarkers ? `هەمووی (${facts.length})` : 'یەک'}
-              </span>
-            </button>
-
-            {/* 4. تەواوی نەخشەی کوردستان (Full Map View) */}
-            <button
-              onClick={() => {
-                handleResetCamera();
-                setIsMoreMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200 transition-all cursor-pointer shadow-xs"
-            >
-              <div className="flex items-center gap-2.5">
-                <Compass className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-medium">تەواوی نەخشە</span>
-              </div>
-            </button>
-
-            {/* 5. گۆڕینی شێوازی نەخشە: تاریک / مانگی دەستکرد */}
-            <button
-              onClick={() => {
-                setMapMode(mapMode === 'dark' ? 'satellite' : 'dark');
-                setIsMoreMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200 transition-all cursor-pointer shadow-xs"
-            >
-              <div className="flex items-center gap-2.5">
-                <Satellite className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="font-medium">
-                  {mapMode === 'dark' ? 'نەخشەی مانگی دەستکرد' : 'نەخشەی تاریک'}
-                </span>
-              </div>
-            </button>
-
-            {/* 6. زیادکردنی بابەت و وێنە (کاتێک ئەدمین چالاکە) */}
-            {isAdmin && onOpenAddFact && (
-              <div className="flex flex-col gap-1.5 w-full">
-                <button
-                  onClick={() => {
-                    setIsMoreMenuOpen(false);
-                    onOpenAddFact('photo_only');
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/50 text-amber-200 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ImageIcon className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="font-bold">فۆڕمی وێنەی مێژوویی</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMoreMenuOpen(false);
-                    onOpenAddFact('standard');
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Plus className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="font-bold">فۆڕمی گشتی بابەت</span>
-                  </div>
-                </button>
-              </div>
-            )}
-
-            {/* 7. بەڕێوەبردن (Admin Secret Mode) */}
-            <button
-              onClick={() => {
-                handleAdminIconClick();
-                if (isAdmin) setIsMoreMenuOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
-                isAdmin
-                  ? 'bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                  : 'liquid-glass-subtle hover:border-amber-400/40 text-slate-200 hover:text-amber-200'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                {isAdmin ? (
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <Shield className="w-4 h-4 text-amber-400/80 shrink-0" />
-                )}
-                <span className="font-medium">
-                  {isAdmin
-                    ? 'ئەدمین چالاکە'
-                    : adminTapCount > 0
-                    ? `بەڕێوەبردن (${adminTapCount}/6)`
-                    : 'بەڕێوەبردن'}
-                </span>
-              </div>
-            </button>
-          </div>
-        )}
+          {/* ئایکۆنی ڕێکخستنەکان */}
+          {onOpenSettings && (
+            <>
+              <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+              <button
+                onClick={onOpenSettings}
+                className="relative p-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
+                title="ڕێکخستنەکان (Settings)"
+                aria-label="ڕێکخستنەکان"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 5. Bottom Center Floating Capsule & Year Timeline Slider Dock (باریک، تەنک و ڕوون لەسەر مۆبایل بەبێ پێویستی بە سکرۆڵ) */}
@@ -1903,26 +1658,26 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none z-30 animate-fade-in" />
           <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none z-30 animate-fade-in" />
 
-          {/* Floating Cinematic Story Card */}
-          <div className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-[94%] max-w-lg z-40 pointer-events-auto animate-fade-in text-right">
-            <div className="relative liquid-glass-panel rounded-3xl p-3.5 sm:p-4 border border-amber-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.25)] overflow-hidden">
+          {/* Floating Cinematic Story Card - Large Organized Visual Presentation */}
+          <div className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-[95%] sm:w-[92%] md:max-w-3xl lg:max-w-4xl z-40 pointer-events-auto animate-fade-in text-right">
+            <div className="relative liquid-glass-panel rounded-3xl p-4 sm:p-5 border border-amber-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.25)] overflow-hidden">
               <div className="glass-specular-ray" />
 
               {/* Card Header: Mode Badge, Progress Counter, Speed Selector, Close */}
               <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs">
-                    <Film className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  <div className="w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs border border-amber-400/30">
+                    <Film className="w-4 h-4 text-amber-400 animate-pulse" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-black text-amber-300 font-heading tracking-wide truncate">
+                      <span className="text-xs sm:text-sm font-black text-amber-300 font-heading tracking-wide truncate">
                         گەشتی بینراوی مێژوویی
                       </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
                     </div>
-                    <span className="text-[10px] font-mono text-slate-300">
-                      شوێنی {toKurdishDigits(tourIndex + 1)} لە {toKurdishDigits(tourList.length)}
+                    <span className="text-[10px] sm:text-[11px] font-mono text-slate-300">
+                      شوێنی <span className="text-amber-300 font-bold">{toKurdishDigits(tourIndex + 1)}</span> لە {toKurdishDigits(tourList.length)}
                     </span>
                   </div>
                 </div>
@@ -1948,7 +1703,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
                   <button
                     onClick={handleToggleTour}
-                    className="w-7 h-7 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer border border-white/15"
                     title="داخستنی گەشت"
                   >
                     <X className="w-4 h-4" />
@@ -1964,108 +1719,169 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 />
               </div>
 
-              {/* Story Content Row */}
-              <div className="flex gap-3 items-start my-1">
+              {/* Prominent Large Visual Presentation & Information Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 sm:gap-5 my-2.5 items-stretch">
+                {/* 1. Large Archival Photo Frame (گەورە و دیار) */}
                 {(() => {
                   const tourImg = getFactDisplayImage(currentTourFact);
-                  if (!tourImg) return null;
                   return (
-                    <img
-                      src={getOptimizedImageUrl(tourImg, 'thumb')}
-                      alt={currentTourFact.name}
-                      loading="lazy"
-                      decoding="async"
-                      onClick={() =>
-                        setLightboxImage({
-                          url: tourImg,
-                          title: currentTourFact.name,
-                          caption: currentTourFact.imageCaption || currentTourFact.desc,
-                        })
-                      }
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0 border border-white/20 cursor-pointer shadow-md hover:scale-105 transition-transform"
-                      title="کلیک بکە بۆ گەورەکردنی وێنە"
-                    />
+                    <div
+                      className="md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 rounded-2xl overflow-hidden border border-white/20 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
+                      onClick={() => {
+                        if (tourImg) {
+                          setLightboxImage({
+                            url: tourImg,
+                            title: currentTourFact.name,
+                            caption: currentTourFact.imageCaption || currentTourFact.desc,
+                          });
+                        }
+                      }}
+                      title="کلیک بکە بۆ بینینی وێنەکە بە سایزی تەواو"
+                    >
+                      {tourImg ? (
+                        <>
+                          {/* Ambient atmospheric blurred backdrop */}
+                          <img
+                            src={getOptimizedImageUrl(tourImg, 'thumb')}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-40 select-none pointer-events-none"
+                          />
+                          {/* Crisp main subject */}
+                          <img
+                            src={getOptimizedImageUrl(tourImg, 'full')}
+                            alt={currentTourFact.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="relative z-10 max-h-full max-w-full w-auto h-auto object-contain md:object-cover rounded-xl transition-transform duration-700 ease-out group-hover:scale-105"
+                          />
+                          {/* Gradient shadow overlay */}
+                          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-20 pointer-events-none" />
+
+                          {/* Zoom prompt badge */}
+                          <div className="absolute bottom-2.5 left-2.5 z-30 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md text-amber-300 text-[10px] font-bold border border-white/15 flex items-center gap-1 group-hover:bg-amber-500 group-hover:text-black transition-all">
+                            <Maximize2 className="w-3 h-3" />
+                            <span>گەورەکردن</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-4 text-center z-10 space-y-2">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
+                            <Landmark className="w-6 h-6" />
+                          </div>
+                          <span className="text-xs text-slate-300 font-bold">{currentTourFact.name}</span>
+                          <span className="text-[10px] text-amber-300/80 font-mono">وێنەی ئەرشیفی</span>
+                        </div>
+                      )}
+
+                      {/* Overlaid category & period badge on image */}
+                      <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 pointer-events-none">
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/40 shadow-sm">
+                          {getCategoryInfo(currentTourFact).name}
+                        </span>
+                      </div>
+                    </div>
                   );
                 })()}
 
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <h3 className="text-sm sm:text-base font-extrabold text-white truncate tracking-wide">
+                {/* 2. Structured Information & Historical Narrative (ڕێکخراو و پوختە) */}
+                <div className="md:col-span-7 flex flex-col justify-between space-y-2.5">
+                  <div className="space-y-2">
+                    {/* Meta row: Era, Year, Region */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {(currentTourFact.year || currentTourFact.century) && (
+                        <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-xl liquid-glass-subtle text-amber-300 border border-amber-400/30 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-amber-400" />
+                          <span>{currentTourFact.year || currentTourFact.century}</span>
+                        </span>
+                      )}
+                      {currentTourFact.eraName && (
+                        <span className="text-[10px] text-slate-200 bg-white/10 px-2.5 py-0.5 rounded-lg border border-white/10">
+                          {currentTourFact.eraName}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mr-auto" dir="ltr">
+                        <Compass className="w-3 h-3 text-amber-400" />
+                        <span>{currentTourFact.lat.toFixed(1)}°N, {currentTourFact.lng.toFixed(1)}°E</span>
+                      </span>
+                    </div>
+
+                    {/* Main Title */}
+                    <h3 className="text-base sm:text-lg md:text-xl font-extrabold text-white font-heading tracking-wide leading-tight">
                       {currentTourFact.name}
                     </h3>
-                    {(currentTourFact.year || currentTourFact.century) && (
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/30 shrink-0">
-                        {currentTourFact.year || currentTourFact.century}
-                      </span>
-                    )}
-                    {currentTourFact.eraName && (
-                      <span className="text-[9px] text-slate-300 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 shrink-0">
-                        {currentTourFact.eraName}
-                      </span>
-                    )}
+
+                    {/* Rich Historical Description */}
+                    <div className="text-xs sm:text-[13px] text-slate-100 leading-relaxed bg-black/40 p-3 sm:p-3.5 rounded-2xl border border-white/10 shadow-inner max-h-[130px] sm:max-h-[150px] overflow-y-auto">
+                      {currentTourFact.fullText || currentTourFact.desc}
+                    </div>
+
+                    {/* Region / Geographical highlight */}
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-400/20 text-[11px] text-amber-200/90">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="font-bold text-amber-300">شوێن و کات:</span>
+                      <span className="truncate">{currentTourFact.region || 'کوردستان'} · {currentTourFact.eraPeriod || currentTourFact.eraName}</span>
+                    </div>
                   </div>
 
-                  <p className="text-[11px] sm:text-xs text-slate-200 line-clamp-2 leading-relaxed">
-                    {currentTourFact.desc || currentTourFact.fullText}
-                  </p>
-                </div>
-              </div>
+                  {/* Bottom Interactive Navigation & Action Dock */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-white/10 text-xs gap-2">
+                    {/* Media Controls (Prev, Pause/Play, Next) */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handlePrevTourFact}
+                        title="شوێنی پێشوو"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-xs"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">پێشوو</span>
+                      </button>
 
-              {/* Bottom Interactive Navigation & Action Dock */}
-              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-white/10 text-xs">
-                {/* Media Controls (Prev, Pause/Play, Next) */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={handlePrevTourFact}
-                    title="شوێنی پێشوو"
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-[11px]"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">پێشوو</span>
-                  </button>
+                      <button
+                        onClick={() => setIsTourPaused(!isTourPaused)}
+                        title={isTourPaused ? 'دەستپێکردنەوەی گەشت' : 'وەستاندنی کاتی'}
+                        className={`flex items-center gap-1 px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer text-xs ${
+                          isTourPaused
+                            ? 'liquid-glass-btn-active text-black shadow-md animate-pulse'
+                            : 'liquid-glass-btn text-amber-300 hover:text-white'
+                        }`}
+                      >
+                        {isTourPaused ? (
+                          <>
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>بەردەوامی</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="w-3.5 h-3.5 fill-current" />
+                            <span>وەستان</span>
+                          </>
+                        )}
+                      </button>
 
-                  <button
-                    onClick={() => setIsTourPaused(!isTourPaused)}
-                    title={isTourPaused ? 'دەستپێکردنەوەی گەشت' : 'وەستاندنی کاتی'}
-                    className={`flex items-center gap-1 px-3 py-1 rounded-xl font-bold transition-all cursor-pointer text-[11px] ${
-                      isTourPaused
-                        ? 'liquid-glass-btn-active text-black shadow-md animate-pulse'
-                        : 'liquid-glass-btn text-amber-300 hover:text-white'
-                    }`}
-                  >
-                    {isTourPaused ? (
-                      <>
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>بەردەوامی</span>
-                      </>
-                    ) : (
-                      <>
-                        <Pause className="w-3.5 h-3.5 fill-current" />
-                        <span>وەستان</span>
-                      </>
+                      <button
+                        onClick={handleNextTourFact}
+                        title="شوێنی دواتر"
+                        className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-xs"
+                      >
+                        <span className="hidden sm:inline">دواتر</span>
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* View Details Button */}
+                    {onOpenDetail && (
+                      <button
+                        onClick={() => onOpenDetail(currentTourFact)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold transition-all cursor-pointer text-xs shadow-sm"
+                        title="بینینی تەواوی سەرچاوە و بەڵگەنامەکان"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>تەواوی بابەت</span>
+                      </button>
                     )}
-                  </button>
-
-                  <button
-                    onClick={handleNextTourFact}
-                    title="شوێنی دواتر"
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-[11px]"
-                  >
-                    <span className="hidden sm:inline">دواتر</span>
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
+                  </div>
                 </div>
-
-                {/* View Details Button */}
-                {onOpenDetail && (
-                  <button
-                    onClick={() => onOpenDetail(currentTourFact)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-subtle hover:liquid-glass-btn text-amber-300 hover:text-white transition-all cursor-pointer text-[11px] font-bold"
-                  >
-                    <Maximize2 className="w-3 h-3 text-amber-400" />
-                    <span>وردەکاری تەواو</span>
-                  </button>
-                )}
               </div>
             </div>
           </div>

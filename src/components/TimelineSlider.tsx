@@ -63,7 +63,7 @@ export const TimelineSlider: React.FC<Props> = ({
   // Horizontal scroll container ref for the ruler
   const rulerContainerRef = useRef<HTMLDivElement>(null);
   const isUserInteractingRef = useRef(false);
-  const isProgrammaticScrollRef = useRef(false);
+  const isProgrammaticScrollRef = useRef(true);
   const programmaticScrollTimerRef = useRef<any>(null);
   const scrollDebounceTimerRef = useRef<any>(null);
 

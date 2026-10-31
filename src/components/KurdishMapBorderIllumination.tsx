@@ -271,7 +271,9 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
       } else {
         isTerminatedRef.current = true;
         ctx.clearRect(0, 0, width, height);
-        onComplete();
+        setTimeout(() => {
+          onComplete();
+        }, 0);
       }
     };
 
@@ -297,7 +299,9 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     }
-    onComplete();
+    setTimeout(() => {
+      onComplete();
+    }, 0);
   }, [onComplete]);
 
   if (!isActive) return null;

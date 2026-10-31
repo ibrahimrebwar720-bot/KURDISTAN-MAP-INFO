@@ -26,7 +26,9 @@ import { CollectionManagerModal } from './components/CollectionManagerModal';
 import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
-import { SocialCardGeneratorModal } from './components/SocialCardGeneratorModal';
+import { HeroSection } from './components/HeroSection';
+import { HistoricalJourneyModal } from './components/HistoricalJourneyModal';
+import { AppSettingsModal } from './components/AppSettingsModal';
 import { useTheme } from './context/ThemeContext';
 
 export default function App() {
@@ -40,7 +42,6 @@ export default function App() {
 
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(null);
   const [detailFact, setDetailFact] = useState<FactItem | null>(null);
-  const [socialCardFact, setSocialCardFact] = useState<FactItem | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Documentary Tour state & Map FlyTo bridge
@@ -56,6 +57,16 @@ export default function App() {
   const [showPolygon, setShowPolygon] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
+
+  // Hero Section, Historical Journey & Settings Modal State
+  const [isHeroOpen, setIsHeroOpen] = useState(true);
+  const [isJourneyOpen, setIsJourneyOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Map modes shared between Leaflet map and Settings Modal
+  const [mapMode, setMapMode] = useState<'dark' | 'satellite'>('dark');
+  const [markerViewMode, setMarkerViewMode] = useState<'photo' | 'points'>('points');
+  const [showBottomPhotoStrip, setShowBottomPhotoStrip] = useState<boolean>(false);
 
   // Admin Modals state
   const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
@@ -114,6 +125,8 @@ export default function App() {
         if (isPickingLocation) {
           setIsPickingLocation(false);
           setIsFactEditorOpen(true);
+        } else if (isJourneyOpen) {
+          setIsJourneyOpen(false);
         } else if (isAdminPinModalOpen) {
           setIsAdminPinModalOpen(false);
         } else if (isFactEditorOpen) {
@@ -134,6 +147,7 @@ export default function App() {
   }, [
     detailFact,
     isMenuOpen,
+    isJourneyOpen,
     isAdminPinModalOpen,
     isFactEditorOpen,
     isCollectionManagerOpen,
@@ -378,6 +392,14 @@ export default function App() {
           setShowAllMarkers={setShowAllMarkers}
           showPolygon={showPolygon}
           setShowPolygon={setShowPolygon}
+          onOpenHero={() => setIsHeroOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          mapMode={mapMode}
+          setMapMode={setMapMode}
+          markerViewMode={markerViewMode}
+          setMarkerViewMode={setMarkerViewMode}
+          showBottomPhotoStrip={showBottomPhotoStrip}
+          setShowBottomPhotoStrip={setShowBottomPhotoStrip}
           onOpenMenu={() => {
             setIsMenuOpen(true);
           }}
@@ -407,6 +429,7 @@ export default function App() {
           onOpenDocumentaryTour={() => {
             setIsDocumentaryTourOpen(true);
           }}
+          onOpenJourney={() => setIsJourneyOpen(true)}
           externalFlyTo={externalFlyTo}
         />
 
@@ -438,7 +461,6 @@ export default function App() {
               onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
               onOpenGallery={() => setIsGalleryOpen(true)}
               onOpenTheme={() => setIsThemeModalOpen(true)}
-              onOpenSocialCard={(fact) => setSocialCardFact(fact)}
               onClose={() => setIsMenuOpen(false)}
               onLogoutAdmin={handleAdminLogout}
             />
@@ -529,15 +551,78 @@ export default function App() {
         onClose={() => setIsThemeModalOpen(false)}
       />
 
-      {/* Social Media Story & Infographic Generator Modal */}
-      {socialCardFact && (
-        <SocialCardGeneratorModal
-          isOpen={!!socialCardFact}
-          onClose={() => setSocialCardFact(null)}
-          fact={socialCardFact}
-          allFacts={facts}
+      {/* App Settings Modal (ڕێکخستنەکان - former زیاتر) */}
+      <AppSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        markerViewMode={markerViewMode}
+        setMarkerViewMode={setMarkerViewMode}
+        showBottomPhotoStrip={showBottomPhotoStrip}
+        setShowBottomPhotoStrip={setShowBottomPhotoStrip}
+        showAllMarkers={showAllMarkers}
+        setShowAllMarkers={setShowAllMarkers}
+        showPolygon={showPolygon}
+        setShowPolygon={setShowPolygon}
+        onReplayIntro={() => {
+          setIsSettingsOpen(false);
+          setIsHeroOpen(false);
+          setShowIntro(true);
+        }}
+        onOpenDocumentaryTour={() => {
+          setIsSettingsOpen(false);
+          setIsHeroOpen(false);
+          setIsDocumentaryTourOpen(true);
+        }}
+        onOpenGallery={() => {
+          setIsSettingsOpen(false);
+          setIsGalleryOpen(true);
+        }}
+        onOpenTheme={() => {
+          setIsSettingsOpen(false);
+          setIsThemeModalOpen(true);
+        }}
+        isAdmin={isAdmin}
+        onTriggerAdminPin={() => {
+          setIsSettingsOpen(false);
+          setIsAdminPinModalOpen(true);
+        }}
+        onLogoutAdmin={handleAdminLogout}
+        onOpenAddFact={handleOpenAddFact}
+        factsCount={facts.length}
+      />
+
+      {/* Iconic Entrance Hero Section (مەدخەل و سێکشنی سەرەکی) */}
+      {isHeroOpen && (
+        <HeroSection
+          facts={facts}
+          onEnterMap={() => setIsHeroOpen(false)}
+          onOpenJourney={() => setIsJourneyOpen(true)}
+          onOpenMenu={() => {
+            setIsHeroOpen(false);
+            setIsMenuOpen(true);
+          }}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenGallery={() => setIsGalleryOpen(true)}
         />
       )}
+
+      {/* Historical Journey 3-Fact Poster Modal (گەشتی مێژوویی - لاپەڕەی کتێب) */}
+      <HistoricalJourneyModal
+        isOpen={isJourneyOpen}
+        onClose={() => setIsJourneyOpen(false)}
+        facts={facts}
+        onOpenDetail={(fact) => {
+          setIsJourneyOpen(false);
+          setDetailFact(fact);
+        }}
+        onFlyToFact={(fact) => {
+          setIsJourneyOpen(false);
+          setIsHeroOpen(false);
+          handleSelectFact(fact);
+        }}
+      />
     </div>
   );
 }

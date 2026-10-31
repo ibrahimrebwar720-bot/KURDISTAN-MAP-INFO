@@ -15,7 +15,10 @@ import {
   Film,
   MapPin,
   CheckCircle2,
+  Maximize2,
 } from 'lucide-react';
+import { getFactDisplayImage } from '../utils/historicalImages';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 export interface MilestoneStory {
   id: string;
@@ -287,6 +290,7 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const playTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeMilestone = DOCUMENTARY_MILESTONES[currentIndex];
@@ -302,6 +306,11 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
     [onFlyToCoords]
   );
 
+  const currentIndexRef = useRef(currentIndex);
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
   // Auto-play slideshow timer (8 seconds per milestone)
   useEffect(() => {
     if (!isOpen || !isPlaying) {
@@ -310,12 +319,13 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
     }
 
     playTimerRef.current = setInterval(() => {
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % DOCUMENTARY_MILESTONES.length;
-        const target = DOCUMENTARY_MILESTONES[next];
+      const next = (currentIndexRef.current + 1) % DOCUMENTARY_MILESTONES.length;
+      currentIndexRef.current = next;
+      setCurrentIndex(next);
+      const target = DOCUMENTARY_MILESTONES[next];
+      if (target) {
         onFlyToCoords(target.lat, target.lng, target.zoom, target.title);
-        return next;
-      });
+      }
     }, 8500);
 
     return () => {
@@ -425,15 +435,15 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Center Cinematic Scrollytelling Story Card */}
-      <div className="pointer-events-auto max-w-xl w-full mx-auto sm:mr-6 sm:ml-auto p-3 sm:p-5 mb-3 sm:mb-6 animate-spatial-spring">
+      {/* Center Cinematic Scrollytelling Story Card - Large Organized Visual Presentation */}
+      <div className="pointer-events-auto max-w-4xl lg:max-w-5xl w-full mx-auto p-3 sm:p-5 mb-2 sm:mb-4 animate-spatial-spring">
         <div
-          className="relative rounded-3xl liquid-glass-card p-5 sm:p-6 shadow-[0_25px_60px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.4)] border border-white/15 backdrop-blur-3xl overflow-hidden text-right"
+          className="relative rounded-3xl liquid-glass-card p-4 sm:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.96),inset_0_1px_1px_rgba(255,255,255,0.4)] border border-white/20 backdrop-blur-3xl overflow-hidden text-right"
           style={{
-            boxShadow: `0 25px 60px rgba(0,0,0,0.95), 0 0 30px ${activeMilestone.accentColor}25`,
+            boxShadow: `0 25px 70px rgba(0,0,0,0.96), 0 0 40px ${activeMilestone.accentColor}30`,
           }}
         >
-          {/* Subtle Accent Glow Ring */}
+          {/* Accent Glow Ring */}
           <div
             className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-l from-amber-400 via-red-500 to-emerald-400"
             style={{
@@ -441,118 +451,214 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
             }}
           />
 
-          {/* Header Row: Category Badge, Period & Location */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <span
-                className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-xs"
-                style={{
-                  backgroundColor: `${activeMilestone.accentColor}25`,
-                  color: activeMilestone.accentColor,
-                  borderColor: `${activeMilestone.accentColor}50`,
-                }}
-              >
-                {activeMilestone.categoryName}
-              </span>
-              <span className="text-[10px] text-amber-300 font-mono font-bold flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md">
-                <Calendar className="w-3 h-3 text-amber-400" />
-                <span>{activeMilestone.period}</span>
-              </span>
+          {/* Large Visual Presentation & Information Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+            {/* 1. Large Archival Photo Frame (گەورە و دیار) */}
+            {(() => {
+              const linkedImg = linkedFact ? getFactDisplayImage(linkedFact) : '';
+              const milestoneImg = linkedImg || activeMilestone.imageUrl || '';
+              return (
+                <div
+                  className="md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 lg:h-80 rounded-2xl overflow-hidden border border-white/20 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
+                  onClick={() => {
+                    if (milestoneImg) setShowLightbox(true);
+                  }}
+                  title="کلیک بکە بۆ بینینی وێنەکە بە سایزی گەورە"
+                >
+                  {milestoneImg ? (
+                    <>
+                      {/* Ambient atmospheric blurred backdrop */}
+                      <img
+                        src={getOptimizedImageUrl(milestoneImg, 'thumb')}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-40 select-none pointer-events-none"
+                      />
+                      {/* Crisp main subject */}
+                      <img
+                        src={getOptimizedImageUrl(milestoneImg, 'full')}
+                        alt={activeMilestone.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="relative z-10 max-h-full max-w-full w-auto h-auto object-contain md:object-cover rounded-xl transition-transform duration-700 ease-out group-hover:scale-105"
+                      />
+                      {/* Gradient shadow overlay */}
+                      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-20 pointer-events-none" />
+
+                      {/* Zoom prompt badge */}
+                      <div className="absolute bottom-2.5 left-2.5 z-30 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md text-amber-300 text-[10px] font-bold border border-white/15 flex items-center gap-1 group-hover:bg-amber-500 group-hover:text-black transition-all">
+                        <Maximize2 className="w-3 h-3" />
+                        <span>گەورەکردن</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-4 text-center z-10 space-y-2">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
+                        <Film className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs text-slate-300 font-bold">{activeMilestone.title}</span>
+                      <span className="text-[10px] text-amber-300/80 font-mono">وێنەی ئەرشیفی</span>
+                    </div>
+                  )}
+
+                  {/* Overlaid category badge on image */}
+                  <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 pointer-events-none">
+                    <span
+                      className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-sm backdrop-blur-md bg-black/70"
+                      style={{
+                        color: activeMilestone.accentColor,
+                        borderColor: `${activeMilestone.accentColor}70`,
+                      }}
+                    >
+                      {activeMilestone.categoryName}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 2. Structured Narrative & Historical Information */}
+            <div className="md:col-span-7 flex flex-col justify-between space-y-3">
+              <div className="space-y-2.5">
+                {/* Meta Row: Period, Coordinates, Counter */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-300 font-mono font-bold flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl border border-white/10">
+                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{activeMilestone.period}</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 font-mono">
+                      وێستگەی {currentIndex + 1} لە {DOCUMENTARY_MILESTONES.length}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono" dir="ltr">
+                    <Compass className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '10s' }} />
+                    <span>
+                      {activeMilestone.lat.toFixed(1)}°N, {activeMilestone.lng.toFixed(1)}°E
+                    </span>
+                  </div>
+                </div>
+
+                {/* Main Title & Headline */}
+                <div className="space-y-1">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-black font-heading text-white tracking-wide leading-tight">
+                    {activeMilestone.title}
+                  </h2>
+                  <p className="text-xs sm:text-sm font-bold text-amber-300/95 leading-snug">
+                    {activeMilestone.headline}
+                  </p>
+                </div>
+
+                {/* Narrative Story Body */}
+                <p className="text-xs sm:text-[13px] text-slate-100 leading-relaxed sm:leading-loose bg-black/40 p-3 sm:p-3.5 rounded-2xl border border-white/10 shadow-inner max-h-[130px] sm:max-h-[140px] overflow-y-auto">
+                  {activeMilestone.storyText}
+                </p>
+
+                {/* Historical Significance Box */}
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-amber-500/10 border border-amber-400/25 flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-[11px] sm:text-xs text-amber-200/95 leading-relaxed">
+                    <span className="font-bold text-amber-300">گرنگیی مێژوویی: </span>
+                    {activeMilestone.significance}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Bar: Navigation Controls & Progress Dots */}
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10">
+                {/* Step Prev & Next */}
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentIndex === 0}
+                    onClick={() => navigateToMilestone(currentIndex - 1)}
+                    className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                      currentIndex === 0
+                        ? 'opacity-30 border-white/5 cursor-not-allowed'
+                        : 'liquid-glass-btn text-slate-200 hover:text-white border-white/15 active:scale-95'
+                    }`}
+                    title="وێستگەی پێشوو"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    disabled={currentIndex === DOCUMENTARY_MILESTONES.length - 1}
+                    onClick={() => navigateToMilestone(currentIndex + 1)}
+                    className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                      currentIndex === DOCUMENTARY_MILESTONES.length - 1
+                        ? 'opacity-30 border-white/5 cursor-not-allowed'
+                        : 'liquid-glass-btn text-amber-300 hover:text-white border-white/15 active:scale-95'
+                    }`}
+                    title="وێستگەی دواتر"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Step Dots Indicator */}
+                <div className="flex items-center gap-1.5 overflow-x-auto px-2 py-1 scrollbar-none max-w-[180px] sm:max-w-[240px]">
+                  {DOCUMENTARY_MILESTONES.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => navigateToMilestone(idx)}
+                      className={`transition-all rounded-full cursor-pointer shrink-0 ${
+                        currentIndex === idx
+                          ? 'w-6 h-2 bg-amber-400 shadow-[0_0_10px_#f59e0b]'
+                          : 'w-2 h-2 bg-white/25 hover:bg-white/50'
+                      }`}
+                      title={`وێستگەی ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+
+                {/* Read Full Detail if linked fact exists */}
+                {linkedFact && onOpenFactDetail && (
+                  <button
+                    onClick={() => onOpenFactDetail(linkedFact)}
+                    className="px-3.5 py-1.5 rounded-xl liquid-glass-btn-active text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    title="بینینی تەواوی زانیاری و بەڵگەنامەکان لە نەخشەدا"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>تەواوی بابەت</span>
+                  </button>
+                )}
+              </div>
             </div>
-
-            <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
-              <Compass className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '10s' }} />
-              <span>
-                {activeMilestone.lat.toFixed(1)}°N, {activeMilestone.lng.toFixed(1)}°E
-              </span>
-            </div>
-          </div>
-
-          {/* Main Title & Headline */}
-          <div className="space-y-1.5 mb-3.5">
-            <h2 className="text-lg sm:text-xl font-extrabold font-heading text-white tracking-wide leading-tight">
-              {activeMilestone.title}
-            </h2>
-            <p className="text-xs sm:text-sm font-semibold text-amber-300/90 leading-snug">
-              {activeMilestone.headline}
-            </p>
-          </div>
-
-          {/* Narrative Story Body */}
-          <p className="text-xs sm:text-[13px] text-slate-200 leading-relaxed sm:leading-loose mb-4 bg-black/40 p-3.5 rounded-2xl border border-white/5">
-            {activeMilestone.storyText}
-          </p>
-
-          {/* Historical Significance Box */}
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/25 mb-4 flex items-start gap-2.5">
-            <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-[11px] text-amber-200/95 leading-relaxed">
-              <span className="font-bold text-amber-300">گرنگیی مێژوویی: </span>
-              {activeMilestone.significance}
-            </div>
-          </div>
-
-          {/* Bottom Bar: Navigation Controls & Progress Dots */}
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10">
-            {/* Step Prev & Next */}
-            <div className="flex items-center gap-2">
-              <button
-                disabled={currentIndex === 0}
-                onClick={() => navigateToMilestone(currentIndex - 1)}
-                className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                  currentIndex === 0
-                    ? 'opacity-30 border-white/5 cursor-not-allowed'
-                    : 'liquid-glass-btn text-slate-200 hover:text-white border-white/15 active:scale-95'
-                }`}
-                title="وێستگەی پێشوو"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              <button
-                disabled={currentIndex === DOCUMENTARY_MILESTONES.length - 1}
-                onClick={() => navigateToMilestone(currentIndex + 1)}
-                className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                  currentIndex === DOCUMENTARY_MILESTONES.length - 1
-                    ? 'opacity-30 border-white/5 cursor-not-allowed'
-                    : 'liquid-glass-btn text-amber-300 hover:text-white border-white/15 active:scale-95'
-                }`}
-                title="وێستگەی دواتر"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Step Dots Indicator */}
-            <div className="flex items-center gap-1 overflow-x-auto px-2 py-1 scrollbar-none max-w-[180px] sm:max-w-[240px]">
-              {DOCUMENTARY_MILESTONES.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => navigateToMilestone(idx)}
-                  className={`transition-all rounded-full cursor-pointer shrink-0 ${
-                    currentIndex === idx
-                      ? 'w-5 h-2 bg-amber-400 shadow-[0_0_8px_#f59e0b]'
-                      : 'w-2 h-2 bg-white/20 hover:bg-white/40'
-                  }`}
-                  title={`وێستگەی ${idx + 1}`}
-                />
-              ))}
-            </div>
-
-            {/* Read Full Detail if linked fact exists */}
-            {linkedFact && onOpenFactDetail && (
-              <button
-                onClick={() => onOpenFactDetail(linkedFact)}
-                className="px-3 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-amber-400/30"
-                title="بینینی تەواوی زانیاری و بەڵگەنامەکان"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden sm:inline">زانیاری تەواو</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Lightbox Fullscreen Preview for Milestone Image */}
+      {showLightbox && (() => {
+        const linkedImg = linkedFact ? getFactDisplayImage(linkedFact) : '';
+        const milestoneImg = linkedImg || activeMilestone.imageUrl || '';
+        return (
+          <div
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4 pointer-events-auto animate-fade-in"
+            onClick={() => setShowLightbox(false)}
+          >
+            <button
+              onClick={() => setShowLightbox(false)}
+              className="absolute top-4 right-4 w-11 h-11 rounded-2xl liquid-glass-btn text-white flex items-center justify-center transition-all cursor-pointer border border-white/20 shadow-xl"
+              title="داخستن"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="max-w-4xl max-h-[85vh] flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={getOptimizedImageUrl(milestoneImg, 'full')}
+                alt={activeMilestone.title}
+                className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.9)]"
+              />
+              <div className="text-center text-white space-y-1">
+                <h3 className="text-lg font-bold font-heading text-amber-300">{activeMilestone.title}</h3>
+                <p className="text-xs text-slate-300">{activeMilestone.headline} · {activeMilestone.period}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

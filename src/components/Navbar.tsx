@@ -21,7 +21,12 @@ export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
             className="w-5 h-5 rounded-full object-cover border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.35)] shrink-0"
           />
           <div className="flex items-center gap-1.5 min-w-0">
-            <h1 className="text-[11px] sm:text-xs font-black font-heading text-slate-100 tracking-wide truncate">
+            <h1
+              className="text-[11px] sm:text-xs font-black font-heading text-slate-100 tracking-wide truncate"
+              style={{
+                textShadow: '0 1px 3px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5)',
+              }}
+            >
               KURDISTAN INFO MAP
             </h1>
             <span className="text-[9px] text-amber-300 font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle border-amber-400/30 shrink-0 shadow-xs">

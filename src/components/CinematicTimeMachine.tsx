@@ -49,11 +49,19 @@ export const CinematicTimeMachine: React.FC<Props> = ({
   const progressIntervalRef = useRef<any>(null);
   const STATION_DURATION = 9000; // 9 seconds per station in auto-play mode
 
+  const tourProgressRef = useRef(0);
+  const currentIndexRef = useRef(currentIndex);
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
   // Handle flying camera on station change
   const navigateToStation = useCallback(
     (index: number, _playChime?: boolean) => {
       const validIndex = (index + CINEMATIC_STATIONS.length) % CINEMATIC_STATIONS.length;
       setCurrentIndex(validIndex);
+      currentIndexRef.current = validIndex;
+      tourProgressRef.current = 0;
       setTourProgress(0);
 
       const target = CINEMATIC_STATIONS[validIndex];
@@ -67,9 +75,11 @@ export const CinematicTimeMachine: React.FC<Props> = ({
     if (isOpen) {
       navigateToStation(currentIndex);
       setIsPlaying(true);
+      tourProgressRef.current = 0;
       setTourProgress(0);
     } else {
       setIsPlaying(false);
+      tourProgressRef.current = 0;
       setTourProgress(0);
     }
   }, [isOpen]);
@@ -84,20 +94,21 @@ export const CinematicTimeMachine: React.FC<Props> = ({
 
     const intervalStep = 100;
     progressIntervalRef.current = setInterval(() => {
-      setTourProgress((prev) => {
-        const next = prev + (intervalStep / STATION_DURATION) * 100;
-        if (next >= 100) {
-          navigateToStation(currentIndex + 1, true);
-          return 0;
-        }
-        return next;
-      });
+      const next = tourProgressRef.current + (intervalStep / STATION_DURATION) * 100;
+      if (next >= 100) {
+        tourProgressRef.current = 0;
+        setTourProgress(0);
+        navigateToStation(currentIndexRef.current + 1, true);
+      } else {
+        tourProgressRef.current = next;
+        setTourProgress(next);
+      }
     }, intervalStep);
 
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
-  }, [isOpen, isPlaying, currentIndex, navigateToStation]);
+  }, [isOpen, isPlaying, navigateToStation]);
 
   // Keyboard controls
   useEffect(() => {
