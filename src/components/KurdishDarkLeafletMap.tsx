@@ -29,7 +29,6 @@ import {
   ChevronRight,
   ChevronUp,
   Calendar,
-  History,
   Landmark,
   Award,
   Briefcase,
@@ -67,6 +66,7 @@ import { THEME_LIST } from '../types/theme';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { copyTopicToClipboard, getShareableTopicUrl } from '../utils/urlRouter';
 
 interface Props {
   facts: FactItem[];
@@ -1204,20 +1204,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             </>
           )}
 
-          {/* ئایکۆنی گشتی گەشتی مێژوویی (پۆستەرەکان) */}
-          {onOpenJourney && (
-            <>
-              {(onOpenHero || onOpenGallery) && <div className="w-[1px] h-4 bg-white/10 mx-0.5" />}
-              <button
-                onClick={onOpenJourney}
-                className="relative p-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
-                title="گەشتی مێژوویی (پۆستەری مێژوویی)"
-                aria-label="گەشتی مێژوویی"
-              >
-                <History className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-              </button>
-            </>
-          )}
+
 
           {/* ئایکۆنی ڕێکخستنەکان */}
           {onOpenSettings && (
@@ -1426,22 +1413,25 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `${selectedFact.name}\n${selectedFact.fullText || selectedFact.desc}\nشوێن: ${selectedFact.desc}`
-                    );
+                  onClick={async () => {
+                    const ok = await copyTopicToClipboard(selectedFact);
+                    if (!ok) {
+                      navigator.clipboard.writeText(
+                        `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 شوێن: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id)}`
+                      );
+                    }
                     setCopiedSummary(true);
                     setTimeout(() => setCopiedSummary(false), 2000);
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] transition-colors cursor-pointer"
-                  title="لەبەرگرتنەوەی دەق"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-[10px] transition-colors cursor-pointer"
+                  title="لەبەرگرتنەوەی دەق و بەستەری ڕاستەوخۆ"
                 >
                   {copiedSummary ? (
                     <Check className="w-3 h-3 text-emerald-400" />
                   ) : (
-                    <Copy className="w-3 h-3 text-slate-400" />
+                    <Copy className="w-3 h-3 text-amber-400" />
                   )}
-                  <span>{copiedSummary ? 'کۆپیکرا' : 'کۆپی'}</span>
+                  <span>{copiedSummary ? 'کۆپیکرا' : 'کۆپیکردنی بەستەر و دەق'}</span>
                 </button>
               </div>
             </div>

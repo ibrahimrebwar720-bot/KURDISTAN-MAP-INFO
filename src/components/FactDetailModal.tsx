@@ -34,6 +34,7 @@ import { getCategoryInfo } from '../types/history';
 import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { toKurdishDigits } from '../utils/yearUtils';
+import { getShareableTopicUrl, copyTopicToClipboard } from '../utils/urlRouter';
 
 const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
 
@@ -67,6 +68,7 @@ export const FactDetailModal: React.FC<Props> = ({
   totalFactsCount = 350,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [wikiData, setWikiData] = useState<WikipediaResult | null>(null);
 
   // Multi-image gallery state (up to 10 images)
@@ -123,12 +125,28 @@ export const FactDetailModal: React.FC<Props> = ({
 
   if (!fact) return null;
 
-  const handleCopyFact = () => {
-    navigator.clipboard.writeText(
-      `${fact.name}\n${fact.fullText}\nشوێن: ${fact.desc}${
-        fact.additionalNotes ? `\nزانیاری زیاتر: ${fact.additionalNotes}` : ''
-      }\nسەرچاوە: ئینسایکلۆپیدیای دەسەڵاتە کوردییەکان`
-    );
+  const handleCopyDirectUrl = async () => {
+    if (!fact) return;
+    const shareUrl = getShareableTopicUrl(fact.id);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 2500);
+      }
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleCopyFact = async () => {
+    if (!fact) return;
+    const ok = await copyTopicToClipboard(fact);
+    if (!ok) {
+      navigator.clipboard.writeText(
+        `📌 «${fact.name}»\n\n${fact.fullText}\n\n📍 شوێن: ${fact.desc}\n🔗 بەستەری ڕاستەوخۆ: ${getShareableTopicUrl(fact.id)}\n\nسەرچاوە: ئینسایکلۆپیدیای دەسەڵاتە کوردییەکان`
+      );
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -144,7 +162,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-2xl animate-fade-in"
+      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-xs animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -176,6 +194,29 @@ export const FactDetailModal: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Shareable Direct Web Link Button */}
+            <button
+              onClick={handleCopyDirectUrl}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer text-xs font-bold ${
+                copiedUrl
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs'
+                  : 'bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border-amber-400/25 shadow-xs'
+              }`}
+              title="کۆپیکردنی بەستەری ڕاستەوخۆ (URL) بۆ ناردن بۆ هاوڕێکانت"
+            >
+              {copiedUrl ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>بەستەر کۆپیکرا!</span>
+                </>
+              ) : (
+                <>
+                  <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>بەستەری بابەت</span>
+                </>
+              )}
+            </button>
+
             {isAdmin && onEditFact && (
               <button
                 onClick={() => onEditFact(fact)}
@@ -692,16 +733,33 @@ export const FactDetailModal: React.FC<Props> = ({
             </button>
 
             <button
+              onClick={handleCopyDirectUrl}
+              className={`px-3 py-2 rounded-xl border transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer ${
+                copiedUrl
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'liquid-glass-btn text-amber-300 hover:text-white'
+              }`}
+              title="کۆپیکردنی بەستەری وێب بۆ ئەم بابەتە"
+            >
+              {copiedUrl ? (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <Share2 className="w-3.5 h-3.5 text-amber-400" />
+              )}
+              <span>{copiedUrl ? 'بەستەر کۆپیکرا' : 'بەستەری بابەت'}</span>
+            </button>
+
+            <button
               onClick={handleCopyFact}
               className="px-3 py-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs cursor-pointer"
-              title="لەبەرگرتنەوە"
+              title="لەبەرگرتنەوەی تەواوی دەق و زانیارییەکان"
             >
               {copied ? (
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
               ) : (
                 <Copy className="w-3.5 h-3.5 text-slate-400" />
               )}
-              <span>{copied ? 'کۆپیکرا' : 'کۆپی'}</span>
+              <span>{copied ? 'دەق کۆپیکرا' : 'کۆپیکردنی دەق'}</span>
             </button>
           </div>
 

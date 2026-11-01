@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FactItem } from './data/kurdishHistoryData';
 import { CollectionItem } from './types/history';
 import {
@@ -30,19 +30,39 @@ import { HeroSection } from './components/HeroSection';
 import { HistoricalJourneyModal } from './components/HistoricalJourneyModal';
 import { AppSettingsModal } from './components/AppSettingsModal';
 import { useTheme } from './context/ThemeContext';
+import {
+  parseCurrentUrl,
+  updateBrowserUrl,
+  getShareableTopicUrl,
+} from './utils/urlRouter';
 
 export default function App() {
   const { colorMode } = useTheme();
   const [showIntro, setShowIntro] = useState<boolean>(false);
-  const [facts, setFacts] = useState<FactItem[]>(() => loadStoredFacts());
+
+  // Initial URL parsing for deep-linking & direct article loading
+  const initialUrlRef = useRef(parseCurrentUrl());
+  const initialTopicFact = useRef<FactItem | null>(null);
+
+  const [facts, setFacts] = useState<FactItem[]>(() => {
+    const loaded = loadStoredFacts();
+    if (initialUrlRef.current.topicId) {
+      const match = loaded.find((f) => f.id === initialUrlRef.current.topicId);
+      if (match) {
+        initialTopicFact.current = match;
+      }
+    }
+    return loaded;
+  });
+
   const [collections, setCollections] = useState<CollectionItem[]>(() =>
     loadStoredCollections()
   );
   const [isAdmin, setIsAdmin] = useState<boolean>(() => getAdminState());
 
-  const [selectedFact, setSelectedFact] = useState<FactItem | null>(null);
-  const [detailFact, setDetailFact] = useState<FactItem | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedFact, setSelectedFact] = useState<FactItem | null>(() => initialTopicFact.current);
+  const [detailFact, setDetailFact] = useState<FactItem | null>(() => initialTopicFact.current);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(() => initialUrlRef.current.view === 'menu');
 
   // Documentary Tour state & Map FlyTo bridge
   const [isDocumentaryTourOpen, setIsDocumentaryTourOpen] = useState(false);
@@ -51,7 +71,17 @@ export default function App() {
     lng: number;
     zoom?: number;
     id?: string;
-  } | null>(null);
+  } | null>(() => {
+    if (initialTopicFact.current) {
+      return {
+        lat: initialTopicFact.current.lat,
+        lng: initialTopicFact.current.lng,
+        zoom: 8.5,
+        id: `init-${initialTopicFact.current.id}`,
+      };
+    }
+    return null;
+  });
 
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
@@ -59,8 +89,26 @@ export default function App() {
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
 
   // Hero Section, Historical Journey & Settings Modal State
-  const [isHeroOpen, setIsHeroOpen] = useState(true);
-  const [isJourneyOpen, setIsJourneyOpen] = useState(false);
+  // If URL has a direct topic or specific view, open directly into that view (classic website behavior!)
+  const [isHeroOpen, setIsHeroOpen] = useState<boolean>(() => {
+    if (initialUrlRef.current.topicId) return false;
+    if (
+      initialUrlRef.current.view === 'map' ||
+      initialUrlRef.current.view === 'journey' ||
+      initialUrlRef.current.view === 'gallery' ||
+      initialUrlRef.current.view === 'menu'
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const [isJourneyOpen, setIsJourneyOpen] = useState<boolean>(
+    () => initialUrlRef.current.view === 'journey'
+  );
+  const [isGalleryOpen, setIsGalleryOpen] = useState<boolean>(
+    () => initialUrlRef.current.view === 'gallery'
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Map modes shared between Leaflet map and Settings Modal
@@ -73,7 +121,6 @@ export default function App() {
   const [isFactEditorOpen, setIsFactEditorOpen] = useState(false);
   const [factToEdit, setFactToEdit] = useState<FactItem | null>(null);
   const [isCollectionManagerOpen, setIsCollectionManagerOpen] = useState(false);
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   // Map Point Picking state
@@ -102,11 +149,26 @@ export default function App() {
         const found = cloudFacts.find((f) => f.id === prev.id);
         return found || null;
       });
-      // Keep detail fact synced
+      // Keep detail fact synced or resolve deep-linked topic if not found locally
       setDetailFact((prev) => {
-        if (!prev) return null;
-        const found = cloudFacts.find((f) => f.id === prev.id);
-        return found || null;
+        if (prev) {
+          const found = cloudFacts.find((f) => f.id === prev.id);
+          return found || null;
+        }
+        if (initialUrlRef.current.topicId) {
+          const foundFromUrl = cloudFacts.find((f) => f.id === initialUrlRef.current.topicId);
+          if (foundFromUrl) {
+            setIsHeroOpen(false);
+            updateBrowserUrl({
+              topicId: foundFromUrl.id,
+              factName: foundFromUrl.name,
+              view: 'map',
+              replace: true,
+            });
+            return foundFromUrl;
+          }
+        }
+        return null;
       });
     });
 
@@ -119,6 +181,74 @@ export default function App() {
       unsubCollections();
     };
   }, []);
+
+  // 2. Initial mount effect: synchronize deep link, title and external flyTo
+  useEffect(() => {
+    if (initialTopicFact.current) {
+      updateBrowserUrl({
+        topicId: initialTopicFact.current.id,
+        factName: initialTopicFact.current.name,
+        view: 'map',
+        replace: true,
+      });
+    } else if (initialUrlRef.current.view) {
+      updateBrowserUrl({
+        view: initialUrlRef.current.view,
+        replace: true,
+      });
+    }
+  }, []);
+
+  // 3. Browser Back/Forward history navigation (Classic Website Navigation Support!)
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlState = parseCurrentUrl();
+      if (urlState.topicId) {
+        const found = facts.find((f) => f.id === urlState.topicId);
+        if (found) {
+          setDetailFact(found);
+          setSelectedFact(found);
+          setIsHeroOpen(false);
+          setIsJourneyOpen(false);
+          setIsGalleryOpen(false);
+          setIsMenuOpen(false);
+          document.title = `${found.name} | مێژووی کوردستان`;
+        }
+      } else {
+        setDetailFact(null);
+        if (urlState.view === 'journey') {
+          setIsJourneyOpen(true);
+          setIsGalleryOpen(false);
+          setIsMenuOpen(false);
+          setIsHeroOpen(false);
+        } else if (urlState.view === 'gallery') {
+          setIsGalleryOpen(true);
+          setIsJourneyOpen(false);
+          setIsMenuOpen(false);
+          setIsHeroOpen(false);
+        } else if (urlState.view === 'menu') {
+          setIsMenuOpen(true);
+          setIsJourneyOpen(false);
+          setIsGalleryOpen(false);
+          setIsHeroOpen(false);
+        } else if (urlState.view === 'map') {
+          setIsHeroOpen(false);
+          setIsJourneyOpen(false);
+          setIsGalleryOpen(false);
+          setIsMenuOpen(false);
+        } else if (urlState.view === 'hero' || !urlState.view) {
+          setIsHeroOpen(true);
+          setIsJourneyOpen(false);
+          setIsGalleryOpen(false);
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [facts]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -126,7 +256,7 @@ export default function App() {
           setIsPickingLocation(false);
           setIsFactEditorOpen(true);
         } else if (isJourneyOpen) {
-          setIsJourneyOpen(false);
+          handleCloseJourney();
         } else if (isAdminPinModalOpen) {
           setIsAdminPinModalOpen(false);
         } else if (isFactEditorOpen) {
@@ -134,11 +264,11 @@ export default function App() {
         } else if (isCollectionManagerOpen) {
           setIsCollectionManagerOpen(false);
         } else if (isGalleryOpen) {
-          setIsGalleryOpen(false);
+          handleCloseGallery();
         } else if (detailFact) {
-          setDetailFact(null);
+          handleCloseDetail();
         } else if (isMenuOpen) {
-          setIsMenuOpen(false);
+          handleCloseMenu();
         }
       }
     };
@@ -153,6 +283,7 @@ export default function App() {
     isCollectionManagerOpen,
     isGalleryOpen,
     isPickingLocation,
+    isHeroOpen,
   ]);
 
   // Fact Selection & Smooth Map FlyTo Bridge
@@ -176,19 +307,107 @@ export default function App() {
     });
   };
 
-  // Detail Modal Navigation
+  // URL-synchronized View & Detail Navigation Handlers
+  const handleOpenDetail = (fact: FactItem) => {
+    setDetailFact(fact);
+    setSelectedFact(fact);
+    updateBrowserUrl({
+      topicId: fact.id,
+      factName: fact.name,
+      view: 'map',
+      replace: false,
+    });
+  };
+
+  const handleCloseDetail = () => {
+    setDetailFact(null);
+    updateBrowserUrl({
+      topicId: null,
+      view: isHeroOpen ? 'hero' : 'map',
+      replace: false,
+    });
+  };
+
+  const handleEnterMap = () => {
+    setIsHeroOpen(false);
+    updateBrowserUrl({
+      topicId: detailFact?.id || null,
+      view: 'map',
+      factName: detailFact?.name,
+    });
+  };
+
+  const handleReturnToHero = () => {
+    setIsHeroOpen(true);
+    setDetailFact(null);
+    setIsJourneyOpen(false);
+    setIsGalleryOpen(false);
+    setIsMenuOpen(false);
+    updateBrowserUrl({
+      topicId: null,
+      view: 'hero',
+    });
+  };
+
+  const handleOpenJourney = () => {
+    setIsJourneyOpen(true);
+    updateBrowserUrl({
+      view: 'journey',
+    });
+  };
+
+  const handleCloseJourney = () => {
+    setIsJourneyOpen(false);
+    updateBrowserUrl({
+      view: isHeroOpen ? 'hero' : 'map',
+    });
+  };
+
+  const handleOpenGallery = () => {
+    setIsGalleryOpen(true);
+    updateBrowserUrl({
+      view: 'gallery',
+    });
+  };
+
+  const handleCloseGallery = () => {
+    setIsGalleryOpen(false);
+    updateBrowserUrl({
+      view: isHeroOpen ? 'hero' : 'map',
+    });
+  };
+
+  const handleOpenMenu = () => {
+    setIsHeroOpen(false);
+    setIsMenuOpen(true);
+    updateBrowserUrl({
+      view: 'menu',
+    });
+  };
+
+  const handleCloseMenu = () => {
+    setIsMenuOpen(false);
+    updateBrowserUrl({
+      view: isHeroOpen ? 'hero' : 'map',
+    });
+  };
+
+  // Detail Modal Navigation with URL sync
   const handleModalNavigate = (direction: 'next' | 'prev') => {
     if (!detailFact || facts.length === 0) return;
     const currentIndex = facts.findIndex((f) => f.id === detailFact.id);
-    if (direction === 'next') {
-      const nextIndex = (currentIndex + 1) % facts.length;
-      setDetailFact(facts[nextIndex]);
-      setSelectedFact(facts[nextIndex]);
-    } else {
-      const prevIndex = (currentIndex - 1 + facts.length) % facts.length;
-      setDetailFact(facts[prevIndex]);
-      setSelectedFact(facts[prevIndex]);
-    }
+    const targetIndex =
+      direction === 'next'
+        ? (currentIndex + 1) % facts.length
+        : (currentIndex - 1 + facts.length) % facts.length;
+    const targetFact = facts[targetIndex];
+    setDetailFact(targetFact);
+    setSelectedFact(targetFact);
+    updateBrowserUrl({
+      topicId: targetFact.id,
+      factName: targetFact.name,
+      replace: false,
+    });
   };
 
   // Admin Pin Success
@@ -387,12 +606,12 @@ export default function App() {
           selectedFact={selectedFact}
           onSelectFact={handleSelectFact}
           onDeselectFact={() => setSelectedFact(null)}
-          onOpenDetail={(fact) => setDetailFact(fact)}
+          onOpenDetail={handleOpenDetail}
           showAllMarkers={showAllMarkers}
           setShowAllMarkers={setShowAllMarkers}
           showPolygon={showPolygon}
           setShowPolygon={setShowPolygon}
-          onOpenHero={() => setIsHeroOpen(true)}
+          onOpenHero={handleReturnToHero}
           onOpenSettings={() => setIsSettingsOpen(true)}
           mapMode={mapMode}
           setMapMode={setMapMode}
@@ -400,12 +619,8 @@ export default function App() {
           setMarkerViewMode={setMarkerViewMode}
           showBottomPhotoStrip={showBottomPhotoStrip}
           setShowBottomPhotoStrip={setShowBottomPhotoStrip}
-          onOpenMenu={() => {
-            setIsMenuOpen(true);
-          }}
-          onOpenGallery={() => {
-            setIsGalleryOpen(true);
-          }}
+          onOpenMenu={handleOpenMenu}
+          onOpenGallery={handleOpenGallery}
           onOpenTheme={() => {
             setIsThemeModalOpen(true);
           }}
@@ -429,7 +644,6 @@ export default function App() {
           onOpenDocumentaryTour={() => {
             setIsDocumentaryTourOpen(true);
           }}
-          onOpenJourney={() => setIsJourneyOpen(true)}
           externalFlyTo={externalFlyTo}
         />
 
@@ -447,9 +661,7 @@ export default function App() {
                 handleSelectFact(fact);
                 setIsMenuOpen(false);
               }}
-              onOpenDetail={(fact) => {
-                setDetailFact(fact);
-              }}
+              onOpenDetail={handleOpenDetail}
               collections={collections}
               selectedCollectionId={selectedCategory}
               onSelectCollection={setSelectedCategory}
@@ -459,9 +671,9 @@ export default function App() {
               onOpenAddFact={handleOpenAddFact}
               onOpenEditFact={handleOpenEditFact}
               onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
-              onOpenGallery={() => setIsGalleryOpen(true)}
+              onOpenGallery={handleOpenGallery}
               onOpenTheme={() => setIsThemeModalOpen(true)}
-              onClose={() => setIsMenuOpen(false)}
+              onClose={handleCloseMenu}
               onLogoutAdmin={handleAdminLogout}
             />
           </div>
@@ -476,28 +688,27 @@ export default function App() {
         facts={facts}
         onOpenFactDetail={(fact) => {
           setIsDocumentaryTourOpen(false);
-          setDetailFact(fact);
+          handleOpenDetail(fact);
         }}
       />
 
       {/* Fact Detail Modal (With Related Topics & Documents) */}
       <FactDetailModal
         fact={detailFact}
-        onClose={() => setDetailFact(null)}
+        onClose={handleCloseDetail}
         onNavigate={handleModalNavigate}
         onFlyToMap={(fact) => handleSelectFact(fact)}
         isAdmin={isAdmin}
         onEditFact={(fact) => {
-          setDetailFact(null);
+          handleCloseDetail();
           handleOpenEditFact(fact);
         }}
         onSaveNotes={handleSaveNotes}
-        onOpenGallery={() => setIsGalleryOpen(true)}
+        onOpenGallery={handleOpenGallery}
         totalFactsCount={facts.length}
         allFacts={facts}
         onSelectFact={(fact) => {
-          setDetailFact(fact);
-          handleSelectFact(fact);
+          handleOpenDetail(fact);
         }}
         onSaveLinks={handleSaveLinks}
       />
@@ -505,11 +716,11 @@ export default function App() {
       {/* Kurdish Historical Gallery Modal with 6-second auto slideshow */}
       <HistoricalGalleryModal
         isOpen={isGalleryOpen}
-        onClose={() => setIsGalleryOpen(false)}
+        onClose={handleCloseGallery}
         facts={facts}
         onFlyToFact={(fact) => {
           handleSelectFact(fact);
-          setIsGalleryOpen(false);
+          handleCloseGallery();
         }}
       />
 
@@ -597,29 +808,26 @@ export default function App() {
       {isHeroOpen && (
         <HeroSection
           facts={facts}
-          onEnterMap={() => setIsHeroOpen(false)}
-          onOpenJourney={() => setIsJourneyOpen(true)}
-          onOpenMenu={() => {
-            setIsHeroOpen(false);
-            setIsMenuOpen(true);
-          }}
+          onEnterMap={handleEnterMap}
+          onOpenJourney={handleOpenJourney}
+          onOpenMenu={handleOpenMenu}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenGallery={() => setIsGalleryOpen(true)}
+          onOpenGallery={handleOpenGallery}
         />
       )}
 
       {/* Historical Journey 3-Fact Poster Modal (گەشتی مێژوویی - لاپەڕەی کتێب) */}
       <HistoricalJourneyModal
         isOpen={isJourneyOpen}
-        onClose={() => setIsJourneyOpen(false)}
+        onClose={handleCloseJourney}
         facts={facts}
         onOpenDetail={(fact) => {
           setIsJourneyOpen(false);
-          setDetailFact(fact);
+          handleOpenDetail(fact);
         }}
         onFlyToFact={(fact) => {
           setIsJourneyOpen(false);
-          setIsHeroOpen(false);
+          handleEnterMap();
           handleSelectFact(fact);
         }}
       />

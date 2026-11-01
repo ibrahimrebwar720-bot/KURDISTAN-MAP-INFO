@@ -75,6 +75,8 @@ interface Props {
   totalFactsCount: number;
 }
 
+const EDITABLE_CATEGORIES = UNIFIED_CATEGORIES.filter((c) => c.id !== 'all');
+
 export const FactEditorModal: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -103,6 +105,31 @@ export const FactEditorModal: React.FC<Props> = ({
   const [parentFactId, setParentFactId] = useState<number | undefined>(undefined);
   const [relatedFactIds, setRelatedFactIds] = useState<number[]>([]);
   const [isLinkingModalOpen, setIsLinkingModalOpen] = useState(false);
+
+  // Fast memoized lookups for parent and related entities (prevents O(N) re-filtering on every keystroke)
+  const availableParentFacts = useMemo(() => {
+    return allFacts
+      .filter((f) => {
+        const c = getCategoryInfo(f).id;
+        return (
+          (c === 'principality' || c === 'empire' || c === 'civilization') &&
+          (!factToEdit || f.id !== factToEdit.id)
+        );
+      })
+      .map((ent) => ({
+        id: ent.id,
+        name: ent.name,
+        desc: ent.desc,
+      }));
+  }, [allFacts, factToEdit]);
+
+  const factsByIdMap = useMemo(() => {
+    const map = new Map<number, FactItem>();
+    for (const f of allFacts) {
+      map.set(f.id, f);
+    }
+    return map;
+  }, [allFacts]);
 
   // Time format mode: 'single_year' (ساڵێک) | 'year_range' (دوو ساڵ) | 'single_century' (تەنیا یەک سەدە) | 'century_range' (نێوان دوو سەدە)
   const [timeMode, setTimeMode] = useState<
@@ -811,11 +838,11 @@ export const FactEditorModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-2xl animate-fade-in text-right"
+      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xs animate-fade-in text-right fast-glass-modal"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl glass-dock-2026 rounded-3xl p-6 sm:p-8 shadow-[0_30px_90px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col text-slate-100 overflow-hidden animate-spatial-spring"
+        className="relative w-full max-w-3xl glass-dock-2026 rounded-3xl p-6 sm:p-8 shadow-[0_30px_90px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col text-slate-100 overflow-hidden animate-spatial-spring will-change-transform"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
@@ -1238,7 +1265,7 @@ export const FactEditorModal: React.FC<Props> = ({
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {UNIFIED_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
+                {EDITABLE_CATEGORIES.map((cat) => {
                   const isSelected = selectedCategory === cat.id;
                   return (
                     <button
@@ -2358,19 +2385,11 @@ export const FactEditorModal: React.FC<Props> = ({
                 <option value="" className="bg-slate-900 text-slate-300">
                   -- بەبێ دەسەڵاتی دایک (سەربەخۆ یان خۆی دەسەڵاتی سەرەکییە) --
                 </option>
-                {allFacts
-                  .filter((f) => {
-                    const c = getCategoryInfo(f).id;
-                    return (
-                      (c === 'principality' || c === 'empire' || c === 'civilization') &&
-                      (!factToEdit || f.id !== factToEdit.id)
-                    );
-                  })
-                  .map((ent) => (
-                    <option key={ent.id} value={ent.id} className="bg-slate-900 text-slate-100">
-                      {ent.name} ({ent.desc})
-                    </option>
-                  ))}
+                {availableParentFacts.map((ent) => (
+                  <option key={ent.id} value={ent.id} className="bg-slate-900 text-slate-100">
+                    {ent.name} ({ent.desc})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -2394,7 +2413,7 @@ export const FactEditorModal: React.FC<Props> = ({
               {relatedFactIds.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 p-3 rounded-xl liquid-glass-subtle">
                   {relatedFactIds.map((rfId) => {
-                    const found = allFacts.find((f) => f.id === rfId);
+                    const found = factsByIdMap.get(rfId);
                     if (!found) return null;
                     const cat = getCategoryInfo(found);
                     return (
