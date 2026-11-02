@@ -12,12 +12,10 @@ import { getAllFactImages } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { useTheme } from '../context/ThemeContext';
 
-// Local 5 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
+// Local 3 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
 import bg1 from '../assets/images/hero/bg1.jpg';
 import bg2 from '../assets/images/hero/bg2.jpg';
 import bg3 from '../assets/images/hero/bg3.jpg';
-import bg4 from '../assets/images/hero/bg4.jpg';
-import bg5 from '../assets/images/hero/bg5.jpg';
 
 interface HeroWallpaperItem {
   url: string;
@@ -44,18 +42,6 @@ const HERO_WALLPAPERS: HeroWallpaperItem[] = [
     url: bg3,
     title: 'میرنشین و دەسەڵاتە کوردییەکان',
     caption: 'سەردەمی فەرمانڕەوایی میرنشینە ئیسلامییەکان و قەڵا مێژووییەکان',
-    region: 'کوردستان',
-  },
-  {
-    url: bg4,
-    title: 'کەسایەتی و ڕابەرانی مێژوو',
-    caption: 'زانا، شاعیر، میر و سەرکردە نەبەردەکانی کورد',
-    region: 'کوردستان',
-  },
-  {
-    url: bg5,
-    title: 'قەڵا و سەنگەرە بەرزەکان',
-    caption: 'پێگەی جوگرافی و مێژوویی قەڵا دێرینەکانی کوردستان',
     region: 'کوردستان',
   },
 ];
