@@ -12,6 +12,13 @@ import { getAllFactImages } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { useTheme } from '../context/ThemeContext';
 
+// Local 5 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
+import bg1 from '../assets/images/hero/bg1.jpg';
+import bg2 from '../assets/images/hero/bg2.jpg';
+import bg3 from '../assets/images/hero/bg3.jpg';
+import bg4 from '../assets/images/hero/bg4.jpg';
+import bg5 from '../assets/images/hero/bg5.jpg';
+
 interface HeroWallpaperItem {
   url: string;
   title: string;
@@ -19,6 +26,39 @@ interface HeroWallpaperItem {
   eraName?: string;
   region?: string;
 }
+
+const HERO_WALLPAPERS: HeroWallpaperItem[] = [
+  {
+    url: bg1,
+    title: 'مێژووی کوردستان',
+    caption: 'سەردەم و دەسەڵاتە دێرینەکانی خاکی کوردستان',
+    region: 'کوردستان',
+  },
+  {
+    url: bg2,
+    title: 'شارستانییەت و کەلەپووری دێرین',
+    caption: 'ئاسەوار و شوێنەوارە دێرینەکانی کورد لە مێژوودا',
+    region: 'کوردستان',
+  },
+  {
+    url: bg3,
+    title: 'میرنشین و دەسەڵاتە کوردییەکان',
+    caption: 'سەردەمی فەرمانڕەوایی میرنشینە ئیسلامییەکان و قەڵا مێژووییەکان',
+    region: 'کوردستان',
+  },
+  {
+    url: bg4,
+    title: 'کەسایەتی و ڕابەرانی مێژوو',
+    caption: 'زانا، شاعیر، میر و سەرکردە نەبەردەکانی کورد',
+    region: 'کوردستان',
+  },
+  {
+    url: bg5,
+    title: 'قەڵا و سەنگەرە بەرزەکان',
+    caption: 'پێگەی جوگرافی و مێژوویی قەڵا دێرینەکانی کوردستان',
+    region: 'کوردستان',
+  },
+];
 
 interface Props {
   facts: FactItem[];
@@ -50,7 +90,7 @@ const HeroSlide: React.FC<HeroSlideProps> = ({
     return aspectCache.current[wallpaper.url] || 1.5;
   });
 
-  const optimizedUrl = getOptimizedImageUrl(wallpaper.url, 'full');
+  const imgUrl = wallpaper.url;
   const isLandscape = aspect >= 1.0;
   const panClass = isLandscape
     ? index % 2 === 0
@@ -67,7 +107,7 @@ const HeroSlide: React.FC<HeroSlideProps> = ({
     >
       {/* Layer 1: Ambient Blurred Backdrop */}
       <img
-        src={optimizedUrl}
+        src={imgUrl}
         alt=""
         aria-hidden="true"
         className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-40 select-none pointer-events-none"
@@ -76,7 +116,7 @@ const HeroSlide: React.FC<HeroSlideProps> = ({
 
       {/* Layer 2: Sharp Foreground Image with Slow Cinematic Pan */}
       <img
-        src={optimizedUrl}
+        src={imgUrl}
         alt={wallpaper.title || 'Kurdistan Info Map'}
         onLoad={(e) => {
           const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -128,31 +168,8 @@ export const HeroSection: React.FC<Props> = ({
     };
   }, []);
 
-  // 2. ONLY use authentic images recorded in the user's facts database (NO arbitrary stock images)
-  const wallpapers: HeroWallpaperItem[] = useMemo(() => {
-    const list: HeroWallpaperItem[] = [];
-    const seen = new Set<string>();
-
-    if (Array.isArray(facts)) {
-      for (const fact of facts) {
-        const factImages = getAllFactImages(fact);
-        for (const img of factImages) {
-          if (img.url && typeof img.url === 'string' && img.url.trim() && !seen.has(img.url)) {
-            seen.add(img.url);
-            list.push({
-              url: img.url,
-              title: fact.name,
-              caption: img.caption || fact.desc || '',
-              eraName: fact.eraName,
-              region: fact.region,
-            });
-          }
-        }
-      }
-    }
-
-    return list;
-  }, [facts]);
+  // 2. Local 5 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
+  const wallpapers: HeroWallpaperItem[] = HERO_WALLPAPERS;
 
   // 3. Persistent Dual-Slot crossfading mechanism (Zero unmount / Zero animation reset)
   interface SlotData {
@@ -162,9 +179,11 @@ export const HeroSection: React.FC<Props> = ({
   }
 
   const [slotA, setSlotA] = useState<SlotData | null>(() => {
-    return wallpapers.length > 0
-      ? { wallpaper: wallpapers[0], index: 0, id: `slot-0-${wallpapers[0].url}` }
-      : null;
+    return {
+      wallpaper: HERO_WALLPAPERS[0],
+      index: 0,
+      id: `slot-0-${HERO_WALLPAPERS[0].url}`,
+    };
   });
   const [slotB, setSlotB] = useState<SlotData | null>(null);
   const [activeSlot, setActiveSlot] = useState<'A' | 'B'>('A');
@@ -177,26 +196,13 @@ export const HeroSection: React.FC<Props> = ({
     activeSlotRef.current = activeSlot;
   }, [activeSlot]);
 
-  // If initial wallpapers become available after load
-  useEffect(() => {
-    if (wallpapers.length > 0 && !slotA && !slotB) {
-      setSlotA({
-        wallpaper: wallpapers[0],
-        index: 0,
-        id: `slot-0-${wallpapers[0].url}`,
-      });
-      setActiveSlot('A');
-      currentIndexRef.current = 0;
-    }
-  }, [wallpapers, slotA, slotB]);
-
   // Pre-probe & cache images and aspect ratios
   useEffect(() => {
     if (!wallpapers || wallpapers.length === 0) return;
     wallpapers.forEach((wp) => {
       if (!wp.url) return;
       const img = new Image();
-      img.src = getOptimizedImageUrl(wp.url, 'full');
+      img.src = wp.url;
       img.onload = () => {
         if (img.naturalWidth && img.naturalHeight) {
           aspectCache.current[wp.url] = img.naturalWidth / img.naturalHeight;
@@ -244,20 +250,15 @@ export const HeroSection: React.FC<Props> = ({
     }
   }, []);
 
-  // 4. Automatically cycle background image every 12 seconds
+  // 4. Automatically cycle background image every 20 seconds (هەر وێنەیەک ٢٠ چرکە جارێک بگۆڕێت)
   useEffect(() => {
     if (wallpapers.length <= 1) return;
     const timer = setInterval(() => {
       advanceToNext();
-    }, 12000);
+    }, 20000);
 
     return () => clearInterval(timer);
   }, [wallpapers.length, advanceToNext]);
-
-  const currentWallpaper =
-    activeSlot === 'A'
-      ? slotA?.wallpaper || slotB?.wallpaper || null
-      : slotB?.wallpaper || slotA?.wallpaper || null;
 
   // Active button press tracking for instant tactile black-on-theme feedback
   const [activeBtn, setActiveBtn] = useState<'map' | 'journey' | 'menu' | 'settings' | null>(null);
@@ -610,29 +611,6 @@ export const HeroSection: React.FC<Props> = ({
             </span>
           </button>
         </div>
-
-        {/* E. Subdued Bottom Footer: Wallpaper Caption Only (No manual button, 12s auto cycle) */}
-        {currentWallpaper ? (
-          <div className="w-full max-w-lg flex items-center justify-center text-[10px] sm:text-xs text-slate-200 px-2 text-center" dir="rtl">
-            <div className="flex items-center gap-1.5 truncate max-w-full">
-              <span
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: theme.primaryColor,
-                  boxShadow: `0 0 8px ${theme.primaryColor}`,
-                }}
-              />
-              <span className="hero-caption font-semibold text-slate-200 truncate">
-                {currentWallpaper.title}
-              </span>
-              {currentWallpaper.region && (
-                <span className="hero-caption text-slate-300 hidden sm:inline truncate">
-                  · {currentWallpaper.region}
-                </span>
-              )}
-            </div>
-          </div>
-        ) : null}
       </footer>
     </section>
   );
