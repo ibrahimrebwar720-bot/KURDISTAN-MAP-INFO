@@ -63,6 +63,7 @@ export const TimelineSlider: React.FC<Props> = ({
   // Horizontal scroll container ref for the ruler
   const rulerContainerRef = useRef<HTMLDivElement>(null);
   const isUserInteractingRef = useRef(false);
+  const isPhysicallyInteractingRef = useRef(false);
   const isProgrammaticScrollRef = useRef(true);
   const programmaticScrollTimerRef = useRef<any>(null);
   const scrollDebounceTimerRef = useRef<any>(null);
@@ -244,10 +245,19 @@ export const TimelineSlider: React.FC<Props> = ({
 
   // Step Year buttons
   const handleStepYear = (delta: number) => {
+    if (scrollDebounceTimerRef.current) {
+      clearTimeout(scrollDebounceTimerRef.current);
+    }
+    isProgrammaticScrollRef.current = true;
+    isPhysicallyInteractingRef.current = false;
     isUserInteractingRef.current = false;
+    setScrubYear(null);
     const current = typeof selectedYear === 'number' ? selectedYear : 1940;
     const next = Math.max(MIN_HISTORICAL_YEAR, Math.min(MAX_HISTORICAL_YEAR, current + delta));
     onYearChange(next);
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 450);
   };
 
   // Direct Jump Submit
@@ -262,10 +272,19 @@ export const TimelineSlider: React.FC<Props> = ({
         num = -Math.abs(num);
       }
       if (num >= MIN_HISTORICAL_YEAR && num <= MAX_HISTORICAL_YEAR) {
+        if (scrollDebounceTimerRef.current) {
+          clearTimeout(scrollDebounceTimerRef.current);
+        }
+        isProgrammaticScrollRef.current = true;
+        isPhysicallyInteractingRef.current = false;
         isUserInteractingRef.current = false;
+        setScrubYear(null);
         onYearChange(num);
         setShowDirectInput(false);
         setDirectInputYear('');
+        setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+        }, 450);
       }
     }
   };
@@ -273,6 +292,7 @@ export const TimelineSlider: React.FC<Props> = ({
   // Wheel & Trackpad scrolling
   const handleWheel = (e: React.WheelEvent) => {
     if (!rulerContainerRef.current) return;
+    isPhysicallyInteractingRef.current = true;
     isUserInteractingRef.current = true;
     const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     rulerContainerRef.current.scrollLeft += delta;
@@ -293,6 +313,7 @@ export const TimelineSlider: React.FC<Props> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!rulerContainerRef.current) return;
     setIsDragging(true);
+    isPhysicallyInteractingRef.current = true;
     isUserInteractingRef.current = true;
     dragStartXRef.current = e.clientX;
     dragScrollLeftRef.current = rulerContainerRef.current.scrollLeft;
@@ -301,6 +322,7 @@ export const TimelineSlider: React.FC<Props> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !rulerContainerRef.current) return;
     e.preventDefault();
+    isPhysicallyInteractingRef.current = true;
     isUserInteractingRef.current = true;
     const deltaX = e.clientX - dragStartXRef.current;
     rulerContainerRef.current.scrollLeft = dragScrollLeftRef.current - deltaX;
@@ -310,21 +332,30 @@ export const TimelineSlider: React.FC<Props> = ({
     if (isDragging) {
       setIsDragging(false);
     }
+    setTimeout(() => {
+      isPhysicallyInteractingRef.current = false;
+    }, 120);
   };
 
   // Touch on Mobile
   const handleTouchStart = () => {
+    isPhysicallyInteractingRef.current = true;
     isUserInteractingRef.current = true;
   };
 
   const handleTouchEnd = () => {
-    // Scroll end handled by onScroll debouncer
+    setTimeout(() => {
+      isPhysicallyInteractingRef.current = false;
+    }, 250);
   };
 
   // Native scroll listener on container (synchronizes on swipe, trackpad, inertia)
   const handleScroll = () => {
     if (isProgrammaticScrollRef.current) return;
     if (!rulerContainerRef.current) return;
+
+    // Discard passive/layout reflow scroll events when user did not physically drag/touch
+    if (!isPhysicallyInteractingRef.current && !isDragging) return;
 
     isUserInteractingRef.current = true;
     const detectedYear = getYearAtNeedle();
@@ -337,25 +368,40 @@ export const TimelineSlider: React.FC<Props> = ({
       clearTimeout(scrollDebounceTimerRef.current);
     }
     scrollDebounceTimerRef.current = setTimeout(() => {
-      if (!isProgrammaticScrollRef.current && rulerContainerRef.current) {
+      if (!isProgrammaticScrollRef.current && rulerContainerRef.current && (isPhysicallyInteractingRef.current || isDragging)) {
         const finalYear = getYearAtNeedle();
         if (finalYear !== null && finalYear !== selectedYearRef.current) {
           onYearChange(finalYear);
         }
       }
       setScrubYear(null);
+      isPhysicallyInteractingRef.current = false;
       isUserInteractingRef.current = false;
-    }, 90);
+    }, 110);
   };
 
   // Toggle "All" button: Clicking when active toggles it off and restores previous year!
   const handleToggleAllYears = () => {
+    // 1. Immediately cancel any pending scroll debounce timer
+    if (scrollDebounceTimerRef.current) {
+      clearTimeout(scrollDebounceTimerRef.current);
+    }
+    // 2. Lock programmatic scroll so reflow scroll events cannot revert 'all'
+    isProgrammaticScrollRef.current = true;
+    isPhysicallyInteractingRef.current = false;
     isUserInteractingRef.current = false;
+    setScrubYear(null);
+
     if (selectedYear === 'all') {
       onYearChange(lastNumericYearRef.current || 1940);
     } else {
       onYearChange('all');
     }
+
+    // 3. Keep lock active long enough for DOM updates and reflow to finish
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 550);
   };
 
   const activeDisplayYear = scrubYear !== null ? scrubYear : selectedYear;
@@ -546,8 +592,17 @@ export const TimelineSlider: React.FC<Props> = ({
                     key={`${mark.year}-${idx}`}
                     data-ruler-year={mark.year}
                     onClick={() => {
+                      if (scrollDebounceTimerRef.current) {
+                        clearTimeout(scrollDebounceTimerRef.current);
+                      }
+                      isProgrammaticScrollRef.current = true;
+                      isPhysicallyInteractingRef.current = false;
                       isUserInteractingRef.current = false;
+                      setScrubYear(null);
                       onYearChange(mark.year);
+                      setTimeout(() => {
+                        isProgrammaticScrollRef.current = false;
+                      }, 450);
                     }}
                     title={`ساڵی ${formatKurdishYear(mark.year)}`}
                     className={`group flex flex-col items-center justify-end shrink-0 cursor-pointer transition-all px-0.5 relative ${
