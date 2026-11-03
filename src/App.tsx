@@ -505,7 +505,8 @@ export default function App() {
   const handleSaveLinks = async (
     sourceFactId: number,
     targetFactIds: number[],
-    parentFactId?: number
+    parentFactId?: number,
+    allyFactIds?: number[]
   ) => {
     if (!isAdmin) {
       console.warn('Unauthorized: Only Admin can link or modify topic relationships.');
@@ -520,6 +521,7 @@ export default function App() {
             ...f,
             relatedFactIds: targetFactIds,
             parentFactId: typeof parentFactId === 'number' ? parentFactId : f.parentFactId,
+            allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : f.allyFactIds,
           };
         }
         return f;
@@ -533,13 +535,14 @@ export default function App() {
               ...prev,
               relatedFactIds: targetFactIds,
               parentFactId: typeof parentFactId === 'number' ? parentFactId : prev.parentFactId,
+              allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : prev.allyFactIds,
             }
           : null
       );
     }
 
     // 2. Cloud Firestore update
-    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId).catch((err) => {
+    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId, allyFactIds).catch((err) => {
       console.error('Failed to sync fact relations to cloud:', err);
     });
   };

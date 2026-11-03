@@ -104,6 +104,7 @@ export const FactEditorModal: React.FC<Props> = ({
   // Hierarchy & Topic Linking state
   const [parentFactId, setParentFactId] = useState<number | undefined>(undefined);
   const [relatedFactIds, setRelatedFactIds] = useState<number[]>([]);
+  const [allyFactIds, setAllyFactIds] = useState<number[]>([]);
   const [isLinkingModalOpen, setIsLinkingModalOpen] = useState(false);
 
   // Fast memoized lookups for parent and related entities (prevents O(N) re-filtering on every keystroke)
@@ -310,6 +311,7 @@ export const FactEditorModal: React.FC<Props> = ({
         // Topic Hierarchy & Relations
         setParentFactId(factToEdit.parentFactId);
         setRelatedFactIds(Array.isArray(factToEdit.relatedFactIds) ? factToEdit.relatedFactIds : []);
+        setAllyFactIds(Array.isArray(factToEdit.allyFactIds) ? factToEdit.allyFactIds : []);
 
         // Load Time Mode & Values
         if (factToEdit.timeSpanType) {
@@ -433,6 +435,7 @@ export const FactEditorModal: React.FC<Props> = ({
         setSelectedCategory('principality');
         setParentFactId(undefined);
         setRelatedFactIds([]);
+        setAllyFactIds([]);
         setImageUrl('');
         setImageCaption('');
         setExtraImages(Array.from({ length: 9 }, () => ({ url: '', caption: '' })));
@@ -829,6 +832,7 @@ export const FactEditorModal: React.FC<Props> = ({
       images: finalImagesArray.length > 0 ? finalImagesArray : undefined,
       parentFactId: typeof parentFactId === 'number' ? parentFactId : undefined,
       relatedFactIds: relatedFactIds.length > 0 ? relatedFactIds : undefined,
+      allyFactIds: allyFactIds.length > 0 ? allyFactIds : undefined,
       isCustom: true,
     };
 
@@ -2450,6 +2454,60 @@ export const FactEditorModal: React.FC<Props> = ({
                 </div>
               )}
             </div>
+
+            {/* Allies Section (هاوپەیمانەکان) - for Principality / Authority / State / Empire */}
+            {selectedCategory === 'principality' && (
+              <div className="p-3.5 rounded-2xl bg-emerald-950/25 border border-emerald-500/25 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>دەسەڵات و میرنشینە هاوپەیمانەکان ({allyFactIds.length})</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsLinkingModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 hover:text-white text-[11px] font-bold cursor-pointer transition-all"
+                  >
+                    <Plus className="w-3 h-3 text-emerald-400" />
+                    <span>دیاریکردنی هاوپەیمان</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  هاوپەیمانی لەگەڵ دەسەڵات، میرنشین، یان دەوڵەتەکانی تر دیاری بکە تا بە هێڵی سەوزی درەوشاوەی «هاوپەیمان» لەسەر نەخشە و تۆڕی کەسایەتییەکان ببەسترێنەوە.
+                </p>
+
+                {allyFactIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 p-2.5 rounded-xl bg-black/40 border border-emerald-500/20">
+                    {allyFactIds.map((afId) => {
+                      const found = factsByIdMap.get(afId);
+                      if (!found) return null;
+                      return (
+                        <span
+                          key={afId}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/40 text-emerald-200"
+                        >
+                          <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <span>{found.name}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAllyFactIds((prev) => prev.filter((id) => id !== afId))
+                            }
+                            className="p-0.5 rounded-md hover:bg-white/20 text-slate-400 hover:text-white cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-2 px-3 rounded-xl bg-black/25 text-slate-400 text-xs border border-white/5">
+                    هیچ هاوپەیمانێک دیاری نەکراوە. کلیک لە دوگمەی سەرەوە بکە بۆ دەستنیشانکردنی هاوپەیمانەکان.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -2530,27 +2588,39 @@ export const FactEditorModal: React.FC<Props> = ({
           isOpen={isLinkingModalOpen}
           onClose={() => setIsLinkingModalOpen(false)}
           currentFact={
-            factToEdit || {
-              id: 999999999,
-              num: 0,
-              eraId: 1,
-              eraName: '',
-              eraPeriod: '',
-              name: name.trim() || 'بابەتی نوێ',
-              desc: desc.trim() || '',
-              fullText: fullText.trim() || '',
-              lat: Number(lat) || 36.8,
-              lng: Number(lng) || 44.5,
-              tag: selectedCategory,
-              relatedFactIds,
-              parentFactId,
-            }
+            factToEdit
+              ? {
+                  ...factToEdit,
+                  tag: selectedCategory,
+                  relatedFactIds,
+                  parentFactId,
+                  allyFactIds,
+                }
+              : {
+                  id: 999999999,
+                  num: 0,
+                  eraId: 1,
+                  eraName: '',
+                  eraPeriod: '',
+                  name: name.trim() || 'بابەتی نوێ',
+                  desc: desc.trim() || '',
+                  fullText: fullText.trim() || '',
+                  lat: Number(lat) || 36.8,
+                  lng: Number(lng) || 44.5,
+                  tag: selectedCategory,
+                  relatedFactIds,
+                  parentFactId,
+                  allyFactIds,
+                }
           }
           allFacts={allFacts}
-          onSaveLinks={async (_sourceId, targetIds, newParentId) => {
+          onSaveLinks={async (_sourceId, targetIds, newParentId, newAllyIds) => {
             setRelatedFactIds(targetIds);
             if (typeof newParentId === 'number' || newParentId === undefined) {
               setParentFactId(newParentId);
+            }
+            if (newAllyIds) {
+              setAllyFactIds(newAllyIds);
             }
           }}
         />

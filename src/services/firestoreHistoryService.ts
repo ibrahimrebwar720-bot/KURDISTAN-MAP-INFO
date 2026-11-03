@@ -211,7 +211,8 @@ export async function saveNotesToCloud(
 export async function updateFactRelationsInCloud(
   factId: number,
   relatedFactIds: number[],
-  parentFactId?: number
+  parentFactId?: number,
+  allyFactIds?: number[]
 ): Promise<void> {
   const docRef = doc(db, FACTS_COLLECTION, String(factId));
   const payload: Record<string, any> = {
@@ -220,6 +221,9 @@ export async function updateFactRelationsInCloud(
   };
   if (typeof parentFactId === 'number') {
     payload.parentFactId = parentFactId;
+  }
+  if (Array.isArray(allyFactIds)) {
+    payload.allyFactIds = allyFactIds;
   }
 
   await setDoc(docRef, payload, { merge: true });
@@ -231,6 +235,7 @@ export async function updateFactRelationsInCloud(
         ...f,
         relatedFactIds,
         ...(typeof parentFactId === 'number' ? { parentFactId } : {}),
+        ...(Array.isArray(allyFactIds) ? { allyFactIds } : {}),
       };
     }
     return f;

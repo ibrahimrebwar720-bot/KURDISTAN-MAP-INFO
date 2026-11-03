@@ -43,6 +43,7 @@ export interface FactItem {
   images?: FactImageItem[];
   parentFactId?: number;
   relatedFactIds?: number[];
+  allyFactIds?: number[];
 }
 
 export interface EraInfo {

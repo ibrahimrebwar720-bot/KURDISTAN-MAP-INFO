@@ -26,6 +26,7 @@ import {
   Layers,
   Sparkles,
   Share2,
+  Network,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
@@ -35,6 +36,7 @@ import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { toKurdishDigits } from '../utils/yearUtils';
 import { getShareableTopicUrl, copyTopicToClipboard } from '../utils/urlRouter';
+import { InteractiveKnowledgeGraphModal } from './InteractiveKnowledgeGraphModal';
 
 const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
 
@@ -50,7 +52,12 @@ interface Props {
   totalFactsCount?: number;
   allFacts?: FactItem[];
   onSelectFact?: (fact: FactItem) => void;
-  onSaveLinks?: (sourceFactId: number, targetFactIds: number[], parentFactId?: number) => void;
+  onSaveLinks?: (
+    sourceFactId: number,
+    targetFactIds: number[],
+    parentFactId?: number,
+    allyFactIds?: number[]
+  ) => void;
 }
 
 export const FactDetailModal: React.FC<Props> = ({
@@ -85,6 +92,7 @@ export const FactDetailModal: React.FC<Props> = ({
     'all' | 'leaders' | 'scholars' | 'castles' | 'battles' | 'monuments' | 'others'
   >('all');
   const [isRelationsModalOpen, setIsRelationsModalOpen] = useState(false);
+  const [isKnowledgeGraphOpen, setIsKnowledgeGraphOpen] = useState(false);
 
   const linkedData = useMemo(() => {
     return getLinkedFacts(fact, allFacts);
@@ -446,16 +454,28 @@ export const FactDetailModal: React.FC<Props> = ({
                   </span>
                 </div>
 
-                {isAdmin && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setIsRelationsModalOpen(true)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer hover:border-amber-400/50"
-                    title="تەنها ئەدمین دەتوانێت بابەتەکان ببەستێتەوە"
+                    type="button"
+                    onClick={() => setIsKnowledgeGraphOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/35 border border-purple-400/40 text-purple-300 hover:text-white text-[11px] font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                    title="بینینی تۆڕی تیشکدەری پەیوەندییەکان وەک هەسارەکان"
                   >
-                    <Plus className="w-3 h-3 text-amber-400" />
-                    <span>{linkedData.allRelated.length > 0 ? 'دەستکاریی بەستنەوە' : 'بەستنەوەی بابەت'}</span>
+                    <Network className="w-3.5 h-3.5 text-purple-400" />
+                    <span>شاشەی گرافی تیشکدەر</span>
                   </button>
-                )}
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => setIsRelationsModalOpen(true)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer hover:border-amber-400/50"
+                      title="تەنها ئەدمین دەتوانێت بابەتەکان ببەستێتەوە"
+                    >
+                      <Plus className="w-3 h-3 text-amber-400" />
+                      <span>{linkedData.allRelated.length > 0 ? 'دەستکاریی بەستنەوە' : 'بەستنەوەی بابەت'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
             {/* Parent Entity Card (دەسەڵاتی دایک) */}
@@ -793,13 +813,32 @@ export const FactDetailModal: React.FC<Props> = ({
           onClose={() => setIsRelationsModalOpen(false)}
           currentFact={fact}
           allFacts={allFacts}
-          onSaveLinks={async (sourceId, targetIds, parentId) => {
+          onSaveLinks={async (sourceId, targetIds, parentId, allyIds) => {
             if (isAdmin && onSaveLinks) {
-              await onSaveLinks(sourceId, targetIds, parentId);
+              await onSaveLinks(sourceId, targetIds, parentId, allyIds);
             }
           }}
         />
       )}
+
+      {/* Interactive Knowledge Graph Constellation Modal */}
+      <InteractiveKnowledgeGraphModal
+        isOpen={isKnowledgeGraphOpen}
+        onClose={() => setIsKnowledgeGraphOpen(false)}
+        centerFact={fact}
+        allFacts={allFacts}
+        onSelectFact={(f) => {
+          setIsKnowledgeGraphOpen(false);
+          onClose();
+          onFlyToMap(f);
+        }}
+        onOpenFactDetail={(f) => {
+          setIsKnowledgeGraphOpen(false);
+          if (f.id !== fact?.id) {
+            onFlyToMap(f);
+          }
+        }}
+      />
     </div>
   );
 };

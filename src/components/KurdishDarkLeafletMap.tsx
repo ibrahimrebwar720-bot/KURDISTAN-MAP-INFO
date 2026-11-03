@@ -50,6 +50,8 @@ import {
   Link2,
   Sun,
   Moon,
+  Network,
+  Share2,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
 import {
@@ -61,12 +63,13 @@ import {
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 import { getCategoryInfo } from '../types/history';
 import { useTheme } from '../context/ThemeContext';
-import { getLinkedFacts } from '../utils/factRelations';
+import { getLinkedFacts, getKnowledgeGraphNetwork, KnowledgeGraphNetwork } from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { copyTopicToClipboard, getShareableTopicUrl } from '../utils/urlRouter';
+import { InteractiveKnowledgeGraphModal } from './InteractiveKnowledgeGraphModal';
 
 interface Props {
   facts: FactItem[];
@@ -122,9 +125,9 @@ export const TAG_FILTER_OPTIONS = [
   },
   {
     id: 'principality',
-    label: 'میرنشینەکان',
-    shortLabel: 'میرنشینەکان',
-    icon: Shield,
+    label: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت',
+    shortLabel: 'میرنشین و دەسەڵاتەکان',
+    icon: Crown,
     color: '#eab308',
     accentClass: 'text-amber-400',
   },
@@ -135,14 +138,6 @@ export const TAG_FILTER_OPTIONS = [
     icon: Landmark,
     color: '#10b981',
     accentClass: 'text-emerald-400',
-  },
-  {
-    id: 'empire',
-    label: 'ئیمپراتۆرییەتەکان',
-    shortLabel: 'ئیمپراتۆرییەتەکان',
-    icon: Crown,
-    color: '#f97316',
-    accentClass: 'text-orange-400',
   },
   {
     id: 'leader',
@@ -270,6 +265,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
   const pickedMarkerRef = useRef<L.Marker | null>(null);
+  const knowledgeGraphLayerRef = useRef<L.LayerGroup | null>(null);
+  const [showKnowledgeGraphLines, setShowKnowledgeGraphLines] = useState<boolean>(true);
+  const [isKnowledgeGraphModalOpen, setIsKnowledgeGraphModalOpen] = useState<boolean>(false);
 
   // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite)
   const [internalMapMode, setInternalMapMode] = useState<'dark' | 'satellite'>('dark');
@@ -373,6 +371,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     return getLinkedFacts(selectedFact, facts);
   }, [selectedFact, facts]);
 
+  // Selected Fact's Knowledge Graph network
+  const selectedKnowledgeGraph = useMemo(() => {
+    return getKnowledgeGraphNetwork(selectedFact, facts);
+  }, [selectedFact, facts]);
+
   // Active filter object definition
   const currentFilterObj = useMemo(() => {
     return (
@@ -452,6 +455,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
 
+    // Layer Group for Knowledge Graph spiderweb laser lines
+    const knowledgeGraphLayer = L.layerGroup().addTo(map);
+    knowledgeGraphLayerRef.current = knowledgeGraphLayer;
+
     // Frame all of Greater Kurdistan cleanly so the whole map is clearly visible upon opening
     const kurdistanBounds = L.latLngBounds(GREAT_KURDISTAN_POLYGON);
     map.fitBounds(kurdistanBounds, {
@@ -502,6 +509,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
+      knowledgeGraphLayerRef.current = null;
       map.remove();
       mapInstanceRef.current = null;
       setLeafletMap(null);
@@ -1020,6 +1028,97 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     }
   }, [selectedFact?.id, selectedFact?.lat, selectedFact?.lng, playMapIntro]);
 
+  // On-Map Spiderweb / Constellation Knowledge Graph Laser Lines Renderer
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const kgLayer = knowledgeGraphLayerRef.current;
+    if (!map || !kgLayer) return;
+
+    kgLayer.clearLayers();
+
+    if (!selectedFact || !showKnowledgeGraphLines) return;
+
+    const network = getKnowledgeGraphNetwork(selectedFact, facts);
+    if (!network || network.links.length === 0) return;
+
+    // Render clean laser lines for explicit user-linked facts
+    network.links.forEach((link) => {
+      const lat1 = Number(link.source.lat);
+      const lng1 = Number(link.source.lng);
+      const lat2 = Number(link.target.lat);
+      const lng2 = Number(link.target.lng);
+
+      if (
+        !Number.isFinite(lat1) ||
+        !Number.isFinite(lng1) ||
+        !Number.isFinite(lat2) ||
+        !Number.isFinite(lng2)
+      ) {
+        return;
+      }
+
+      // Outer ambient glow line
+      const glowLine = L.polyline(
+        [
+          [lat1, lng1],
+          [lat2, lng2],
+        ],
+        {
+          color: link.color,
+          weight: link.isDirectParent ? 6 : 4,
+          opacity: 0.28,
+          lineCap: 'round',
+          interactive: false,
+        }
+      );
+      kgLayer.addLayer(glowLine);
+
+      // Inner crisp glowing laser line
+      const laserLine = L.polyline(
+        [
+          [lat1, lng1],
+          [lat2, lng2],
+        ],
+        {
+          color: link.color,
+          weight: link.isDirectParent ? 2.8 : 2,
+          opacity: 0.95,
+          dashArray: '8, 8',
+          className: 'knowledge-graph-laser-line cursor-pointer',
+          interactive: true,
+        }
+      );
+      laserLine.on('click', () => {
+        onSelectFact(link.target);
+      });
+      kgLayer.addLayer(laserLine);
+
+      // Midpoint Relation Badge Tag
+      const midLat = (lat1 + lat2) / 2;
+      const midLng = (lng1 + lng2) / 2;
+      const badgeIcon = L.divIcon({
+        className: 'knowledge-graph-midpoint-badge',
+        html: `
+          <div class="px-2.5 py-0.5 rounded-full text-[9px] font-black text-white shadow-[0_4px_20px_rgba(0,0,0,0.9)] border flex items-center gap-1 cursor-pointer transition-transform hover:scale-110 active:scale-95 select-none"
+               style="background-color: rgba(6, 10, 22, 0.92); border-color: ${link.color}; box-shadow: 0 0 14px ${link.color}60;">
+            <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${link.color}"></span>
+            <span class="whitespace-nowrap font-bold">${link.label}</span>
+          </div>
+        `,
+        iconSize: [84, 22],
+        iconAnchor: [42, 11],
+      });
+      const badgeMarker = L.marker([midLat, midLng], {
+        icon: badgeIcon,
+        interactive: true,
+      });
+      badgeMarker.on('click', () => {
+        onSelectFact(link.target);
+      });
+      kgLayer.addLayer(badgeMarker);
+    });
+  }, [selectedFact, facts, showKnowledgeGraphLines]);
+
   // Reset Camera to full view of Greater Kurdistan
   const handleResetCamera = () => {
     const map = mapInstanceRef.current;
@@ -1205,7 +1304,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           )}
 
 
-
           {/* ئایکۆنی ڕێکخستنەکان */}
           {onOpenSettings && (
             <>
@@ -1348,20 +1446,34 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </p>
             </div>
 
-            {/* Linked Topics Unboxed Row */}
-            {selectedLinked.allRelated.length > 0 && (
+            {/* Linked Topics & Knowledge Graph Button */}
+            {((selectedKnowledgeGraph?.nodes.length || 0) > 0 || selectedLinked.allRelated.length > 0) && (
               <div className="mt-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-2">
                 <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
                   <span className="flex items-center gap-1.5">
                     <Link2 className="w-3.5 h-3.5 text-amber-400" />
                     <span>بابەت و کەسایەتییە پەیوەندیدارەکان:</span>
                   </span>
-                  <span className="font-mono tabular-nums text-slate-400 text-[11px]">
-                    {selectedLinked.allRelated.length} تۆمار
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsKnowledgeGraphModalOpen(true)}
+                      className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/35 border border-purple-400/40 text-[10px] text-purple-300 font-bold transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.25)]"
+                      title="کردنەوەی شاشەی گرافی تیشکدەر وەک هەسارەکان"
+                    >
+                      <Network className="w-3 h-3 text-purple-400" />
+                      <span>شاشەی گرافی تیشکدەر</span>
+                    </button>
+                    <span className="font-mono tabular-nums text-slate-400 text-[11px]">
+                      {selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length} تۆمار
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {selectedLinked.allRelated.slice(0, 6).map((lf) => {
+                  {(selectedKnowledgeGraph?.nodes && selectedKnowledgeGraph.nodes.length > 0
+                    ? selectedKnowledgeGraph.nodes
+                    : selectedLinked.allRelated
+                  ).slice(0, 8).map((lf) => {
                     const c = getCategoryInfo(lf);
                     return (
                       <button
@@ -1378,18 +1490,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       </button>
                     );
                   })}
-                  {selectedLinked.allRelated.length > 6 && onOpenDetail && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowQuickSummary(false);
-                        onOpenDetail(selectedFact);
-                      }}
-                      className="px-2.5 py-1 rounded-xl bg-white/[0.06] text-xs text-amber-300 shrink-0 font-bold hover:text-white"
-                    >
-                      +{selectedLinked.allRelated.length - 6}
-                    </button>
-                  )}
                 </div>
               </div>
             )}
@@ -1882,6 +1982,20 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       <ThemeSelectorModal
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
+      />
+
+      {/* Interactive Knowledge Graph Constellation Modal (شاشەی گرافی تیشکدەری کەسایەتی و دەسەڵاتەکان) */}
+      <InteractiveKnowledgeGraphModal
+        isOpen={isKnowledgeGraphModalOpen}
+        onClose={() => setIsKnowledgeGraphModalOpen(false)}
+        centerFact={selectedFact}
+        allFacts={facts}
+        onSelectFact={(fact) => {
+          onSelectFact(fact);
+        }}
+        onOpenFactDetail={(fact) => {
+          if (onOpenDetail) onOpenDetail(fact);
+        }}
       />
     </div>
   );

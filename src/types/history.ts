@@ -45,8 +45,8 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
   },
   {
     id: 'principality',
-    name: 'میرنشینەکان',
-    description: 'میرنشینە مێژووییەکان و میرەکانی کوردستان',
+    name: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت',
+    description: 'میرنشین، دەسەڵات، دەوڵەت و ئیمپراتۆرییەتە فەرمانڕەواکانی کوردستان',
     color: '#eab308',
   },
   {
@@ -54,12 +54,6 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
     name: 'شارستانییەتەکان',
     description: 'شارستانییەتە دێرینەکان و سەردەمە کۆنەکان',
     color: '#10b981',
-  },
-  {
-    id: 'empire',
-    name: 'ئیمپراتۆرییەتەکان',
-    description: 'ئیمپراتۆریەتە مەزنەکان و دەسەڵاتە فەرمانڕەواکان',
-    color: '#f97316',
   },
   {
     id: 'leader',
@@ -117,19 +111,29 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
   color: string;
 } {
   if (!fact) {
-    return { id: 'principality', name: 'میرنشینەکان', color: '#eab308' };
+    return { id: 'principality', name: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت', color: '#eab308' };
   }
 
   const raw = (fact.category || fact.tag || fact.collectionId || '').toLowerCase().trim();
 
-  if (raw === 'principality' || raw === 'powers' || raw === 'میرنشینەکان' || raw === 'میرنشین') {
-    return { id: 'principality', name: 'میرنشینەکان', color: '#eab308' };
+  if (
+    raw === 'principality' ||
+    raw === 'empire' ||
+    raw === 'powers' ||
+    raw === 'state' ||
+    raw === 'میرنشینەکان' ||
+    raw === 'میرنشین' ||
+    raw === 'ئیمپراتۆرییەتەکان' ||
+    raw === 'ئیمپراتۆریەت' ||
+    raw === 'دەسەڵات' ||
+    raw === 'دەوڵەت' ||
+    raw.includes('میرنشین') ||
+    raw.includes('ئیمپراتۆریەت')
+  ) {
+    return { id: 'principality', name: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت', color: '#eab308' };
   }
   if (raw === 'civilization' || raw === 'culture' || raw === 'شارستانییەتەکان' || raw === 'شارستانییەت') {
     return { id: 'civilization', name: 'شارستانییەتەکان', color: '#10b981' };
-  }
-  if (raw === 'empire' || raw === 'ئیمپراتۆرییەتەکان' || raw === 'ئیمپراتۆریەت') {
-    return { id: 'empire', name: 'ئیمپراتۆرییەتەکان', color: '#f97316' };
   }
   if (
     raw === 'leader' ||

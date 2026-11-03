@@ -13,6 +13,8 @@ import {
   Sparkles,
   Layers,
   Filter,
+  Crown,
+  Shield,
 } from 'lucide-react';
 
 interface Props {
@@ -20,7 +22,12 @@ interface Props {
   onClose: () => void;
   currentFact: FactItem;
   allFacts: FactItem[];
-  onSaveLinks: (sourceFactId: number, targetFactIds: number[], parentFactId?: number) => void;
+  onSaveLinks: (
+    sourceFactId: number,
+    targetFactIds: number[],
+    parentFactId?: number,
+    allyFactIds?: number[]
+  ) => void;
 }
 
 export const FactRelationsModal: React.FC<Props> = ({
@@ -35,6 +42,10 @@ export const FactRelationsModal: React.FC<Props> = ({
   const [selectedIds, setSelectedIds] = useState<number[]>(() => {
     return Array.isArray(currentFact.relatedFactIds) ? [...currentFact.relatedFactIds] : [];
   });
+  const [allyFactIds, setAllyFactIds] = useState<number[]>(() => {
+    return Array.isArray(currentFact.allyFactIds) ? [...currentFact.allyFactIds] : [];
+  });
+  const [allySearchQuery, setAllySearchQuery] = useState('');
   const [parentFactId, setParentFactId] = useState<number | undefined>(currentFact.parentFactId);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -42,6 +53,22 @@ export const FactRelationsModal: React.FC<Props> = ({
   const candidateFacts = useMemo(() => {
     return allFacts.filter((f) => f.id !== currentFact.id);
   }, [allFacts, currentFact.id]);
+
+  // Candidate Allies (all other principalities / states / authorities)
+  const candidateAllies = useMemo(() => {
+    return candidateFacts.filter((f) => {
+      const c = getCategoryInfo(f).id;
+      return c === 'principality';
+    });
+  }, [candidateFacts]);
+
+  const filteredCandidateAllies = useMemo(() => {
+    if (!allySearchQuery.trim()) return candidateAllies;
+    const q = allySearchQuery.toLowerCase().trim();
+    return candidateAllies.filter(
+      (f) => f.name.toLowerCase().includes(q) || (f.desc && f.desc.toLowerCase().includes(q))
+    );
+  }, [candidateAllies, allySearchQuery]);
 
   // Filtered by query and category
   const filteredCandidates = useMemo(() => {
@@ -74,7 +101,7 @@ export const FactRelationsModal: React.FC<Props> = ({
   const broadEntities = useMemo(() => {
     return candidateFacts.filter((f) => {
       const c = getCategoryInfo(f).id;
-      return c === 'principality' || c === 'empire' || c === 'civilization';
+      return c === 'principality' || c === 'civilization';
     });
   }, [candidateFacts]);
 
@@ -89,7 +116,7 @@ export const FactRelationsModal: React.FC<Props> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSaveLinks(currentFact.id, selectedIds, parentFactId);
+      await onSaveLinks(currentFact.id, selectedIds, parentFactId, allyFactIds);
       onClose();
     } finally {
       setIsSaving(false);
@@ -169,6 +196,73 @@ export const FactRelationsModal: React.FC<Props> = ({
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* Allies Selector Section for Principality / Authority / State / Empire */}
+        {currentCatInfo.id === 'principality' && (
+          <div className="p-3 mb-3 rounded-2xl liquid-glass-subtle border border-emerald-500/30 text-xs shrink-0 bg-emerald-950/20 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-black text-emerald-300 flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-emerald-400" />
+                <span>دەسەڵات و میرنشینە هاوپەیمانەکان (Allies):</span>
+              </label>
+              <span className="text-[10px] font-bold text-emerald-300 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
+                {allyFactIds.length} هاوپەیمان
+              </span>
+            </div>
+
+            {/* Search within Allies */}
+            <div className="relative">
+              <input
+                type="text"
+                value={allySearchQuery}
+                onChange={(e) => setAllySearchQuery(e.target.value)}
+                placeholder="گەڕان بەدوای دەسەڵاتی هاوپەیمان..."
+                className="w-full liquid-glass-input text-slate-100 placeholder:text-slate-500 pl-3 pr-8 py-1.5 rounded-xl text-xs"
+              />
+              <Search className="w-3.5 h-3.5 text-emerald-400 absolute right-2.5 top-2 pointer-events-none" />
+              {allySearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setAllySearchQuery('')}
+                  className="absolute left-2.5 top-1.5 text-slate-400 hover:text-white p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* List of Available Principalities / States to Toggle as Allies */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none max-w-full">
+              {filteredCandidateAllies.length === 0 ? (
+                <span className="text-[11px] text-slate-400 py-1">هیچ دەسەڵاتێکی تر نەدۆزرایەوە</span>
+              ) : (
+                filteredCandidateAllies.map((ent) => {
+                  const isAlly = allyFactIds.includes(ent.id);
+                  return (
+                    <button
+                      key={ent.id}
+                      type="button"
+                      onClick={() => {
+                        setAllyFactIds((prev) =>
+                          prev.includes(ent.id) ? prev.filter((id) => id !== ent.id) : [...prev, ent.id]
+                        );
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-xs shrink-0 flex items-center gap-1.5 border transition-all cursor-pointer active:scale-95 ${
+                        isAlly
+                          ? 'bg-emerald-500/30 border-emerald-400 text-emerald-200 font-bold shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                          : 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${isAlly ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                      <span className="truncate max-w-[130px]">{ent.name}</span>
+                      {isAlly && <Check className="w-3 h-3 text-emerald-400" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 

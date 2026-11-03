@@ -1022,5 +1022,27 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   background: #b45309;
 }
 
+/* 16. Knowledge Graph Spiderweb & Laser Constellation Styles */
+@keyframes laserDashFlow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+.knowledge-graph-laser-line {
+  animation: laserDashFlow 1.2s linear infinite;
+  filter: drop-shadow(0 0 6px currentColor);
+  stroke-linecap: round;
+}
+
+.knowledge-graph-glow-line {
+  filter: blur(3px);
+  stroke-linecap: round;
+}
+
+.knowledge-graph-midpoint-badge {
+  transition: transform 0.15s ease-out;
+}
+
 
 

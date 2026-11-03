@@ -168,3 +168,156 @@ export function toggleFactLinkInList(
     return f;
   });
 }
+
+export interface KnowledgeGraphLink {
+  source: FactItem;
+  target: FactItem;
+  relationType: 'parent' | 'ruler' | 'scholar' | 'castle' | 'battle' | 'city' | 'ally' | 'related';
+  label: string;
+  isDirectParent: boolean;
+  color: string;
+}
+
+export interface KnowledgeGraphNetwork {
+  centerFact: FactItem;
+  nodes: FactItem[];
+  links: KnowledgeGraphLink[];
+  parentFact: FactItem | null;
+}
+
+/**
+ * Resolves the complete spiderweb / constellation knowledge graph
+ * for any selected Kurdish historical fact (principality, ruler, event, castle, scholar).
+ */
+export function getKnowledgeGraphNetwork(
+  centerFact: FactItem | null | undefined,
+  allFacts: FactItem[]
+): KnowledgeGraphNetwork | null {
+  if (!centerFact || !Array.isArray(allFacts) || allFacts.length === 0) {
+    return null;
+  }
+
+  const nodesMap = new Map<number, FactItem>();
+  const links: KnowledgeGraphLink[] = [];
+  const addedLinkKeys = new Set<string>();
+
+  const isParentEntity = (fact: FactItem) => {
+    const cat = getCategoryInfo(fact).id;
+    return cat === 'principality' || cat === 'empire' || cat === 'civilization';
+  };
+
+  const getRelationColor = (relationType: string, isParent: boolean) => {
+    if (isParent) return '#eab308'; // Royal Gold
+    switch (relationType) {
+      case 'ruler':
+        return '#f59e0b'; // Amber Gold
+      case 'castle':
+        return '#38bdf8'; // Sky Cyan
+      case 'battle':
+        return '#f43f5e'; // Crimson Rose
+      case 'scholar':
+        return '#a855f7'; // Purple
+      case 'city':
+        return '#10b981'; // Emerald
+      default:
+        return '#06b6d4'; // Cyan
+    }
+  };
+
+  const getRelationLabel = (target: FactItem, isParent: boolean) => {
+    if (isParent) return 'دەسەڵاتی دایک';
+    const cat = getCategoryInfo(target).id;
+    if (cat === 'castle') return 'قەڵا و سەنگەر';
+    if (cat === 'battle') return 'جەنگی چارەنووسساز';
+    if (cat === 'leader') return 'فەرمانڕەوا / سەرکردە';
+    if (cat === 'scholar') return 'زانا و ئەدیب';
+    if (cat === 'principality' || cat === 'empire') return 'دەسەڵاتی هاوپەیمان';
+    if (cat === 'monument') return 'ئاسەواری مێژوویی';
+    return 'پەیوەندیدار';
+  };
+
+  const getRelationType = (target: FactItem, isParent: boolean): KnowledgeGraphLink['relationType'] => {
+    if (isParent) return 'parent';
+    const cat = getCategoryInfo(target).id;
+    if (cat === 'leader') return 'ruler';
+    if (cat === 'castle') return 'castle';
+    if (cat === 'battle') return 'battle';
+    if (cat === 'scholar') return 'scholar';
+    if (cat === 'principality' || cat === 'empire') return 'ally';
+    return 'related';
+  };
+
+  const addLink = (source: FactItem, target: FactItem, isParent: boolean, customLabel?: string) => {
+    if (source.id === target.id) return;
+    const key = [Math.min(source.id, target.id), Math.max(source.id, target.id)].join('-');
+    if (addedLinkKeys.has(key)) return;
+    addedLinkKeys.add(key);
+
+    nodesMap.set(target.id, target);
+
+    const relType = getRelationType(target, isParent);
+    const label = customLabel || getRelationLabel(target, isParent);
+    const color = getRelationColor(relType, isParent);
+
+    links.push({
+      source,
+      target,
+      relationType: relType,
+      label,
+      isDirectParent: isParent,
+      color,
+    });
+  };
+
+  // 1. Resolve Explicit Parent Entity (ONLY user-selected parentFactId)
+  let resolvedParent: FactItem | null = null;
+  if (typeof centerFact.parentFactId === 'number') {
+    resolvedParent = allFacts.find((f) => f.id === centerFact.parentFactId) || null;
+  }
+
+  if (resolvedParent) {
+    addLink(centerFact, resolvedParent, true, 'دەسەڵاتی دایک');
+  }
+
+  // 2. Resolve Explicit Children and Related facts (ONLY user-selected links)
+  allFacts.forEach((f) => {
+    if (f.id === centerFact.id) return;
+
+    // A. Explicit children that have centerFact as parent
+    if (f.parentFactId === centerFact.id) {
+      addLink(centerFact, f, false);
+      return;
+    }
+
+    // B. Explicit relatedFactIds in centerFact
+    if (Array.isArray(centerFact.relatedFactIds) && centerFact.relatedFactIds.includes(f.id)) {
+      addLink(centerFact, f, false);
+      return;
+    }
+
+    // C. Explicit reverse relatedFactIds in other facts
+    if (Array.isArray(f.relatedFactIds) && f.relatedFactIds.includes(centerFact.id)) {
+      addLink(centerFact, f, false);
+      return;
+    }
+
+    // D. Explicit Allies in centerFact (دەسەڵاتی هاوپەیمان)
+    if (Array.isArray(centerFact.allyFactIds) && centerFact.allyFactIds.includes(f.id)) {
+      addLink(centerFact, f, false, 'هاوپەیمان');
+      return;
+    }
+
+    // E. Explicit reverse Allies in other facts
+    if (Array.isArray(f.allyFactIds) && f.allyFactIds.includes(centerFact.id)) {
+      addLink(centerFact, f, false, 'هاوپەیمان');
+      return;
+    }
+  });
+
+  return {
+    centerFact,
+    nodes: Array.from(nodesMap.values()),
+    links,
+    parentFact: resolvedParent,
+  };
+}
