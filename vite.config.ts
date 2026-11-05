@@ -47,8 +47,8 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff,woff2}'],
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
           // Online-first runtime caching strategy for Firestore & Maps data
           runtimeCaching: [
             {
@@ -115,6 +115,29 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname || '.', '.'),
+      },
+    },
+    build: {
+      target: 'es2022',
+      cssMinify: true,
+      chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/leaflet')) {
+              return 'vendor-leaflet';
+            }
+            if (id.includes('node_modules/firebase')) {
+              return 'vendor-firebase';
+            }
+            if (id.includes('node_modules/lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'vendor-react';
+            }
+          },
+        },
       },
     },
     server: {

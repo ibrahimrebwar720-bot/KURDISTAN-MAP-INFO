@@ -204,45 +204,20 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
       }
 
 
-      // Draw Laser Connections
+      // Draw Static Connection Lines (هێڵی ئاسایی بێ جوڵە)
       if (centerNode) {
         for (let i = 1; i < nodes.length; i++) {
           const node = nodes[i];
 
-          // 1. Ambient Glow Line
+          // Clean, static solid connection line
           ctx.beginPath();
           ctx.moveTo(centerNode.x, centerNode.y);
           ctx.lineTo(node.x, node.y);
           ctx.strokeStyle = node.color;
-          ctx.lineWidth = 6;
-          ctx.globalAlpha = 0.18;
-          ctx.stroke();
-
-          // 2. Crisp Laser Core
-          ctx.beginPath();
-          ctx.moveTo(centerNode.x, centerNode.y);
-          ctx.lineTo(node.x, node.y);
-          ctx.strokeStyle = node.color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.2;
           ctx.globalAlpha = 0.85;
-          ctx.setLineDash([6, 6]);
-          ctx.lineDashOffset = -time * 25;
           ctx.stroke();
-          ctx.setLineDash([]);
           ctx.globalAlpha = 1.0;
-
-          // 3. Flowing Light Particle
-          const particleProgress = (time * 0.8 + i * 0.25) % 1;
-          const px = centerNode.x + (node.x - centerNode.x) * particleProgress;
-          const py = centerNode.y + (node.y - centerNode.y) * particleProgress;
-
-          ctx.beginPath();
-          ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.shadowColor = node.color;
-          ctx.shadowBlur = 10;
-          ctx.fill();
-          ctx.shadowBlur = 0;
 
           // 4. Midpoint Label Badge
           if (node.relationLabel) {

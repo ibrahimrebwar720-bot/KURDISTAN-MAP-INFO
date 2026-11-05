@@ -1,9 +1,105 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Custom Calibri Typography System
+   Calibri Bold: Headings, titles, badges, and prominent labels
+   Calibri Regular: Standard body text, descriptions, details, buttons
+   Calibri Light: Subtle captions, timestamps, dates, secondary notes
+   ========================================================================== */
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-regular.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-bold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-bold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/calibri-bold.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Explicit Named Font-Family Aliases */
+@font-face {
+  font-family: 'Calibri Light';
+  src: url('/fonts/calibri-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri Regular';
+  src: url('/fonts/calibri-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibri Bold';
+  src: url('/fonts/calibri-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Calibri', 'Calibri Regular', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Calibri Bold', 'Calibri', 'Noto Kufi Arabic', sans-serif;
+  --font-body: 'Calibri Regular', 'Calibri', 'Vazirmatn', sans-serif;
+  --font-light: 'Calibri Light', 'Calibri', sans-serif;
+}
+
 @layer base {
   :root {
-    --font-sans: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-heading: 'Noto Kufi Arabic', 'Vazirmatn', sans-serif;
+    --font-sans: 'Calibri', 'Calibri Regular', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-heading: 'Calibri Bold', 'Calibri', 'Noto Kufi Arabic', sans-serif;
+    --font-body: 'Calibri Regular', 'Calibri', sans-serif;
+    --font-light: 'Calibri Light', 'Calibri', sans-serif;
 
     /* Global Theme Variables (Default: Kurdish Gold & Obsidian) */
     --theme-accent: #f59e0b;
@@ -130,6 +226,7 @@
 
   body {
     font-family: var(--font-sans);
+    font-weight: 400;
     direction: rtl;
     background-color: var(--theme-bg, #030712);
     color: #f3f4f6;
@@ -142,10 +239,24 @@
     width: 100%;
     overflow: hidden;
     position: relative;
+    font-family: var(--font-sans);
   }
 
-  h1, h2, h3, h4, .font-heading {
+  /* Headings & Titles: Calibri Bold */
+  h1, h2, h3, h4, h5, h6, .font-heading, .font-bold-calibri {
     font-family: var(--font-heading);
+    font-weight: 700;
+  }
+
+  /* Regular content & inputs: Calibri Regular */
+  p, input, textarea, select, button {
+    font-family: var(--font-body);
+  }
+
+  /* Subtle captions, dates & metadata: Calibri Light */
+  .font-light, .font-calibri-light, .font-caption, .text-caption, time {
+    font-family: var(--font-light);
+    font-weight: 300;
   }
 }
 
@@ -1022,26 +1133,34 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   background: #b45309;
 }
 
-/* 16. Knowledge Graph Spiderweb & Laser Constellation Styles */
-@keyframes laserDashFlow {
-  to {
-    stroke-dashoffset: -32;
-  }
+/* 16. Knowledge Graph Spiderweb & Clean Static Connection Lines */
+.knowledge-graph-static-line {
+  stroke-linecap: round;
+  transition: opacity 0.2s ease;
 }
 
-.knowledge-graph-laser-line {
-  animation: laserDashFlow 1.2s linear infinite;
-  filter: drop-shadow(0 0 6px currentColor);
-  stroke-linecap: round;
-}
-
-.knowledge-graph-glow-line {
-  filter: blur(3px);
-  stroke-linecap: round;
+.knowledge-graph-static-line:hover {
+  opacity: 1;
 }
 
 .knowledge-graph-midpoint-badge {
   transition: transform 0.15s ease-out;
+}
+
+/* 17. Calibri Typography Utility Classes */
+.font-calibri-bold, .calibri-bold {
+  font-family: 'Calibri Bold', 'Calibri', sans-serif !important;
+  font-weight: 700 !important;
+}
+
+.font-calibri-regular, .calibri-regular {
+  font-family: 'Calibri Regular', 'Calibri', sans-serif !important;
+  font-weight: 400 !important;
+}
+
+.font-calibri-light, .calibri-light {
+  font-family: 'Calibri Light', 'Calibri', sans-serif !important;
+  font-weight: 300 !important;
 }
 
 

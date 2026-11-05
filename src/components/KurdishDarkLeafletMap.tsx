@@ -4,7 +4,6 @@ import 'leaflet/dist/leaflet.css';
 import { FactItem, GREAT_KURDISTAN_POLYGON } from '../data/kurdishHistoryData';
 import {
   createCachedTileLayer,
-  preloadKurdistanTiles,
   DARK_MAP_TILE_URL,
   LIGHT_MAP_TILE_URL,
   SATELLITE_MAP_TILE_URL,
@@ -65,11 +64,21 @@ import { getCategoryInfo } from '../types/history';
 import { useTheme } from '../context/ThemeContext';
 import { getLinkedFacts, getKnowledgeGraphNetwork, KnowledgeGraphNetwork } from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
-import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { copyTopicToClipboard, getShareableTopicUrl } from '../utils/urlRouter';
-import { InteractiveKnowledgeGraphModal } from './InteractiveKnowledgeGraphModal';
+
+const ThemeSelectorModal = React.lazy(() =>
+  import('./ThemeSelectorModal').then((m) => ({
+    default: m.ThemeSelectorModal,
+  }))
+);
+
+const InteractiveKnowledgeGraphModal = React.lazy(() =>
+  import('./InteractiveKnowledgeGraphModal').then((m) => ({
+    default: m.InteractiveKnowledgeGraphModal,
+  }))
+);
 
 interface Props {
   facts: FactItem[];
@@ -269,6 +278,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const [showKnowledgeGraphLines, setShowKnowledgeGraphLines] = useState<boolean>(true);
   const [isKnowledgeGraphModalOpen, setIsKnowledgeGraphModalOpen] = useState<boolean>(false);
 
+  // Category Selector Modal directly on map (دوگمەی پۆلێنەکان)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
+
+  // Principality / Authority Focus Isolation Mode (فۆکەسی دەسەڵات: تەنها پەیوەندیدارەکانی دەردەکەون)
+  const [isPrincipalityFocusActive, setIsPrincipalityFocusActive] = useState<boolean>(true);
+
   // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite)
   const [internalMapMode, setInternalMapMode] = useState<'dark' | 'satellite'>('dark');
   const mapMode = externalMapMode ?? internalMapMode;
@@ -384,10 +399,132 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     );
   }, [activeTagFilter]);
 
+  // Check if a fact belongs to principality / authority / state / empire
+  const isPrincipalityFact = useCallback((fact: FactItem | null | undefined): boolean => {
+    if (!fact) return false;
+    const cat = getCategoryInfo(fact).id;
+    if (cat === 'principality' || cat === 'empire') return true;
+    const tag = (fact.tag || '').toLowerCase();
+    const name = (fact.name || '').toLowerCase();
+    return (
+      tag.includes('principality') ||
+      tag.includes('empire') ||
+      tag.includes('state') ||
+      tag.includes('میرنشین') ||
+      tag.includes('دەوڵەت') ||
+      tag.includes('دەسەڵات') ||
+      tag.includes('ئیمپراتۆریەت') ||
+      name.includes('میرنشین') ||
+      name.includes('دەوڵەت') ||
+      name.includes('دەسەڵات') ||
+      name.includes('ئیمپراتۆریەت')
+    );
+  }, []);
+
+  // Compute the related fact IDs set for the selected principality/state
+  // When clicked, only this state + its related items (figures, castles, battles, scholars, allies) remain on the map
+  const relatedFactIdsSet = useMemo(() => {
+    if (!selectedFact) return null;
+
+    const isDirectPrincipality = isPrincipalityFact(selectedFact);
+    const parentFact =
+      typeof selectedFact.parentFactId === 'number'
+        ? facts.find((f) => f.id === selectedFact.parentFactId)
+        : null;
+    const isParentPrincipality = parentFact && isPrincipalityFact(parentFact);
+
+    // If neither selectedFact nor its parent is a principality, do not isolate
+    if (!isDirectPrincipality && !isParentPrincipality) {
+      return null;
+    }
+
+    const targetEntity = isDirectPrincipality ? selectedFact : parentFact!;
+    const idSet = new Set<number>();
+    idSet.add(targetEntity.id);
+    idSet.add(selectedFact.id);
+
+    // 1. Explicit relatedFactIds in targetEntity
+    if (Array.isArray(targetEntity.relatedFactIds)) {
+      targetEntity.relatedFactIds.forEach((rid) => {
+        if (typeof rid === 'number') idSet.add(rid);
+      });
+    }
+
+    // 2. Explicit parentFactId in targetEntity
+    if (typeof targetEntity.parentFactId === 'number') {
+      idSet.add(targetEntity.parentFactId);
+    }
+
+    // 3. Explicit allyFactIds in targetEntity
+    if (Array.isArray(targetEntity.allyFactIds)) {
+      targetEntity.allyFactIds.forEach((aid) => {
+        if (typeof aid === 'number') idSet.add(aid);
+      });
+    }
+
+    // 4. Reverse lookup across all facts in the dataset
+    facts.forEach((other) => {
+      if (other.id === targetEntity.id) return;
+
+      if (other.parentFactId === targetEntity.id) {
+        idSet.add(other.id);
+      }
+      if (Array.isArray(other.relatedFactIds) && other.relatedFactIds.includes(targetEntity.id)) {
+        idSet.add(other.id);
+      }
+      if (Array.isArray(other.allyFactIds) && other.allyFactIds.includes(targetEntity.id)) {
+        idSet.add(other.id);
+      }
+    });
+
+    // 5. Also include relations from selectedFact if different from targetEntity
+    if (selectedFact.id !== targetEntity.id) {
+      if (Array.isArray(selectedFact.relatedFactIds)) {
+        selectedFact.relatedFactIds.forEach((rid) => {
+          if (typeof rid === 'number') idSet.add(rid);
+        });
+      }
+      if (Array.isArray(selectedFact.allyFactIds)) {
+        selectedFact.allyFactIds.forEach((aid) => {
+          if (typeof aid === 'number') idSet.add(aid);
+        });
+      }
+    }
+
+    // 6. Name root safety fallback (e.g. "ئەییووبی" / "ئەیوبی")
+    const cleanName = targetEntity.name
+      .replace(/میرنشینی|دەوڵەتی|ئیمپراتۆریەتی|دەسەڵاتی|\(.*?\)/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (cleanName.length >= 3) {
+      facts.forEach((f) => {
+        if (idSet.has(f.id)) return;
+        const fn = f.name.toLowerCase();
+        if (
+          fn.includes(cleanName) ||
+          (cleanName.includes('ئەیوب') && (fn.includes('ئەییووب') || fn.includes('ئەیوب')))
+        ) {
+          idSet.add(f.id);
+        }
+      });
+    }
+
+    return idSet;
+  }, [selectedFact, facts, isPrincipalityFact]);
+
+  // When a principality or related item is selected, activate focus isolation
+  useEffect(() => {
+    if (selectedFact && isPrincipalityFact(selectedFact)) {
+      setIsPrincipalityFocusActive(true);
+    }
+  }, [selectedFact?.id, isPrincipalityFact]);
+
   // Handle changing filter
   const handleSelectTagFilter = (tagId: string) => {
     setActiveTagFilter(tagId);
     setIsMoreMenuOpen(false);
+    setIsCategoryModalOpen(false);
   };
 
   const handleAdminIconClick = () => {
@@ -496,9 +633,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       resizeObserver.observe(mapContainerRef.current);
     }
 
-    // Silently pre-cache Kurdistan region base map tiles in background
-    preloadKurdistanTiles();
-
     mapInstanceRef.current = map;
     setLeafletMap(map);
 
@@ -529,9 +663,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       // Close floating menus if open
       setIsMoreMenuOpen(false);
+      setIsCategoryModalOpen(false);
 
       // Deselect point and dismiss quick summary card when clicking on empty map
       setShowQuickSummary(false);
+      setIsPrincipalityFocusActive(false);
       if (onDeselectFact) {
         onDeselectFact();
       }
@@ -671,21 +807,30 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const [tourProgress, setTourProgress] = useState(0); // 0 to 100%
   const tourProgressRef = useRef(0);
 
-  // Filter facts based on Active Year and Category Tag
+  // Filter facts based on Principality Focus Isolation, Category Tag, and Active Year
   const visibleFacts = useMemo(() => {
     let list = facts;
-    // 1. Category Filter (پۆلێن)
+
+    // 1. Principality / Authority Focus Isolation:
+    // If a principality/authority is selected and focus mode is active:
+    // Only show the state itself and its related items (rulers, castles, battles, scholars, allies) on the map!
+    if (isPrincipalityFocusActive && relatedFactIdsSet && relatedFactIdsSet.size > 0) {
+      list = list.filter((fact) => relatedFactIdsSet.has(fact.id));
+      return list;
+    }
+
+    // 2. Category Filter (پۆلێن)
     if (activeTagFilter !== 'all') {
       list = list.filter((fact) => getCategoryInfo(fact).id === activeTagFilter);
     }
 
-    // 2. Active Year Filter (Only if not in tour mode, and when specific year is chosen)
+    // 3. Active Year Filter (Only if not in tour mode, and when specific year is chosen)
     if (!isTourActive && selectedYear !== 'all') {
       list = filterFactsByActiveYear(list, selectedYear);
     }
 
     return list;
-  }, [facts, activeTagFilter, selectedYear, isTourActive]);
+  }, [facts, isPrincipalityFocusActive, relatedFactIdsSet, activeTagFilter, selectedYear, isTourActive]);
 
   // Facts with verified images for Photo Mode and Bottom Photo Strip
   const visibleFactsWithImages = useMemo(() => {
@@ -979,6 +1124,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           if (e && e.originalEvent) {
             L.DomEvent.stopPropagation(e);
           }
+          setIsPrincipalityFocusActive(true);
           onSelectFact(fact);
           setShowQuickSummary(true);
         });
@@ -1057,41 +1203,25 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         return;
       }
 
-      // Outer ambient glow line
-      const glowLine = L.polyline(
+      // Static clean connection line (هێڵێکی ئاسایی بێ جوڵە)
+      const connectionLine = L.polyline(
         [
           [lat1, lng1],
           [lat2, lng2],
         ],
         {
           color: link.color,
-          weight: link.isDirectParent ? 6 : 4,
-          opacity: 0.28,
+          weight: link.isDirectParent ? 3 : 2.2,
+          opacity: 0.9,
           lineCap: 'round',
-          interactive: false,
-        }
-      );
-      kgLayer.addLayer(glowLine);
-
-      // Inner crisp glowing laser line
-      const laserLine = L.polyline(
-        [
-          [lat1, lng1],
-          [lat2, lng2],
-        ],
-        {
-          color: link.color,
-          weight: link.isDirectParent ? 2.8 : 2,
-          opacity: 0.95,
-          dashArray: '8, 8',
-          className: 'knowledge-graph-laser-line cursor-pointer',
+          className: 'knowledge-graph-static-line cursor-pointer',
           interactive: true,
         }
       );
-      laserLine.on('click', () => {
+      connectionLine.on('click', () => {
         onSelectFact(link.target);
       });
-      kgLayer.addLayer(laserLine);
+      kgLayer.addLayer(connectionLine);
 
       // Midpoint Relation Badge Tag
       const midLat = (lat1 + lat2) / 2;
@@ -1233,6 +1363,29 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           </div>
         )}
 
+        {/* C. Principality / Authority Focus Isolation Indicator */}
+        {isPrincipalityFocusActive && relatedFactIdsSet && selectedFact && isPrincipalityFact(selectedFact) && (
+          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass-dock border border-amber-400/50 shadow-[0_8px_30px_rgba(0,0,0,0.85)] animate-fade-in text-right">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+            <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-xs font-bold text-white font-heading">
+              فۆکەسی دەسەڵات: <span className="text-amber-300 font-extrabold">{selectedFact.name}</span>
+            </span>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+              تەنها {visibleFacts.length} شوێنی پەیوەندیدار دیارە
+            </span>
+            <button
+              onClick={() => {
+                setIsPrincipalityFocusActive(false);
+              }}
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 hover:text-white text-[10px] font-bold transition-all cursor-pointer mr-1 border border-amber-400/30"
+              title="پیشاندانی هەموو شوێنەکانی تر لەسەر نەخشە"
+            >
+              <X className="w-3 h-3 text-amber-300" />
+              <span>پیشاندانی هەمووی</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 3. Top-Left Admin Indicator when active */}
@@ -1303,6 +1456,31 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             </>
           )}
 
+
+          {/* دوگمەی پۆلێنەکان (Category Filter Button on Map) */}
+          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+          <button
+            onClick={() => setIsCategoryModalOpen((prev) => !prev)}
+            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
+              activeTagFilter !== 'all'
+                ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
+            }`}
+            title="پۆلێنەکان (فلتەرکردن بەپێی یەک جۆر پۆلێن لەسەر نەخشە)"
+          >
+            <Layers className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+            <span className="font-heading font-extrabold text-xs whitespace-nowrap">
+              {activeTagFilter === 'all' ? 'پۆلێنەکان' : currentFilterObj.shortLabel}
+            </span>
+            {activeTagFilter !== 'all' ? (
+              <span
+                className="w-2 h-2 rounded-full shrink-0 shadow-xs"
+                style={{ backgroundColor: currentFilterObj.color }}
+              />
+            ) : (
+              <ChevronDown className="w-3 h-3 text-amber-400/70 group-hover:translate-y-0.5 transition-transform" />
+            )}
+          </button>
 
           {/* ئایکۆنی ڕێکخستنەکان */}
           {onOpenSettings && (
@@ -1507,6 +1685,22 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   >
                     <BookOpen className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>زانیاری زیاتر و بەڵگەنامەکان</span>
+                  </button>
+                )}
+
+                {isPrincipalityFact(selectedFact) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsPrincipalityFocusActive((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                      isPrincipalityFocusActive
+                        ? 'bg-amber-400 text-black border border-amber-300 shadow-md font-extrabold'
+                        : 'liquid-glass-btn text-amber-300 hover:text-white border border-white/10'
+                    }`}
+                    title="فۆکەس لەسەر تەنها ئەم دەسەڵاتە و شوێنە پەیوەندیدارەکانی"
+                  >
+                    <Crown className="w-3.5 h-3.5" />
+                    <span>{isPrincipalityFocusActive ? 'فۆکەسی دەسەڵات: چالاکە' : 'فۆکەسی دەسەڵات: ناچالاک'}</span>
                   </button>
                 )}
               </div>
@@ -1979,24 +2173,142 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       )}
 
       {/* Theme Selector Modal (بەشی ڕووکار و ستایلی نەخشە) */}
-      <ThemeSelectorModal
-        isOpen={isThemeModalOpen}
-        onClose={() => setIsThemeModalOpen(false)}
-      />
+      <React.Suspense fallback={null}>
+        <ThemeSelectorModal
+          isOpen={isThemeModalOpen}
+          onClose={() => setIsThemeModalOpen(false)}
+        />
+      </React.Suspense>
 
       {/* Interactive Knowledge Graph Constellation Modal (شاشەی گرافی تیشکدەری کەسایەتی و دەسەڵاتەکان) */}
-      <InteractiveKnowledgeGraphModal
-        isOpen={isKnowledgeGraphModalOpen}
-        onClose={() => setIsKnowledgeGraphModalOpen(false)}
-        centerFact={selectedFact}
-        allFacts={facts}
-        onSelectFact={(fact) => {
-          onSelectFact(fact);
-        }}
-        onOpenFactDetail={(fact) => {
-          if (onOpenDetail) onOpenDetail(fact);
-        }}
-      />
+      <React.Suspense fallback={null}>
+        <InteractiveKnowledgeGraphModal
+          isOpen={isKnowledgeGraphModalOpen}
+          onClose={() => setIsKnowledgeGraphModalOpen(false)}
+          centerFact={selectedFact}
+          allFacts={facts}
+          onSelectFact={(fact) => {
+            onSelectFact(fact);
+          }}
+          onOpenFactDetail={(fact) => {
+            if (onOpenDetail) onOpenDetail(fact);
+          }}
+        />
+      </React.Suspense>
+
+      {/* Category Selection Popover Modal (مۆداڵی پۆلێنەکانی مێژوو لەسەر نەخشە) */}
+      {isCategoryModalOpen && (
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in text-right"
+          onClick={() => setIsCategoryModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-md liquid-glass-panel rounded-3xl p-4 sm:p-5 border border-white/20 shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.2)] max-h-[90dvh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            dir="rtl"
+          >
+            <div className="glass-specular-ray" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl liquid-glass-btn flex items-center justify-center text-amber-400 border border-amber-400/30">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-white font-heading">
+                    پۆلێنی شوێنەکان لەسەر نەخشە
+                  </h3>
+                  <p className="text-[11px] text-slate-300 font-light">
+                    یەک جۆر پۆلێن دیاریبکە بۆ پیشاندانی تەنها ئەو بابەتانە
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="داخستن"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Category Options List */}
+            <div className="space-y-1.5 overflow-y-auto pr-1 custom-scrollbar flex-1">
+              {TAG_FILTER_OPTIONS.map((opt) => {
+                const isSelected = activeTagFilter === opt.id;
+                const count = tagCounts[opt.id] ?? 0;
+                const IconComp = opt.icon;
+
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      handleSelectTagFilter(opt.id);
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all cursor-pointer text-right group border ${
+                      isSelected
+                        ? 'liquid-glass-btn-active text-black shadow-md border-amber-400/80 font-bold'
+                        : 'liquid-glass-btn hover:border-amber-400/40 text-slate-200 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                          isSelected ? 'bg-black/15 border-black/20 text-black' : 'bg-white/5 border-white/10'
+                        }`}
+                        style={!isSelected ? { color: opt.color, borderColor: `${opt.color}40` } : undefined}
+                      >
+                        <IconComp className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className={`block text-xs sm:text-sm font-heading font-bold truncate ${
+                          isSelected ? 'text-black font-extrabold' : 'text-white group-hover:text-amber-300'
+                        }`}>
+                          {opt.label}
+                        </span>
+                        {opt.id !== 'all' && (
+                          <span className={`block text-[10px] truncate ${
+                            isSelected ? 'text-black/80 font-medium' : 'text-slate-400 font-light'
+                          }`}>
+                            {opt.shortLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                        isSelected
+                          ? 'bg-black/20 text-black border border-black/30'
+                          : 'bg-white/10 text-amber-300 border border-white/10'
+                      }`}>
+                        {count} شوێن
+                      </span>
+                      {isSelected && <Check className="w-4 h-4 text-black mr-1 stroke-[3]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Reset Footer */}
+            {activeTagFilter !== 'all' && (
+              <div className="pt-3 mt-3 border-t border-white/10 flex justify-end shrink-0">
+                <button
+                  onClick={() => {
+                    handleSelectTagFilter('all');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>لابردنی فلتەر و پیشاندانی هەموو شوێنەکان</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

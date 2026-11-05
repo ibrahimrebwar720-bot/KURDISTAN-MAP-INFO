@@ -19,16 +19,18 @@ import {
 } from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
-import { FactDetailModal } from './components/FactDetailModal';
-import { AdminPinModal } from './components/AdminPinModal';
-import { FactEditorModal } from './components/FactEditorModal';
-import { CollectionManagerModal } from './components/CollectionManagerModal';
-import { HistoricalGalleryModal } from './components/HistoricalGalleryModal';
-import { ThemeSelectorModal } from './components/ThemeSelectorModal';
-import { DocumentaryScrollytellingModal } from './components/DocumentaryScrollytellingModal';
-import { HeroSection } from './components/HeroSection';
-import { HistoricalJourneyModal } from './components/HistoricalJourneyModal';
-import { AppSettingsModal } from './components/AppSettingsModal';
+
+// Code-split heavy secondary modals for instant zero-lag initial page load
+const FactDetailModal = React.lazy(() => import('./components/FactDetailModal').then((m) => ({ default: m.FactDetailModal })));
+const AdminPinModal = React.lazy(() => import('./components/AdminPinModal').then((m) => ({ default: m.AdminPinModal })));
+const FactEditorModal = React.lazy(() => import('./components/FactEditorModal').then((m) => ({ default: m.FactEditorModal })));
+const CollectionManagerModal = React.lazy(() => import('./components/CollectionManagerModal').then((m) => ({ default: m.CollectionManagerModal })));
+const HistoricalGalleryModal = React.lazy(() => import('./components/HistoricalGalleryModal').then((m) => ({ default: m.HistoricalGalleryModal })));
+const ThemeSelectorModal = React.lazy(() => import('./components/ThemeSelectorModal').then((m) => ({ default: m.ThemeSelectorModal })));
+const DocumentaryScrollytellingModal = React.lazy(() => import('./components/DocumentaryScrollytellingModal').then((m) => ({ default: m.DocumentaryScrollytellingModal })));
+const HeroSection = React.lazy(() => import('./components/HeroSection').then((m) => ({ default: m.HeroSection })));
+const HistoricalJourneyModal = React.lazy(() => import('./components/HistoricalJourneyModal').then((m) => ({ default: m.HistoricalJourneyModal })));
+const AppSettingsModal = React.lazy(() => import('./components/AppSettingsModal').then((m) => ({ default: m.AppSettingsModal })));
 import { useTheme } from './context/ThemeContext';
 import {
   parseCurrentUrl,
@@ -683,8 +685,10 @@ export default function App() {
         )}
       </main>
 
-      {/* Documentary Scrollytelling Modal (گەشت بەناو ڕووداوە گەورەکاندا) */}
-      <DocumentaryScrollytellingModal
+      {/* Lazy loaded modals suspended seamlessly without blocking initial page render */}
+      <React.Suspense fallback={null}>
+        {/* Documentary Scrollytelling Modal (گەشت بەناو ڕووداوە گەورەکاندا) */}
+        <DocumentaryScrollytellingModal
         isOpen={isDocumentaryTourOpen}
         onClose={() => setIsDocumentaryTourOpen(false)}
         onFlyToCoords={handleDocumentaryFlyTo}
@@ -834,6 +838,7 @@ export default function App() {
           handleSelectFact(fact);
         }}
       />
-    </div>
-  );
+    </React.Suspense>
+  </div>
+);
 }
