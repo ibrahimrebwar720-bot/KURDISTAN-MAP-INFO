@@ -26,7 +26,6 @@ import {
   Layers,
   Sparkles,
   Share2,
-  Network,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
@@ -36,9 +35,7 @@ import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { toKurdishDigits } from '../utils/yearUtils';
 import { getShareableTopicUrl, copyTopicToClipboard } from '../utils/urlRouter';
-import { InteractiveKnowledgeGraphModal } from './InteractiveKnowledgeGraphModal';
 
-const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
 
 interface Props {
   fact: FactItem | null;
@@ -92,7 +89,6 @@ export const FactDetailModal: React.FC<Props> = ({
     'all' | 'leaders' | 'scholars' | 'castles' | 'battles' | 'monuments' | 'others'
   >('all');
   const [isRelationsModalOpen, setIsRelationsModalOpen] = useState(false);
-  const [isKnowledgeGraphOpen, setIsKnowledgeGraphOpen] = useState(false);
 
   const linkedData = useMemo(() => {
     return getLinkedFacts(fact, allFacts);
@@ -177,15 +173,7 @@ export const FactDetailModal: React.FC<Props> = ({
         className="relative w-full max-w-xl glass-dock-2026 rounded-3xl p-5 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden custom-scrollbar animate-spatial-spring"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Subtle Background Layer: Kurdish Battles & Scholars Artwork */}
-        <div className="absolute inset-0 pointer-events-none opacity-10 overflow-hidden z-0">
-          <img
-            src={BATTLE_SCHOLAR_BG}
-            alt="Kurdish Battles & Scholars Background"
-            className="w-full h-full object-cover object-center filter saturate-50"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#070b14]/70 via-[#070b14]/90 to-[#070b14]" />
-        </div>
+
 
         {/* Header row */}
         <div className="relative z-10 flex items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5 mb-3.5">
@@ -455,16 +443,6 @@ export const FactDetailModal: React.FC<Props> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsKnowledgeGraphOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/35 border border-purple-400/40 text-purple-300 hover:text-white text-[11px] font-bold transition-all cursor-pointer shadow-sm active:scale-95"
-                    title="بینینی تۆڕی تیشکدەری پەیوەندییەکان وەک هەسارەکان"
-                  >
-                    <Network className="w-3.5 h-3.5 text-purple-400" />
-                    <span>شاشەی گرافی تیشکدەر</span>
-                  </button>
-
                   {isAdmin && (
                     <button
                       onClick={() => setIsRelationsModalOpen(true)}
@@ -821,24 +799,6 @@ export const FactDetailModal: React.FC<Props> = ({
         />
       )}
 
-      {/* Interactive Knowledge Graph Constellation Modal */}
-      <InteractiveKnowledgeGraphModal
-        isOpen={isKnowledgeGraphOpen}
-        onClose={() => setIsKnowledgeGraphOpen(false)}
-        centerFact={fact}
-        allFacts={allFacts}
-        onSelectFact={(f) => {
-          setIsKnowledgeGraphOpen(false);
-          onClose();
-          onFlyToMap(f);
-        }}
-        onOpenFactDetail={(f) => {
-          setIsKnowledgeGraphOpen(false);
-          if (f.id !== fact?.id) {
-            onFlyToMap(f);
-          }
-        }}
-      />
     </div>
   );
 };

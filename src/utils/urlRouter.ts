@@ -155,7 +155,7 @@ export function updateBrowserUrl(
   if (options.factName) {
     document.title = `${options.factName} | مێژووی کوردستان`;
   } else if (options.view === 'journey') {
-    document.title = `گەشتی مێژوویی (پۆستەرەکان) | مێژووی کوردستان`;
+    document.title = `گەشتی مێژوویی (کارتەکان) | مێژووی کوردستان`;
   } else if (options.view === 'gallery') {
     document.title = `گەلەری وێنە مێژووییەکان | مێژووی کوردستان`;
   } else if (options.view === 'menu') {

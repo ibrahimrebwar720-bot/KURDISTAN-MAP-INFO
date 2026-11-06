@@ -547,7 +547,7 @@ export const HeroSection: React.FC<Props> = ({
               </span>
             </div>
             <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline opacity-90 truncate max-w-full">
-              پۆستەری مێژوویی
+              کارتەکانی مێژوو
             </span>
           </button>
 

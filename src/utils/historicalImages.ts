@@ -9,41 +9,60 @@ export interface FactImageEntry {
 /**
  * Returns all valid images (up to 10 images) associated with a fact,
  * with primary/main image at index 0, followed by additional images.
+ * Recognizes all image property variants (imageUrl, image, img, photo, etc.)
  */
 export function getAllFactImages(fact: FactItem | null | undefined): FactImageEntry[] {
   if (!fact) return [];
   const list: FactImageEntry[] = [];
   const seen = new Set<string>();
+  const anyFact = fact as any;
 
-  // 1. If explicit images array is present and has elements
+  const pushIfValid = (candidate: any, caption?: string) => {
+    if (!candidate) return;
+    const raw = typeof candidate === 'string' ? candidate : candidate.url || candidate.image || candidate.imageUrl || candidate.src || candidate.link || candidate.photo;
+    const cap = caption || (typeof candidate === 'object' ? candidate.caption || candidate.title || candidate.desc : undefined);
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      const trimmed = raw.trim();
+      // Block synthetic AI generated backgrounds
+      if (trimmed.includes('kurd_battle_scholar_bg') || trimmed.includes('hero/bg')) {
+        return;
+      }
+      const resolved = resolveImageUrl(trimmed);
+      if (resolved && !seen.has(resolved)) {
+        seen.add(resolved);
+        list.push({
+          url: resolved,
+          caption: typeof cap === 'string' && cap.trim() ? cap.trim() : undefined,
+        });
+      }
+    }
+  };
+
+  // 1. Primary main image candidate properties
+  pushIfValid(fact.imageUrl, fact.imageCaption);
+  pushIfValid(anyFact.image, anyFact.imageCaption || anyFact.caption);
+  pushIfValid(anyFact.img);
+  pushIfValid(anyFact.photo);
+  pushIfValid(anyFact.photoUrl);
+  pushIfValid(anyFact.picture);
+  pushIfValid(anyFact.pictureUrl);
+  pushIfValid(anyFact.thumbnail);
+  pushIfValid(anyFact.coverImage);
+  pushIfValid(anyFact.overlayImageUrl);
+
+  // 2. Explicit images array if present
   if (Array.isArray(fact.images) && fact.images.length > 0) {
     fact.images.forEach((item) => {
-      if (!item) return;
-      const rawUrl = typeof item === 'string' ? item : item.url;
-      const caption = typeof item === 'object' ? item.caption : undefined;
-      if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() && !rawUrl.trim().startsWith('data:')) {
-        const resolved = resolveImageUrl(rawUrl.trim());
-        if (resolved && !seen.has(resolved)) {
-          seen.add(resolved);
-          list.push({
-            url: resolved,
-            caption: caption?.trim() || undefined,
-          });
-        }
-      }
+      pushIfValid(item);
     });
   }
 
-  // 2. Main image (imageUrl) if not already included
-  if (typeof fact.imageUrl === 'string' && fact.imageUrl.trim() && !fact.imageUrl.trim().startsWith('data:')) {
-    const resolved = resolveImageUrl(fact.imageUrl.trim());
-    if (resolved && !seen.has(resolved)) {
-      list.unshift({
-        url: resolved,
-        caption: fact.imageCaption?.trim() || undefined,
-      });
-      seen.add(resolved);
-    }
+  // Also check if anyFact.photos or anyFact.gallery exists
+  if (Array.isArray(anyFact.photos)) {
+    anyFact.photos.forEach((item: any) => pushIfValid(item));
+  }
+  if (Array.isArray(anyFact.gallery)) {
+    anyFact.gallery.forEach((item: any) => pushIfValid(item));
   }
 
   return list.slice(0, 10);

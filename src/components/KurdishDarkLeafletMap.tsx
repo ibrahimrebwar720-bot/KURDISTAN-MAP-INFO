@@ -49,7 +49,6 @@ import {
   Link2,
   Sun,
   Moon,
-  Network,
   Share2,
 } from 'lucide-react';
 import { TimelineSlider } from './TimelineSlider';
@@ -71,12 +70,6 @@ import { copyTopicToClipboard, getShareableTopicUrl } from '../utils/urlRouter';
 const ThemeSelectorModal = React.lazy(() =>
   import('./ThemeSelectorModal').then((m) => ({
     default: m.ThemeSelectorModal,
-  }))
-);
-
-const InteractiveKnowledgeGraphModal = React.lazy(() =>
-  import('./InteractiveKnowledgeGraphModal').then((m) => ({
-    default: m.InteractiveKnowledgeGraphModal,
   }))
 );
 
@@ -276,7 +269,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const pickedMarkerRef = useRef<L.Marker | null>(null);
   const knowledgeGraphLayerRef = useRef<L.LayerGroup | null>(null);
   const [showKnowledgeGraphLines, setShowKnowledgeGraphLines] = useState<boolean>(true);
-  const [isKnowledgeGraphModalOpen, setIsKnowledgeGraphModalOpen] = useState<boolean>(false);
 
   // Category Selector Modal directly on map (دوگمەی پۆلێنەکان)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
@@ -1441,20 +1433,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             </button>
           )}
 
-          {/* ئایکۆنی گەلەری */}
-          {onOpenGallery && (
-            <>
-              {onOpenHero && <div className="w-[1px] h-4 bg-white/10 mx-0.5" />}
-              <button
-                onClick={onOpenGallery}
-                className="relative p-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group flex items-center justify-center"
-                title="گەلەری وێنە مێژووییەکان"
-                aria-label="گەلەری"
-              >
-                <Images className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-              </button>
-            </>
-          )}
 
 
           {/* دوگمەی پۆلێنەکان (Category Filter Button on Map) */}
@@ -1574,20 +1552,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       <span className="truncate font-medium">{selectedFact.imageCaption || selectedFact.name}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {onOpenGallery && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenGallery();
-                          }}
-                          className="px-2 py-0.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer border border-white/[0.08]"
-                          title="کردنەوە لە بەشی گەلەری"
-                        >
-                          <Images className="w-2.5 h-2.5" />
-                          <span>گەلەری</span>
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1632,20 +1596,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     <Link2 className="w-3.5 h-3.5 text-amber-400" />
                     <span>بابەت و کەسایەتییە پەیوەندیدارەکان:</span>
                   </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsKnowledgeGraphModalOpen(true)}
-                      className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/35 border border-purple-400/40 text-[10px] text-purple-300 font-bold transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.25)]"
-                      title="کردنەوەی شاشەی گرافی تیشکدەر وەک هەسارەکان"
-                    >
-                      <Network className="w-3 h-3 text-purple-400" />
-                      <span>شاشەی گرافی تیشکدەر</span>
-                    </button>
-                    <span className="font-mono tabular-nums text-slate-400 text-[11px]">
-                      {selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length} تۆمار
-                    </span>
-                  </div>
+                  <span className="font-mono tabular-nums text-slate-400 text-[11px]">
+                    {selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length} تۆمار
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                   {(selectedKnowledgeGraph?.nodes && selectedKnowledgeGraph.nodes.length > 0
@@ -2180,21 +2133,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         />
       </React.Suspense>
 
-      {/* Interactive Knowledge Graph Constellation Modal (شاشەی گرافی تیشکدەری کەسایەتی و دەسەڵاتەکان) */}
-      <React.Suspense fallback={null}>
-        <InteractiveKnowledgeGraphModal
-          isOpen={isKnowledgeGraphModalOpen}
-          onClose={() => setIsKnowledgeGraphModalOpen(false)}
-          centerFact={selectedFact}
-          allFacts={facts}
-          onSelectFact={(fact) => {
-            onSelectFact(fact);
-          }}
-          onOpenFactDetail={(fact) => {
-            if (onOpenDetail) onOpenDetail(fact);
-          }}
-        />
-      </React.Suspense>
 
       {/* Category Selection Popover Modal (مۆداڵی پۆلێنەکانی مێژوو لەسەر نەخشە) */}
       {isCategoryModalOpen && (

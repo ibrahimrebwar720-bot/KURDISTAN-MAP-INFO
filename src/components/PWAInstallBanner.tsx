@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { Download, Share, PlusSquare, X, Shield, Sparkles } from 'lucide-react';
 
-const BATTLE_SCHOLAR_BG = '/src/assets/images/kurd_battle_scholar_bg_1791793720708.jpg';
+
 const KURD_MAP_ICON = '/src/assets/images/kurd_map_pwa_icon_1791793702859.jpg';
 
 export const PWAInstallBanner: React.FC = () => {
@@ -58,14 +58,9 @@ export const PWAInstallBanner: React.FC = () => {
             className="relative w-full max-w-md rounded-3xl overflow-hidden border border-amber-500/25 shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.15)] bg-[#070b14]/90 backdrop-blur-2xl text-white"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top Atmospheric Header with Kurdish Battles & Scholars Image Background */}
-            <div className="relative h-44 sm:h-48 w-full overflow-hidden">
-              <img
-                src={BATTLE_SCHOLAR_BG}
-                alt="Kurdish Battles & Scholars Background"
-                className="w-full h-full object-cover object-center filter brightness-90 contrast-110 scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-[#070b14]/60 to-black/40" />
+            {/* Top Atmospheric Header with Kurdish Heritage Gradient */}
+            <div className="relative h-32 sm:h-36 w-full overflow-hidden bg-gradient-to-br from-amber-600/20 via-[#0b1020] to-[#070b14] border-b border-amber-500/20">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-500/15 via-transparent to-transparent" />
 
               {/* Close Button */}
               <button

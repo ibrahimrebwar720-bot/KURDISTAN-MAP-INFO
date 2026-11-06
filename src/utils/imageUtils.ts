@@ -35,15 +35,18 @@ export function resolveImageUrl(rawUrl: string | null | undefined): string {
   const trimmed = rawUrl.trim();
   if (!trimmed) return '';
 
-  // Reject bulky base64 data URLs to protect local storage and memory
-  if (trimmed.startsWith('data:')) {
-    return '';
+  // Support inline image data URLs for display
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed;
   }
 
   try {
-    let decoded = trimmed;
+    // Strip wrapping quotes or brackets if present
+    const cleanStr = trimmed.replace(/^["'<(\[]+|[>"')\]]+$/g, '').trim();
+
+    let decoded = cleanStr;
     try {
-      decoded = decodeURI(trimmed);
+      decoded = decodeURI(cleanStr);
     } catch {
       // ignore URI decode error
     }
@@ -54,7 +57,13 @@ export function resolveImageUrl(rawUrl: string | null | undefined): string {
       /#\/media\/(?:File|پەڕگە|ملف|پرونده|Dosya|Fichier|Datei|Wêne|Image|Файл):?\s*([^?#]+)/i
     );
     if (mediaViewerMatch) {
-      const rawFileName = mediaViewerMatch[1].trim().replace(/^_+|_+$/g, '');
+      let rawFileName = mediaViewerMatch[1].trim().replace(/^_+|_+$/g, '');
+      try {
+        rawFileName = decodeURIComponent(rawFileName);
+      } catch {
+        // ignore
+      }
+      rawFileName = rawFileName.replace(/\s+/g, '_');
       const domainMatch = decoded.match(/https?:\/\/([^/]+)/i);
       const domain = domainMatch ? domainMatch[1] : 'commons.wikimedia.org';
       return `https://${domain}/wiki/Special:FilePath/${encodeURIComponent(rawFileName)}`;
@@ -66,7 +75,13 @@ export function resolveImageUrl(rawUrl: string | null | undefined): string {
       /\/wiki\/(?:File|پەڕگە|ملف|پرونده|Dosya|Fichier|Datei|Wêne|Image|Файл):([^?#/]+)/i
     );
     if (filePageMatch) {
-      const rawFileName = filePageMatch[1].trim();
+      let rawFileName = filePageMatch[1].trim();
+      try {
+        rawFileName = decodeURIComponent(rawFileName);
+      } catch {
+        // ignore
+      }
+      rawFileName = rawFileName.replace(/\s+/g, '_');
       const domainMatch = decoded.match(/https?:\/\/([^/]+)/i);
       const domain = domainMatch ? domainMatch[1] : 'commons.wikimedia.org';
       return `https://${domain}/wiki/Special:FilePath/${encodeURIComponent(rawFileName)}`;
@@ -76,40 +91,36 @@ export function resolveImageUrl(rawUrl: string | null | undefined): string {
     // e.g. https://drive.google.com/file/d/1a2b3c4d5e/view?usp=sharing
     // or https://drive.google.com/open?id=1a2b3c4d5e
     // or https://drive.google.com/uc?id=1a2b3c4d5e
-    const gDriveMatch = trimmed.match(
+    const gDriveMatch = cleanStr.match(
       /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=view&)?id=)([a-zA-Z0-9_-]+)/i
     );
     if (gDriveMatch) {
-      // Google high-speed direct image rendering CDN
       return `https://lh3.googleusercontent.com/d/${gDriveMatch[1]}`;
     }
 
-    // 4. Dropbox share link (convert ?dl=0 to ?raw=1 or append ?raw=1)
-    if (trimmed.includes('dropbox.com')) {
-      if (trimmed.includes('dl=0')) {
-        return trimmed.replace('dl=0', 'raw=1');
+    // 4. Dropbox share link
+    if (cleanStr.includes('dropbox.com')) {
+      if (cleanStr.includes('dl=0')) {
+        return cleanStr.replace('dl=0', 'raw=1');
       }
-      if (!trimmed.includes('raw=1')) {
-        return trimmed.includes('?') ? `${trimmed}&raw=1` : `${trimmed}?raw=1`;
+      if (!cleanStr.includes('raw=1')) {
+        return cleanStr.includes('?') ? `${cleanStr}&raw=1` : `${cleanStr}?raw=1`;
       }
-      return trimmed;
+      return cleanStr;
     }
 
     // 5. OneDrive embed / download link
-    // e.g. https://1drv.ms/i/s!xyz or onedrive.live.com
-    if (trimmed.includes('1drv.ms') || trimmed.includes('onedrive.live.com')) {
-      if (trimmed.includes('1drv.ms') && !trimmed.includes('download=1')) {
-        return trimmed;
-      }
+    if (cleanStr.includes('1drv.ms') || cleanStr.includes('onedrive.live.com')) {
+      return cleanStr;
     }
 
-    // 6. Imgur direct image resolver (e.g. https://imgur.com/aBcDeFg -> https://i.imgur.com/aBcDeFg.jpg)
-    const imgurMatch = trimmed.match(/^https?:\/\/(?:www\.)?imgur\.com\/([a-zA-Z0-9]+)$/i);
+    // 6. Imgur direct image resolver
+    const imgurMatch = cleanStr.match(/^https?:\/\/(?:www\.)?imgur\.com\/([a-zA-Z0-9]+)$/i);
     if (imgurMatch && !['a', 'gallery', 't'].includes(imgurMatch[1])) {
       return `https://i.imgur.com/${imgurMatch[1]}.jpg`;
     }
 
-    return trimmed;
+    return cleanStr;
   } catch {
     return trimmed;
   }
@@ -117,23 +128,27 @@ export function resolveImageUrl(rawUrl: string | null | undefined): string {
 
 /**
  * Returns an optimized CDN-scaled image URL:
- * - 'thumb': for small square thumbnails and list avatars (~240px, drastically speeds up loading & saves memory)
- * - 'full': for main modal / gallery view (~1400px, high quality while avoiding 20MB uncompressed raw scans)
+ * - 'thumb': for small square thumbnails and list avatars
+ * - 'full': for main modal / gallery view
  */
 export function getOptimizedImageUrl(rawUrl: string | null | undefined, size: 'thumb' | 'full' = 'full'): string {
   const resolved = resolveImageUrl(rawUrl);
   if (!resolved) return '';
 
-  // 1. Google Drive CDN (lh3.googleusercontent.com/d/...)
-  if (resolved.includes('googleusercontent.com/d/')) {
-    const base = resolved.split('=')[0];
-    return size === 'thumb' ? `${base}=w240-h240-c` : `${base}=w1400`;
+  // Data URLs can be rendered directly
+  if (resolved.startsWith('data:image/')) {
+    return resolved;
   }
 
-  // 2. Wikipedia & Wikimedia Commons CDN (Special:FilePath)
+  // Google Drive CDN: Google Drive /d/ serves original directly and does not support =w1400 query
+  if (resolved.includes('googleusercontent.com/d/')) {
+    return resolved;
+  }
+
+  // Wikipedia & Wikimedia Commons CDN (Special:FilePath)
   if (resolved.includes('/wiki/Special:FilePath/')) {
     const base = resolved.split('?')[0];
-    return size === 'thumb' ? `${base}?width=240` : `${base}?width=1400`;
+    return size === 'thumb' ? `${base}?width=300` : `${base}?width=1200`;
   }
 
   return resolved;
