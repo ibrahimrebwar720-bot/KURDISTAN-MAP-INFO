@@ -9,16 +9,17 @@ import {
   BookOpen,
   Layers,
   Landmark,
-  Maximize2,
-  Minimize2,
   ZoomIn,
+  Filter,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { FactItem, RAW_FACTS_DATA } from '../data/kurdishHistoryData';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { toKurdishDigits } from '../utils/yearUtils';
 import { useTheme } from '../context/ThemeContext';
-import { getCategoryInfo } from '../types/history';
+import { getCategoryInfo, UNIFIED_CATEGORIES } from '../types/history';
 
 interface Props {
   isOpen: boolean;
@@ -148,10 +149,25 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   const { colorMode, theme } = useTheme();
   const isDark = colorMode === 'dark';
 
-  // Image presentation controls: 'contain' ensures 100% of the image is visible without cropping
-  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
+  // Category Filter State
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState<boolean>(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string; year?: string } | null>(null);
+
+  // Close category dropdown when clicking outside
+  useEffect(() => {
+    if (!isCategoryDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isCategoryDropdownOpen]);
 
   // Helper: ONLY returns authentic recorded images, strictly excluding self-generated or synthetic fallback images
   const getAuthenticFactImage = useCallback((f: FactItem | null | undefined): string => {
@@ -169,11 +185,47 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     return img;
   }, [failedImages]);
 
-  // Filter valid facts for historical journey
+  // Category counts across all facts
+  const categoryCounts = useMemo(() => {
+    const map: Record<string, number> = { all: 0 };
+    if (Array.isArray(facts)) {
+      facts.forEach((f) => {
+        if (!f || !f.name) return;
+        map.all = (map.all || 0) + 1;
+        const cat = getCategoryInfo(f).id;
+        map[cat] = (map[cat] || 0) + 1;
+      });
+    }
+    return map;
+  }, [facts]);
+
+  // Current category details
+  const currentCategoryObj = useMemo(() => {
+    return (
+      UNIFIED_CATEGORIES.find((c) => c.id === selectedCategory) || {
+        id: 'all',
+        name: 'هەموو پۆلێنەکان',
+        color: '#f59e0b',
+      }
+    );
+  }, [selectedCategory]);
+
+  // Filter valid facts for historical journey by selected category
   const allJourneyFacts: FactItem[] = useMemo(() => {
     if (!facts || !Array.isArray(facts)) return [];
-    return facts.filter((f) => f && f.name && f.name.trim().length > 0);
-  }, [facts]);
+    const valid = facts.filter((f) => f && f.name && f.name.trim().length > 0);
+    if (selectedCategory === 'all') return valid;
+    return valid.filter((f) => {
+      const cat = getCategoryInfo(f);
+      return cat.id === selectedCategory || f.category === selectedCategory || f.tag === selectedCategory;
+    });
+  }, [facts, selectedCategory]);
+
+  const handleSelectCategory = (catId: string) => {
+    setSelectedCategory(catId);
+    setCurrentIndex(0);
+    setIsCategoryDropdownOpen(false);
+  };
 
   const totalFacts = allJourneyFacts.length;
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -302,17 +354,32 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           }`}
         >
           <BookOpen className="w-10 h-10 text-amber-400 mx-auto mb-3" />
-          <h3 className="font-heading font-bold text-base mb-1">هیچ بابەتێکی مێژوویی بەردەست نییە</h3>
+          <h3 className="font-heading font-bold text-base mb-1">
+            {selectedCategory !== 'all' ? 'هیچ بابەتێک لەم پۆلێنەدا نییە' : 'هیچ بابەتێکی مێژوویی بەردەست نییە'}
+          </h3>
           <p className="text-xs text-slate-400 mb-4">
-            تکایە سەرەتا بابەتەکان داخڵ بکە یان دڵنیابەرەوە لە هێنانەوەی تۆمارەکان.
+            {selectedCategory !== 'all'
+              ? `لە پۆلێنی «${currentCategoryObj.name}» هیچ تۆمارێک نەدۆزرایەوە.`
+              : 'تکایە سەرەتا بابەتەکان داخڵ بکە یان دڵنیابەرەوە لە هێنانەوەی تۆمارەکان.'}
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-bold text-xs cursor-pointer hover:bg-amber-400 transition-colors"
-          >
-            داخستن
-          </button>
+          <div className="flex items-center justify-center gap-2">
+            {selectedCategory !== 'all' && (
+              <button
+                type="button"
+                onClick={() => handleSelectCategory('all')}
+                className="px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs cursor-pointer hover:bg-amber-400 transition-colors shadow-md"
+              >
+                هەموو پۆلێنەکان
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-xs cursor-pointer hover:bg-white/20 transition-colors"
+            >
+              داخستن
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -417,15 +484,109 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Category Filter Button with Dropdown */}
+          <div className="relative" ref={categoryDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
+              className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
+                selectedCategory !== 'all'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
+                  : isDark
+                  ? 'bg-white/[0.06] border-white/10 text-slate-200 hover:text-white hover:bg-white/[0.12] hover:border-white/20'
+                  : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200 hover:border-slate-300'
+              }`}
+              title="پۆلێنکردنی بابەتەکانی گەشت"
+            >
+              <Filter className="w-3.5 h-3.5 text-amber-500" />
+              <span className="max-w-[110px] sm:max-w-[150px] truncate">
+                {currentCategoryObj.name}
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  isCategoryDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {/* Category Dropdown Menu */}
+            {isCategoryDropdownOpen && (
+              <div
+                className={`absolute top-full mt-1.5 left-0 z-50 w-64 sm:w-72 max-h-80 overflow-y-auto rounded-2xl border p-1.5 shadow-2xl backdrop-blur-xl animate-fade-in ${
+                  isDark
+                    ? 'bg-[#0f1422]/98 border-white/15 text-white shadow-black/80'
+                    : 'bg-white/98 border-slate-200 text-slate-900 shadow-slate-400/30'
+                }`}
+              >
+                <div className="px-2.5 py-1.5 text-[11px] font-bold text-slate-400 border-b border-white/10 mb-1 flex items-center justify-between">
+                  <span>پۆلێنی بابەتەکان:</span>
+                  {selectedCategory !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCategory('all')}
+                      className="text-amber-500 hover:underline cursor-pointer text-[10px] font-bold"
+                    >
+                      هەموو پۆلێنەکان
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-0.5">
+                  {UNIFIED_CATEGORIES.map((cat) => {
+                    const count = categoryCounts[cat.id] || 0;
+                    const isSelected = selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => handleSelectCategory(cat.id)}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-all text-right cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                            : isDark
+                            ? 'hover:bg-white/[0.08] text-slate-200'
+                            : 'hover:bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: isSelected ? '#000' : cat.color || '#f59e0b' }}
+                          />
+                          <span className="truncate">{cat.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+                              isSelected
+                                ? 'bg-black/20 text-slate-950 font-black'
+                                : isDark
+                                ? 'bg-white/10 text-slate-400'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {toKurdishDigits(count)}
+                          </span>
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Progress Badge */}
           <div
-            className={`flex items-center gap-1 px-3 py-1 rounded-xl border text-xs font-mono font-bold ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-xs ${
               isDark
                 ? 'bg-white/[0.05] border-white/10 text-slate-300'
                 : 'bg-slate-100 border-slate-200 text-slate-700'
             }`}
           >
-            <span className="text-amber-500">{toKurdishDigits(currentIndex + 1)}</span>
+            <span className="text-amber-500 font-extrabold">{toKurdishDigits(currentIndex + 1)}</span>
             <span className="opacity-40">/</span>
             <span>{toKurdishDigits(totalFacts)}</span>
           </div>
@@ -434,15 +595,16 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl border transition-all cursor-pointer active:scale-95 ${
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
               isDark
-                ? 'bg-white/[0.06] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.15]'
-                : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                ? 'bg-white/[0.06] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.15] hover:border-white/20'
+                : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200 hover:border-slate-300'
             }`}
             title="داخستن (Esc)"
             aria-label="داخستن"
           >
             <X className="w-4 h-4" />
+            <span className="hidden sm:inline">داخستن</span>
           </button>
         </div>
       </header>
@@ -453,6 +615,38 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           ========================================================================= */}
       <main className="relative flex-1 w-full max-w-4xl mx-auto flex items-center justify-center my-1 sm:my-2 min-h-0 [perspective:1400px]">
         <div className="relative w-full h-[560px] sm:h-[620px] max-h-[76dvh] flex items-center justify-center">
+          {/* Floating Prev Button on the Right (RTL: Previous is rightward) */}
+          <button
+            type="button"
+            onClick={handlePrev}
+            disabled={isTransitioning}
+            className={`hidden md:flex absolute -right-3 lg:-right-8 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full items-center justify-center border shadow-2xl backdrop-blur-xl transition-all cursor-pointer hover:scale-110 active:scale-90 disabled:opacity-40 group ${
+              isDark
+                ? 'bg-[#0f1422]/90 border-white/20 text-slate-200 hover:text-white hover:border-amber-400/60 hover:bg-[#182036]'
+                : 'bg-white/95 border-slate-200 text-slate-700 hover:text-slate-950 hover:border-amber-400 hover:bg-white'
+            }`}
+            title="بابەتی پێشوو (تیرەی ڕاست)"
+            aria-label="بابەتی پێشوو"
+          >
+            <ChevronRight className="w-5 h-5 text-amber-500 transition-transform group-hover:translate-x-0.5" />
+          </button>
+
+          {/* Floating Next Button on the Left (RTL: Next is leftward) */}
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={isTransitioning}
+            className={`hidden md:flex absolute -left-3 lg:-left-8 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full items-center justify-center border shadow-2xl backdrop-blur-xl transition-all cursor-pointer hover:scale-110 active:scale-90 disabled:opacity-40 group ${
+              isDark
+                ? 'bg-[#0f1422]/90 border-white/20 text-slate-200 hover:text-white hover:border-amber-400/60 hover:bg-[#182036]'
+                : 'bg-white/95 border-slate-200 text-slate-700 hover:text-slate-950 hover:border-amber-400 hover:bg-white'
+            }`}
+            title="بابەتی دواتر (تیرەی چەپ)"
+            aria-label="بابەتی دواتر"
+          >
+            <ChevronLeft className="w-5 h-5 text-amber-500 transition-transform group-hover:-translate-x-0.5" />
+          </button>
+
           {(() => {
             const factItem = allJourneyFacts[currentIndex];
             if (!factItem) return null;
@@ -490,11 +684,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       onError={() => {
                         setFailedImages((prev) => new Set(prev).add(factItem.id));
                       }}
-                      className={`relative z-10 w-full h-full transition-all duration-300 select-none cursor-pointer ${
-                        imageFitMode === 'contain'
-                          ? 'object-contain p-1.5 sm:p-2.5 drop-shadow-md'
-                          : 'object-cover object-center'
-                      }`}
+                      className="relative z-10 w-full h-full object-contain p-1.5 sm:p-2.5 drop-shadow-md transition-all duration-300 select-none cursor-pointer"
                       onClick={() => {
                         setPreviewImage({
                           url: optimizedImg,
@@ -514,120 +704,32 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       }`}
                     />
 
-                    {/* Top-Right Badge: Category */}
-                    <div className="absolute top-2.5 right-2.5 z-20">
-                      <span
-                        className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow-md backdrop-blur-md flex items-center gap-1.5 border"
-                        style={{
-                          backgroundColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
-                          color: catInfo.color || '#f59e0b',
-                          borderColor: `${catInfo.color || '#f59e0b'}55`,
-                        }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ backgroundColor: catInfo.color || '#f59e0b' }}
-                        />
-                        <span>{catInfo.name}</span>
-                      </span>
-                    </div>
-
-                    {/* Top-Left Controls: Year Badge + Size/Fit Mode Toggle + Zoom Lightbox */}
-                    <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5">
-                      {/* Sizing Fit Mode Toggle Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setImageFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
-                        }}
-                        className={`p-1.5 rounded-full border shadow-md backdrop-blur-md transition-all active:scale-90 cursor-pointer ${
-                          imageFitMode === 'contain'
-                            ? 'bg-amber-500 text-slate-950 border-amber-400 hover:bg-amber-400'
-                            : isDark
-                            ? 'bg-black/70 text-slate-200 border-white/20 hover:text-white'
-                            : 'bg-white/90 text-slate-700 border-slate-300 hover:text-slate-900'
-                        }`}
-                        title={
-                          imageFitMode === 'contain'
-                            ? 'قەبارە: پیشاندانی تەواوی وێنە (بێ بڕین) - کلیک بکە بۆ پڕکردنەوە'
-                            : 'قەبارە: پڕکردنەوەی کارد - کلیک بکە بۆ پیشاندانی تەواوی وێنە بێ بڕین'
-                        }
-                      >
-                        {imageFitMode === 'contain' ? (
-                          <Minimize2 className="w-3.5 h-3.5" />
-                        ) : (
-                          <Maximize2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      {/* Zoom Lightbox Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPreviewImage({
-                            url: optimizedImg,
-                            title: factItem.name,
-                            year: getFactYearDisplay(factItem),
-                          });
-                        }}
-                        className={`p-1.5 rounded-full border shadow-md backdrop-blur-md transition-all active:scale-90 cursor-pointer ${
-                          isDark
-                            ? 'bg-black/70 text-slate-200 border-white/20 hover:text-white'
-                            : 'bg-white/90 text-slate-700 border-slate-300 hover:text-slate-900'
-                        }`}
-                        title="گەورەکردنی وێنە بە قەبارەی تەواو"
-                      >
-                        <ZoomIn className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Year Badge */}
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-mono font-bold shadow-md backdrop-blur-md border ${
-                          isDark
-                            ? 'bg-black/70 text-amber-300 border-amber-400/30'
-                            : 'bg-white/90 text-amber-700 border-amber-500/40'
-                        }`}
-                      >
-                        {getFactYearDisplay(factItem)}
-                      </span>
-                    </div>
+                    {/* Bottom-Left: Fullscreen Zoom Lightbox Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewImage({
+                          url: optimizedImg,
+                          title: factItem.name,
+                          year: getFactYearDisplay(factItem),
+                        });
+                      }}
+                      className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white shadow-lg transition-all active:scale-90 cursor-pointer"
+                      title="کردنەوەی وێنە بە قەبارەی تەواوی شاشە"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-[10px] font-bold hidden sm:inline">گەورەکردن</span>
+                    </button>
                   </div>
                 ) : (
                   <div
-                    className={`relative w-full h-32 sm:h-40 shrink-0 overflow-hidden flex flex-col justify-between p-3.5 border-b ${
+                    className={`relative w-full h-28 sm:h-36 shrink-0 overflow-hidden flex items-center justify-center p-3 border-b ${
                       isDark
                         ? 'bg-gradient-to-br from-amber-950/20 via-[#101726] to-[#0a0f1d] border-white/10'
                         : 'bg-gradient-to-br from-amber-50/70 via-slate-50 to-white border-slate-200'
                     }`}
                   >
-                    <div className="flex items-center justify-between z-10">
-                      <span
-                        className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold shadow-xs backdrop-blur-md flex items-center gap-1.5 border"
-                        style={{
-                          backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.95)',
-                          color: catInfo.color || '#f59e0b',
-                          borderColor: `${catInfo.color || '#f59e0b'}55`,
-                        }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ backgroundColor: catInfo.color || '#f59e0b' }}
-                        />
-                        <span>{catInfo.name}</span>
-                      </span>
-
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-mono font-bold border ${
-                          isDark
-                            ? 'bg-black/60 text-amber-300 border-amber-400/30'
-                            : 'bg-white text-amber-700 border-amber-500/30'
-                        }`}
-                      >
-                        {getFactYearDisplay(factItem)}
-                      </span>
-                    </div>
 
                     <div className="flex items-center justify-center py-1 z-10 opacity-75">
                       <div
@@ -690,7 +792,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
                   {/* Actions on Active Card */}
                   <div
-                    className={`pt-2.5 mt-1.5 border-t flex items-center justify-between gap-2 shrink-0 ${
+                    className={`pt-3 mt-2 border-t flex items-center gap-2.5 shrink-0 ${
                       isDark ? 'border-white/10' : 'border-slate-200'
                     }`}
                   >
@@ -700,15 +802,15 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         e.stopPropagation();
                         if (onFlyToFact) onFlyToFact(factItem);
                       }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer active:scale-95 ${
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs sm:text-sm font-bold border transition-all cursor-pointer active:scale-95 shadow-xs ${
                         isDark
-                          ? 'bg-white/[0.08] hover:bg-white/[0.15] border-white/15 text-slate-200 hover:text-white'
-                          : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                          ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/25 text-amber-300 hover:text-amber-200 hover:border-amber-500/40'
+                          : 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200/80 text-amber-900 shadow-xs'
                       }`}
                       title="بینینی ئەم خاڵە لەسەر نەخشەی کوردستان"
                     >
-                      <Compass className="w-3.5 h-3.5 text-amber-500" />
-                      <span>نەخشە</span>
+                      <Compass className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>لەسەر نەخشە</span>
                     </button>
 
                     <button
@@ -717,10 +819,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         e.stopPropagation();
                         if (onOpenDetail) onOpenDetail(factItem);
                       }}
-                      className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-md"
+                      className="flex-[1.2] flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-[0_4px_16px_rgba(245,158,11,0.3)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.45)]"
                       title="کردنەوەی تەواوی سەرچاوە، بەستراوەکان و وردەکاریی مێژوویی"
                     >
-                      <BookOpen className="w-3.5 h-3.5 text-slate-950" />
+                      <BookOpen className="w-4 h-4 text-slate-950 shrink-0" />
                       <span>وردەکاریی زیاتر</span>
                     </button>
                   </div>
@@ -757,11 +859,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                     <img
                       src={optimizedFallingImg}
                       alt={fallingCard.name}
-                      className={`relative z-10 w-full h-full select-none ${
-                        imageFitMode === 'contain'
-                          ? 'object-contain p-1.5 sm:p-2.5 drop-shadow-md'
-                          : 'object-cover object-center'
-                      }`}
+                      className="relative z-10 w-full h-full select-none object-contain p-1.5 sm:p-2.5 drop-shadow-md"
                     />
                     <div
                       className={`absolute inset-0 z-10 bg-gradient-to-t ${
@@ -810,40 +908,54 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
       </main>
 
       {/* =========================================================================
-          BOTTOM FOOTER: CONTROLS & NAVIGATION
+          BOTTOM FOOTER: REFINED COMMAND & NAVIGATION DOCK
           ========================================================================= */}
       <footer
-        className={`w-full max-w-5xl mx-auto flex items-center justify-between pt-1.5 pb-[max(0.2rem,env(safe-area-inset-bottom))] border-t shrink-0 transition-colors ${
-          isDark ? 'border-white/10' : 'border-slate-200'
-        }`}
+        className="w-full max-w-lg md:max-w-xl mx-auto flex items-center justify-between gap-2.5 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] shrink-0 transition-colors z-20"
       >
         {/* Previous Button (پێشوو) */}
         <button
           type="button"
           onClick={handlePrev}
           disabled={isTransitioning}
-          className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer active:scale-95 disabled:opacity-50 ${
+          className={`group flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold border transition-all cursor-pointer active:scale-95 disabled:opacity-40 shadow-xs ${
             isDark
-              ? 'bg-white/[0.08] hover:bg-white/[0.16] border-white/15 text-white'
-              : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+              ? 'bg-[#0f1422]/90 hover:bg-[#161d30] border-white/15 text-slate-200 hover:text-white hover:border-amber-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:border-amber-500/40 shadow-xs'
           }`}
-          title="بابەتی پێشوو (Left Arrow)"
+          title="بابەتی پێشوو (تیرەی ڕاست)"
         >
-          <ChevronRight className="w-4 h-4 text-amber-500" />
+          <ChevronRight className="w-4 h-4 text-amber-500 transition-transform group-hover:translate-x-0.5" />
           <span>پێشوو</span>
         </button>
 
-        {/* Center Progress Dots */}
-        <div className="flex flex-col items-center gap-0.5">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        {/* Center Progress Scrub Indicator */}
+        <div
+          className={`flex-1 flex flex-col items-center justify-center px-3 py-1.5 rounded-2xl border transition-all ${
+            isDark
+              ? 'bg-[#0c101c]/90 border-white/10 shadow-inner'
+              : 'bg-white/90 border-slate-200 shadow-xs'
+          }`}
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             <span
               className={`text-[11px] sm:text-xs font-bold font-mono ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-200' : 'text-slate-700'
               }`}
             >
-              بابەتی {toKurdishDigits(currentIndex + 1)} لە {toKurdishDigits(totalFacts)}
+              بابەتی <span className="text-amber-500 font-extrabold">{toKurdishDigits(currentIndex + 1)}</span> لە {toKurdishDigits(totalFacts)}
             </span>
+          </div>
+
+          {/* Timeline progress line */}
+          <div className="w-full max-w-[140px] h-1.5 bg-slate-500/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.min(100, Math.max(5, ((currentIndex + 1) / totalFacts) * 100))}%`,
+              }}
+            />
           </div>
         </div>
 
@@ -852,11 +964,11 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           type="button"
           onClick={handleNext}
           disabled={isTransitioning}
-          className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-heading font-extrabold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-md disabled:opacity-50"
-          title="بابەتی دواتر (Right Arrow)"
+          className="group flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-heading font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-[0_4px_16px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.5)] disabled:opacity-40"
+          title="بابەتی دواتر (تیرەی چەپ)"
         >
           <span>دواتر</span>
-          <ChevronLeft className="w-4 h-4 text-slate-950" />
+          <ChevronLeft className="w-4 h-4 text-slate-950 transition-transform group-hover:-translate-x-0.5" />
         </button>
       </footer>
 
