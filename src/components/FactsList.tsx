@@ -193,6 +193,29 @@ export const FactsList: React.FC<Props> = ({
     return counts;
   }, [facts]);
 
+  // Progressive chunking for instantaneous opening without UI thread freeze
+  const INITIAL_BATCH = 24;
+  const BATCH_SIZE = 24;
+  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_BATCH);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setVisibleCount(INITIAL_BATCH);
+  }, [categoryFilter, searchTerm, sortBy]);
+
+  const displayedFacts = useMemo(() => {
+    return filteredFacts.slice(0, visibleCount);
+  }, [filteredFacts, visibleCount]);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollTop + target.clientHeight >= target.scrollHeight - 300) {
+      if (visibleCount < filteredFacts.length) {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filteredFacts.length));
+      }
+    }
+  };
+
   const isFilterActive = categoryFilter !== 'all' || searchTerm.trim().length > 0;
 
   return (
@@ -269,7 +292,7 @@ export const FactsList: React.FC<Props> = ({
                 <button
                   onClick={onClose}
                   className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition-all cursor-pointer active:scale-95"
-                  title="داخستن و گەڕانەوە بۆ نەخشە"
+                  title="داخستن و گەڕانەوە"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -486,9 +509,9 @@ export const FactsList: React.FC<Props> = ({
                 <button
                   onClick={onClose}
                   className="h-9.5 px-3.5 flex items-center gap-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white transition-all cursor-pointer border border-white/[0.1] active:scale-95"
-                  title="داخستن و گەڕانەوە بۆ نەخشە"
+                  title="داخستن و گەڕانەوە"
                 >
-                  <span className="text-xs font-medium">گەڕانەوە بۆ نەخشە</span>
+                  <span className="text-xs font-medium">داخستن</span>
                   <X className="w-4 h-4 text-amber-400" />
                 </button>
               )}
@@ -574,7 +597,7 @@ export const FactsList: React.FC<Props> = ({
       </header>
 
       {/* Main Scrollable Content Area */}
-      <main className="flex-1 overflow-y-auto p-2 sm:p-5 lg:p-6 custom-scrollbar">
+      <main onScroll={handleScroll} className="flex-1 overflow-y-auto p-2 sm:p-5 lg:p-6 custom-scrollbar">
         {filteredFacts.length === 0 ? (
           <div className="h-full min-h-[300px] flex flex-col items-center justify-center p-6 text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl glass-dock-2026 mx-auto flex items-center justify-center text-amber-400">
@@ -601,7 +624,7 @@ export const FactsList: React.FC<Props> = ({
         ) : viewMode === 'list' ? (
           /* ================= HIGH-DENSITY COMPACT LIST VIEW ================= */
           <div className="flex flex-col gap-2 max-w-4xl mx-auto">
-            {filteredFacts.map((fact) => {
+            {displayedFacts.map((fact) => {
               const isSelected = selectedFact?.id === fact.id;
               const catInfo = getCategoryInfo(fact);
               const CatIcon = getCategoryIconComponent(catInfo.id);
@@ -720,7 +743,7 @@ export const FactsList: React.FC<Props> = ({
         ) : (
           /* ================= RESPONSIVE GRID CARDS VIEW ================= */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
-            {filteredFacts.map((fact) => {
+            {displayedFacts.map((fact) => {
               const isSelected = selectedFact?.id === fact.id;
               const catInfo = getCategoryInfo(fact);
               const CatIcon = getCategoryIconComponent(catInfo.id);
@@ -850,6 +873,22 @@ export const FactsList: React.FC<Props> = ({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Progressive Load More indicator */}
+        {visibleCount < filteredFacts.length && (
+          <div className="py-6 flex flex-col items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => Math.min(prev + BATCH_SIZE * 2, filteredFacts.length))}
+              className="px-6 py-2.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-amber-300 hover:text-white transition-all cursor-pointer active:scale-95 shadow-md flex items-center gap-2"
+            >
+              <span>نیشاندانی زیاتر</span>
+              <span className="font-mono text-[11px] opacity-75">
+                ({filteredFacts.length - visibleCount} بابەتی تر ماوە)
+              </span>
+            </button>
           </div>
         )}
       </main>

@@ -252,7 +252,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     }
   }, [isOpen]);
 
-  // Preload pipeline: Preload 6-8 upcoming authentic cards in background for instant zero-lag transitions
+  // Preload pipeline: Preload 8 upcoming and 2 previous authentic cards with async decoding for instant zero-lag transitions
   useEffect(() => {
     if (!isOpen || totalFacts === 0) return;
 
@@ -264,12 +264,25 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         preloadedMapRef.current.add(rawImg);
         const resolved = getOptimizedImageUrl(rawImg, 'full');
         const imgObj = new Image();
+        imgObj.decoding = 'async';
         imgObj.src = resolved;
+      }
+    }
+    // Also preload previous items for smooth backward navigation
+    for (const prevOffset of [1, 2]) {
+      const prevItem = allJourneyFacts[(currentIndex - prevOffset + totalFacts) % totalFacts];
+      const prevImg = getAuthenticFactImage(prevItem);
+      if (prevImg && !preloadedMapRef.current.has(prevImg)) {
+        preloadedMapRef.current.add(prevImg);
+        const resolvedPrev = getOptimizedImageUrl(prevImg, 'full');
+        const imgObjPrev = new Image();
+        imgObjPrev.decoding = 'async';
+        imgObjPrev.src = resolvedPrev;
       }
     }
   }, [isOpen, currentIndex, totalFacts, allJourneyFacts, getAuthenticFactImage]);
 
-  // Navigation: Next (Page flips and falls down)
+  // Navigation: Next (Page flips and falls down smoothly)
   const handleNext = useCallback(() => {
     if (totalFacts <= 1 || isTransitioning) return;
     setIsTransitioning(true);
@@ -281,10 +294,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     setTimeout(() => {
       setFallingCard(null);
       setIsTransitioning(false);
-    }, 440);
+    }, 360);
   }, [totalFacts, isTransitioning, allJourneyFacts, currentIndex]);
 
-  // Navigation: Prev (Page sweeps and rises up from bottom)
+  // Navigation: Prev (Page sweeps and rises up from bottom smoothly)
   const handlePrev = useCallback(() => {
     if (totalFacts <= 1 || isTransitioning) return;
     setIsTransitioning(true);
@@ -295,7 +308,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     setTimeout(() => {
       setIsRisingUp(false);
       setIsTransitioning(false);
-    }, 440);
+    }, 360);
   }, [totalFacts, isTransitioning]);
 
   // Keyboard navigation
@@ -318,8 +331,9 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleNext, handlePrev, onClose, previewImage]);
 
-  // Touch handlers
+  // Touch handlers: tuned for mobile smoothness without vertical scroll conflict
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
     setTouchStartX(e.touches[0].clientX);
     setTouchStartY(e.touches[0].clientY);
   };
@@ -328,7 +342,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     if (touchStartX === null || touchStartY === null) return;
     const deltaX = e.changedTouches[0].clientX - touchStartX;
     const deltaY = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
       if (deltaX < 0) {
         handleNext();
       } else {
@@ -395,7 +409,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
       onTouchEnd={handleTouchEnd}
       dir="rtl"
     >
-      {/* 3D Sketchbook Flip Animation CSS Styles */}
+      {/* 3D Sketchbook Flip Animation CSS Styles (GPU Composite Accelerated) */}
       <style>{`
         #historical-journey-modal, #historical-journey-modal * {
           box-sizing: border-box;
@@ -411,53 +425,69 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           background-color: rgba(245, 158, 11, 0.7);
         }
 
-        /* Sketchbook Page Turning / Drop Down Animation */
+        /* 3D Hardware Accelerated Stage */
+        .journey-3d-stage {
+          perspective: 1200px;
+          -webkit-perspective: 1200px;
+          transform-style: preserve-3d;
+          -webkit-transform-style: preserve-3d;
+        }
+
+        .journey-card-hardware {
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+          transform-style: preserve-3d;
+          -webkit-transform-style: preserve-3d;
+          will-change: transform, opacity;
+        }
+
+        /* Sketchbook Page Turning / Drop Down Animation (Pure GPU Transform & Opacity) */
         @keyframes sketchbookFallDown {
           0% {
-            transform: translateY(0px) rotateX(0deg) scale(1);
+            transform: translate3d(0, 0, 0) rotateX(0deg) scale3d(1, 1, 1);
             opacity: 1;
-            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95);
           }
-          30% {
-            transform: translateY(22px) rotateX(-14deg) scale(0.98);
+          35% {
+            transform: translate3d(0, 16px, 0) rotateX(-9deg) scale3d(0.985, 0.985, 1);
             opacity: 0.96;
-            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.85);
           }
           100% {
-            transform: translateY(135%) rotateX(-42deg) scale(0.88);
+            transform: translate3d(0, 118%, 0) rotateX(-24deg) scale3d(0.91, 0.91, 1);
             opacity: 0;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
           }
         }
 
-        /* Sketchbook Page Return / Sweep Up from Bottom Animation */
+        /* Sketchbook Page Return / Sweep Up from Bottom Animation (Pure GPU Transform & Opacity) */
         @keyframes sketchbookRiseUp {
           0% {
-            transform: translateY(135%) rotateX(-42deg) scale(0.88);
+            transform: translate3d(0, 118%, 0) rotateX(-24deg) scale3d(0.91, 0.91, 1);
             opacity: 0;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
           }
-          72% {
-            transform: translateY(-10px) rotateX(5deg) scale(1.02);
+          75% {
+            transform: translate3d(0, -6px, 0) rotateX(3deg) scale3d(1.01, 1.01, 1);
             opacity: 0.98;
-            box-shadow: 0 35px 95px rgba(0, 0, 0, 0.9);
           }
           100% {
-            transform: translateY(0px) rotateX(0deg) scale(1);
+            transform: translate3d(0, 0, 0) rotateX(0deg) scale3d(1, 1, 1);
             opacity: 1;
-            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95);
           }
         }
 
         .anim-sketchbook-fall-down {
-          animation: sketchbookFallDown 0.44s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-          transform-origin: bottom center;
+          animation: sketchbookFallDown 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          transform-origin: 50% 100%;
           pointer-events: none;
+          will-change: transform, opacity;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
 
         .anim-sketchbook-rise-up {
-          animation: sketchbookRiseUp 0.44s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          transform-origin: bottom center;
+          animation: sketchbookRiseUp 0.36s cubic-bezier(0.18, 1, 0.32, 1) forwards;
+          transform-origin: 50% 100%;
+          will-change: transform, opacity;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
       `}</style>
 
@@ -611,10 +641,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
       {/* =========================================================================
           CENTER 3D STAGE:
-          Front sharp card + 5 VISIBLY STEPPED & SPREAD BLURRED BACKGROUND CARDS
+          Front sharp card with hardware-accelerated 3D sketchbook motion
           ========================================================================= */}
-      <main className="relative flex-1 w-full max-w-4xl mx-auto flex items-center justify-center my-1 sm:my-2 min-h-0 [perspective:1400px]">
-        <div className="relative w-full h-[560px] sm:h-[620px] max-h-[76dvh] flex items-center justify-center">
+      <main className="relative flex-1 w-full max-w-4xl mx-auto flex items-center justify-center my-1 sm:my-2 min-h-0 journey-3d-stage">
+        <div className="relative w-full h-[560px] sm:h-[620px] max-h-[76dvh] flex items-center justify-center touch-pan-y">
           {/* Floating Prev Button on the Right (RTL: Previous is rightward) */}
           <button
             type="button"
@@ -658,33 +688,37 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             return (
               <article
                 key={`active-card-${factItem.id}`}
-                className={`relative w-full max-w-sm sm:max-w-md md:max-w-lg h-full rounded-3xl overflow-hidden flex flex-col border transition-all duration-300 ease-out select-none ${
+                className={`relative w-full max-w-sm sm:max-w-md md:max-w-lg h-full rounded-3xl overflow-hidden flex flex-col border select-none journey-card-hardware ${
                   isRisingUp ? 'anim-sketchbook-rise-up' : ''
                 } ${
                   isDark
-                    ? 'bg-[#0d121f] border-white/20 shadow-[0_30px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)]'
-                    : 'bg-white border-slate-200 shadow-[0_25px_70px_-10px_rgba(0,0,0,0.18),0_10px_25px_rgba(0,0,0,0.06)]'
+                    ? 'bg-[#0d121f] border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.85)]'
+                    : 'bg-white border-slate-200 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.15)]'
                 }`}
               >
                 {/* 1. TOP PART: AUTHENTIC IMAGE WITH DUAL-LAYER SIZING & ASPECT RATIO PRESERVATION */}
                 {optimizedImg ? (
                   <div className="relative w-full h-52 sm:h-60 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center group">
-                    {/* Ambient Blur Layer: matches exact photo colors, no ugly borders */}
+                    {/* Ambient Glow Layer: fast GPU rendering */}
                     <img
                       src={optimizedImg}
                       alt=""
                       aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-110 pointer-events-none select-none transition-opacity duration-300"
+                      loading="eager"
+                      decoding="async"
+                      className="absolute inset-0 w-full h-full object-cover blur-lg opacity-35 scale-105 pointer-events-none select-none"
                     />
 
                     {/* Main Foreground Image: fully preserved aspect ratio without chopping off faces or maps */}
                     <img
                       src={optimizedImg}
                       alt={factItem.name}
+                      loading="eager"
+                      decoding="async"
                       onError={() => {
                         setFailedImages((prev) => new Set(prev).add(factItem.id));
                       }}
-                      className="relative z-10 w-full h-full object-contain p-1.5 sm:p-2.5 drop-shadow-md transition-all duration-300 select-none cursor-pointer"
+                      className="relative z-10 w-full h-full object-contain p-1.5 sm:p-2.5 drop-shadow-md select-none cursor-pointer"
                       onClick={() => {
                         setPreviewImage({
                           url: optimizedImg,
@@ -831,18 +865,18 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             );
           })()}
 
-          {/* Falling Card overlay when clicking Next */}
+          {/* Falling Card overlay when clicking Next (100% Symmetrical Dimensions & Content) */}
           {fallingCard && (
             <article
               key={`falling-card-${fallingCard.id}`}
               style={{
                 zIndex: 50,
-                transformOrigin: 'bottom center',
+                transformOrigin: '50% 100%',
               }}
-              className={`absolute inset-y-0 my-auto w-full max-w-sm sm:max-w-md md:max-w-lg rounded-3xl overflow-hidden flex flex-col border select-none anim-sketchbook-fall-down ${
+              className={`absolute inset-0 m-auto w-full max-w-sm sm:max-w-md md:max-w-lg h-full rounded-3xl overflow-hidden flex flex-col border select-none journey-card-hardware anim-sketchbook-fall-down ${
                 isDark
-                  ? 'bg-[#0d121f] border-white/20 shadow-[0_30px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)]'
-                  : 'bg-white border-slate-200 shadow-[0_25px_70px_-10px_rgba(0,0,0,0.18),0_10px_25px_rgba(0,0,0,0.06)]'
+                  ? 'bg-[#0d121f] border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.85)]'
+                  : 'bg-white border-slate-200 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.15)]'
               }`}
             >
               {(() => {
@@ -854,11 +888,15 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       src={optimizedFallingImg}
                       alt=""
                       aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-110 pointer-events-none select-none"
+                      loading="eager"
+                      decoding="async"
+                      className="absolute inset-0 w-full h-full object-cover blur-lg opacity-35 scale-105 pointer-events-none select-none"
                     />
                     <img
                       src={optimizedFallingImg}
                       alt={fallingCard.name}
+                      loading="eager"
+                      decoding="async"
                       className="relative z-10 w-full h-full select-none object-contain p-1.5 sm:p-2.5 drop-shadow-md"
                     />
                     <div
@@ -882,24 +920,66 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 );
               })()}
 
-              <div className="relative flex-1 min-h-0 flex flex-col justify-between p-3.5 sm:p-5 text-right">
+              <div className="relative flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-5 text-right">
                 <div className="shrink-0 mb-1.5">
                   <h3
-                    className={`font-heading font-black text-base sm:text-xl md:text-2xl tracking-tight leading-snug line-clamp-2 ${
+                    className={`font-heading font-black text-lg sm:text-xl md:text-2xl tracking-tight leading-snug line-clamp-2 ${
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
                     {fallingCard.name}
                   </h3>
+
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 text-xs sm:text-sm font-semibold">
+                    <span className="flex items-center gap-1 text-amber-500 font-mono">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{getFactYearDisplay(fallingCard)}</span>
+                    </span>
+
+                    <span className="opacity-30">•</span>
+
+                    <span
+                      className={`flex items-center gap-1 truncate max-w-[200px] sm:max-w-[280px] ${
+                        isDark ? 'text-slate-300' : 'text-slate-600'
+                      }`}
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span className="truncate">{getFactLocationDisplay(fallingCard)}</span>
+                    </span>
+                  </div>
                 </div>
+
                 <div className="flex-1 min-h-0 overflow-y-auto journey-card-scrollbar pr-1 my-1">
                   <p
-                    className={`text-xs sm:text-sm font-normal leading-relaxed text-justify ${
+                    className={`text-xs sm:text-sm md:text-[15px] font-normal leading-relaxed text-justify ${
                       isDark ? 'text-slate-200' : 'text-slate-700'
                     }`}
                   >
                     {getFactSummaryDisplay(fallingCard)}
                   </p>
+                </div>
+
+                {/* Symmetrical Action Placeholders */}
+                <div
+                  className={`pt-3 mt-2 border-t flex items-center gap-2.5 shrink-0 ${
+                    isDark ? 'border-white/10' : 'border-slate-200'
+                  }`}
+                >
+                  <div
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs sm:text-sm font-bold border ${
+                      isDark
+                        ? 'bg-amber-500/10 border-amber-500/25 text-amber-300'
+                        : 'bg-amber-50/80 border-amber-200/80 text-amber-900'
+                    }`}
+                  >
+                    <Compass className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>لەسەر نەخشە</span>
+                  </div>
+
+                  <div className="flex-[1.2] flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-[0_4px_16px_rgba(245,158,11,0.3)]">
+                    <BookOpen className="w-4 h-4 text-slate-950 shrink-0" />
+                    <span>وردەکاریی زیاتر</span>
+                  </div>
                 </div>
               </div>
             </article>

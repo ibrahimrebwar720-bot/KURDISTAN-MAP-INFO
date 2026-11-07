@@ -380,7 +380,6 @@ export default function App() {
   };
 
   const handleOpenMenu = () => {
-    setIsHeroOpen(false);
     setIsMenuOpen(true);
     updateBrowserUrl({
       view: 'menu',
@@ -663,6 +662,7 @@ export default function App() {
               facts={facts}
               selectedFact={selectedFact}
               onSelectFact={(fact) => {
+                handleEnterMap();
                 handleSelectFact(fact);
                 setIsMenuOpen(false);
               }}

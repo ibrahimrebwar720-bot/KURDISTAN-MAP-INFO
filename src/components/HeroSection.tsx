@@ -246,8 +246,6 @@ export const HeroSection: React.FC<Props> = ({
     return () => clearInterval(timer);
   }, [wallpapers.length, advanceToNext]);
 
-  // Active button press tracking for instant tactile black-on-theme feedback
-  const [activeBtn, setActiveBtn] = useState<'map' | 'journey' | 'menu' | 'settings' | null>(null);
 
   return (
     <section
@@ -505,13 +503,7 @@ export const HeroSection: React.FC<Props> = ({
             <button
               type="button"
               onClick={onEnterMap}
-              onMouseDown={() => setActiveBtn('map')}
-              onMouseUp={() => setActiveBtn(null)}
-              onTouchStart={() => setActiveBtn('map')}
-              onTouchEnd={() => setActiveBtn(null)}
-              className={`hero-theme-btn relative w-full h-full flex flex-col items-center justify-center py-3 sm:py-4 px-1.5 sm:px-2.5 rounded-[14px] border-0 transition-all duration-150 cursor-pointer select-none bg-[#090d18]/90 ${
-                activeBtn === 'map' ? 'is-active' : ''
-              }`}
+              className="hero-theme-btn relative w-full h-full flex flex-col items-center justify-center py-3 sm:py-4 px-1.5 sm:px-2.5 rounded-[14px] border-0 transition-all duration-150 active:scale-95 cursor-pointer select-none bg-[#090d18]/90"
               style={{
                 boxShadow: `inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 0 20px ${theme.primaryColor}35`,
               }}
@@ -532,13 +524,7 @@ export const HeroSection: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenJourney}
-            onMouseDown={() => setActiveBtn('journey')}
-            onMouseUp={() => setActiveBtn(null)}
-            onTouchStart={() => setActiveBtn('journey')}
-            onTouchEnd={() => setActiveBtn(null)}
-            className={`hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none ${
-              activeBtn === 'journey' ? 'is-active' : ''
-            }`}
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110" />
@@ -555,13 +541,7 @@ export const HeroSection: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenMenu}
-            onMouseDown={() => setActiveBtn('menu')}
-            onMouseUp={() => setActiveBtn(null)}
-            onTouchStart={() => setActiveBtn('menu')}
-            onTouchEnd={() => setActiveBtn(null)}
-            className={`hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none ${
-              activeBtn === 'menu' ? 'is-active' : ''
-            }`}
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110" />
@@ -578,13 +558,7 @@ export const HeroSection: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            onMouseDown={() => setActiveBtn('settings')}
-            onMouseUp={() => setActiveBtn(null)}
-            onTouchStart={() => setActiveBtn('settings')}
-            onTouchEnd={() => setActiveBtn(null)}
-            className={`hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none ${
-              activeBtn === 'settings' ? 'is-active' : ''
-            }`}
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110" />
