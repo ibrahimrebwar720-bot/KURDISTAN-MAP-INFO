@@ -8,7 +8,7 @@ import {
 import { db } from './firebase';
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
 import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
-import { CollectionItem, DEFAULT_COLLECTIONS } from '../types/history';
+import { CollectionItem, DEFAULT_COLLECTIONS, PhotoSubmission } from '../types/history';
 import {
   loadStoredFacts,
   saveStoredFacts,
@@ -16,11 +16,14 @@ import {
   saveStoredCollections,
   sanitizeFact,
   isCityFact,
+  loadStoredSubmissions,
+  saveStoredSubmissions,
 } from './historyStorageService';
 import { resolveImageUrl } from '../utils/imageUtils';
 
 const FACTS_COLLECTION = 'facts';
 const COLLECTIONS_COLLECTION = 'collections';
+const PHOTO_SUBMISSIONS_COLLECTION = 'photo_submissions';
 
 // Helper: Merge Firestore facts with ALL_FACTS baseline
 function mergeFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
@@ -306,3 +309,169 @@ export async function deleteCollectionFromCloud(collectionId: string): Promise<v
   const updated = local.filter((c) => c.id !== collectionId);
   saveStoredCollections(updated);
 }
+
+/**
+ * Submit user-suggested photo link for a historical fact
+ */
+export async function submitPhotoSuggestion(data: {
+  factId: number;
+  factName: string;
+  imageUrl: string;
+  senderName?: string;
+  note?: string;
+}): Promise<PhotoSubmission> {
+  const cleanUrl = data.imageUrl.trim();
+  if (!cleanUrl || cleanUrl.startsWith('data:')) {
+    throw new Error('تکایە لینکێکی ڕاستەقینەی وێب دابنێ نەک فایلی base64.');
+  }
+
+  const id = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const resolvedUrl = resolveImageUrl(cleanUrl) || cleanUrl;
+
+  const submission: PhotoSubmission = {
+    id,
+    factId: data.factId,
+    factName: data.factName.trim(),
+    imageUrl: resolvedUrl,
+    status: 'pending',
+    submittedAt: Date.now(),
+    ...(data.senderName?.trim() ? { senderName: data.senderName.trim() } : {}),
+    ...(data.note?.trim() ? { note: data.note.trim() } : {}),
+  };
+
+  const docRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, id);
+  await setDoc(docRef, submission);
+
+  // Update local cache
+  const local = loadStoredSubmissions();
+  saveStoredSubmissions([submission, ...local.filter((s) => s.id !== id)]);
+
+  return submission;
+}
+
+/**
+ * Real-time subscription to photo submissions
+ */
+export function subscribeToPhotoSubmissions(
+  onUpdate: (submissions: PhotoSubmission[]) => void
+): () => void {
+  try {
+    const colRef = collection(db, PHOTO_SUBMISSIONS_COLLECTION);
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: PhotoSubmission[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data && typeof data.id === 'string' && typeof data.factId === 'number') {
+            list.push(data as PhotoSubmission);
+          }
+        });
+
+        // Sort descending by submittedAt
+        list.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+        saveStoredSubmissions(list);
+        onUpdate(list);
+      },
+      (error) => {
+        console.warn('Realtime submissions sync error, using cached:', error);
+        onUpdate(loadStoredSubmissions());
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    console.warn('Failed to attach realtime submissions listener:', err);
+    onUpdate(loadStoredSubmissions());
+    return () => {};
+  }
+}
+
+/**
+ * Approve photo submission: automatically publishes the image onto the fact
+ * Without requiring manual editing of the fact!
+ */
+export async function approvePhotoSubmission(
+  submission: PhotoSubmission,
+  allFacts: FactItem[]
+): Promise<FactItem | null> {
+  const targetFact = allFacts.find((f) => f.id === submission.factId) ||
+    loadStoredFacts().find((f) => f.id === submission.factId);
+
+  if (!targetFact) {
+    console.warn(`Fact with id ${submission.factId} not found.`);
+    return null;
+  }
+
+  const cleanUrl = resolveImageUrl(submission.imageUrl) || submission.imageUrl;
+
+  // Build existing or new images list
+  const existingImages = Array.isArray(targetFact.images) ? [...targetFact.images] : [];
+  const alreadyInImages = existingImages.some((img) => img.url === cleanUrl);
+
+  const updatedImages = alreadyInImages
+    ? existingImages
+    : [
+        {
+          url: cleanUrl,
+          caption: submission.note || submission.factName,
+        },
+        ...existingImages,
+      ];
+
+  const updatedFact: FactItem = {
+    ...targetFact,
+    imageUrl: cleanUrl,
+    images: updatedImages,
+  };
+
+  // 1. Instantly publish the fact to Cloud Firestore & LocalStorage
+  await saveFactToCloud(updatedFact);
+
+  // 2. Mark submission as approved in Firestore
+  const subRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, submission.id);
+  await setDoc(
+    subRef,
+    {
+      status: 'approved',
+      approvedAt: Date.now(),
+    },
+    { merge: true }
+  );
+
+  // 3. Update local cache of submissions
+  const local = loadStoredSubmissions();
+  const updatedLocal = local.map((s) =>
+    s.id === submission.id ? { ...s, status: 'approved' as const, approvedAt: Date.now() } : s
+  );
+  saveStoredSubmissions(updatedLocal);
+
+  return updatedFact;
+}
+
+/**
+ * Reject a photo submission
+ */
+export async function rejectPhotoSubmission(submissionId: string): Promise<void> {
+  const subRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, submissionId);
+  await setDoc(subRef, { status: 'rejected' }, { merge: true });
+
+  const local = loadStoredSubmissions();
+  const updated = local.map((s) =>
+    s.id === submissionId ? { ...s, status: 'rejected' as const } : s
+  );
+  saveStoredSubmissions(updated);
+}
+
+/**
+ * Permanently delete a photo submission
+ */
+export async function deletePhotoSubmission(submissionId: string): Promise<void> {
+  const subRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, submissionId);
+  await deleteDoc(subRef);
+
+  const local = loadStoredSubmissions();
+  const updated = local.filter((s) => s.id !== submissionId);
+  saveStoredSubmissions(updated);
+}
+

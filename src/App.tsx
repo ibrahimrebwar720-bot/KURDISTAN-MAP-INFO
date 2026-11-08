@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FactItem } from './data/kurdishHistoryData';
-import { CollectionItem } from './types/history';
+import { CollectionItem, PhotoSubmission } from './types/history';
 import {
   loadStoredFacts,
   loadStoredCollections,
   getAdminState,
   setAdminState,
+  loadStoredSubmissions,
 } from './services/historyStorageService';
 import {
   subscribeToCloudFacts,
@@ -16,6 +17,7 @@ import {
   subscribeToCloudCollections,
   saveCollectionToCloud,
   deleteCollectionFromCloud,
+  subscribeToPhotoSubmissions,
 } from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
@@ -31,6 +33,7 @@ const DocumentaryScrollytellingModal = React.lazy(() => import('./components/Doc
 const HeroSection = React.lazy(() => import('./components/HeroSection').then((m) => ({ default: m.HeroSection })));
 const HistoricalJourneyModal = React.lazy(() => import('./components/HistoricalJourneyModal').then((m) => ({ default: m.HistoricalJourneyModal })));
 const AppSettingsModal = React.lazy(() => import('./components/AppSettingsModal').then((m) => ({ default: m.AppSettingsModal })));
+const SubmittedPhotosModal = React.lazy(() => import('./components/SubmittedPhotosModal').then((m) => ({ default: m.SubmittedPhotosModal })));
 import { useTheme } from './context/ThemeContext';
 import {
   parseCurrentUrl,
@@ -61,6 +64,8 @@ export default function App() {
     loadStoredCollections()
   );
   const [isAdmin, setIsAdmin] = useState<boolean>(() => getAdminState());
+  const [photoSubmissions, setPhotoSubmissions] = useState<PhotoSubmission[]>(() => loadStoredSubmissions());
+  const [isSubmittedPhotosOpen, setIsSubmittedPhotosOpen] = useState(false);
 
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(() => initialTopicFact.current);
   const [detailFact, setDetailFact] = useState<FactItem | null>(() => initialTopicFact.current);
@@ -141,6 +146,40 @@ export default function App() {
     return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
   }, []);
 
+  // Global copy event listener: whenever someone copies text from the app, append source attribution
+  useEffect(() => {
+    const handleCopy = (e: ClipboardEvent) => {
+      // Don't intercept inside input fields, textareas, or admin editable elements
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+      const selectedText = selection.toString().trim();
+      if (!selectedText) return;
+
+      const attribution = '\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map';
+      if (selectedText.includes('سەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map')) {
+        return;
+      }
+
+      if (e.clipboardData) {
+        e.clipboardData.setData('text/plain', `${selectedText}${attribution}`);
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('copy', handleCopy);
+    return () => document.removeEventListener('copy', handleCopy);
+  }, []);
+
   // 1. Real-time Firebase Cloud Database synchronization for all users worldwide
   useEffect(() => {
     const unsubFacts = subscribeToCloudFacts((cloudFacts) => {
@@ -178,9 +217,14 @@ export default function App() {
       setCollections(cloudCols);
     });
 
+    const unsubSubmissions = subscribeToPhotoSubmissions((subs) => {
+      setPhotoSubmissions(subs);
+    });
+
     return () => {
       unsubFacts();
       unsubCollections();
+      unsubSubmissions();
     };
   }, []);
 
@@ -596,6 +640,8 @@ export default function App() {
     });
   };
 
+  const pendingSubmissionsCount = photoSubmissions.filter((s) => s.status === 'pending').length;
+
   return (
     <div
       className={`h-full h-[100dvh] w-full overflow-hidden flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs transition-colors duration-300 ${
@@ -637,6 +683,8 @@ export default function App() {
             setIsAdminPinModalOpen(true);
           }}
           onOpenAddFact={handleOpenAddFact}
+          onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}
+          pendingSubmissionsCount={pendingSubmissionsCount}
           onLogoutAdmin={handleAdminLogout}
           isPickingLocation={isPickingLocation}
           onPickLocation={handlePickLocationOnMap}
@@ -674,6 +722,8 @@ export default function App() {
               onSelectCategory={setSelectedCategory}
               isAdmin={isAdmin}
               onOpenAddFact={handleOpenAddFact}
+              onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}
+              pendingSubmissionsCount={pendingSubmissionsCount}
               onOpenEditFact={handleOpenEditFact}
               onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
               onOpenGallery={handleOpenGallery}
@@ -808,6 +858,11 @@ export default function App() {
         }}
         onLogoutAdmin={handleAdminLogout}
         onOpenAddFact={handleOpenAddFact}
+        onOpenSubmittedPhotos={() => {
+          setIsSettingsOpen(false);
+          setIsSubmittedPhotosOpen(true);
+        }}
+        pendingSubmissionsCount={pendingSubmissionsCount}
         factsCount={facts.length}
       />
 
@@ -838,6 +893,25 @@ export default function App() {
           handleSelectFact(fact);
         }}
       />
+
+      {/* Admin Submitted Photos Moderation Modal (وێنە نێردراوەکان) */}
+      {isAdmin && isSubmittedPhotosOpen && (
+        <SubmittedPhotosModal
+          isOpen={isSubmittedPhotosOpen}
+          onClose={() => setIsSubmittedPhotosOpen(false)}
+          submissions={photoSubmissions}
+          allFacts={facts}
+          onFactUpdated={(updatedFact) => {
+            setFacts((prev) => prev.map((f) => (f.id === updatedFact.id ? updatedFact : f)));
+            if (selectedFact?.id === updatedFact.id) setSelectedFact(updatedFact);
+            if (detailFact?.id === updatedFact.id) setDetailFact(updatedFact);
+          }}
+          onSelectFact={(fact) => {
+            handleSelectFact(fact);
+            handleOpenDetail(fact);
+          }}
+        />
+      )}
     </React.Suspense>
   </div>
 );

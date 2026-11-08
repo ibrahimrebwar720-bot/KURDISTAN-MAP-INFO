@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   List,
   Image as ImageIcon,
+  Images,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -49,6 +50,8 @@ interface Props {
   isAdmin?: boolean;
   onOpenAdminPin?: () => void;
   onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
+  onOpenSubmittedPhotos?: () => void;
+  pendingSubmissionsCount?: number;
   onOpenEditFact?: (fact: FactItem) => void;
   onOpenCollectionManager?: () => void;
   onOpenGallery?: () => void;
@@ -92,6 +95,8 @@ export const FactsList: React.FC<Props> = ({
   onSelectCategory,
   isAdmin = false,
   onOpenAddFact,
+  onOpenSubmittedPhotos,
+  pendingSubmissionsCount,
   onOpenEditFact,
   onClose,
   onLogoutAdmin,
@@ -238,7 +243,11 @@ export const FactsList: React.FC<Props> = ({
           <div className="flex items-center justify-between gap-2">
             {/* Title & Count */}
             <div className="flex items-center gap-1.5 min-w-0">
-              <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
+              <img
+                src="/kimlogo.png"
+                alt="Logo"
+                className="w-5 h-5 rounded-md object-contain shrink-0"
+              />
               <h2 className="text-xs font-black font-heading text-white truncate tracking-wide">
                 پێڕستی دەسەڵاتەکان
               </h2>
@@ -390,8 +399,12 @@ export const FactsList: React.FC<Props> = ({
           <div className="flex items-center justify-between gap-4">
             {/* Logo & Headline */}
             <div className="flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-2xl glass-dock-2026 flex items-center justify-center text-amber-400 shadow-md">
-                <BookOpen className="w-5 h-5 stroke-[2.2]" />
+              <div className="w-10 h-10 rounded-2xl glass-dock-2026 flex items-center justify-center p-1 shadow-md overflow-hidden">
+                <img
+                  src="/kimlogo.png"
+                  alt="KURDISTAN INFO MAP Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -457,24 +470,44 @@ export const FactsList: React.FC<Props> = ({
                 )}
               </button>
 
-              {isAdmin && onOpenAddFact && (
+              {isAdmin && (
                 <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => onOpenAddFact('photo_only')}
-                    className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
-                    title="زیادکردنی وێنەی مێژوویی"
-                  >
-                    <ImageIcon className="w-4 h-4 stroke-[2.5]" />
-                    <span>وێنە</span>
-                  </button>
-                  <button
-                    onClick={() => onOpenAddFact('standard')}
-                    className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white font-bold text-xs transition-all cursor-pointer active:scale-95"
-                    title="زیادکردنی بابەتی نوێ"
-                  >
-                    <Plus className="w-4 h-4 stroke-[2.5]" />
-                    <span>بابەتی نوێ</span>
-                  </button>
+                  {onOpenSubmittedPhotos && (
+                    <button
+                      onClick={onOpenSubmittedPhotos}
+                      className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white border border-amber-400/40 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                      title="بینینی وێنە نێردراوەکان"
+                    >
+                      <Images className="w-4 h-4 text-amber-400" />
+                      <span className="hidden sm:inline">وێنە نێردراوەکان</span>
+                      <span className="sm:hidden">نێردراوەکان</span>
+                      {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] animate-pulse">
+                          {pendingSubmissionsCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {onOpenAddFact && (
+                    <>
+                      <button
+                        onClick={() => onOpenAddFact('photo_only')}
+                        className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
+                        title="زیادکردنی وێنەی مێژوویی"
+                      >
+                        <ImageIcon className="w-4 h-4 stroke-[2.5]" />
+                        <span>وێنە</span>
+                      </button>
+                      <button
+                        onClick={() => onOpenAddFact('standard')}
+                        className="flex items-center gap-1.5 px-3 h-9.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white font-bold text-xs transition-all cursor-pointer active:scale-95"
+                        title="زیادکردنی بابەتی نوێ"
+                      >
+                        <Plus className="w-4 h-4 stroke-[2.5]" />
+                        <span>بابەتی نوێ</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

@@ -17,5 +17,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Photo Submissions: Publicly creatable and readable for community photo suggestions & admin moderation
+    match /photo_submissions/{submissionId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

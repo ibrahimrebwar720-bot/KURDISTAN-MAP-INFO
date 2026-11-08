@@ -412,18 +412,27 @@ export const HeroSection: React.FC<Props> = ({
       </div>
 
       {/* B. Top Section: English Brand Title in New York Times Editorial Serif Font */}
-      <header className="relative z-10 w-full pt-8 sm:pt-14 px-4 sm:px-12 flex flex-col items-center text-center">
+      <header className="relative z-10 w-full pt-6 sm:pt-10 px-4 sm:px-12 flex flex-col items-center text-center">
         {/* Ambient Subtle Theme Glow */}
         <div
           className="absolute -top-10 left-1/2 -translate-x-1/2 w-80 sm:w-96 h-28 blur-3xl pointer-events-none opacity-25"
           style={{ backgroundColor: theme.primaryColor }}
         />
 
-        {/* Subtle Ambient Black Fade Behind Title (فەیدێکی تەنکی ڕەش لە پشتی بۆ ئەوەی جوان دەرکەوێت) */}
+        {/* Subtle Ambient Black Fade Behind Title */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-2xl h-24 sm:h-32 rounded-full pointer-events-none blur-2xl opacity-65 bg-black/85"
           aria-hidden="true"
         />
+
+        {/* Official Website Logo (kimlogo) */}
+        <div className="relative z-10 mb-2 sm:mb-3">
+          <img
+            src="/kimlogo.png"
+            alt="KURDISTAN INFO MAP Logo"
+            className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain drop-shadow-[0_4px_24px_rgba(245,158,11,0.45)] select-none pointer-events-none transition-transform hover:scale-105"
+          />
+        </div>
 
         {/* English Title: KURDISTAN INFO MAP in New York Times Editorial Serif Typeface */}
         <h1

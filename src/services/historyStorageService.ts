@@ -6,6 +6,7 @@ import {
   UNIFIED_CATEGORIES,
   getCategoryInfo,
   ADMIN_SECRET_CODE,
+  PhotoSubmission,
 } from '../types/history';
 import { inferCenturyAndYearForFact } from '../utils/centuryUtils';
 import { resolveImageUrl } from '../utils/imageUtils';
@@ -14,6 +15,7 @@ const STORAGE_KEYS = {
   FACTS: 'kurdish_history_facts_v1',
   COLLECTIONS: 'kurdish_history_collections_v1',
   ADMIN_ACTIVE: 'kurdish_history_admin_active_v1',
+  PHOTO_SUBMISSIONS: 'kurdish_history_photo_submissions_v1',
 };
 
 // Helper: infer initial collection for default facts
@@ -378,4 +380,23 @@ export function setAdminState(active: boolean): void {
 
 export function verifyAdminCode(code: string): boolean {
   return code.trim() === ADMIN_SECRET_CODE;
+}
+
+export function loadStoredSubmissions(): PhotoSubmission[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PHOTO_SUBMISSIONS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredSubmissions(submissions: PhotoSubmission[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PHOTO_SUBMISSIONS, JSON.stringify(submissions));
+  } catch (err) {
+    console.warn('Failed to save photo submissions to localStorage:', err);
+  }
 }

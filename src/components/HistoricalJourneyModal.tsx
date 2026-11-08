@@ -500,12 +500,11 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         }`}
       >
         <div className="flex items-center gap-2 sm:gap-3">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-black shadow-md shrink-0"
-            style={{ backgroundColor: theme.primaryColor || '#f59e0b' }}
-          >
-            <Layers className="w-4 h-4 text-black" />
-          </div>
+          <img
+            src="/kimlogo.png"
+            alt="KURDISTAN INFO MAP Logo"
+            className="w-8 h-8 rounded-xl object-contain drop-shadow-sm shrink-0 select-none"
+          />
           <div>
             <h2 className="font-heading font-black text-sm sm:text-lg flex items-center gap-2">
               <span>گەشتی مێژوویی</span>

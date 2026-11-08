@@ -104,6 +104,8 @@ interface Props {
   isAdmin?: boolean;
   onTriggerAdminPin: () => void;
   onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
+  onOpenSubmittedPhotos?: () => void;
+  pendingSubmissionsCount?: number;
   onLogoutAdmin?: () => void;
   isPickingLocation?: boolean;
   onPickLocation?: (lat: number, lng: number) => void;
@@ -248,6 +250,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   isAdmin = false,
   onTriggerAdminPin,
   onOpenAddFact,
+  onOpenSubmittedPhotos,
+  pendingSubmissionsCount,
   onLogoutAdmin,
   isPickingLocation = false,
   onPickLocation,
@@ -1385,26 +1389,43 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         <div className="absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl liquid-glass-dock border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_32px_rgba(0,0,0,0.6)]">
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
           <span className="text-[11px] font-bold text-amber-300">ئەدمین چالاکە</span>
-          {onOpenAddFact && (
-            <div className="mr-1.5 flex items-center gap-1">
+          <div className="mr-1.5 flex items-center gap-1">
+            {onOpenSubmittedPhotos && (
               <button
-                onClick={() => onOpenAddFact('photo_only')}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/40 text-amber-200 text-[10px] font-bold transition-all cursor-pointer shadow-xs"
-                title="فۆڕمی وێنەی مێژوویی"
+                onClick={onOpenSubmittedPhotos}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/40 text-amber-200 text-[10px] font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                title="بینینی وێنە نێردراوەکان"
               >
-                <ImageIcon className="w-3 h-3 text-amber-400" />
-                <span>وێنەی نوێ</span>
+                <Images className="w-3 h-3 text-amber-400" />
+                <span>وێنە نێردراوەکان</span>
+                {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] flex items-center justify-center animate-pulse">
+                    {pendingSubmissionsCount}
+                  </span>
+                )}
               </button>
-              <button
-                onClick={() => onOpenAddFact('standard')}
-                className="flex items-center gap-1 px-2 py-1 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer"
-                title="فۆڕمی گشتی بابەت"
-              >
-                <Plus className="w-3 h-3 text-emerald-400" />
-                <span>بابەت</span>
-              </button>
-            </div>
-          )}
+            )}
+            {onOpenAddFact && (
+              <>
+                <button
+                  onClick={() => onOpenAddFact('photo_only')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                  title="فۆڕمی وێنەی مێژوویی"
+                >
+                  <ImageIcon className="w-3 h-3 text-amber-400" />
+                  <span>وێنەی نوێ</span>
+                </button>
+                <button
+                  onClick={() => onOpenAddFact('standard')}
+                  className="flex items-center gap-1 px-2 py-1 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                  title="فۆڕمی گشتی بابەت"
+                >
+                  <Plus className="w-3 h-3 text-emerald-400" />
+                  <span>بابەت</span>
+                </button>
+              </>
+            )}
+          </div>
           {onLogoutAdmin && (
             <button
               onClick={onLogoutAdmin}
@@ -1428,7 +1449,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95 group"
               title="گەڕانەوە بۆ پەڕەی سەرەکی (Hero Section)"
             >
-              <Compass className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <img
+                src="/kimlogo.png"
+                alt="Logo"
+                className="w-4 h-4 rounded-md object-contain group-hover:scale-110 transition-transform shrink-0"
+              />
               <span className="font-heading font-extrabold text-xs">سەرەکی</span>
             </button>
           )}
@@ -1664,7 +1689,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     const ok = await copyTopicToClipboard(selectedFact);
                     if (!ok) {
                       navigator.clipboard.writeText(
-                        `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 شوێن: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id)}`
+                        `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 شوێن: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id)}\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map`
                       );
                     }
                     setCopiedSummary(true);

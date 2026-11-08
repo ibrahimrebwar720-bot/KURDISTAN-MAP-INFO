@@ -153,17 +153,17 @@ export function updateBrowserUrl(
 
   // Dynamic Document Title & Meta Tag synchronization
   if (options.factName) {
-    document.title = `${options.factName} | مێژووی کوردستان`;
+    document.title = `${options.factName} | kurdistan info map`;
   } else if (options.view === 'journey') {
-    document.title = `گەشتی مێژوویی (کارتەکان) | مێژووی کوردستان`;
+    document.title = `گەشتی مێژوویی | kurdistan info map`;
   } else if (options.view === 'gallery') {
-    document.title = `گەلەری وێنە مێژووییەکان | مێژووی کوردستان`;
+    document.title = `گەلەری وێنە مێژووییەکان | kurdistan info map`;
   } else if (options.view === 'menu') {
-    document.title = `پێڕستی مێژوویی و دەسەڵاتەکان | مێژووی کوردستان`;
+    document.title = `پێڕست | kurdistan info map`;
   } else if (options.view === 'map') {
-    document.title = `نەخشەی مێژووی کوردستان | Kurdistan History Map`;
+    document.title = `نەخشە | kurdistan info map`;
   } else {
-    document.title = `مێژووی کوردستان | نەخشەی مێژوویی و دەسەڵاتە دێرینەکان`;
+    document.title = `kurdistan info map`;
   }
 }
 
@@ -173,7 +173,7 @@ export function updateBrowserUrl(
 export async function copyTopicToClipboard(fact: FactItem): Promise<boolean> {
   if (typeof navigator === 'undefined' || !navigator.clipboard) return false;
   const shareUrl = getShareableTopicUrl(fact.id);
-  const text = `📌 «${fact.name}»\n\n${fact.fullText || fact.desc}\n\n📍 شوێن: ${fact.desc}\n🔗 بەستەری ڕاستەوخۆ: ${shareUrl}\n\nسەرچاوە: ئینسایکلۆپیدیا و نەخشەی مێژووی کوردستان`;
+  const text = `📌 «${fact.name}»\n\n${fact.fullText || fact.desc}\n\n📍 شوێن: ${fact.desc}\n🔗 بەستەری ڕاستەوخۆ: ${shareUrl}\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map`;
 
   try {
     await navigator.clipboard.writeText(text);

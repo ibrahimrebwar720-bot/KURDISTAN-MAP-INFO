@@ -6,7 +6,7 @@ interface Props {
   isMenuOpen: boolean;
 }
 
-const KURD_MAP_ICON = '/src/assets/images/kurd_map_pwa_icon_1791793702859.jpg';
+const KURD_MAP_ICON = '/kimlogo.png';
 
 export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
   return (
@@ -17,8 +17,8 @@ export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
         <div className="flex items-center gap-1.5 min-w-0">
           <img
             src={KURD_MAP_ICON}
-            alt="KURDISTAN INFO MAP Icon"
-            className="w-5 h-5 rounded-full object-cover border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.35)] shrink-0"
+            alt="KURDISTAN INFO MAP Logo"
+            className="w-6 h-6 rounded-lg object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.45)] shrink-0"
           />
           <div className="flex items-center gap-1.5 min-w-0">
             <h1

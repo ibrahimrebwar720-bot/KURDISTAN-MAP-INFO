@@ -11,11 +11,11 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'kimlogo.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'KURDISTAN INFO MAP',
-          short_name: 'KurdInfoMap',
+          name: 'kurdistan info map',
+          short_name: 'kurdistan info map',
           description: 'نەخشە و ئینسایکلۆپیدیای کارلێککاری دەسەڵات، میرنشین و مێژووی کوردستان',
           theme_color: '#030712',
           background_color: '#030712',
@@ -43,6 +43,12 @@ export default defineConfig(() => {
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
+            },
+            {
+              src: '/kimlogo.png',
+              sizes: '1268x1241',
+              type: 'image/png',
+              purpose: 'any',
             },
           ],
         },

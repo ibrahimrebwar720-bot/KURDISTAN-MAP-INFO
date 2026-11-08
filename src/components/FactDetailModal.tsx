@@ -26,10 +26,12 @@ import {
   Layers,
   Sparkles,
   Share2,
+  ImagePlus,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
 import { getLinkedFacts, LinkedFactsResult } from '../utils/factRelations';
 import { FactRelationsModal } from './FactRelationsModal';
+import { SubmitPhotoModal } from './SubmitPhotoModal';
 import { getCategoryInfo } from '../types/history';
 import { getFactDisplayImage, getAllFactImages } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -78,6 +80,7 @@ export const FactDetailModal: React.FC<Props> = ({
   // Multi-image gallery state (up to 10 images)
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const allImages = useMemo(() => getAllFactImages(fact), [fact]);
+  const [isSubmitPhotoOpen, setIsSubmitPhotoOpen] = useState(false);
 
   // Additional Notes Inline Editing state for Admin
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -148,7 +151,7 @@ export const FactDetailModal: React.FC<Props> = ({
     const ok = await copyTopicToClipboard(fact);
     if (!ok) {
       navigator.clipboard.writeText(
-        `📌 «${fact.name}»\n\n${fact.fullText}\n\n📍 شوێن: ${fact.desc}\n🔗 بەستەری ڕاستەوخۆ: ${getShareableTopicUrl(fact.id)}\n\nسەرچاوە: ئینسایکلۆپیدیای دەسەڵاتە کوردییەکان`
+        `📌 «${fact.name}»\n\n${fact.fullText}\n\n📍 شوێن: ${fact.desc}\n🔗 بەستەری ڕاستەوخۆ: ${getShareableTopicUrl(fact.id)}\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map`
       );
     }
     setCopied(true);
@@ -213,6 +216,20 @@ export const FactDetailModal: React.FC<Props> = ({
               )}
             </button>
 
+            {/* User contribution button for facts without image */}
+            {allImages.length === 0 && (
+              <button
+                type="button"
+                onClick={() => setIsSubmitPhotoOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/25 hover:from-amber-500/35 hover:to-amber-600/40 text-amber-300 hover:text-white border border-amber-400/40 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                title="یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە"
+              >
+                <ImagePlus className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە</span>
+                <span className="sm:hidden">ناردنی لینکی وێنە</span>
+              </button>
+            )}
+
             {isAdmin && onEditFact && (
               <button
                 onClick={() => onEditFact(fact)}
@@ -271,9 +288,33 @@ export const FactDetailModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Custom / Curated Topic Images Carousel (تا ١٠ وێنە لەگەڵ تێبینی و شریتی وێنەکان) */}
+          {/* Custom / Curated Topic Images Carousel or Community Contribution Callout if no image */}
           {(() => {
-            if (allImages.length === 0) return null;
+            if (allImages.length === 0) {
+              return (
+                <div className="relative rounded-2xl p-4 sm:p-5 border border-dashed border-amber-500/40 bg-gradient-to-b from-amber-500/[0.08] to-amber-500/[0.02] text-center flex flex-col items-center justify-center gap-2.5 my-2 shadow-inner">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
+                    <ImagePlus className="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs sm:text-sm font-black text-white font-heading">
+                      ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە
+                    </h4>
+                    <p className="text-[11px] text-slate-300 max-w-sm mx-auto leading-relaxed">
+                      دەتوانیت هاوکار بیت لە دەوڵەمەندکردنی نەخشە بە دانانی بەستەری وێنەی شایستە بۆ ئەم دەسەڵاتە.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSubmitPhotoOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95 mt-1"
+                  >
+                    <ImagePlus className="w-4 h-4 stroke-[2.5]" />
+                    <span>(یارمەتی -kurdistan info map-بدە بۆ ناردنی لینکی وێنە)</span>
+                  </button>
+                </div>
+              );
+            }
             const currentImg = allImages[activeImageIndex] || allImages[0];
             const hasMultiple = allImages.length > 1;
 
@@ -796,6 +837,15 @@ export const FactDetailModal: React.FC<Props> = ({
               await onSaveLinks(sourceId, targetIds, parentId, allyIds);
             }
           }}
+        />
+      )}
+
+      {/* Submit Photo Suggestion Modal for facts without image */}
+      {isSubmitPhotoOpen && fact && (
+        <SubmitPhotoModal
+          fact={fact}
+          isOpen={isSubmitPhotoOpen}
+          onClose={() => setIsSubmitPhotoOpen(false)}
         />
       )}
 

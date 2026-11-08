@@ -240,3 +240,15 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
 
   return { id: 'other_figure', name: 'کەسایەتی تر', color: '#ec4899' };
 }
+
+export interface PhotoSubmission {
+  id: string;
+  factId: number;
+  factName: string;
+  imageUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: number;
+  senderName?: string;
+  note?: string;
+  approvedAt?: number;
+}

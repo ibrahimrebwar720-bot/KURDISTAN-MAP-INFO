@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Plus,
   SlidersHorizontal,
+  Images,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { THEME_LIST } from '../types/theme';
@@ -38,6 +39,8 @@ interface Props {
   onTriggerAdminPin: () => void;
   onLogoutAdmin?: () => void;
   onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
+  onOpenSubmittedPhotos?: () => void;
+  pendingSubmissionsCount?: number;
   factsCount: number;
 }
 
@@ -62,6 +65,8 @@ export const AppSettingsModal: React.FC<Props> = ({
   onTriggerAdminPin,
   onLogoutAdmin,
   onOpenAddFact,
+  onOpenSubmittedPhotos,
+  pendingSubmissionsCount,
   factsCount,
 }) => {
   const { theme, themeId, setTheme, colorMode, setColorMode } = useTheme();
@@ -108,8 +113,12 @@ export const AppSettingsModal: React.FC<Props> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30">
-              <SlidersHorizontal className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl p-1 bg-amber-500/15 flex items-center justify-center border border-amber-500/30 overflow-hidden shadow-xs">
+              <img
+                src="/kimlogo.png"
+                alt="Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h2 className="font-heading font-extrabold text-sm sm:text-base">
@@ -332,6 +341,29 @@ export const AppSettingsModal: React.FC<Props> = ({
 
         {/* 6. بەشی ئەدمین (Admin Controls) */}
         <div className="pt-2 border-t border-black/10 dark:border-white/10">
+          {isAdmin && onOpenSubmittedPhotos && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenSubmittedPhotos();
+              }}
+              className="w-full mb-2 py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 dark:text-amber-400 border border-amber-500/40 flex items-center justify-between transition-all cursor-pointer shadow-xs active:scale-98"
+            >
+              <div className="flex items-center gap-2">
+                <Images className="w-4 h-4 text-amber-500" />
+                <span>وێنە نێردراوەکان (Submitted Photos)</span>
+              </div>
+              {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 ? (
+                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px] animate-pulse">
+                  {pendingSubmissionsCount} نوێ
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400">بینین</span>
+              )}
+            </button>
+          )}
+
           {isAdmin && onOpenAddFact && (
             <div className="grid grid-cols-2 gap-2 mb-2">
               <button

@@ -111,6 +111,52 @@
         }
       },
       "required": ["id", "name", "color"]
+    },
+    "PhotoSubmission": {
+      "title": "PhotoSubmission",
+      "description": "User suggested photo URL for a historical topic without image",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the submission",
+          "maxLength": 100
+        },
+        "factId": {
+          "type": "number",
+          "description": "Target historical fact ID"
+        },
+        "factName": {
+          "type": "string",
+          "description": "Target historical fact name",
+          "maxLength": 300
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Suggested image web URL",
+          "maxLength": 2000
+        },
+        "status": {
+          "type": "string",
+          "description": "Submission review status",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "submittedAt": {
+          "type": "number",
+          "description": "Timestamp when the suggestion was submitted"
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Optional name of contributor",
+          "maxLength": 150
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional note or source citation",
+          "maxLength": 500
+        }
+      },
+      "required": ["id", "factId", "factName", "imageUrl", "status", "submittedAt"]
     }
   },
   "firestore": {
@@ -121,6 +167,10 @@
     "/collections/{collectionId}": {
       "schema": "Collection",
       "description": "Menu collections available to all users and editable by admin"
+    },
+    "/photo_submissions/{submissionId}": {
+      "schema": "PhotoSubmission",
+      "description": "Photo suggestions submitted by users for admin approval"
     }
   }
 }
