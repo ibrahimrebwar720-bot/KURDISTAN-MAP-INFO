@@ -13,7 +13,9 @@ import {
   Filter,
   ChevronDown,
   Check,
+  ImagePlus,
 } from 'lucide-react';
+import { SubmitPhotoModal } from './SubmitPhotoModal';
 import { FactItem, RAW_FACTS_DATA } from '../data/kurdishHistoryData';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -156,6 +158,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string; year?: string } | null>(null);
+  const [factToSubmitPhoto, setFactToSubmitPhoto] = useState<FactItem | null>(null);
 
   // Close category dropdown when clicking outside
   useEffect(() => {
@@ -757,27 +760,40 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                   </div>
                 ) : (
                   <div
-                    className={`relative w-full h-28 sm:h-36 shrink-0 overflow-hidden flex items-center justify-center p-3 border-b ${
+                    className={`relative w-full h-36 sm:h-44 shrink-0 overflow-hidden flex flex-col items-center justify-center p-3 border-b text-center gap-2 ${
                       isDark
                         ? 'bg-gradient-to-br from-amber-950/20 via-[#101726] to-[#0a0f1d] border-white/10'
                         : 'bg-gradient-to-br from-amber-50/70 via-slate-50 to-white border-slate-200'
                     }`}
                   >
-
-                    <div className="flex items-center justify-center py-1 z-10 opacity-75">
+                    <div className="flex flex-col items-center justify-center gap-1.5 z-10">
                       <div
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner"
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center border shadow-inner"
                         style={{
                           backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.12)',
                           borderColor: `${catInfo.color || '#f59e0b'}40`,
                         }}
                       >
                         <Landmark
-                          className="w-6 h-6"
+                          className="w-5 h-5"
                           style={{ color: catInfo.color || '#f59e0b' }}
                         />
                       </div>
+                      <span className="text-[11px] text-slate-400 font-medium">ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە</span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFactToSubmitPhoto(factItem);
+                      }}
+                      className="z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                      title="یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>(یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە)</span>
+                    </button>
                   </div>
                 )}
 
@@ -1114,6 +1130,15 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             <span>کلیک لە دەرەوە بکە یان دوگمەی Esc دابگرە بۆ گەڕانەوە</span>
           </div>
         </div>
+      )}
+
+      {/* Submit Photo Suggestion Modal for facts without image in Historical Journey */}
+      {factToSubmitPhoto && (
+        <SubmitPhotoModal
+          fact={factToSubmitPhoto}
+          isOpen={!!factToSubmitPhoto}
+          onClose={() => setFactToSubmitPhoto(null)}
+        />
       )}
     </div>
   );

@@ -41,6 +41,7 @@ import {
   Maximize2,
   Image as ImageIcon,
   Images,
+  ImagePlus,
   Film,
   Play,
   Pause,
@@ -51,6 +52,7 @@ import {
   Moon,
   Share2,
 } from 'lucide-react';
+import { SubmitPhotoModal } from './SubmitPhotoModal';
 import { TimelineSlider } from './TimelineSlider';
 import {
   filterFactsByActiveYear,
@@ -303,6 +305,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     caption?: string;
     title: string;
   } | null>(null);
+  const [factToSubmitPhoto, setFactToSubmitPhoto] = useState<FactItem | null>(null);
 
   // Dynamic Era Atmosphere & Lighting based on timeline year
   // (سەردەمی دێرین تۆنی گەرم و قاوەیی، سەردەمی نوێ ڕووناکی و شین)
@@ -1554,7 +1557,23 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             {/* Topic Image in True Aspect Ratio (بە قیاسی تەواو بێ بڕین) */}
             {(() => {
               const displayImg = getFactDisplayImage(selectedFact);
-              if (!displayImg) return null;
+              if (!displayImg) {
+                return (
+                  <div className="relative mb-2.5 rounded-2xl p-3 sm:p-3.5 border border-dashed border-amber-500/35 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-center flex flex-col items-center justify-center gap-2">
+                    <p className="text-[11px] text-slate-300 font-medium">
+                      ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setFactToSubmitPhoto(selectedFact)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>(یارمەتی -kurdistan info map-بدە بۆ ناردنی لینکی وێنە)</span>
+                    </button>
+                  </div>
+                );
+              }
               return (
                 <div className="relative mb-2.5 rounded-2xl overflow-hidden border border-white/[0.1] bg-black/90 group shadow-lg flex flex-col items-center justify-center p-1.5">
                   <img
@@ -1663,6 +1682,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   >
                     <BookOpen className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>زانیاری زیاتر و بەڵگەنامەکان</span>
+                  </button>
+                )}
+
+                {!getFactDisplayImage(selectedFact) && (
+                  <button
+                    type="button"
+                    onClick={() => setFactToSubmitPhoto(selectedFact)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/40 text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+                    title="یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە"
+                  >
+                    <ImagePlus className="w-3.5 h-3.5 text-amber-400" />
+                    <span>ناردنی وێنە</span>
                   </button>
                 )}
 
@@ -2271,6 +2302,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Submit Photo Suggestion Modal for facts without image on map */}
+      {factToSubmitPhoto && (
+        <SubmitPhotoModal
+          fact={factToSubmitPhoto}
+          isOpen={!!factToSubmitPhoto}
+          onClose={() => setFactToSubmitPhoto(null)}
+        />
       )}
     </div>
   );
