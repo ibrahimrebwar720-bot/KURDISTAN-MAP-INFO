@@ -230,7 +230,6 @@
     direction: rtl;
     background-color: var(--theme-bg, #030712);
     color: #f3f4f6;
-    transition: background-color 0.3s ease;
   }
 
   #root {
@@ -635,22 +634,23 @@
   will-change: transform;
 }
 
-/* 60 FPS - 120 FPS High Refresh Rate & Hardware GPU Acceleration */
+/* 60 FPS - 120 FPS High Refresh Rate & Hardware GPU Acceleration (Without 3D perspective distortion on mobile) */
 @media screen {
   .leaflet-pane,
   .leaflet-tile-pane,
   .leaflet-marker-pane,
   .leaflet-zoom-animated {
     will-change: transform;
-    transform: translateZ(0);
+    transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
-    perspective: 1000px;
+    -webkit-backface-visibility: hidden;
   }
 
   .leaflet-tile-container img {
     image-rendering: auto;
     backface-visibility: hidden;
-    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
   }
 
   /* Ultra-smooth 60Hz - 120Hz scrolling for Timeline ruler */
@@ -732,11 +732,11 @@
   transition-duration: 0.12s;
 }
 
-/* Fluid Spatial Spring & Micro-Interaction Animations - Optimized for Instant Speed */
+/* Fluid Spatial Spring & Micro-Interaction Animations - Buttery Smooth Easing */
 @keyframes spatialSpringPopup {
   0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.96);
+    transform: translateY(12px) scale(0.96);
   }
   100% {
     opacity: 1;
@@ -745,7 +745,7 @@
 }
 
 .animate-spatial-spring {
-  animation: spatialSpringPopup 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: spatialSpringPopup 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
@@ -786,36 +786,38 @@
 
 /* Tactile Spring Press on Interactive Elements */
 button, [role="button"], select, a {
-  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, opacity 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactive-press:active {
-  transform: scale(0.97) translateY(1px);
-  transition-duration: 0.06s;
+  transform: scale(0.96) translateY(1px);
+  transition-duration: 0.08s;
 }
 
-/* Page Opening Motion (پێڕستی گشتی و پەڕە نوێیەکان - خێرا و نەرم) */
+/* Page Opening Motion (پێڕستی گشتی و پەڕە نوێیەکان - نەرم و ڕوون) */
 @keyframes pageEnter2026 {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(14px) scale(0.99);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-page-enter {
-  animation: pageEnter2026 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageEnter2026 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
-/* Modal Spring Opening Motion (مۆدال و پەنجەرە سەرەکییەکان - دەستبەجێ) */
+/* Modal Spring Opening Motion (مۆدال و پەنجەرە سەرەکییەکان - نەرم و بێ کێشە) */
 @keyframes modalSpring2026 {
   0% {
     opacity: 0;
-    transform: scale(0.97) translateY(10px);
+    transform: scale(0.95) translateY(16px);
   }
   100% {
     opacity: 1;
@@ -824,7 +826,57 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 .animate-modal-spring {
-  animation: modalSpring2026 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: modalSpring2026 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Universal Fade In Animation */
+@keyframes fadeInAnim {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInAnim 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity;
+}
+
+/* Universal Scale In Animation */
+@keyframes scaleInAnim {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in,
+.animate-scale-up {
+  animation: scaleInAnim 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Universal Slide Up Animation */
+@keyframes slideUpAnim {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUpAnim 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
@@ -841,7 +893,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 .animate-marker-pop {
-  animation: markerPinPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: markerPinPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform;
 }
 
@@ -883,48 +935,39 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 /* 1. All Amber / Gold Texts converted to Deep Bronze in Light Mode (Contrast 7.5:1+) */
-[data-color-mode="light"] .text-amber-400,
-[data-color-mode="light"] .text-amber-300,
+[data-color-mode="light"] .text-amber-100,
 [data-color-mode="light"] .text-amber-200,
+[data-color-mode="light"] .text-amber-300,
+[data-color-mode="light"] .text-amber-400,
 [data-color-mode="light"] .text-amber-500,
 [data-color-mode="light"] .text-yellow-400,
-[data-color-mode="light"] .text-yellow-300,
-[data-color-mode="light"] [class*="text-amber-300"],
-[data-color-mode="light"] [class*="text-amber-400"],
-[data-color-mode="light"] [class*="text-amber-200"],
-[data-color-mode="light"] [class*="text-amber-500"] {
+[data-color-mode="light"] .text-yellow-300 {
   color: #92400e !important;
   font-weight: 600 !important;
 }
 
 /* 2. Primary / Heading Texts in Light Mode: Solid Deep Charcoal (Contrast 18:1) */
 [data-color-mode="light"] .text-white:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-slate-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] [class*="text-slate-100"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+[data-color-mode="light"] .text-slate-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #090d16 !important;
   font-weight: 700 !important;
 }
 
 /* 3. Secondary & Body Texts in Light Mode: Deep Slate (Contrast 11:1) */
 [data-color-mode="light"] .text-slate-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] [class*="text-slate-200"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-slate-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] [class*="text-slate-300"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+[data-color-mode="light"] .text-slate-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #1e293b !important;
   font-weight: 500 !important;
 }
 
 /* 4. Metadata, Years, Subtitles in Light Mode: High Contrast Charcoal-Slate */
-[data-color-mode="light"] .text-slate-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] [class*="text-slate-400"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+[data-color-mode="light"] .text-slate-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #334155 !important;
   font-weight: 500 !important;
 }
 
 [data-color-mode="light"] .text-slate-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-slate-600:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] [class*="text-slate-500"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] [class*="text-slate-600"]:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+[data-color-mode="light"] .text-slate-600:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #475569 !important;
   font-weight: 500 !important;
 }
@@ -1050,15 +1093,20 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 /* 11. Borders in Light Mode */
+[data-color-mode="light"] .border-white,
+[data-color-mode="light"] .border-white\/5,
 [data-color-mode="light"] .border-white\/10,
+[data-color-mode="light"] .border-white\/15,
+[data-color-mode="light"] .border-white\/20,
+[data-color-mode="light"] .border-white\/25,
+[data-color-mode="light"] .border-white\/30,
+[data-color-mode="light"] .border-white\/60,
+[data-color-mode="light"] .border-white\/\[0\.06\],
 [data-color-mode="light"] .border-white\/\[0\.07\],
 [data-color-mode="light"] .border-white\/\[0\.08\],
 [data-color-mode="light"] .border-white\/\[0\.09\],
 [data-color-mode="light"] .border-white\/\[0\.1\],
-[data-color-mode="light"] .border-white\/\[0\.12\],
-[data-color-mode="light"] .border-white\/20,
-[data-color-mode="light"] .border-white\/30,
-[data-color-mode="light"] [class*="border-white"] {
+[data-color-mode="light"] .border-white\/\[0\.12\] {
   border-color: rgba(15, 23, 42, 0.12) !important;
 }
 

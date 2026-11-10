@@ -22,18 +22,44 @@ import {
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
 
+// Resilient dynamic import helper with automatic retry for network or dev-server transient hiccups
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  importer: () => Promise<any>,
+  namedExport?: string
+) {
+  return React.lazy(async () => {
+    try {
+      const mod = await importer();
+      const component =
+        (namedExport && mod[namedExport]) ||
+        mod.default ||
+        Object.values(mod).find((v) => typeof v === 'function');
+      return { default: component as T };
+    } catch (error) {
+      console.warn('Initial dynamic import failed, retrying...', error);
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      const mod = await importer();
+      const component =
+        (namedExport && mod[namedExport]) ||
+        mod.default ||
+        Object.values(mod).find((v) => typeof v === 'function');
+      return { default: component as T };
+    }
+  });
+}
+
 // Code-split heavy secondary modals for instant zero-lag initial page load
-const FactDetailModal = React.lazy(() => import('./components/FactDetailModal').then((m) => ({ default: m.FactDetailModal })));
-const AdminPinModal = React.lazy(() => import('./components/AdminPinModal').then((m) => ({ default: m.AdminPinModal })));
-const FactEditorModal = React.lazy(() => import('./components/FactEditorModal').then((m) => ({ default: m.FactEditorModal })));
-const CollectionManagerModal = React.lazy(() => import('./components/CollectionManagerModal').then((m) => ({ default: m.CollectionManagerModal })));
-const HistoricalGalleryModal = React.lazy(() => import('./components/HistoricalGalleryModal').then((m) => ({ default: m.HistoricalGalleryModal })));
-const ThemeSelectorModal = React.lazy(() => import('./components/ThemeSelectorModal').then((m) => ({ default: m.ThemeSelectorModal })));
-const DocumentaryScrollytellingModal = React.lazy(() => import('./components/DocumentaryScrollytellingModal').then((m) => ({ default: m.DocumentaryScrollytellingModal })));
-const HeroSection = React.lazy(() => import('./components/HeroSection').then((m) => ({ default: m.HeroSection })));
-const HistoricalJourneyModal = React.lazy(() => import('./components/HistoricalJourneyModal').then((m) => ({ default: m.HistoricalJourneyModal })));
-const AppSettingsModal = React.lazy(() => import('./components/AppSettingsModal').then((m) => ({ default: m.AppSettingsModal })));
-const SubmittedPhotosModal = React.lazy(() => import('./components/SubmittedPhotosModal').then((m) => ({ default: m.SubmittedPhotosModal })));
+const FactDetailModal = lazyWithRetry(() => import('./components/FactDetailModal'), 'FactDetailModal');
+const AdminPinModal = lazyWithRetry(() => import('./components/AdminPinModal'), 'AdminPinModal');
+const FactEditorModal = lazyWithRetry(() => import('./components/FactEditorModal'), 'FactEditorModal');
+const CollectionManagerModal = lazyWithRetry(() => import('./components/CollectionManagerModal'), 'CollectionManagerModal');
+const HistoricalGalleryModal = lazyWithRetry(() => import('./components/HistoricalGalleryModal'), 'HistoricalGalleryModal');
+const ThemeSelectorModal = lazyWithRetry(() => import('./components/ThemeSelectorModal'), 'ThemeSelectorModal');
+const DocumentaryScrollytellingModal = lazyWithRetry(() => import('./components/DocumentaryScrollytellingModal'), 'DocumentaryScrollytellingModal');
+const HeroSection = lazyWithRetry(() => import('./components/HeroSection'), 'HeroSection');
+const HistoricalJourneyModal = lazyWithRetry(() => import('./components/HistoricalJourneyModal'), 'HistoricalJourneyModal');
+const AppSettingsModal = lazyWithRetry(() => import('./components/AppSettingsModal'), 'AppSettingsModal');
+const SubmittedPhotosModal = lazyWithRetry(() => import('./components/SubmittedPhotosModal'), 'SubmittedPhotosModal');
 import { useTheme } from './context/ThemeContext';
 import {
   parseCurrentUrl,
@@ -644,7 +670,7 @@ export default function App() {
 
   return (
     <div
-      className={`h-full h-[100dvh] w-full overflow-hidden flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs transition-colors duration-300 ${
+      className={`h-full h-[100dvh] w-full overflow-hidden flex flex-col font-sans selection:bg-amber-500 selection:text-black text-xs ${
         colorMode === 'light' ? 'bg-[#f7f6f2] text-slate-900' : 'bg-[#05070e] text-slate-100'
       }`}
     >
@@ -702,7 +728,7 @@ export default function App() {
         {/* Fullscreen View for پێڕست with 2026 Spatial Page Transition */}
         {isMenuOpen && (
           <div
-            className={`fixed inset-0 z-50 flex flex-col overflow-hidden animate-page-enter transition-colors duration-300 ${
+            className={`fixed inset-0 z-50 flex flex-col overflow-hidden animate-page-enter ${
               colorMode === 'light' ? 'bg-[#f7f6f2] text-slate-900' : 'bg-[#030611] text-slate-100'
             }`}
           >
@@ -743,7 +769,7 @@ export default function App() {
         onClose={() => setIsDocumentaryTourOpen(false)}
         onFlyToCoords={handleDocumentaryFlyTo}
         facts={facts}
-        onOpenFactDetail={(fact) => {
+        onOpenFactDetail={(fact: FactItem) => {
           setIsDocumentaryTourOpen(false);
           handleOpenDetail(fact);
         }}
@@ -754,9 +780,9 @@ export default function App() {
         fact={detailFact}
         onClose={handleCloseDetail}
         onNavigate={handleModalNavigate}
-        onFlyToMap={(fact) => handleSelectFact(fact)}
+        onFlyToMap={(fact: FactItem) => handleSelectFact(fact)}
         isAdmin={isAdmin}
-        onEditFact={(fact) => {
+        onEditFact={(fact: FactItem) => {
           handleCloseDetail();
           handleOpenEditFact(fact);
         }}
@@ -764,7 +790,7 @@ export default function App() {
         onOpenGallery={handleOpenGallery}
         totalFactsCount={facts.length}
         allFacts={facts}
-        onSelectFact={(fact) => {
+        onSelectFact={(fact: FactItem) => {
           handleOpenDetail(fact);
         }}
         onSaveLinks={handleSaveLinks}
@@ -775,7 +801,7 @@ export default function App() {
         isOpen={isGalleryOpen}
         onClose={handleCloseGallery}
         facts={facts}
-        onFlyToFact={(fact) => {
+        onFlyToFact={(fact: FactItem) => {
           handleSelectFact(fact);
           handleCloseGallery();
         }}
@@ -883,11 +909,11 @@ export default function App() {
         isOpen={isJourneyOpen}
         onClose={handleCloseJourney}
         facts={facts}
-        onOpenDetail={(fact) => {
+        onOpenDetail={(fact: FactItem) => {
           setIsJourneyOpen(false);
           handleOpenDetail(fact);
         }}
-        onFlyToFact={(fact) => {
+        onFlyToFact={(fact: FactItem) => {
           setIsJourneyOpen(false);
           handleEnterMap();
           handleSelectFact(fact);
@@ -901,12 +927,12 @@ export default function App() {
           onClose={() => setIsSubmittedPhotosOpen(false)}
           submissions={photoSubmissions}
           allFacts={facts}
-          onFactUpdated={(updatedFact) => {
+          onFactUpdated={(updatedFact: FactItem) => {
             setFacts((prev) => prev.map((f) => (f.id === updatedFact.id ? updatedFact : f)));
             if (selectedFact?.id === updatedFact.id) setSelectedFact(updatedFact);
             if (detailFact?.id === updatedFact.id) setDetailFact(updatedFact);
           }}
-          onSelectFact={(fact) => {
+          onSelectFact={(fact: FactItem) => {
             handleSelectFact(fact);
             handleOpenDetail(fact);
           }}

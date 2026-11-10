@@ -23,6 +23,7 @@ import {
   rejectPhotoSubmission,
   deletePhotoSubmission,
 } from '../services/firestoreHistoryService';
+import { kurdishSearchMatch } from '../utils/kurdishSearch';
 
 interface SubmittedPhotosModalProps {
   isOpen: boolean;
@@ -50,16 +51,16 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Filter & Search
+  // Filter & Search with Kurdish character normalization
   const filteredList = submissions.filter((item) => {
     if (filter !== 'all' && item.status !== filter) return false;
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
+    const q = searchQuery.trim();
     return (
-      item.factName.toLowerCase().includes(q) ||
-      (item.senderName && item.senderName.toLowerCase().includes(q)) ||
-      (item.note && item.note.toLowerCase().includes(q)) ||
-      item.imageUrl.toLowerCase().includes(q)
+      kurdishSearchMatch(item.factName, q) ||
+      (item.senderName && kurdishSearchMatch(item.senderName, q)) ||
+      (item.note && kurdishSearchMatch(item.note, q)) ||
+      item.imageUrl.toLowerCase().includes(q.toLowerCase())
     );
   });
 

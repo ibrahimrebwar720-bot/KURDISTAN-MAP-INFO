@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { CollectionItem, UNIFIED_CATEGORIES, getCategoryInfo } from '../types/history';
 import { getFactChronologicalYear } from '../utils/yearUtils';
+import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import {
@@ -137,18 +138,18 @@ export const FactsList: React.FC<Props> = ({
       list = list.filter((fact) => getCategoryInfo(fact).id === categoryFilter);
     }
 
-    // Filter by search term
+    // Filter by search term with Kurdish / Arabic multi-keyboard normalization
     if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase().trim();
+      const q = searchTerm.trim();
       list = list.filter((fact) => {
         return (
-          fact.name.toLowerCase().includes(q) ||
-          fact.desc.toLowerCase().includes(q) ||
-          fact.fullText.toLowerCase().includes(q) ||
-          (fact.additionalNotes && fact.additionalNotes.toLowerCase().includes(q)) ||
-          (fact.region && fact.region.toLowerCase().includes(q)) ||
-          (fact.year && fact.year.toLowerCase().includes(q)) ||
-          (fact.century && fact.century.toLowerCase().includes(q)) ||
+          kurdishSearchMatch(fact.name, q) ||
+          kurdishSearchMatch(fact.desc, q) ||
+          kurdishSearchMatch(fact.fullText, q) ||
+          (fact.additionalNotes && kurdishSearchMatch(fact.additionalNotes, q)) ||
+          (fact.region && kurdishSearchMatch(fact.region, q)) ||
+          (fact.year && kurdishSearchMatch(fact.year, q)) ||
+          (fact.century && kurdishSearchMatch(fact.century, q)) ||
           fact.num.toString() === q
         );
       });
@@ -257,31 +258,31 @@ export const FactsList: React.FC<Props> = ({
             </div>
 
             {/* Actions: View Toggle, Theme, Admin, Close */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               {/* View Mode Toggle: List vs Grid */}
               <button
                 onClick={() => setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border border-white/10 transition-all cursor-pointer active:scale-95"
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border border-white/10 transition-all cursor-pointer active:scale-95"
                 title={viewMode === 'grid' ? 'گۆڕین بۆ لیستی پوخت' : 'گۆڕین بۆ کارتەکان'}
                 aria-label="شێوازی نیشاندان"
               >
                 {viewMode === 'grid' ? (
-                  <List className="w-3.5 h-3.5" />
+                  <List className="w-4 h-4" />
                 ) : (
-                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <LayoutGrid className="w-4 h-4" />
                 )}
               </button>
 
               {/* Theme Toggle */}
               <button
                 onClick={toggleColorMode}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.06] text-amber-400 border border-white/10 transition-all cursor-pointer active:scale-95"
-                title="گۆڕینی دۆخی تاریک/ڕووناک"
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.06] text-amber-400 border border-white/10 transition-all cursor-pointer active:scale-95"
+                title={colorMode === 'light' ? 'دۆخی تاریک' : 'دۆخی ڕووناک'}
               >
                 {colorMode === 'light' ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <Sun className="w-4 h-4 text-amber-500" />
                 ) : (
-                  <Moon className="w-3.5 h-3.5 text-amber-400" />
+                  <Moon className="w-4 h-4 text-amber-400" />
                 )}
               </button>
 
@@ -289,7 +290,7 @@ export const FactsList: React.FC<Props> = ({
               {isAdmin && onOpenAddFact && (
                 <button
                   onClick={() => onOpenAddFact('standard')}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-amber-400 text-black font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-400 text-black font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
                   title="زیادکردنی بابەتی نوێ"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
@@ -300,7 +301,7 @@ export const FactsList: React.FC<Props> = ({
               {onClose && (
                 <button
                   onClick={onClose}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition-all cursor-pointer active:scale-95"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition-all cursor-pointer active:scale-95"
                   title="داخستن و گەڕانەوە"
                 >
                   <X className="w-4 h-4" />

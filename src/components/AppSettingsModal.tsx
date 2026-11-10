@@ -102,7 +102,7 @@ export const AppSettingsModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className={`relative w-full max-w-md rounded-3xl p-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_24px_60px_rgba(0,0,0,0.85)] max-h-[90vh] overflow-y-auto text-right flex flex-col gap-4 animate-scale-in transition-colors duration-300 ${
+        className={`relative w-full max-w-md rounded-3xl p-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_24px_60px_rgba(0,0,0,0.85)] max-h-[90vh] overflow-y-auto text-right flex flex-col gap-4 animate-scale-in ${
           colorMode === 'light'
             ? 'bg-[#f7f5ed] text-slate-900 border border-amber-900/15'
             : 'bg-[#080d19]/95 text-slate-100 border border-white/10'

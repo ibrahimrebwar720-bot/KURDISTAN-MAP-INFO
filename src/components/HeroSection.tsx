@@ -96,7 +96,7 @@ const HeroSlide: React.FC<HeroSlideProps> = ({
         src={imgUrl}
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-40 select-none pointer-events-none"
+        className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-35 select-none pointer-events-none"
         style={{ transformOrigin: 'center center' }}
       />
 
@@ -274,17 +274,20 @@ export const HeroSection: React.FC<Props> = ({
           text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95) !important;
         }
         #hero-section .hero-theme-btn {
-          transition: background-color 0.12s ease-out, color 0.12s ease-out, border-color 0.12s ease-out, transform 0.12s ease-out, box-shadow 0.12s ease-out;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
           background-color: rgba(12, 16, 28, 0.75) !important;
           backdrop-filter: blur(20px) saturate(180%) !important;
           -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
           border-color: ${theme.primaryColor}70 !important;
           color: ${theme.primaryColor} !important;
           box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
         }
         #hero-section .hero-theme-btn span,
         #hero-section .hero-theme-btn svg {
           color: ${theme.primaryColor} !important;
+          transition: color 0.2s ease;
         }
         #hero-section .hero-theme-btn:active,
         #hero-section .hero-theme-btn.is-active {
@@ -292,6 +295,7 @@ export const HeroSection: React.FC<Props> = ({
           border-color: ${theme.primaryColor} !important;
           color: #000000 !important;
           box-shadow: 0 0 32px ${theme.primaryColor} !important;
+          transform: scale(0.96) translateY(1px);
         }
         #hero-section .hero-theme-btn:active span,
         #hero-section .hero-theme-btn:active svg,

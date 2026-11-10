@@ -1,0 +1,40 @@
+{
+  "id": "/",
+  "name": "kurdistan info map",
+  "short_name": "kurdistan info map",
+  "description": "نەخشە و ئینسایکلۆپیدیای کارلێککاری دەسەڵات، میرنشین و مێژووی کوردستان",
+  "theme_color": "#030712",
+  "background_color": "#030712",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "ckb",
+  "dir": "rtl",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/kimlogo.png",
+      "sizes": "1268x1241",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

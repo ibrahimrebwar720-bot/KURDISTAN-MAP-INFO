@@ -173,7 +173,7 @@ export const FactDetailModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl glass-dock-2026 rounded-3xl p-5 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 overflow-hidden custom-scrollbar animate-spatial-spring"
+        className="relative w-full max-w-xl glass-dock-2026 rounded-3xl p-4 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 custom-scrollbar animate-modal-spring"
         onClick={(e) => e.stopPropagation()}
       >
 
@@ -852,3 +852,5 @@ export const FactDetailModal: React.FC<Props> = ({
     </div>
   );
 };
+
+export default FactDetailModal;

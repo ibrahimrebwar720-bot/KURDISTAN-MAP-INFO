@@ -188,7 +188,49 @@ const LIGHT_MODE_ACCENTS: Record<ThemeId, { primary: string; secondary: string; 
   'clay-brown-soft-butter': { primary: '#b45309', secondary: '#78350f', glow: 'rgba(180, 83, 9, 0.25)' },
 };
 
-export function applyThemeToDom(themeId: ThemeId, colorMode: ColorMode = 'dark'): void {
+/**
+ * Temporarily disables all CSS transitions during theme/color-mode change.
+ * Prevents mid-transition color clash, flickering text, and slow UI rendering.
+ */
+export function disableTransitionsTemporarily(): () => void {
+  if (typeof document === 'undefined') return () => {};
+
+  const css = document.createElement('style');
+  css.setAttribute('type', 'text/css');
+  css.id = 'theme-transition-disabler';
+  css.appendChild(
+    document.createTextNode(
+      `*, *::before, *::after {
+        -webkit-transition: none !important;
+        -moz-transition: none !important;
+        -o-transition: none !important;
+        -ms-transition: none !important;
+        transition: none !important;
+      }`
+    )
+  );
+  document.head.appendChild(css);
+
+  // Force synchronous style reflow
+  if (document.body) {
+    const _ = window.getComputedStyle(document.body).opacity;
+  }
+
+  return () => {
+    // Re-enable transitions after 2 animation frames
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById('theme-transition-disabler');
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+    });
+  };
+}
+
+export function applyThemeToDom(themeId: ThemeId, colorMode: ColorMode = 'dark', disableTransitions = true): void {
+  const cleanup = disableTransitions ? disableTransitionsTemporarily() : null;
   const root = document.documentElement;
   const theme = THEMES[themeId] || THEMES['kurdish-gold'];
 
@@ -251,4 +293,8 @@ export function applyThemeToDom(themeId: ThemeId, colorMode: ColorMode = 'dark')
     document.head.appendChild(metaTheme);
   }
   metaTheme.setAttribute('content', colorMode === 'light' ? '#f7f6f2' : theme.darkBg);
+
+  if (cleanup) {
+    cleanup();
+  }
 }

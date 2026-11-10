@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { getCategoryInfo, UNIFIED_CATEGORIES, CategoryId } from '../types/history';
+import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import {
   X,
   Search,
@@ -64,9 +65,9 @@ export const FactRelationsModal: React.FC<Props> = ({
 
   const filteredCandidateAllies = useMemo(() => {
     if (!allySearchQuery.trim()) return candidateAllies;
-    const q = allySearchQuery.toLowerCase().trim();
+    const q = allySearchQuery.trim();
     return candidateAllies.filter(
-      (f) => f.name.toLowerCase().includes(q) || (f.desc && f.desc.toLowerCase().includes(q))
+      (f) => kurdishSearchMatch(f.name, q) || kurdishSearchMatch(f.desc, q)
     );
   }, [candidateAllies, allySearchQuery]);
 
@@ -79,12 +80,12 @@ export const FactRelationsModal: React.FC<Props> = ({
     }
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+      const q = searchQuery.trim();
       list = list.filter(
         (f) =>
-          f.name.toLowerCase().includes(q) ||
-          f.desc.toLowerCase().includes(q) ||
-          f.fullText.toLowerCase().includes(q)
+          kurdishSearchMatch(f.name, q) ||
+          kurdishSearchMatch(f.desc, q) ||
+          kurdishSearchMatch(f.fullText, q)
       );
     }
 

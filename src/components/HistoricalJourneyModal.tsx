@@ -297,7 +297,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     setTimeout(() => {
       setFallingCard(null);
       setIsTransitioning(false);
-    }, 360);
+    }, 280);
   }, [totalFacts, isTransitioning, allJourneyFacts, currentIndex]);
 
   // Navigation: Prev (Page sweeps and rises up from bottom smoothly)
@@ -311,7 +311,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     setTimeout(() => {
       setIsRisingUp(false);
       setIsTransitioning(false);
-    }, 360);
+    }, 280);
   }, [totalFacts, isTransitioning]);
 
   // Keyboard navigation
@@ -405,7 +405,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   return (
     <div
       id="historical-journey-modal"
-      className={`fixed inset-0 z-[1200] flex flex-col justify-between p-2 sm:p-3 md:p-5 select-none overflow-hidden animate-fade-in transition-colors duration-300 ${
+      className={`fixed inset-0 z-[1200] flex flex-col justify-between p-2 sm:p-3 md:p-5 select-none overflow-hidden animate-fade-in ${
         isDark ? 'bg-[#06080e]/98 text-white' : 'bg-[#f8fafc]/98 text-slate-900'
       }`}
       onTouchStart={handleTouchStart}
@@ -439,46 +439,35 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         .journey-card-hardware {
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
-          transform-style: preserve-3d;
-          -webkit-transform-style: preserve-3d;
           will-change: transform, opacity;
         }
 
-        /* Sketchbook Page Turning / Drop Down Animation (Pure GPU Transform & Opacity) */
+        /* Sketchbook Page Drop Down Animation (Pure 2D GPU Transform & Opacity) */
         @keyframes sketchbookFallDown {
           0% {
-            transform: translate3d(0, 0, 0) rotateX(0deg) scale3d(1, 1, 1);
+            transform: translate3d(0, 0, 0) scale(1);
             opacity: 1;
           }
-          35% {
-            transform: translate3d(0, 16px, 0) rotateX(-9deg) scale3d(0.985, 0.985, 1);
-            opacity: 0.96;
-          }
           100% {
-            transform: translate3d(0, 118%, 0) rotateX(-24deg) scale3d(0.91, 0.91, 1);
+            transform: translate3d(0, 32px, 0) scale(0.96);
             opacity: 0;
           }
         }
 
-        /* Sketchbook Page Return / Sweep Up from Bottom Animation (Pure GPU Transform & Opacity) */
+        /* Sketchbook Page Return / Sweep Up from Bottom Animation (Pure 2D GPU Transform & Opacity) */
         @keyframes sketchbookRiseUp {
           0% {
-            transform: translate3d(0, 118%, 0) rotateX(-24deg) scale3d(0.91, 0.91, 1);
+            transform: translate3d(0, 32px, 0) scale(0.96);
             opacity: 0;
           }
-          75% {
-            transform: translate3d(0, -6px, 0) rotateX(3deg) scale3d(1.01, 1.01, 1);
-            opacity: 0.98;
-          }
           100% {
-            transform: translate3d(0, 0, 0) rotateX(0deg) scale3d(1, 1, 1);
+            transform: translate3d(0, 0, 0) scale(1);
             opacity: 1;
           }
         }
 
         .anim-sketchbook-fall-down {
-          animation: sketchbookFallDown 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-          transform-origin: 50% 100%;
+          animation: sketchbookFallDown 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           pointer-events: none;
           will-change: transform, opacity;
           backface-visibility: hidden;
@@ -486,8 +475,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         }
 
         .anim-sketchbook-rise-up {
-          animation: sketchbookRiseUp 0.36s cubic-bezier(0.18, 1, 0.32, 1) forwards;
-          transform-origin: 50% 100%;
+          animation: sketchbookRiseUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           will-change: transform, opacity;
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
@@ -700,7 +688,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
               >
                 {/* 1. TOP PART: AUTHENTIC IMAGE WITH DUAL-LAYER SIZING & ASPECT RATIO PRESERVATION */}
                 {optimizedImg ? (
-                  <div className="relative w-full h-52 sm:h-60 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center group">
+                  <div className="relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center group">
                     {/* Ambient Glow Layer: fast GPU rendering */}
                     <img
                       src={optimizedImg}
@@ -708,7 +696,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       aria-hidden="true"
                       loading="eager"
                       decoding="async"
-                      className="absolute inset-0 w-full h-full object-cover blur-lg opacity-35 scale-105 pointer-events-none select-none"
+                      className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 select-none pointer-events-none"
                     />
 
                     {/* Main Foreground Image: fully preserved aspect ratio without chopping off faces or maps */}
@@ -898,14 +886,14 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 const fallingImg = getAuthenticFactImage(fallingCard);
                 const optimizedFallingImg = fallingImg ? getOptimizedImageUrl(fallingImg, 'full') : '';
                 return optimizedFallingImg ? (
-                  <div className="relative w-full h-52 sm:h-60 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center">
+                  <div className="relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center">
                     <img
                       src={optimizedFallingImg}
                       alt=""
                       aria-hidden="true"
                       loading="eager"
                       decoding="async"
-                      className="absolute inset-0 w-full h-full object-cover blur-lg opacity-35 scale-105 pointer-events-none select-none"
+                      className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 select-none pointer-events-none"
                     />
                     <img
                       src={optimizedFallingImg}
@@ -924,7 +912,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                   </div>
                 ) : (
                   <div
-                    className={`relative w-full h-28 sm:h-36 shrink-0 overflow-hidden flex items-center justify-center p-3 border-b ${
+                    className={`relative w-full h-36 sm:h-44 shrink-0 overflow-hidden flex items-center justify-center p-3 border-b ${
                       isDark
                         ? 'bg-gradient-to-br from-amber-950/20 via-[#101726] to-[#0a0f1d] border-white/10'
                         : 'bg-gradient-to-br from-amber-50/70 via-slate-50 to-white border-slate-200'

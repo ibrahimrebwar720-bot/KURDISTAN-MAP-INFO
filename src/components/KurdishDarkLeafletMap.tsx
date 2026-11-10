@@ -750,11 +750,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       return;
     }
 
-    if (tileLayerRef.current) {
-      try {
-        map.removeLayer(tileLayerRef.current);
-      } catch {}
-    }
+    const oldLayer = tileLayerRef.current;
 
     const nextLayer = createCachedTileLayer(targetTileUrl, {
       maxZoom: 16,
@@ -764,12 +760,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     tileLayerRef.current = nextLayer;
     currentTileUrlRef.current = targetTileUrl;
 
-    // Invalidate map size to ensure instant, complete tile coverage
-    setTimeout(() => {
-      try {
-        map.invalidateSize();
-      } catch {}
-    }, 60);
+    if (oldLayer) {
+      setTimeout(() => {
+        try {
+          if (map.hasLayer(oldLayer)) {
+            map.removeLayer(oldLayer);
+          }
+        } catch {}
+      }, 120);
+    }
   }, [mapMode, colorMode]);
 
   // Update Kurdistan Territory Polygon
@@ -1270,7 +1269,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
   return (
     <div
-      className={`relative w-full h-full overflow-hidden select-none transition-colors duration-300 ${
+      className={`relative w-full h-full overflow-hidden select-none ${
         colorMode === 'light' ? 'bg-[#eae7de]' : 'bg-[#12161f]'
       } ${isPickingLocation ? 'cursor-crosshair' : ''}`}
     >
@@ -1515,7 +1514,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         {/* Quick Topic Summary Card with 2026 Spatial Glass & Spring Physics */}
         {selectedFact && showQuickSummary && (
           <div
-            className="relative w-full max-w-md sm:max-w-lg mb-1 p-4 rounded-3xl glass-dock-2026 text-right animate-spatial-spring z-40 transition-all select-text shrink-0 overflow-hidden"
+            className="relative w-full max-w-md sm:max-w-lg mb-1 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl glass-dock-2026 text-right animate-spatial-spring z-40 transition-all select-text shrink-0 overflow-y-auto max-h-[52vh] sm:max-h-[60vh] custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header: Title, Unboxed Metadata & Close */}
@@ -1855,10 +1854,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           onToggleTour={handleToggleTour}
         />
 
-        {/* Selected Fact Capsule (Liquid Glass Pill) */}
-        {selectedFact && (
+        {/* Selected Fact Capsule (Liquid Glass Pill) - only shown when summary card is collapsed */}
+        {selectedFact && !showQuickSummary && (
           <button
-            onClick={() => setShowQuickSummary((prev) => !prev)}
+            onClick={() => setShowQuickSummary(true)}
             className="group relative flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-2xl liquid-glass-btn shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_25px_rgba(0,0,0,0.6)] cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-right overflow-hidden"
             title="کلیک بکە بۆ پیشاندانی کورتەی بابەت بە مۆنشن و گرافیک"
           >
