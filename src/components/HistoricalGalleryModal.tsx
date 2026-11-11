@@ -291,16 +291,13 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c]/95 backdrop-blur-xl text-slate-100 select-none overflow-hidden animate-page-enter ${
+      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c] text-slate-100 select-none overflow-hidden animate-page-enter ${
         isFullscreen ? 'p-2 sm:p-4' : 'p-2 sm:p-6'
       }`}
       dir="rtl"
     >
-      {/* Subtle Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-amber-500/5 blur-[100px] rounded-full pointer-events-none z-0" />
-
       {/* Top Header Bar */}
-      <div className="relative z-20 flex items-center justify-between p-3 sm:p-3.5 rounded-2xl sm:rounded-3xl glass-dock-2026 shadow-2xl shrink-0 overflow-hidden">
+      <div className="relative z-20 flex items-center justify-between p-3 sm:p-3.5 rounded-none glass-dock-2026 shrink-0 overflow-hidden">
         {/* Title and Kurdish Sun Emblem */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-amber-400 shadow-md shrink-0">

@@ -119,6 +119,7 @@ export default function App() {
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedProvince, setSelectedProvince] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
 
   // Hero Section, Historical Journey & Settings Modal State
@@ -702,6 +703,8 @@ export default function App() {
           }}
           activeTagFilter={selectedCategory}
           setActiveTagFilter={setSelectedCategory}
+          selectedProvince={selectedProvince}
+          onSelectProvince={setSelectedProvince}
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           isAdmin={isAdmin}
@@ -746,6 +749,8 @@ export default function App() {
               onSelectCollection={setSelectedCategory}
               activeCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
+              selectedProvince={selectedProvince}
+              onSelectProvince={setSelectedProvince}
               isAdmin={isAdmin}
               onOpenAddFact={handleOpenAddFact}
               onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}

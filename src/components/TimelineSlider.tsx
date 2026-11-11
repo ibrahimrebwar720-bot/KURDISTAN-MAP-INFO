@@ -611,7 +611,7 @@ export const TimelineSlider: React.FC<Props> = ({
                   >
                     {/* Centimeter / Millimeter Tick Line */}
                     <div
-                      className={`transition-all rounded-full ${
+                      className={`transition-all rounded-none ${
                         isSelected
                           ? 'w-1 h-4 sm:h-5.5 bg-amber-400 shadow-[0_0_10px_#f59e0b]'
                           : mark.type === 'cm'

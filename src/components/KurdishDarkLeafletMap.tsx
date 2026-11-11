@@ -68,6 +68,13 @@ import { THEME_LIST } from '../types/theme';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { copyTopicToClipboard, getShareableTopicUrl } from '../utils/urlRouter';
+import {
+  ProvinceItem,
+  getProvincesWithCounts,
+  filterFactsByProvince,
+  KURDISTAN_PROVINCES,
+} from '../data/kurdishProvincesData';
+import { ProvinceSelectorModal } from './ProvinceSelectorModal';
 
 const ThemeSelectorModal = React.lazy(() =>
   import('./ThemeSelectorModal').then((m) => ({
@@ -99,6 +106,8 @@ interface Props {
   setShowBottomPhotoStrip?: React.Dispatch<React.SetStateAction<boolean>>;
   activeTagFilter: string;
   setActiveTagFilter: (tag: string) => void;
+  selectedProvince?: string;
+  onSelectProvince?: (provinceId: string, province?: ProvinceItem) => void;
   // Year & Timeline Slider Props
   selectedYear?: number | 'all';
   onYearChange?: (year: number | 'all') => void;
@@ -247,6 +256,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   setShowBottomPhotoStrip: externalSetShowBottomPhotoStrip,
   activeTagFilter,
   setActiveTagFilter,
+  selectedProvince = 'all',
+  onSelectProvince,
   selectedYear = 'all',
   onYearChange,
   isAdmin = false,
@@ -278,6 +289,35 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
   // Category Selector Modal directly on map (دوگمەی پۆلێنەکان)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
+
+  // Province Selector Modal & Filter on map (پۆلێنی پارێزگاکان)
+  const [localProvince, setLocalProvince] = useState<string>(selectedProvince || 'all');
+  const activeProvince = selectedProvince ?? localProvince;
+  const [isProvinceModalOpen, setIsProvinceModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (selectedProvince !== undefined) {
+      setLocalProvince(selectedProvince);
+    }
+  }, [selectedProvince]);
+
+  const handleSelectProvince = (provId: string, prov?: ProvinceItem) => {
+    setLocalProvince(provId);
+    if (onSelectProvince) {
+      onSelectProvince(provId, prov);
+    }
+    const targetProv = prov || KURDISTAN_PROVINCES.find((p) => p.id === provId);
+    if (targetProv && targetProv.center && mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo(targetProv.center, targetProv.zoom || 9, {
+        duration: 1.4,
+        easeLinearity: 0.25,
+      });
+    }
+  };
+
+  const currentProvinceObj = useMemo(() => {
+    return KURDISTAN_PROVINCES.find((p) => p.id === activeProvince);
+  }, [activeProvince]);
 
   // Principality / Authority Focus Isolation Mode (فۆکەسی دەسەڵات: تەنها پەیوەندیدارەکانی دەردەکەون)
   const [isPrincipalityFocusActive, setIsPrincipalityFocusActive] = useState<boolean>(true);
@@ -705,12 +745,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       const customIcon = L.divIcon({
         html: `
-          <div class="relative w-6 h-6 flex items-center justify-center select-none pointer-events-none">
+          <div class="relative w-6 h-6 flex items-center justify-center select-none pointer-events-none map-pin-circle">
             <div class="absolute -inset-1 rounded-full bg-amber-400/35 animate-ping"></div>
-            <div class="relative w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-[0_0_15px_rgba(245,158,11,1)] flex items-center justify-center">
+            <div class="relative w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-[0_0_12px_rgba(245,158,11,0.9)] flex items-center justify-center">
               <div class="w-1.5 h-1.5 rounded-full bg-black"></div>
             </div>
-            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-0.5 rounded bg-black/95 border border-amber-500 text-[10px] font-bold text-amber-300 whitespace-nowrap shadow-md" dir="rtl">
+            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-0.5 rounded-none bg-black border border-amber-500 text-[10px] font-bold text-amber-300 whitespace-nowrap" dir="rtl">
               پۆینتی دەستنیشانکراو
             </div>
           </div>
@@ -822,13 +862,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       list = list.filter((fact) => getCategoryInfo(fact).id === activeTagFilter);
     }
 
+    // 2.5. Province Filter (پۆلێنی پارێزگا)
+    if (activeProvince !== 'all') {
+      list = filterFactsByProvince(list, activeProvince);
+    }
+
     // 3. Active Year Filter (Only if not in tour mode, and when specific year is chosen)
     if (!isTourActive && selectedYear !== 'all') {
       list = filterFactsByActiveYear(list, selectedYear);
     }
 
     return list;
-  }, [facts, isPrincipalityFocusActive, relatedFactIdsSet, activeTagFilter, selectedYear, isTourActive]);
+  }, [facts, isPrincipalityFocusActive, relatedFactIdsSet, activeTagFilter, activeProvince, selectedYear, isTourActive]);
 
   // Facts with verified images for Photo Mode and Bottom Photo Strip
   const visibleFactsWithImages = useMemo(() => {
@@ -1058,25 +1103,23 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           iconSize = [28, 28];
           iconAnchor = [14, 14];
           iconHtml = `
-            <div class="relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop">
-              <!-- Fluid expanding spatial luminous wave -->
-              <div class="absolute -inset-2 rounded-full luminous-spatial-ring pointer-events-none" style="background-color: ${glowColor}35; box-shadow: 0 0 16px ${glowColor};"></div>
+            <div class="relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop map-pin-circle">
+              <!-- Circular luminous wave -->
+              <div class="absolute -inset-2 rounded-full pointer-events-none opacity-40 animate-ping" style="background-color: ${glowColor};"></div>
               
-              <!-- Secondary soft breathing halo -->
+              <!-- Circular soft halo -->
               <div class="absolute -inset-0.5 rounded-full pointer-events-none opacity-60 animate-pulse" style="background-color: ${glowColor};"></div>
               
-              <!-- Central Pin Dot with fluid physics -->
-              <div class="relative w-5 h-5 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-xl z-10 transition-transform duration-200 hover:scale-115 active:scale-90" style="background-color: ${tagColor}; box-shadow: 0 0 20px ${glowColor};">
+              <!-- Central Pin Circle Dot -->
+              <div class="relative w-5 h-5 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-lg z-10 transition-transform duration-150 hover:scale-115 active:scale-90" style="background-color: ${tagColor}; box-shadow: 0 0 16px ${glowColor};">
                 <div class="w-1.5 h-1.5 rounded-full bg-white shadow-xs"></div>
               </div>
 
-              <!-- Name Label Tag with Spring Appearance -->
-              <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50 animate-spatial-spring">
-                <!-- Little arrow triangle pointing up to the pin dot -->
-                <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-amber-400/50 mx-auto -mb-1 shadow-xs"></div>
-                <!-- Badge Content in RTL -->
-                <div dir="rtl" class="px-3 py-1 rounded-xl bg-[#080c14]/95 border border-white/20 shadow-[0_8px_25px_rgba(0,0,0,0.9),0_0_15px_rgba(245,158,11,0.25)] backdrop-blur-xl whitespace-nowrap text-right">
-                  <span class="text-xs font-extrabold text-white tracking-wide font-heading">${safeName}</span>
+              <!-- Name Label Tag Flat in RTL -->
+              <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50">
+                <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-amber-400/50 mx-auto -mb-1"></div>
+                <div dir="rtl" class="px-3 py-1 bg-[#080c14] border border-amber-500/60 whitespace-nowrap text-right shadow-lg">
+                  <span class="text-xs font-black text-white tracking-wide font-heading">${safeName}</span>
                 </div>
               </div>
             </div>
@@ -1085,8 +1128,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           iconSize = [16, 16];
           iconAnchor = [8, 8];
           iconHtml = `
-            <div class="w-4 h-4 flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-200 hover:scale-135 active:scale-85 select-none">
-              <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-sm transition-all duration-200" style="background-color: ${tagColor}; box-shadow: 0 0 8px ${glowColor};"></div>
+            <div class="w-4 h-4 flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-150 hover:scale-125 active:scale-85 select-none map-pin-circle">
+              <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-xs transition-all duration-150" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
             </div>
           `;
         }
@@ -1227,8 +1270,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       const badgeIcon = L.divIcon({
         className: 'knowledge-graph-midpoint-badge',
         html: `
-          <div class="px-2.5 py-0.5 rounded-full text-[9px] font-black text-white shadow-[0_4px_20px_rgba(0,0,0,0.9)] border flex items-center gap-1 cursor-pointer transition-transform hover:scale-110 active:scale-95 select-none"
-               style="background-color: rgba(6, 10, 22, 0.92); border-color: ${link.color}; box-shadow: 0 0 14px ${link.color}60;">
+          <div class="px-2.5 py-0.5 text-[9px] font-black text-white border flex items-center gap-1 cursor-pointer select-none map-pin-circle"
+               style="background-color: #060a16; border-color: ${link.color};">
             <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${link.color}"></span>
             <span class="whitespace-nowrap font-bold">${link.label}</span>
           </div>
@@ -1482,6 +1525,30 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 className="w-2 h-2 rounded-full shrink-0 shadow-xs"
                 style={{ backgroundColor: currentFilterObj.color }}
               />
+            ) : (
+              <ChevronDown className="w-3 h-3 text-amber-400/70 group-hover:translate-y-0.5 transition-transform" />
+            )}
+          </button>
+
+          {/* دوگمەی پارێزگاکان (Province Filter Button on Map) */}
+          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+          <button
+            onClick={() => setIsProvinceModalOpen((prev) => !prev)}
+            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
+              activeProvince !== 'all'
+                ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
+            }`}
+            title="پۆلێنی پارێزگاکان (فلتەرکردن بەپێی ٤٧ پارێزگای کوردستان)"
+          >
+            <MapPin className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+            <span className="font-heading font-extrabold text-xs whitespace-nowrap">
+              {activeProvince === 'all'
+                ? 'پارێزگاکان'
+                : currentProvinceObj?.name || 'پارێزگا'}
+            </span>
+            {activeProvince !== 'all' ? (
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-xs" />
             ) : (
               <ChevronDown className="w-3 h-3 text-amber-400/70 group-hover:translate-y-0.5 transition-transform" />
             )}
@@ -2311,6 +2378,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           onClose={() => setFactToSubmitPhoto(null)}
         />
       )}
+
+      {/* Province Selector Modal on Map */}
+      <ProvinceSelectorModal
+        isOpen={isProvinceModalOpen}
+        onClose={() => setIsProvinceModalOpen(false)}
+        facts={facts}
+        selectedProvinceId={activeProvince}
+        onSelectProvince={handleSelectProvince}
+      />
     </div>
   );
 };

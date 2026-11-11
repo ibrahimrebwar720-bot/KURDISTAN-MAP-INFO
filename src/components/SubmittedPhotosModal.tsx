@@ -132,19 +132,15 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in text-right">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right">
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl bg-slate-950/95 border border-amber-500/35 shadow-[0_25px_60px_-15px_rgba(245,158,11,0.25)] text-white overflow-hidden animate-scale-up"
+        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-none bg-slate-950 border border-amber-500/35 text-white overflow-hidden animate-scale-up"
         dir="rtl"
       >
-        {/* Glow decoration */}
-        <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-32 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
         {/* Modal Header */}
         <div className="relative z-10 px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+            <div className="w-10 h-10 rounded-none bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
               <Images className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
@@ -153,7 +149,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                   وێنە نێردراوەکان
                 </h2>
                 {pendingCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold animate-pulse">
+                  <span className="px-2 py-0.5 rounded-none bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold">
                     {pendingCount} چاوەڕوانکراو
                   </span>
                 )}

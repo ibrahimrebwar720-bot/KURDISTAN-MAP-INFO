@@ -10,26 +10,22 @@ const KURD_MAP_ICON = '/kimlogo.png';
 
 export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
   return (
-    <header className="relative liquid-glass-dock border-x-0 border-t-0 rounded-none shadow-[0_4px_30px_rgba(0,0,0,0.6)] sticky top-0 z-40 overflow-hidden">
-      <div className="glass-specular-ray" />
+    <header className="relative bg-[#0b0f1c] border-b border-amber-500/25 sticky top-0 z-40 shadow-md">
       <div className="w-full px-2.5 sm:px-4 h-9 sm:h-10 flex items-center justify-between gap-2 relative z-10">
         {/* Logo and Titles */}
         <div className="flex items-center gap-1.5 min-w-0">
           <img
             src={KURD_MAP_ICON}
             alt="KURDISTAN INFO MAP Logo"
-            className="w-6 h-6 rounded-lg object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.45)] shrink-0"
+            className="w-6 h-6 rounded-[2px] object-contain shrink-0"
           />
           <div className="flex items-center gap-1.5 min-w-0">
             <h1
               className="text-[11px] sm:text-xs font-black font-heading text-slate-100 tracking-wide truncate"
-              style={{
-                textShadow: '0 1px 3px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5)',
-              }}
             >
               KURDISTAN INFO MAP
             </h1>
-            <span className="text-[9px] text-amber-300 font-mono font-bold px-2 py-0.5 rounded-full liquid-glass-subtle border-amber-400/30 shrink-0 shadow-xs">
+            <span className="text-[9px] text-amber-300 font-mono font-bold px-2 py-0.5 rounded-[2px] bg-amber-500/15 border border-amber-400/35 shrink-0">
               ٣٥٠ دەسەڵات
             </span>
           </div>
@@ -38,10 +34,10 @@ export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
         {/* Menu Toggle Button */}
         <button
           onClick={onOpenMenu}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-[3px] text-[11px] font-bold transition-all shrink-0 cursor-pointer border ${
             isMenuOpen
-              ? 'liquid-glass-btn-active font-extrabold shadow-[0_0_20px_rgba(245,158,11,0.5)]'
-              : 'liquid-glass-btn text-amber-300 hover:text-white'
+              ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-black border-amber-300 font-black shadow-sm'
+              : 'bg-[#131b2e] hover:bg-[#1a243c] text-amber-300 hover:text-white border-white/12 border-t-white/25 hover:border-amber-400/40'
           }`}
           title={isMenuOpen ? 'داخستنی مینۆ' : 'کردنەوەی مینۆی دەسەڵاتەکان و زانیارییەکان'}
         >

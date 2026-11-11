@@ -91,16 +91,7 @@ const HeroSlide: React.FC<HeroSlideProps> = ({
       className="absolute inset-0 w-full h-full pointer-events-none select-none transition-opacity duration-1500 ease-in-out"
       style={{ opacity, zIndex, willChange: 'opacity' }}
     >
-      {/* Layer 1: Ambient Blurred Backdrop */}
-      <img
-        src={imgUrl}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-35 select-none pointer-events-none"
-        style={{ transformOrigin: 'center center' }}
-      />
-
-      {/* Layer 2: Sharp Foreground Image with Slow Cinematic Pan */}
+      {/* Sharp Wallpaper Image with Smooth Cinematic Motion */}
       <img
         src={imgUrl}
         alt={wallpaper.title || 'Kurdistan Info Map'}
@@ -410,22 +401,32 @@ export const HeroSection: React.FC<Props> = ({
           <div className="absolute inset-0 bg-gradient-to-br from-[#070b14] via-[#0d1424] to-[#04060c]" />
         )}
 
-        {/* Sophisticated Multi-Layered Vignette ensuring total text contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/80 z-1 pointer-events-none" />
-        <div className="absolute inset-0 bg-radial-[at_center_center] from-transparent via-black/35 to-black/90 z-1 pointer-events-none" />
+        {/* Sophisticated Cinematic Vignette Scrim (ڕەشێنەی سینەمایی نەرم و دەوڵەمەند) */}
+        <div
+          className="absolute inset-0 pointer-events-none z-[1]"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.25) 30%, rgba(0, 0, 0, 0.35) 60%, rgba(0, 0, 0, 0.92) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none z-[1]"
+          style={{
+            background:
+              'radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.5) 75%, rgba(0, 0, 0, 0.88) 100%)',
+          }}
+        />
       </div>
 
       {/* B. Top Section: English Brand Title in New York Times Editorial Serif Font */}
       <header className="relative z-10 w-full pt-6 sm:pt-10 px-4 sm:px-12 flex flex-col items-center text-center">
-        {/* Ambient Subtle Theme Glow */}
+        {/* Soft, natural dark shadow behind the title for sharp text contrast without hard borders */}
         <div
-          className="absolute -top-10 left-1/2 -translate-x-1/2 w-80 sm:w-96 h-28 blur-3xl pointer-events-none opacity-25"
-          style={{ backgroundColor: theme.primaryColor }}
-        />
-
-        {/* Subtle Ambient Black Fade Behind Title */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-2xl h-24 sm:h-32 rounded-full pointer-events-none blur-2xl opacity-65 bg-black/85"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-36 sm:h-44 pointer-events-none z-0 opacity-85"
+          style={{
+            background:
+              'radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.35) 55%, transparent 80%)',
+          }}
           aria-hidden="true"
         />
 
@@ -470,14 +471,14 @@ export const HeroSection: React.FC<Props> = ({
         </div>
       </header>
 
-      {/* C. Center Visual Accent: Minimal Kurdish Sun Emblem */}
+      {/* C. Center Visual Accent: Rotating Kurdish Compass / Sun Emblem */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pointer-events-none">
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex items-center justify-center preserve-circle">
           <div
-            className="w-20 h-20 sm:w-32 sm:h-32 rounded-full border animate-spin-slow flex items-center justify-center bg-radial from-transparent to-transparent backdrop-blur-[1px] transition-colors"
-            style={{ borderColor: `${theme.primaryColor}40` }}
+            className="w-20 h-20 sm:w-32 sm:h-32 rounded-full border border-dashed animate-spin-slow flex items-center justify-center transition-colors"
+            style={{ borderColor: `${theme.primaryColor}55` }}
           >
-            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border border-white/25 flex items-center justify-center">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border border-white/20 flex items-center justify-center">
               <Compass
                 className="w-7 h-7 sm:w-10 sm:h-10 stroke-[1.5] transition-colors"
                 style={{ color: theme.primaryColor }}
@@ -487,65 +488,43 @@ export const HeroSection: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* D. Bottom Section: The 4 Action Buttons with Dynamic Theme Color & Tactile Black-on-Active */}
+      {/* D. Bottom Section: The 4 Action Buttons - Flat Architectural Layout */}
       <footer className="relative z-10 w-full pb-6 sm:pb-12 px-2 sm:px-6 flex flex-col items-center gap-4">
-        {/* The 4 Main Buttons Cluster */}
+        {/* The 4 Main Buttons Cluster - Warm Architectural Craftsmanship */}
         <div
-          className="w-full max-w-2xl grid grid-cols-4 gap-1.5 sm:gap-3 p-1.5 sm:p-2.5 rounded-3xl bg-black/65 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_20px_50px_rgba(0,0,0,0.85)]"
+          className="w-full max-w-2xl grid grid-cols-4 gap-1.5 sm:gap-2.5 p-2 sm:p-2.5 bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.9),0_0_20px_rgba(245,158,11,0.08)] rounded-[4px]"
           dir="rtl"
         >
-          {/* Button 1: نەخشە (Interactive Map - Slightly Larger with Rotating Continuous Light Beam) */}
-          <div className="relative group/map rounded-2xl overflow-hidden p-[2px] -my-1 sm:-my-1.5 transition-transform duration-200 hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(0,0,0,0.85)]">
-            {/* Ambient Blurred Glow Beam */}
-            <div
-              className="absolute -inset-[150%] animate-beam-spin pointer-events-none blur-md opacity-85"
-              style={{
-                background: `conic-gradient(from 0deg, transparent 0%, transparent 60%, ${theme.primaryColor} 82%, #ffffff 100%)`,
-              }}
-            />
-
-            {/* Crisp Perimeter Light Beam */}
-            <div
-              className="absolute -inset-[150%] animate-beam-spin pointer-events-none"
-              style={{
-                background: `conic-gradient(from 0deg, transparent 0%, transparent 65%, ${theme.primaryColor} 84%, #ffffff 100%)`,
-              }}
-            />
-
-            {/* Inner Button Content */}
-            <button
-              type="button"
-              onClick={onEnterMap}
-              className="hero-theme-btn relative w-full h-full flex flex-col items-center justify-center py-3 sm:py-4 px-1.5 sm:px-2.5 rounded-[14px] border-0 transition-all duration-150 active:scale-95 cursor-pointer select-none bg-[#090d18]/90"
-              style={{
-                boxShadow: `inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 0 20px ${theme.primaryColor}35`,
-              }}
-            >
-              <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-                <Map className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover/map:scale-115" />
-                <span className="text-xs sm:text-base font-black tracking-tight">
-                  نەخشە
-                </span>
-              </div>
-              <span className="text-[9px] sm:text-xs font-bold hidden xs:inline opacity-95 truncate max-w-full">
-                گەڕانی نەخشە
+          {/* Button 1: نەخشە (Interactive Map - Warm Gold Featured Action) */}
+          <button
+            type="button"
+            onClick={onEnterMap}
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-3 sm:py-3.5 px-1.5 sm:px-2.5 rounded-[3px] border-2 border-amber-400 hover:border-amber-300 bg-gradient-to-b from-amber-500/25 via-amber-600/20 to-amber-950/40 transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-[0_4px_16px_rgba(245,158,11,0.25)]"
+          >
+            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
+              <Map className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 group-hover:scale-110 transition-transform" />
+              <span className="text-xs sm:text-base font-black tracking-tight text-white drop-shadow-sm">
+                نەخشە
               </span>
-            </button>
-          </div>
+            </div>
+            <span className="text-[9px] sm:text-xs font-bold hidden xs:inline text-amber-300/90 truncate max-w-full">
+              گەڕانی نەخشە
+            </span>
+          </button>
 
-          {/* Button 2: گەشتی مێژوویی (Historical Journey - 3 Fact Posters) */}
+          {/* Button 2: گەشتی مێژوویی (Historical Journey) */}
           <button
             type="button"
             onClick={onOpenJourney}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none"
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-[3px] border border-white/12 border-t-white/25 hover:border-amber-400/50 bg-[#12192a] hover:bg-[#18223a] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-sm"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110" />
-              <span className="text-[11px] sm:text-sm font-extrabold tracking-tight">
+              <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] sm:text-sm font-extrabold tracking-tight text-slate-100 group-hover:text-white">
                 گەشتی مێژوویی
               </span>
             </div>
-            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline opacity-90 truncate max-w-full">
+            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
               کارتەکانی مێژوو
             </span>
           </button>
@@ -554,15 +533,15 @@ export const HeroSection: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenMenu}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none"
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-[3px] border border-white/12 border-t-white/25 hover:border-amber-400/50 bg-[#12192a] hover:bg-[#18223a] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-sm"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110" />
-              <span className="text-[11px] sm:text-sm font-bold tracking-tight">
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] sm:text-sm font-bold tracking-tight text-slate-100 group-hover:text-white">
                 پێڕست
               </span>
             </div>
-            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline opacity-90 truncate max-w-full">
+            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
               بابەتەکان
             </span>
           </button>
@@ -571,15 +550,15 @@ export const HeroSection: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-2xl border transition-all duration-150 active:scale-95 cursor-pointer select-none"
+            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-[3px] border border-white/12 border-t-white/25 hover:border-amber-400/50 bg-[#12192a] hover:bg-[#18223a] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-sm"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110" />
-              <span className="text-[11px] sm:text-sm font-bold tracking-tight">
+              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] sm:text-sm font-bold tracking-tight text-slate-100 group-hover:text-white">
                 ڕێکخستنەکان
               </span>
             </div>
-            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline opacity-90 truncate max-w-full">
+            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
               دیمەن و شێواز
             </span>
           </button>

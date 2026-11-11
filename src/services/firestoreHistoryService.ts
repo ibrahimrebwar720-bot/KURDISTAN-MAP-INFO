@@ -35,7 +35,7 @@ function mergeFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
     }
   });
   // 2. Kurdish provinces / regions
-  KURDISH_PROVINCES_CITIES.forEach((city) => {
+  KURDISH_PROVINCES_CITIES.forEach((city: FactItem) => {
     if (!isCityFact(city)) {
       map.set(city.id, city);
     }

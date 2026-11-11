@@ -6,6 +6,12 @@ import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import {
+  ProvinceItem,
+  getProvincesWithCounts,
+  filterFactsByProvince,
+} from '../data/kurdishProvincesData';
+import { ProvinceSelectorModal } from './ProvinceSelectorModal';
+import {
   Search,
   X,
   Plus,
@@ -48,6 +54,8 @@ interface Props {
   onSelectCollection?: (id: string) => void;
   activeCategory?: string;
   onSelectCategory?: (id: string) => void;
+  selectedProvince?: string;
+  onSelectProvince?: (provinceId: string, province?: ProvinceItem) => void;
   isAdmin?: boolean;
   onOpenAdminPin?: () => void;
   onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
@@ -94,6 +102,8 @@ export const FactsList: React.FC<Props> = ({
   onHoverFact,
   activeCategory,
   onSelectCategory,
+  selectedProvince = 'all',
+  onSelectProvince,
   isAdmin = false,
   onOpenAddFact,
   onOpenSubmittedPhotos,
@@ -105,6 +115,8 @@ export const FactsList: React.FC<Props> = ({
   const { colorMode, toggleColorMode } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>(activeCategory || 'all');
+  const [provinceFilter, setProvinceFilter] = useState<string>(selectedProvince || 'all');
+  const [isProvinceModalOpen, setIsProvinceModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('year_asc');
 
   // Adaptive view mode: default to compact list on mobile, grid on desktop
@@ -122,12 +134,31 @@ export const FactsList: React.FC<Props> = ({
     }
   }, [activeCategory]);
 
+  // Sync province filter if changed from outside
+  useEffect(() => {
+    if (selectedProvince !== undefined) {
+      setProvinceFilter(selectedProvince);
+    }
+  }, [selectedProvince]);
+
   const handleCategoryChange = (cat: string) => {
     setCategoryFilter(cat);
     if (onSelectCategory) {
       onSelectCategory(cat);
     }
   };
+
+  const handleProvinceChange = (provId: string, prov?: ProvinceItem) => {
+    setProvinceFilter(provId);
+    if (onSelectProvince) {
+      onSelectProvince(provId, prov);
+    }
+  };
+
+  // Compute provinces with counts for 47 Kurdistan provinces + outside Kurdistan with count >= 1
+  const provincesWithCounts = useMemo(() => {
+    return getProvincesWithCounts(facts);
+  }, [facts]);
 
   // Filter & Sort facts
   const filteredFacts = useMemo(() => {
@@ -136,6 +167,11 @@ export const FactsList: React.FC<Props> = ({
     // Filter by unified category
     if (categoryFilter && categoryFilter !== 'all') {
       list = list.filter((fact) => getCategoryInfo(fact).id === categoryFilter);
+    }
+
+    // Filter by province
+    if (provinceFilter && provinceFilter !== 'all') {
+      list = filterFactsByProvince(list, provinceFilter);
     }
 
     // Filter by search term with Kurdish / Arabic multi-keyboard normalization
@@ -378,11 +414,30 @@ export const FactsList: React.FC<Props> = ({
               </select>
             </div>
 
+            {/* Compact Province Button */}
+            <button
+              onClick={() => setIsProvinceModalOpen(true)}
+              className={`h-8 px-2 rounded-xl border text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer active:scale-95 transition-all ${
+                provinceFilter !== 'all'
+                  ? 'bg-amber-400/25 text-amber-300 border-amber-400/50 shadow-xs'
+                  : 'bg-white/[0.06] text-amber-300 border-white/10 hover:bg-white/[0.1]'
+              }`}
+              title="پۆلێنی پارێزگاکان"
+            >
+              <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="truncate max-w-[70px]">
+                {provinceFilter === 'all'
+                  ? 'پارێزگا'
+                  : provincesWithCounts.allProvinces.find((p) => p.id === provinceFilter)?.name || 'پارێزگا'}
+              </span>
+            </button>
+
             {/* Reset Button (only shown when filter is active) */}
             {isFilterActive && (
               <button
                 onClick={() => {
                   handleCategoryChange('all');
+                  handleProvinceChange('all');
                   setSearchTerm('');
                 }}
                 className="h-8 w-8 shrink-0 flex items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/30 transition-all cursor-pointer active:scale-95"
@@ -576,6 +631,74 @@ export const FactsList: React.FC<Props> = ({
                 </select>
               </div>
 
+              {/* Province Dropdown */}
+              <div className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.07] rounded-xl px-2.5 h-9 border border-white/[0.09] text-xs transition-colors">
+                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="text-[11px] text-slate-400 font-medium">پارێزگا:</span>
+                <select
+                  value={provinceFilter}
+                  onChange={(e) => handleProvinceChange(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-100 focus:outline-none cursor-pointer pr-1 max-w-[140px] truncate"
+                  title="فلتەر بەپێی پارێزگا"
+                >
+                  <option value="all" className="bg-[#0c101d] text-slate-100">
+                    هەموو پارێزگاکان ({facts.length})
+                  </option>
+                  <optgroup label="باشووری کوردستان" className="bg-[#0c101d] text-emerald-400 font-bold">
+                    {provincesWithCounts.kurdistanProvinces
+                      .filter((p) => p.part === 'south')
+                      .map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#0c101d] text-slate-100">
+                          {p.name} ({p.count})
+                        </option>
+                      ))}
+                  </optgroup>
+                  <optgroup label="باکووری کوردستان" className="bg-[#0c101d] text-amber-400 font-bold">
+                    {provincesWithCounts.kurdistanProvinces
+                      .filter((p) => p.part === 'north')
+                      .map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#0c101d] text-slate-100">
+                          {p.name} ({p.count})
+                        </option>
+                      ))}
+                  </optgroup>
+                  <optgroup label="ڕۆژهەڵاتی کوردستان" className="bg-[#0c101d] text-cyan-400 font-bold">
+                    {provincesWithCounts.kurdistanProvinces
+                      .filter((p) => p.part === 'east')
+                      .map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#0c101d] text-slate-100">
+                          {p.name} ({p.count})
+                        </option>
+                      ))}
+                  </optgroup>
+                  <optgroup label="ڕۆژئاوای کوردستان" className="bg-[#0c101d] text-purple-400 font-bold">
+                    {provincesWithCounts.kurdistanProvinces
+                      .filter((p) => p.part === 'west')
+                      .map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#0c101d] text-slate-100">
+                          {p.name} ({p.count})
+                        </option>
+                      ))}
+                  </optgroup>
+                  {provincesWithCounts.outsideProvinces.length > 0 && (
+                    <optgroup label="دەرەوەی کوردستان (تۆمارکراو)" className="bg-[#0c101d] text-rose-400 font-bold">
+                      {provincesWithCounts.outsideProvinces.map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#0c101d] text-slate-100">
+                          {p.name} ({p.count})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <button
+                  onClick={() => setIsProvinceModalOpen(true)}
+                  className="p-1 rounded-lg hover:bg-white/10 text-amber-400 cursor-pointer"
+                  title="کردنەوەی پێڕستی تەواوی پارێزگاکان"
+                >
+                  <Compass className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               {/* Sort Dropdown */}
               <div className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] rounded-xl px-3 h-9 border border-white/[0.09] text-xs transition-colors">
                 <ArrowUpDown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -609,6 +732,7 @@ export const FactsList: React.FC<Props> = ({
                 <button
                   onClick={() => {
                     handleCategoryChange('all');
+                    handleProvinceChange('all');
                     setSearchTerm('');
                   }}
                   className="flex items-center gap-1.5 px-3 h-9 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold cursor-pointer border border-amber-400/20 transition-all"
@@ -926,6 +1050,17 @@ export const FactsList: React.FC<Props> = ({
           </div>
         )}
       </main>
+
+      {/* Full Province Selection Modal */}
+      <ProvinceSelectorModal
+        isOpen={isProvinceModalOpen}
+        onClose={() => setIsProvinceModalOpen(false)}
+        facts={facts}
+        selectedProvinceId={provinceFilter}
+        onSelectProvince={(provId, prov) => {
+          handleProvinceChange(provId, prov);
+        }}
+      />
     </div>
   );
 };
