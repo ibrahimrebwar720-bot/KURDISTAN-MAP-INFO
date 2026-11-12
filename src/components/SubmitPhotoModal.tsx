@@ -110,13 +110,13 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right">
       <div
-        className="relative w-full max-w-lg rounded-none bg-slate-950 border border-amber-500/40 p-5 sm:p-6 text-white overflow-hidden animate-scale-up"
+        className="relative w-full max-w-lg rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-5 sm:p-6 text-white overflow-hidden animate-scale-up shadow-[0_20px_60px_rgba(0,0,0,0.9)]"
         dir="rtl"
       >
         {/* Header */}
         <div className="relative z-10 flex items-start justify-between gap-3 border-b border-white/10 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-none bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-10 h-10 rounded-[3px] bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
               <ImagePlus className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
@@ -132,7 +132,7 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
           <button
             onClick={onClose}
             type="button"
-            className="w-8 h-8 rounded-none flex items-center justify-center text-slate-400 hover:text-white bg-white/5 hover:bg-white/15 transition-all cursor-pointer border border-white/10"
+            className="w-8 h-8 rounded-[3px] flex items-center justify-center text-slate-400 hover:text-white bg-white/5 hover:bg-white/15 transition-all cursor-pointer border border-white/10"
             title="داخستن"
           >
             <X className="w-4 h-4" />

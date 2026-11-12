@@ -60,19 +60,17 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
 
   return (
     <div
-      className="fixed inset-0 z-[1300] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
+      className="fixed inset-0 z-[1300] flex items-center justify-center p-3.5 bg-black/85 animate-fade-in text-right"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-sm liquid-glass-panel rounded-3xl p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.2)] text-slate-100 overflow-hidden animate-modal-spring"
+        className="relative w-full max-w-sm bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 rounded-[4px] p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95)] text-slate-100 overflow-hidden animate-modal-spring"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="glass-specular-ray" />
-
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 left-4 w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
+          className="absolute top-4 left-4 w-8 h-8 rounded-[4px] flex items-center justify-center text-slate-300 hover:text-white bg-[#101626] border border-amber-500/20 hover:border-amber-400/50 transition-colors cursor-pointer"
           title="داخستن"
         >
           <X className="w-4 h-4" />
@@ -80,7 +78,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
 
         {/* Header */}
         <div className="flex flex-col items-center text-center mb-5">
-          <div className="w-13 h-13 rounded-2xl liquid-glass-btn flex items-center justify-center text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.3)] mb-3">
+          <div className="w-13 h-13 rounded-[4px] bg-[#101626] border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.2)] mb-3">
             <Lock className="w-6 h-6 animate-pulse" />
           </div>
           <h3 className="text-base font-bold text-white tracking-wide">
@@ -102,7 +100,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
               onChange={(e) => setPin(e.target.value)}
               placeholder="کۆدی ئەدمین..."
               autoFocus
-              className="w-full h-12 liquid-glass-input text-center font-mono text-xl font-extrabold tracking-widest text-amber-300 rounded-2xl placeholder:text-slate-500 placeholder:tracking-normal placeholder:text-xs"
+              className="w-full h-12 bg-[#070b14] border border-amber-500/30 text-center font-mono text-xl font-extrabold tracking-widest text-amber-300 rounded-[4px] placeholder:text-slate-500 placeholder:tracking-normal placeholder:text-xs focus:outline-none focus:border-amber-400"
             />
             <KeyRound className="w-4 h-4 text-amber-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -118,7 +116,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
                   else if (k === '⌫') handleBackspace();
                   else handleKeypadPress(k);
                 }}
-                className="h-11 rounded-xl liquid-glass-btn active:scale-95 text-sm font-mono font-bold text-slate-200 hover:text-amber-300 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                className="h-11 rounded-[4px] bg-[#101626] hover:bg-[#182033] border border-amber-500/20 hover:border-amber-400/50 active:scale-95 text-sm font-mono font-bold text-slate-200 hover:text-amber-300 transition-all flex items-center justify-center cursor-pointer shadow-xs"
               >
                 {k}
               </button>
@@ -126,14 +124,14 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
           </div>
 
           {error && (
-            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-950/80 border border-red-500/70 text-red-200 text-xs animate-shake font-medium backdrop-blur-md">
+            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-[4px] bg-red-950/80 border border-red-500/70 text-red-200 text-xs animate-shake font-medium">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>کۆدی داخڵکراو هەڵەیە، دووبارە تاقی بکەرەوە!</span>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 text-xs animate-fade-in font-bold backdrop-blur-md">
+            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-[4px] bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 text-xs animate-fade-in font-bold">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>کۆد درووستە! دەروازەی ئەدمین دەکرێتەوە...</span>
             </div>
@@ -141,7 +139,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>چوونەژوورەوە و چالاککردن</span>

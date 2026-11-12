@@ -169,11 +169,11 @@ export const FactDetailModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-5 bg-black/85 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl glass-dock-2026 rounded-3xl p-4 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 custom-scrollbar animate-modal-spring"
+        className="relative w-full max-w-xl liquid-glass-panel rounded-[4px] p-4 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.95)] overflow-y-auto max-h-[92vh] text-right text-slate-100 custom-scrollbar animate-modal-spring"
         onClick={(e) => e.stopPropagation()}
       >
 

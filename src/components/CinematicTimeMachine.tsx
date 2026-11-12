@@ -201,19 +201,19 @@ export const CinematicTimeMachine: React.FC<Props> = ({
         </div>
       </header>
 
-      {/* 2. Epoch Bar Indicator (Top Pill Selector) */}
+      {/* 2. Epoch Bar Indicator (Architectural Segmented Selector) */}
       <div className="pointer-events-auto px-4 w-full flex justify-center -mt-4 mb-2 z-40 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1.5 p-1 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
+        <div className="flex items-center gap-1.5 p-1.5 bg-[#0b0f1c] border border-amber-500/25 rounded-[4px] shadow-xl">
           {CINEMATIC_EPOCHS.map((ep) => {
             const isActive = currentStation.epochId === ep.id;
             return (
               <button
                 key={ep.id}
                 onClick={() => handleEpochSelect(ep.id)}
-                className={`px-3 py-1 rounded-full text-[11px] font-heading font-medium transition-all whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1 rounded-[3px] text-[11px] font-heading font-medium transition-all whitespace-nowrap cursor-pointer border ${
                   isActive
-                    ? 'bg-amber-500 text-black font-bold shadow-[0_0_15px_rgba(245,158,11,0.5)]'
-                    : 'text-slate-300 hover:text-amber-200 hover:bg-white/10'
+                    ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-black border-amber-300 font-extrabold shadow-sm'
+                    : 'text-slate-300 hover:text-amber-200 bg-[#12192a] hover:bg-[#18223a] border-white/10'
                 }`}
               >
                 {ep.title}
@@ -230,7 +230,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
       <footer className="pointer-events-auto w-full bg-gradient-to-t from-black via-black/95 to-transparent pt-6 pb-4 px-3 md:px-8 flex flex-col items-center gap-3 z-50">
         {/* Story Card (Collapsible) */}
         {!isCardMinimized && (
-          <div className="w-full max-w-3xl bg-[#080d18]/90 border border-amber-500/35 rounded-2xl p-4 md:p-5 shadow-[0_15px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(245,158,11,0.15)] backdrop-blur-2xl text-right animate-slide-up relative overflow-hidden transition-all">
+          <div className="w-full max-w-3xl bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 rounded-[4px] p-4 md:p-5 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(245,158,11,0.1)] text-right animate-slide-up relative overflow-hidden transition-all">
             {/* Ambient gold glow edge */}
             <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
 
@@ -238,7 +238,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
             <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <span
-                  className="text-[10px] md:text-xs font-bold px-2.5 py-0.5 rounded-full border"
+                  className="text-[10px] md:text-xs font-bold px-2.5 py-0.5 rounded-[3px] border"
                   style={{
                     backgroundColor: currentStation.epochBadgeBg,
                     borderColor: currentStation.epochColor,
@@ -248,7 +248,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
                   {currentStation.epochTitle}
                 </span>
 
-                <span className="text-[11px] font-mono text-slate-300 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-mono text-slate-300 flex items-center gap-1 bg-[#12192a] px-2 py-0.5 rounded-[3px] border border-white/10">
                   <Calendar className="w-3 h-3 text-amber-400" />
                   {currentStation.period}
                 </span>

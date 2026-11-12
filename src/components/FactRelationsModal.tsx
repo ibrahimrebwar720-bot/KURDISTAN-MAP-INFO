@@ -128,15 +128,13 @@ export const FactRelationsModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1300] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
+      className="fixed inset-0 z-[1300] flex items-center justify-center p-3 sm:p-5 bg-black/85 animate-fade-in text-right"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl liquid-glass-panel rounded-3xl p-5 sm:p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95)] max-h-[90vh] flex flex-col text-slate-100 overflow-hidden"
+        className="relative w-full max-w-2xl liquid-glass-panel rounded-[4px] p-5 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.95)] max-h-[90vh] flex flex-col text-slate-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="glass-specular-ray" />
-
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">

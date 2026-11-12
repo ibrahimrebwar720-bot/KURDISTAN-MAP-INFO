@@ -15,19 +15,17 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[1280] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
+      className="fixed inset-0 z-[1280] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl liquid-glass-panel rounded-3xl p-5 sm:p-7 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_80px_rgba(0,0,0,0.95),0_0_50px_var(--theme-accent-glow)] max-h-[92vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden flex flex-col gap-4 animate-modal-spring"
+        className="relative w-full max-w-3xl bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 rounded-[4px] p-5 sm:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.95)] max-h-[92vh] overflow-y-auto text-slate-100 custom-scrollbar overflow-hidden flex flex-col gap-4 animate-modal-spring"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="glass-specular-ray" />
-
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl liquid-glass-btn flex items-center justify-center text-amber-400 shadow-[0_0_20px_var(--theme-accent-glow)]">
+            <div className="w-10 h-10 rounded-[4px] bg-[#101626] border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
               <Palette className="w-5 h-5" style={{ color: 'var(--theme-accent)' }} />
             </div>
             <div>
@@ -44,7 +42,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={resetTheme}
-              className="px-3 py-1.5 rounded-xl liquid-glass-btn text-[11px] font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-[4px] bg-[#101626] border border-amber-500/25 hover:border-amber-400/60 text-[11px] font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
               title="گەڕانەوە بۆ ڕووکاری بنەڕەتی"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -52,7 +50,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </button>
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-[4px] flex items-center justify-center text-slate-300 hover:text-white bg-[#101626] border border-amber-500/25 hover:border-amber-400/60 transition-colors cursor-pointer"
               title="داخستن"
             >
               <X className="w-4 h-4" />
@@ -61,9 +59,9 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Color Mode Switch (ڕووناکی نەرم / دۆخی تاریک بە سێبەری فەید) */}
-        <div className="p-3 sm:p-4 rounded-2xl liquid-glass-subtle border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+        <div className="p-3 sm:p-4 rounded-[4px] bg-[#070b14] border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-9 h-9 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-[4px] bg-[#101626] border border-amber-500/25 flex items-center justify-center shrink-0">
               {colorMode === 'light' ? (
                 <Sun className="w-4.5 h-4.5 text-amber-500" />
               ) : (
@@ -80,29 +78,29 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/15 border border-white/10 shrink-0 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 p-1 rounded-[4px] bg-black/40 border border-amber-500/20 shrink-0 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setColorMode('light')}
-              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-[3px] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 colorMode === 'light'
-                  ? 'liquid-glass-btn-active text-white shadow-md'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-md'
                   : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
               }`}
             >
-              <Sun className="w-3.5 h-3.5 text-amber-300" />
+              <Sun className="w-3.5 h-3.5 text-amber-950" />
               <span>دۆخی ڕووناک</span>
             </button>
             <button
               type="button"
               onClick={() => setColorMode('dark')}
-              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-[3px] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 colorMode === 'dark'
-                  ? 'liquid-glass-btn-active text-white shadow-md'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-md'
                   : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
               }`}
             >
-              <Moon className="w-3.5 h-3.5 text-amber-300" />
+              <Moon className="w-3.5 h-3.5 text-amber-950" />
               <span>دۆخی تاریک</span>
             </button>
           </div>
@@ -117,10 +115,10 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <div
                 key={item.id}
                 onClick={() => setTheme(item.id as ThemeId)}
-                className={`group relative p-4 rounded-2xl border transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 overflow-hidden ${
+                className={`group relative p-4 rounded-[4px] border transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 overflow-hidden ${
                   isSelected
-                    ? 'border-white/60 bg-white/10 shadow-[0_10px_35px_rgba(0,0,0,0.7),0_0_30px_var(--theme-accent-glow)] scale-[1.02]'
-                    : 'border-white/10 hover:border-white/30 bg-black/40 hover:bg-white/5 hover:scale-[1.01]'
+                    ? 'border-amber-400/80 bg-[#121829] shadow-[0_8px_25px_rgba(0,0,0,0.8),0_0_20px_var(--theme-accent-glow)]'
+                    : 'border-amber-500/20 hover:border-amber-400/50 bg-[#0e1424] hover:bg-[#121829]'
                 }`}
                 style={{
                   background: isSelected ? item.panelGradient : undefined,
@@ -139,17 +137,17 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 {/* Top Row: Dual Swatches & Selection Badge */}
                 <div className="flex items-center justify-between gap-2">
                   {/* Dual Color Swatch Bubble */}
-                  <div className="flex items-center -space-x-2 rtl:space-x-reverse">
+                  <div className="flex items-center -space-x-1 rtl:space-x-reverse">
                     <span
-                      className="w-7 h-7 rounded-full shadow-lg border-2 border-white/60 relative z-10 transition-transform group-hover:scale-110"
+                      className="w-6 h-6 rounded-[3px] shadow-md border border-white/60 relative z-10 transition-transform group-hover:scale-105"
                       style={{
                         backgroundColor: item.primaryColor,
-                        boxShadow: `0 0 15px ${item.primaryColor}88`,
+                        boxShadow: `0 0 10px ${item.primaryColor}88`,
                       }}
                       title={item.primaryLabel}
                     />
                     <span
-                      className="w-7 h-7 rounded-full shadow-md border-2 border-black/50 relative z-0 transition-transform group-hover:scale-105"
+                      className="w-6 h-6 rounded-[3px] shadow-sm border border-black/50 relative z-0"
                       style={{
                         backgroundColor: item.secondaryColor,
                       }}
@@ -160,7 +158,7 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   {/* Active Badge */}
                   {isSelected ? (
                     <span
-                      className="flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-md"
+                      className="flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-[3px] shadow-md"
                       style={{
                         backgroundColor: item.primaryColor,
                         color: item.activeBtnText,
@@ -193,14 +191,14 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px]">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className="w-2 h-2 rounded-full"
+                      className="w-2.5 h-2.5 rounded-[2px]"
                       style={{ backgroundColor: item.primaryColor }}
                     />
                     <span className="text-slate-300 font-medium">{item.primaryLabel}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span
-                      className="w-2 h-2 rounded-full border border-white/30"
+                      className="w-2.5 h-2.5 rounded-[2px] border border-white/30"
                       style={{ backgroundColor: item.secondaryColor }}
                     />
                     <span className="text-slate-300 font-medium">{item.secondaryLabel}</span>
@@ -212,11 +210,11 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Modal Footer Note */}
-        <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+        <div className="pt-3 border-t border-amber-500/20 flex items-center justify-between text-xs text-slate-400">
           <span>✓ ڕووکاری هەڵبژێردراو بە شێوەی خۆکار لەسەر ئامێرەکەت دەمێنێتەوە.</span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs cursor-pointer shadow-md transition-all active:scale-95"
+            className="px-4 py-2 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs cursor-pointer shadow-md transition-all active:scale-95"
           >
             تەواو
           </button>

@@ -403,7 +403,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         {currentItem ? (
           <div className="w-full max-w-4xl flex flex-col items-center my-auto">
             {/* The Image Container */}
-            <div className="relative w-full rounded-2xl overflow-hidden border border-amber-500/35 bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] group">
+            <div className="relative w-full rounded-[4px] overflow-hidden border border-amber-500/35 bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] group">
               <div className="relative w-full min-h-[240px] sm:min-h-[320px] max-h-[60vh] flex items-center justify-center bg-black/95 p-2 sm:p-3 overflow-hidden">
                 {/* Smooth Loading Spinner Skeleton */}
                 {isMainImgLoading && !mainImgHasError && (
@@ -421,7 +421,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                 {/* Error Fallback Card if link fails or CORS blocked */}
                 {mainImgHasError ? (
                   <div className="flex flex-col items-center justify-center p-6 text-center z-10 max-w-md my-6">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3">
+                    <div className="w-12 h-12 rounded-[4px] bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3">
                       <AlertCircle className="w-6 h-6 text-amber-400" />
                     </div>
                     <h4 className="text-sm font-bold text-white mb-1">
@@ -435,7 +435,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         href={currentItem.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                         <span>کردنەوەی بەستەر</span>
@@ -444,7 +444,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         <button
                           type="button"
                           onClick={handleNext}
-                          className="px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                          className="px-3 py-1.5 rounded-[4px] bg-[#101626] border border-amber-500/20 text-slate-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
                         >
                           وێنەی داهاتوو
                         </button>
@@ -463,21 +463,21 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                       setIsMainImgLoading(false);
                       setMainImgHasError(true);
                     }}
-                    className={`max-h-[55vh] max-w-full w-auto h-auto object-contain mx-auto rounded-lg transition-opacity duration-300 shadow-2xl ${
+                    className={`max-h-[55vh] max-w-full w-auto h-auto object-contain mx-auto rounded-[3px] transition-opacity duration-300 shadow-2xl ${
                       isMainImgLoading ? 'opacity-0' : 'opacity-100'
                     }`}
                   />
                 )}
 
                 {/* Subtle vignette border gradient */}
-                <div className="absolute inset-0 ring-1 ring-inset ring-amber-500/20 pointer-events-none rounded-2xl" />
+                <div className="absolute inset-0 ring-1 ring-inset ring-amber-500/20 pointer-events-none rounded-[4px]" />
 
                 {/* Left/Right Floating Navigation Arrows */}
                 {total > 1 && (
                   <>
                     <button
                       onClick={handlePrev}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full liquid-glass-btn text-white hover:text-black hover:liquid-glass-btn-active backdrop-blur-xl transition-all shadow-xl cursor-pointer hover:scale-110 active:scale-95 z-30"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-[4px] bg-[#0b0f1c] hover:bg-[#121829] border border-amber-500/35 hover:border-amber-400 text-amber-300 transition-all shadow-xl cursor-pointer active:scale-95 z-30"
                       title="وێنەی پێشوو (تیرەی ڕاست)"
                     >
                       <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -485,7 +485,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
                     <button
                       onClick={handleNext}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-full liquid-glass-btn text-white hover:text-black hover:liquid-glass-btn-active backdrop-blur-xl transition-all shadow-xl cursor-pointer hover:scale-110 active:scale-95 z-30"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-[4px] bg-[#0b0f1c] hover:bg-[#121829] border border-amber-500/35 hover:border-amber-400 text-amber-300 transition-all shadow-xl cursor-pointer active:scale-95 z-30"
                       title="وێنەی داهاتوو (تیرەی چەپ)"
                     >
                       <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -494,7 +494,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                 )}
 
                 {/* Image Counter Badge on top corner */}
-                <div className="absolute top-3 right-3 px-3 py-1 rounded-xl liquid-glass-dock text-amber-300 font-mono text-xs font-bold shadow-md flex items-center gap-1.5 z-20">
+                <div className="absolute top-3 right-3 px-3 py-1 rounded-[3px] bg-[#0b0f1c] border border-amber-500/30 text-amber-300 font-mono text-xs font-bold shadow-md flex items-center gap-1.5 z-20">
                   <Camera className="w-3.5 h-3.5 text-amber-400" />
                   <span>
                     {currentIndex + 1} / {total}
@@ -503,14 +503,12 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Information Strictly UNDER the Image - Liquid Glass Panel */}
-            <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl liquid-glass-panel shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_15px_40px_rgba(0,0,0,0.85)] text-right transition-all overflow-hidden">
-              <div className="glass-specular-ray" />
-
+            {/* Information Strictly UNDER the Image - Basalt Architectural Panel */}
+            <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_15px_40px_rgba(0,0,0,0.85)] text-right transition-all overflow-hidden">
               {/* Title & Badges Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-white/10">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-500/20">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                  <div className="w-2.5 h-2.5 rounded-[1px] bg-amber-400 animate-pulse shrink-0" />
                   <h3 className="text-base sm:text-lg font-bold font-heading text-white truncate drop-shadow-xs">
                     {currentItem.title}
                   </h3>
@@ -518,13 +516,13 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
                 <div className="flex items-center gap-2">
                   {currentItem.year && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-subtle text-amber-300 font-mono text-xs font-bold shadow-xs">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-[#101626] border border-amber-500/25 text-amber-300 font-mono text-xs font-bold shadow-xs">
                       <Calendar className="w-3 h-3 text-amber-400" />
                       <span>{currentItem.year}</span>
                     </span>
                   )}
                   {currentItem.eraName && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-subtle text-slate-300 text-[11px]">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-white/5 border border-white/10 text-slate-300 text-[11px]">
                       <span>{currentItem.eraName}</span>
                     </span>
                   )}
@@ -534,10 +532,10 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         onClose();
                         onFlyToFact(currentItem.fact!);
                       }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-bold transition-colors cursor-pointer shadow-sm"
                       title="فڕین بۆ شوێنی ئەم بابەتە لەسەر نەخشە"
                     >
-                      <MapPin className="w-3 h-3 text-amber-400" />
+                      <MapPin className="w-3 h-3 text-slate-950" />
                       <span>فڕین لەسەر نەخشە</span>
                     </button>
                   )}

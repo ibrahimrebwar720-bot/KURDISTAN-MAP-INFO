@@ -29,11 +29,11 @@ export const FeaturedFactCard: React.FC<Props> = ({
   onOpenEditFact,
 }) => {
   return (
-    <div className="rounded-2xl bg-[#070b14]/80 border border-amber-500/25 p-3 sm:p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.1)] backdrop-blur-2xl flex flex-col gap-2.5 text-right">
+    <div className="rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-3 sm:p-3.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.9),0_0_20px_rgba(245,158,11,0.08)] flex flex-col gap-2.5 text-right">
       {/* Header Row */}
-      <div className="flex items-center justify-between gap-2 border-b border-amber-500/15 pb-2">
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-xs sm:text-sm font-bold text-white truncate">
+          <h2 className="text-xs sm:text-sm font-bold font-heading text-white truncate">
             {fact.name}
           </h2>
         </div>
@@ -43,17 +43,17 @@ export const FeaturedFactCard: React.FC<Props> = ({
           <button
             onClick={onPrev}
             title="دەسەڵاتی پێشوو"
-            className="p-1 rounded-lg bg-[#050812]/80 hover:bg-amber-500/20 border border-amber-500/20 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer"
+            className="p-1 rounded-[3px] bg-[#12192a] hover:bg-amber-500/20 border border-white/12 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[10px] text-amber-300/80 font-mono font-bold px-1">
+          <span className="text-[10px] text-amber-300 font-mono font-bold px-1">
             {fact.num}/{totalFacts}
           </span>
           <button
             onClick={onNext}
             title="دەسەڵاتی دواتر"
-            className="p-1 rounded-lg bg-[#050812]/80 hover:bg-amber-500/20 border border-amber-500/20 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer"
+            className="p-1 rounded-[3px] bg-[#12192a] hover:bg-amber-500/20 border border-white/12 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -62,7 +62,7 @@ export const FeaturedFactCard: React.FC<Props> = ({
             <button
               onClick={onClose}
               title="داخستن"
-              className="p-1 mr-0.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 mr-0.5 rounded-[3px] text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -80,13 +80,13 @@ export const FeaturedFactCard: React.FC<Props> = ({
         {(fact.century || fact.year) && (
           <div className="flex items-center gap-1 shrink-0 font-medium">
             {fact.century && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/40 border border-amber-500/20 text-amber-300 font-mono">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-[3px] bg-black/50 border border-amber-500/25 text-amber-300 font-mono">
                 <Hourglass className="w-3 h-3 text-amber-400" />
                 <span>{fact.century}</span>
               </span>
             )}
             {fact.year && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono font-bold">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-[3px] bg-amber-500/15 border border-amber-500/35 text-amber-300 font-mono font-bold">
                 <Calendar className="w-3 h-3 text-amber-400" />
                 <span>{fact.year}</span>
               </span>
@@ -100,15 +100,15 @@ export const FeaturedFactCard: React.FC<Props> = ({
         const displayImg = getFactDisplayImage(fact);
         if (!displayImg) return null;
         return (
-          <div className="relative rounded-xl overflow-hidden border border-amber-500/25 bg-black/60 max-h-36">
+          <div className="relative rounded-[3px] overflow-hidden border border-white/12 bg-black max-h-36">
             <img
               src={displayImg}
               alt={fact.imageCaption || fact.name}
               className="w-full h-32 object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent pointer-events-none" />
             {(fact.imageCaption || fact.name) && (
-              <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/85 text-[10px] text-amber-200 border border-amber-500/20 backdrop-blur-xs truncate">
+              <div className="absolute bottom-1.5 right-1.5 left-1.5 px-2 py-0.5 rounded-[2px] bg-black/90 text-[10px] text-amber-200 border border-amber-500/25 truncate">
                 {fact.imageCaption || fact.name}
               </div>
             )}
@@ -122,10 +122,10 @@ export const FeaturedFactCard: React.FC<Props> = ({
       </p>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-2 pt-2 border-t border-amber-500/15">
+      <div className="flex items-center gap-2 pt-2 border-t border-white/10">
         <button
           onClick={() => onOpenDetail(fact)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-xs shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-[3px] bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-extrabold text-xs shadow-md transition-all active:scale-[0.98] cursor-pointer"
         >
           <BookOpen className="w-3.5 h-3.5 text-slate-950" />
           <span>وردەکاریی تەواو و بەڵگەنامە</span>
@@ -134,7 +134,7 @@ export const FeaturedFactCard: React.FC<Props> = ({
         {isAdmin && onOpenEditFact && (
           <button
             onClick={() => onOpenEditFact(fact)}
-            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-[3px] bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition-all cursor-pointer"
             title="دەستکاریکردنی ئەم دەسەڵاتە"
           >
             <Edit3 className="w-3 h-3" />
@@ -145,7 +145,7 @@ export const FeaturedFactCard: React.FC<Props> = ({
         {onFlyToMap && (
           <button
             onClick={() => onFlyToMap(fact)}
-            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-black/60 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-[3px] bg-[#12192a] hover:bg-[#18223a] border border-white/12 text-slate-200 hover:text-white text-xs transition-all cursor-pointer"
             title="فڕین بۆ شوێن لەسەر نەخشە"
           >
             <MapPin className="w-3 h-3 text-amber-400" />

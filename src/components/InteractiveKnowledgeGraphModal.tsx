@@ -438,12 +438,12 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 animate-fade-in select-none"
       dir="rtl"
     >
       <div
         ref={containerRef}
-        className="relative w-full h-full max-w-7xl max-h-[100dvh] sm:max-h-[92vh] flex flex-col rounded-none sm:rounded-3xl overflow-hidden bg-gradient-to-b from-[#060a16] via-[#090e20] to-[#04060c] border border-white/10 shadow-[0_25px_70px_rgba(0,0,0,0.95)]"
+        className="relative w-full h-full max-w-7xl max-h-[100dvh] sm:max-h-[92vh] flex flex-col rounded-none sm:rounded-[4px] overflow-hidden bg-[#070b14] border border-amber-500/30 border-t-amber-400/50 shadow-[0_25px_70px_rgba(0,0,0,0.95)]"
       >
         {/* Ambient Top Glow */}
         <div
@@ -452,10 +452,10 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         />
 
         {/* 1. Top Header Bar */}
-        <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/10 bg-black/40 backdrop-blur-md">
+        <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-amber-500/20 bg-[#0b0f1c]">
           <div className="flex items-center gap-2.5">
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center border shadow-sm"
+              className="w-8 h-8 rounded-[4px] flex items-center justify-center border shadow-sm"
               style={{
                 backgroundColor: `${theme.primaryColor}20`,
                 borderColor: `${theme.primaryColor}60`,
@@ -467,7 +467,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             <div>
               <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
                 <span>تۆڕی پەیوەندییە مێژووییەکان</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="text-[10px] px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   {graphNetwork?.nodes.length || 0} گرێ
                 </span>
               </h2>
@@ -479,11 +479,11 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
           <div className="flex items-center gap-2">
             {/* Zoom Controls */}
-            <div className="hidden sm:flex items-center gap-1 px-1.5 py-1 rounded-xl bg-white/5 border border-white/10">
+            <div className="hidden sm:flex items-center gap-1 px-1.5 py-1 rounded-[4px] bg-[#101626] border border-amber-500/25">
               <button
                 type="button"
                 onClick={() => handleZoom(0.15)}
-                className="p-1 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
                 title="نزیککردنەوە"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
@@ -491,7 +491,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleZoom(-0.15)}
-                className="p-1 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
                 title="دوورخستنەوە"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
@@ -499,7 +499,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleResetView}
-                className="p-1 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
                 title="ڕێکخستنەوە"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -510,7 +510,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
+              className="p-2 rounded-[4px] bg-[#101626] hover:bg-[#182033] text-slate-300 hover:text-white border border-amber-500/25 hover:border-amber-400/50 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -529,26 +529,26 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
           />
 
           {/* Quick Guidance Hint */}
-          <div className="absolute top-3 right-3 pointer-events-none px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[10px] text-slate-300 flex items-center gap-1.5 backdrop-blur-md">
+          <div className="absolute top-3 right-3 pointer-events-none px-2.5 py-1 rounded-[3px] bg-black/80 border border-amber-500/20 text-[10px] text-slate-300 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3 text-amber-400" />
             <span>دەتوانیت هەر گرێیەک بە دەست ڕابکێشیت و کلیکی لەسەر بکەیت</span>
           </div>
 
           {/* Selected Node Drawer / Floating Card (Bottom) */}
           {selectedNodeInfo && (
-            <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-96 rounded-2xl bg-black/85 backdrop-blur-xl border border-white/15 p-3.5 shadow-2xl animate-fade-in flex flex-col gap-2.5">
+            <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-96 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-3.5 shadow-2xl animate-fade-in flex flex-col gap-2.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-[2px]"
                       style={{ backgroundColor: getCategoryInfo(selectedNodeInfo).color }}
                     />
                     <span className="text-[10px] font-bold text-slate-400">
                       {getCategoryInfo(selectedNodeInfo).name}
                     </span>
                     {selectedNodeInfo.id === activeCenterFact?.id && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-[2px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
                         ناوەندی ئێستا
                       </span>
                     )}
@@ -562,7 +562,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setActiveCenterFact(selectedNodeInfo)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors"
+                    className="px-2 py-1 rounded-[3px] text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors"
                   >
                     کردن بە ناوەند
                   </button>
@@ -573,14 +573,14 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
                 {selectedNodeInfo.desc || selectedNodeInfo.fullText || 'زانیاری مێژوویی لەسەر ئەم شوێنە.'}
               </p>
 
-              <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+              <div className="flex items-center gap-2 pt-1 border-t border-amber-500/15">
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     onSelectFact(selectedNodeInfo);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-bold text-[11px] transition-colors shadow-sm"
                 >
                   <MapPin className="w-3.5 h-3.5" />
                   <span>پیشاندان لەسەر نەخشە</span>
@@ -591,7 +591,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
                     onClose();
                     onOpenFactDetail(selectedNodeInfo);
                   }}
-                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  className="p-1.5 rounded-[4px] bg-[#101626] hover:bg-[#182033] border border-amber-500/25 text-white transition-colors"
                   title="تەواوی وردەکارییەکان"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />

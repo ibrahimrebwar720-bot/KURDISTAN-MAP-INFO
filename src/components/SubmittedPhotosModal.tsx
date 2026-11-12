@@ -134,13 +134,13 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right">
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-none bg-slate-950 border border-amber-500/35 text-white overflow-hidden animate-scale-up"
+        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 text-white overflow-hidden animate-scale-up shadow-[0_24px_70px_rgba(0,0,0,0.9)]"
         dir="rtl"
       >
         {/* Modal Header */}
         <div className="relative z-10 px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-none bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-10 h-10 rounded-[3px] bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
               <Images className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
@@ -149,7 +149,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                   وێنە نێردراوەکان
                 </h2>
                 {pendingCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-none bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold">
                     {pendingCount} چاوەڕوانکراو
                   </span>
                 )}

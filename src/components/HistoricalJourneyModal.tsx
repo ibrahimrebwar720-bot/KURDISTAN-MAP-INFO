@@ -640,10 +640,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             type="button"
             onClick={handlePrev}
             disabled={isTransitioning}
-            className={`hidden md:flex absolute -right-3 lg:-right-8 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full items-center justify-center border shadow-2xl backdrop-blur-xl transition-all cursor-pointer hover:scale-110 active:scale-90 disabled:opacity-40 group ${
+            className={`hidden md:flex absolute -right-3 lg:-right-8 top-1/2 -translate-y-1/2 z-40 w-11 h-11 rounded-[4px] items-center justify-center border shadow-2xl transition-all cursor-pointer active:scale-90 disabled:opacity-40 group ${
               isDark
-                ? 'bg-[#0f1422]/90 border-white/20 text-slate-200 hover:text-white hover:border-amber-400/60 hover:bg-[#182036]'
-                : 'bg-white/95 border-slate-200 text-slate-700 hover:text-slate-950 hover:border-amber-400 hover:bg-white'
+                ? 'bg-[#0b0f1c] border-amber-500/30 text-amber-400 hover:border-amber-400 hover:bg-[#121829]'
+                : 'bg-white border-amber-500/30 text-amber-600 hover:border-amber-500 hover:bg-amber-50/50'
             }`}
             title="بابەتی پێشوو (تیرەی ڕاست)"
             aria-label="بابەتی پێشوو"
@@ -656,10 +656,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             type="button"
             onClick={handleNext}
             disabled={isTransitioning}
-            className={`hidden md:flex absolute -left-3 lg:-left-8 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full items-center justify-center border shadow-2xl backdrop-blur-xl transition-all cursor-pointer hover:scale-110 active:scale-90 disabled:opacity-40 group ${
+            className={`hidden md:flex absolute -left-3 lg:-left-8 top-1/2 -translate-y-1/2 z-40 w-11 h-11 rounded-[4px] items-center justify-center border shadow-2xl transition-all cursor-pointer active:scale-90 disabled:opacity-40 group ${
               isDark
-                ? 'bg-[#0f1422]/90 border-white/20 text-slate-200 hover:text-white hover:border-amber-400/60 hover:bg-[#182036]'
-                : 'bg-white/95 border-slate-200 text-slate-700 hover:text-slate-950 hover:border-amber-400 hover:bg-white'
+                ? 'bg-[#0b0f1c] border-amber-500/30 text-amber-400 hover:border-amber-400 hover:bg-[#121829]'
+                : 'bg-white border-amber-500/30 text-amber-600 hover:border-amber-500 hover:bg-amber-50/50'
             }`}
             title="بابەتی دواتر (تیرەی چەپ)"
             aria-label="بابەتی دواتر"
@@ -678,12 +678,12 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             return (
               <article
                 key={`active-card-${factItem.id}`}
-                className={`relative w-full max-w-sm sm:max-w-md md:max-w-lg h-full rounded-3xl overflow-hidden flex flex-col border select-none journey-card-hardware ${
+                className={`relative w-full max-w-sm sm:max-w-md md:max-w-lg h-full rounded-[4px] overflow-hidden flex flex-col border select-none journey-card-hardware ${
                   isRisingUp ? 'anim-sketchbook-rise-up' : ''
                 } ${
                   isDark
-                    ? 'bg-[#0d121f] border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.85)]'
-                    : 'bg-white border-slate-200 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.15)]'
+                    ? 'bg-[#0b0f1c] border-amber-500/30 border-t-amber-400/50 shadow-[0_16px_40px_rgba(0,0,0,0.85)]'
+                    : 'bg-white border-amber-500/30 border-t-amber-400/60 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.15)]'
                 }`}
               >
                 {/* 1. TOP PART: AUTHENTIC IMAGE WITH DUAL-LAYER SIZING & ASPECT RATIO PRESERVATION */}
