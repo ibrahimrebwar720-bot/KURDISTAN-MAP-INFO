@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { X, Sparkles, MapPin, ZoomIn, ZoomOut, RotateCcw, Compass, ArrowRight, ExternalLink } from 'lucide-react';
+import { X, Sparkles, MapPin, ZoomIn, ZoomOut, RotateCcw, Compass, ExternalLink } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { KnowledgeGraphNetwork, KnowledgeGraphLink, getKnowledgeGraphNetwork } from '../utils/factRelations';
+import { getKnowledgeGraphNetwork } from '../utils/factRelations';
 import { getCategoryInfo } from '../types/history';
-import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import { formatDigits } from '../utils/yearUtils';
 
 interface Props {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
   onOpenFactDetail,
 }) => {
   const { theme } = useTheme();
+  const { language, isEn, dir } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,8 +57,8 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
   // Compute graph network for active center fact
   const graphNetwork = useMemo(() => {
-    return getKnowledgeGraphNetwork(activeCenterFact, allFacts);
-  }, [activeCenterFact, allFacts]);
+    return getKnowledgeGraphNetwork(activeCenterFact, allFacts, language);
+  }, [activeCenterFact, allFacts, language]);
 
   // Dragging and interaction state
   const draggingNodeRef = useRef<SimNode | null>(null);
@@ -81,7 +83,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
     const simNodes: SimNode[] = [];
 
     // Center Node (The Sun)
-    const centerCat = getCategoryInfo(cf);
+    const centerCat = getCategoryInfo(cf, language);
     simNodes.push({
       fact: cf,
       x: centerX,
@@ -101,7 +103,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
       const angle = (idx / Math.max(1, count)) * Math.PI * 2;
       const baseDistance = Math.min(width, height) * 0.32;
       const distance = baseDistance + (idx % 2 === 0 ? 30 : -20);
-      const cat = getCategoryInfo(node);
+      const cat = getCategoryInfo(node, language);
 
       // Find matching link for label
       const link = links.find((l) => l.target.id === node.id || l.source.id === node.id);
@@ -122,7 +124,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
     });
 
     nodesRef.current = simNodes;
-  }, [graphNetwork, isOpen, theme.primaryColor]);
+  }, [graphNetwork, isOpen, theme.primaryColor, language]);
 
   // Spring Physics & Canvas Render Loop
   useEffect(() => {
@@ -132,10 +134,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let time = 0;
-
     const render = () => {
-      time += 0.02;
       const width = canvas.width;
       const height = canvas.height;
       const centerX = width / 2 + panOffsetRef.current.x;
@@ -155,18 +154,15 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
       // Physics Simulation Step
       if (centerNode) {
-        // Center node spring to middle
         if (draggingNodeRef.current !== centerNode) {
           centerNode.x += (width / 2 - centerNode.x) * 0.08;
           centerNode.y += (height / 2 - centerNode.y) * 0.08;
         }
 
-        // Orbiting nodes physics
         for (let i = 1; i < nodes.length; i++) {
           const node = nodes[i];
           if (draggingNodeRef.current === node) continue;
 
-          // Spring towards center
           const dx = centerNode.x - node.x;
           const dy = centerNode.y - node.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -176,11 +172,9 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
           node.vx += (dx / dist) * force;
           node.vy += (dy / dist) * force;
 
-          // Gentle orbital rotation
           node.vx += (-dy / dist) * 0.15;
           node.vy += (dx / dist) * 0.15;
 
-          // Repulsion between sibling nodes
           for (let j = 1; j < nodes.length; j++) {
             if (i === j) continue;
             const other = nodes[j];
@@ -195,7 +189,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             }
           }
 
-          // Damping & Position update
           node.vx *= 0.88;
           node.vy *= 0.88;
           node.x += node.vx;
@@ -203,13 +196,11 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         }
       }
 
-
-      // Draw Static Connection Lines (هێڵی ئاسایی بێ جوڵە)
+      // Draw Static Connection Lines
       if (centerNode) {
         for (let i = 1; i < nodes.length; i++) {
           const node = nodes[i];
 
-          // Clean, static solid connection line
           ctx.beginPath();
           ctx.moveTo(centerNode.x, centerNode.y);
           ctx.lineTo(node.x, node.y);
@@ -219,7 +210,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
           ctx.stroke();
           ctx.globalAlpha = 1.0;
 
-          // 4. Midpoint Label Badge
           if (node.relationLabel) {
             const mx = (centerNode.x + node.x) / 2;
             const my = (centerNode.y + node.y) / 2;
@@ -252,7 +242,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         const node = nodes[i];
         const isHovered = hoveredNode === node;
 
-        // Halo
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius + (isHovered ? 8 : 4), 0, Math.PI * 2);
         ctx.fillStyle = node.color;
@@ -260,7 +249,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         ctx.fill();
         ctx.globalAlpha = 1.0;
 
-        // Node Body
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(12, 17, 34, 0.95)';
@@ -269,7 +257,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         ctx.strokeStyle = node.color;
         ctx.stroke();
 
-        // Node Text
         ctx.font = 'bold 11px sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
@@ -277,17 +264,13 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         const displayLabel = node.label.length > 12 ? node.label.slice(0, 10) + '..' : node.label;
         ctx.fillText(displayLabel, node.x, node.y);
 
-        // Subtitle below node
         ctx.font = '9px sans-serif';
         ctx.fillStyle = '#94a3b8';
         ctx.fillText(node.categoryName, node.x, node.y + node.radius + 12);
       }
 
-      // Draw Center Node (The Sun / Sovereign)
+      // Draw Center Node
       if (centerNode) {
-        const isHovered = hoveredNode === centerNode;
-
-        // Clean Subtle Aura
         ctx.beginPath();
         ctx.arc(centerNode.x, centerNode.y, centerNode.radius + 6, 0, Math.PI * 2);
         ctx.fillStyle = centerNode.color;
@@ -295,7 +278,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         ctx.fill();
         ctx.globalAlpha = 1.0;
 
-        // Solid Center Body
         ctx.beginPath();
         ctx.arc(centerNode.x, centerNode.y, centerNode.radius, 0, Math.PI * 2);
         ctx.fillStyle = '#050814';
@@ -307,7 +289,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Center Title
         ctx.font = 'bold 13px sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
@@ -332,7 +313,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isOpen]);
+  }, [isOpen, hoveredNode]);
 
   // Handle Resize of Canvas
   useEffect(() => {
@@ -370,7 +351,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
     const screenY = e.clientY - rect.top;
     const { x, y } = screenToGraphCoords(screenX, screenY);
 
-    // Find touched node
     const clickedNode = nodesRef.current.find((node) => {
       const dx = node.x - x;
       const dy = node.y - y;
@@ -410,7 +390,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
       return;
     }
 
-    // Hover detection
     const foundHover = nodesRef.current.find((node) => {
       const dx = node.x - x;
       const dy = node.y - y;
@@ -424,7 +403,6 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
     isPanningRef.current = false;
   };
 
-  // Zoom handlers
   const handleZoom = (delta: number) => {
     zoomLevelRef.current = Math.max(0.4, Math.min(2.5, zoomLevelRef.current + delta));
   };
@@ -436,10 +414,12 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const nodeCount = graphNetwork?.nodes.length || 0;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 animate-fade-in select-none"
-      dir="rtl"
+      dir={dir}
     >
       <div
         ref={containerRef}
@@ -453,7 +433,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
         {/* 1. Top Header Bar */}
         <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-amber-500/20 bg-[#0b0f1c]">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 text-start">
             <div
               className="w-8 h-8 rounded-[4px] flex items-center justify-center border shadow-sm"
               style={{
@@ -466,13 +446,15 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
-                <span>تۆڕی پەیوەندییە مێژووییەکان</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {graphNetwork?.nodes.length || 0} گرێ
+                <span>{isEn ? 'Historical Knowledge Graph' : 'تۆڕی پەیوەندییە مێژووییەکان'}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-300 border border-amber-500/30 tabular-nums">
+                  {formatDigits(nodeCount, language)} {isEn ? (nodeCount === 1 ? 'node' : 'nodes') : 'گرێ'}
                 </span>
               </h2>
               <p className="text-[10px] sm:text-xs text-slate-400">
-                سیستەمی گرافی تیشکدەر: گرێکان ڕابکێشە بۆ بینینی پەیوەندییەکان
+                {isEn
+                  ? 'Interactive constellation view: drag nodes to explore historical connections'
+                  : 'سیستەمی گرافی تیشکدەر: گرێکان ڕابکێشە بۆ بینینی پەیوەندییەکان'}
               </p>
             </div>
           </div>
@@ -483,24 +465,24 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleZoom(0.15)}
-                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-                title="نزیککردنەوە"
+                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title={isEn ? 'Zoom in' : 'نزیککردنەوە'}
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => handleZoom(-0.15)}
-                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-                title="دوورخستنەوە"
+                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title={isEn ? 'Zoom out' : 'دوورخستنەوە'}
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 onClick={handleResetView}
-                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-                title="ڕێکخستنەوە"
+                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title={isEn ? 'Reset view' : 'ڕێکخستنەوە'}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
@@ -510,6 +492,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={onClose}
+              title={isEn ? 'Close' : 'داخستن'}
               className="p-2 rounded-[4px] bg-[#101626] hover:bg-[#182033] text-slate-300 hover:text-white border border-amber-500/25 hover:border-amber-400/50 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -529,27 +512,31 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
           />
 
           {/* Quick Guidance Hint */}
-          <div className="absolute top-3 right-3 pointer-events-none px-2.5 py-1 rounded-[3px] bg-black/80 border border-amber-500/20 text-[10px] text-slate-300 flex items-center gap-1.5">
+          <div className="absolute top-3 start-3 pointer-events-none px-2.5 py-1 rounded-[3px] bg-black/80 border border-amber-500/20 text-[10px] text-slate-300 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>دەتوانیت هەر گرێیەک بە دەست ڕابکێشیت و کلیکی لەسەر بکەیت</span>
+            <span>
+              {isEn
+                ? 'Drag any node to reposition and click to inspect'
+                : 'دەتوانیت هەر گرێیەک بە دەست ڕابکێشیت و کلیکی لەسەر بکەیت'}
+            </span>
           </div>
 
           {/* Selected Node Drawer / Floating Card (Bottom) */}
           {selectedNodeInfo && (
-            <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-96 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-3.5 shadow-2xl animate-fade-in flex flex-col gap-2.5">
+            <div className="absolute bottom-3 start-3 end-3 sm:end-auto sm:w-96 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-3.5 shadow-2xl animate-fade-in flex flex-col gap-2.5 text-start">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span
                       className="w-2 h-2 rounded-[2px]"
-                      style={{ backgroundColor: getCategoryInfo(selectedNodeInfo).color }}
+                      style={{ backgroundColor: getCategoryInfo(selectedNodeInfo, language).color }}
                     />
                     <span className="text-[10px] font-bold text-slate-400">
-                      {getCategoryInfo(selectedNodeInfo).name}
+                      {getCategoryInfo(selectedNodeInfo, language).name}
                     </span>
                     {selectedNodeInfo.id === activeCenterFact?.id && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded-[2px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        ناوەندی ئێستا
+                        {isEn ? 'Current Center' : 'ناوەندی ئێستا'}
                       </span>
                     )}
                   </div>
@@ -562,15 +549,17 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setActiveCenterFact(selectedNodeInfo)}
-                    className="px-2 py-1 rounded-[3px] text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors"
+                    className="px-2 py-1 rounded-[3px] text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors cursor-pointer"
                   >
-                    کردن بە ناوەند
+                    {isEn ? 'Set as Center' : 'کردن بە ناوەند'}
                   </button>
                 )}
               </div>
 
               <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
-                {selectedNodeInfo.desc || selectedNodeInfo.fullText || 'زانیاری مێژوویی لەسەر ئەم شوێنە.'}
+                {selectedNodeInfo.desc ||
+                  selectedNodeInfo.fullText ||
+                  (isEn ? 'Historical record for this entry.' : 'زانیاری مێژوویی لەسەر ئەم شوێنە.')}
               </p>
 
               <div className="flex items-center gap-2 pt-1 border-t border-amber-500/15">
@@ -580,10 +569,10 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
                     onClose();
                     onSelectFact(selectedNodeInfo);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-bold text-[11px] transition-colors shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-bold text-[11px] transition-colors shadow-sm cursor-pointer"
                 >
                   <MapPin className="w-3.5 h-3.5" />
-                  <span>پیشاندان لەسەر نەخشە</span>
+                  <span>{isEn ? 'Show on Map' : 'پیشاندان لەسەر نەخشە'}</span>
                 </button>
                 <button
                   type="button"
@@ -591,8 +580,8 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
                     onClose();
                     onOpenFactDetail(selectedNodeInfo);
                   }}
-                  className="p-1.5 rounded-[4px] bg-[#101626] hover:bg-[#182033] border border-amber-500/25 text-white transition-colors"
-                  title="تەواوی وردەکارییەکان"
+                  className="p-1.5 rounded-[4px] bg-[#101626] hover:bg-[#182033] border border-amber-500/25 text-white transition-colors cursor-pointer"
+                  title={isEn ? 'Full Details' : 'تەواوی وردەکارییەکان'}
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
@@ -604,3 +593,4 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
     </div>
   );
 };
+

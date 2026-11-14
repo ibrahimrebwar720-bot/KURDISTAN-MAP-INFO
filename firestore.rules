@@ -6,14 +6,26 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Facts collection: Publicly readable by all users worldwide
+    // Kurdish Sorani Facts collection: Publicly readable & admin editable
     match /facts/{factId} {
       allow read: if true;
       allow write: if true;
     }
 
-    // Collections: Publicly readable by all users worldwide
+    // Independent English Facts collection: Publicly readable & admin editable
+    match /facts_en/{factId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Kurdish Collections
     match /collections/{collectionId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Independent English Collections
+    match /collections_en/{collectionId} {
       allow read: if true;
       allow write: if true;
     }

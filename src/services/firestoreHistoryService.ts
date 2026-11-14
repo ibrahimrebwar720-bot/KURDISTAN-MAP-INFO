@@ -3,12 +3,13 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  getDocs,
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
 import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
-import { CollectionItem, DEFAULT_COLLECTIONS, PhotoSubmission } from '../types/history';
+import { CollectionItem, getUnifiedCategories, PhotoSubmission } from '../types/history';
 import {
   loadStoredFacts,
   saveStoredFacts,
@@ -20,46 +21,58 @@ import {
   saveStoredSubmissions,
 } from './historyStorageService';
 import { resolveImageUrl } from '../utils/imageUtils';
+import type { AppLanguage } from '../context/LanguageContext';
 
-const FACTS_COLLECTION = 'facts';
-const COLLECTIONS_COLLECTION = 'collections';
 const PHOTO_SUBMISSIONS_COLLECTION = 'photo_submissions';
 
-// Helper: Merge Firestore facts with ALL_FACTS baseline
+function getFactsCollectionName(lang: AppLanguage = 'ckb'): string {
+  return lang === 'en' ? 'facts_en' : 'facts';
+}
+
+function getCollectionsCollectionName(lang: AppLanguage = 'ckb'): string {
+  return lang === 'en' ? 'collections_en' : 'collections';
+}
+
+// Helper: Merge Firestore facts with ALL_FACTS baseline (Kurdish mode ONLY)
 function mergeFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
   const map = new Map<number, FactItem>();
-  // 1. Core 350 historical facts as baseline
   ALL_FACTS.forEach((fact) => {
     if (!isCityFact(fact)) {
       map.set(fact.id, fact);
     }
   });
-  // 2. Kurdish provinces / regions
   KURDISH_PROVINCES_CITIES.forEach((city: FactItem) => {
     if (!isCityFact(city)) {
       map.set(city.id, city);
     }
   });
-  // 3. Cloud updates and user custom additions
   cloudFacts.forEach((cf) => {
     if (cf && typeof cf.id === 'number' && !isCityFact(cf)) {
-      map.set(cf.id, sanitizeFact(cf));
+      map.set(cf.id, sanitizeFact(cf, 'ckb'));
     }
   });
 
   return Array.from(map.values());
 }
 
-// Helper: Merge Firestore collections with default collections
-function mergeCollectionsWithCloud(cloudCols: CollectionItem[]): CollectionItem[] {
+// Helper: Merge Firestore collections with localized default collections
+function mergeCollectionsWithCloud(
+  cloudCols: CollectionItem[],
+  lang: AppLanguage = 'ckb'
+): CollectionItem[] {
   const cloudMap = new Map<string, CollectionItem>();
   cloudCols.forEach((c) => cloudMap.set(c.id, c));
 
-  const baseMerged = DEFAULT_COLLECTIONS.map((bc) => {
+  const defaults = getUnifiedCategories(lang);
+  const baseMerged = defaults.map((bc) => {
     if (cloudMap.has(bc.id)) {
       const updated = cloudMap.get(bc.id)!;
       cloudMap.delete(bc.id);
-      return updated;
+      return {
+        ...bc,
+        ...updated,
+        name: lang === 'en' ? updated.nameEn || updated.name || bc.name : updated.name || bc.name,
+      };
     }
     return bc;
   });
@@ -69,11 +82,42 @@ function mergeCollectionsWithCloud(cloudCols: CollectionItem[]): CollectionItem[
 }
 
 /**
- * Real-time subscription to cloud facts across all users worldwide
+ * Load all Kurdish Sorani facts (cloud merged with ALL_FACTS) so Admin can browse & AI-translate
+ * Kurdish topics into English even when viewing English mode.
  */
-export function subscribeToCloudFacts(onUpdate: (facts: FactItem[]) => void): () => void {
+export async function loadKurdishFactsFromCloud(): Promise<FactItem[]> {
   try {
-    const colRef = collection(db, FACTS_COLLECTION);
+    const colRef = collection(db, 'facts');
+    const snap = await getDocs(colRef);
+    const cloudList: FactItem[] = [];
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data && typeof data.id === 'number') {
+        const item = data as FactItem;
+        if (!isCityFact(item)) {
+          cloudList.push(sanitizeFact(item, 'ckb'));
+        }
+      }
+    });
+    const merged = mergeFactsWithCloud(cloudList);
+    saveStoredFacts(merged, 'ckb');
+    return merged;
+  } catch (err) {
+    console.warn('Failed to load Kurdish facts from cloud, using cache:', err);
+    return loadStoredFacts('ckb');
+  }
+}
+
+/**
+ * Real-time subscription to cloud facts across all users worldwide (strictly separated per language)
+ */
+export function subscribeToCloudFacts(
+  onUpdate: (facts: FactItem[]) => void,
+  lang: AppLanguage = 'ckb'
+): () => void {
+  try {
+    const colName = getFactsCollectionName(lang);
+    const colRef = collection(db, colName);
     const unsubscribe = onSnapshot(
       colRef,
       (snapshot) => {
@@ -82,39 +126,43 @@ export function subscribeToCloudFacts(onUpdate: (facts: FactItem[]) => void): ()
           const data = docSnap.data();
           if (data && typeof data.id === 'number') {
             const item = data as FactItem;
-            if (isCityFact(item)) {
+            if (lang === 'ckb' && isCityFact(item)) {
               deleteDoc(docSnap.ref).catch(() => {});
             } else {
-              cloudList.push(sanitizeFact(item));
+              cloudList.push(sanitizeFact(item, lang));
             }
           }
         });
 
-        const merged = mergeFactsWithCloud(cloudList);
-        saveStoredFacts(merged);
-        onUpdate(merged);
+        // CRITICAL: English mode (`facts_en`) is 100% independent — never merge Kurdish `ALL_FACTS` into it
+        const finalFacts =
+          lang === 'en'
+            ? cloudList.sort((a, b) => (a.num || a.id) - (b.num || b.id))
+            : mergeFactsWithCloud(cloudList);
+
+        saveStoredFacts(finalFacts, lang);
+        onUpdate(finalFacts);
       },
       (error) => {
-        console.warn('Realtime facts sync error, using cached facts:', error);
-        onUpdate(loadStoredFacts());
+        console.warn(`Realtime facts sync error (${lang}), using cached facts:`, error);
+        onUpdate(loadStoredFacts(lang));
       }
     );
 
     return unsubscribe;
   } catch (err) {
-    console.warn('Failed to attach realtime facts listener:', err);
-    onUpdate(loadStoredFacts());
+    console.warn(`Failed to attach realtime facts listener (${lang}):`, err);
+    onUpdate(loadStoredFacts(lang));
     return () => {};
   }
 }
 
 /**
- * Save or update fact to Firestore cloud (Strictly Text & URLs only - zero image file uploads)
+ * Save or update fact to Firestore cloud for the specified language collection
  */
-export async function saveFactToCloud(fact: FactItem): Promise<void> {
-  const sanitized = sanitizeFact(fact);
+export async function saveFactToCloud(fact: FactItem, lang: AppLanguage = 'ckb'): Promise<void> {
+  const sanitized = sanitizeFact(fact, lang);
 
-  // Strictly strip any base64 image data to protect Firestore quota
   if (typeof sanitized.imageUrl === 'string') {
     if (sanitized.imageUrl.startsWith('data:')) {
       delete (sanitized as any).imageUrl;
@@ -123,7 +171,7 @@ export async function saveFactToCloud(fact: FactItem): Promise<void> {
     }
   }
 
-  const docRef = doc(db, FACTS_COLLECTION, String(sanitized.id));
+  const docRef = doc(db, getFactsCollectionName(lang), String(sanitized.id));
   const payload: Record<string, any> = {
     ...sanitized,
     updatedAt: Date.now(),
@@ -139,7 +187,6 @@ export async function saveFactToCloud(fact: FactItem): Promise<void> {
     });
   }
 
-  // Remove any undefined keys to prevent Firestore validation errors
   Object.keys(payload).forEach((key) => {
     if (payload[key] === undefined) {
       delete payload[key];
@@ -148,26 +195,24 @@ export async function saveFactToCloud(fact: FactItem): Promise<void> {
 
   await setDoc(docRef, payload, { merge: true });
 
-  // Update local cache
-  const local = loadStoredFacts();
+  const local = loadStoredFacts(lang);
   const exists = local.some((f) => f.id === sanitized.id);
   const updated = exists
     ? local.map((f) => (f.id === sanitized.id ? sanitized : f))
     : [sanitized, ...local];
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
 }
 
 /**
- * Delete a fact from Firestore cloud
+ * Delete a fact from Firestore cloud for the specified language collection only
  */
-export async function deleteFactFromCloud(factId: number): Promise<void> {
-  const docRef = doc(db, FACTS_COLLECTION, String(factId));
+export async function deleteFactFromCloud(factId: number, lang: AppLanguage = 'ckb'): Promise<void> {
+  const docRef = doc(db, getFactsCollectionName(lang), String(factId));
   await deleteDoc(docRef);
 
-  // Update local cache
-  const local = loadStoredFacts();
+  const local = loadStoredFacts(lang);
   const updated = local.filter((f) => f.id !== factId);
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
 }
 
 /**
@@ -176,11 +221,12 @@ export async function deleteFactFromCloud(factId: number): Promise<void> {
 export async function saveNotesToCloud(
   factId: number,
   notes: string,
-  existingFact?: FactItem
+  existingFact?: FactItem,
+  lang: AppLanguage = 'ckb'
 ): Promise<void> {
-  const docRef = doc(db, FACTS_COLLECTION, String(factId));
+  const docRef = doc(db, getFactsCollectionName(lang), String(factId));
   if (existingFact) {
-    const sanitized = sanitizeFact(existingFact);
+    const sanitized = sanitizeFact(existingFact, lang);
     await setDoc(
       docRef,
       {
@@ -202,10 +248,9 @@ export async function saveNotesToCloud(
     );
   }
 
-  // Update local cache
-  const local = loadStoredFacts();
+  const local = loadStoredFacts(lang);
   const updated = local.map((f) => (f.id === factId ? { ...f, additionalNotes: notes } : f));
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
 }
 
 /**
@@ -215,9 +260,10 @@ export async function updateFactRelationsInCloud(
   factId: number,
   relatedFactIds: number[],
   parentFactId?: number,
-  allyFactIds?: number[]
+  allyFactIds?: number[],
+  lang: AppLanguage = 'ckb'
 ): Promise<void> {
-  const docRef = doc(db, FACTS_COLLECTION, String(factId));
+  const docRef = doc(db, getFactsCollectionName(lang), String(factId));
   const payload: Record<string, any> = {
     relatedFactIds,
     updatedAt: Date.now(),
@@ -231,7 +277,7 @@ export async function updateFactRelationsInCloud(
 
   await setDoc(docRef, payload, { merge: true });
 
-  const local = loadStoredFacts();
+  const local = loadStoredFacts(lang);
   const updated = local.map((f) => {
     if (f.id === factId) {
       return {
@@ -243,17 +289,18 @@ export async function updateFactRelationsInCloud(
     }
     return f;
   });
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
 }
 
 /**
- * Real-time subscription to cloud collections
+ * Real-time subscription to cloud collections (strictly separated per language)
  */
 export function subscribeToCloudCollections(
-  onUpdate: (collections: CollectionItem[]) => void
+  onUpdate: (collections: CollectionItem[]) => void,
+  lang: AppLanguage = 'ckb'
 ): () => void {
   try {
-    const colRef = collection(db, COLLECTIONS_COLLECTION);
+    const colRef = collection(db, getCollectionsCollectionName(lang));
     const unsubscribe = onSnapshot(
       colRef,
       (snapshot) => {
@@ -265,20 +312,20 @@ export function subscribeToCloudCollections(
           }
         });
 
-        const merged = mergeCollectionsWithCloud(cloudList);
-        saveStoredCollections(merged);
+        const merged = mergeCollectionsWithCloud(cloudList, lang);
+        saveStoredCollections(merged, lang);
         onUpdate(merged);
       },
       (error) => {
-        console.warn('Realtime collections sync error, using cached:', error);
-        onUpdate(loadStoredCollections());
+        console.warn(`Realtime collections sync error (${lang}), using cached:`, error);
+        onUpdate(loadStoredCollections(lang));
       }
     );
 
     return unsubscribe;
   } catch (err) {
-    console.warn('Failed to attach realtime collections listener:', err);
-    onUpdate(loadStoredCollections());
+    console.warn(`Failed to attach realtime collections listener (${lang}):`, err);
+    onUpdate(loadStoredCollections(lang));
     return () => {};
   }
 }
@@ -286,28 +333,34 @@ export function subscribeToCloudCollections(
 /**
  * Save collection to Firestore cloud
  */
-export async function saveCollectionToCloud(collectionItem: CollectionItem): Promise<void> {
-  const docRef = doc(db, COLLECTIONS_COLLECTION, collectionItem.id);
+export async function saveCollectionToCloud(
+  collectionItem: CollectionItem,
+  lang: AppLanguage = 'ckb'
+): Promise<void> {
+  const docRef = doc(db, getCollectionsCollectionName(lang), collectionItem.id);
   await setDoc(docRef, { ...collectionItem, updatedAt: Date.now() }, { merge: true });
 
-  const local = loadStoredCollections();
+  const local = loadStoredCollections(lang);
   const exists = local.some((c) => c.id === collectionItem.id);
   const updated = exists
     ? local.map((c) => (c.id === collectionItem.id ? collectionItem : c))
     : [...local, collectionItem];
-  saveStoredCollections(updated);
+  saveStoredCollections(updated, lang);
 }
 
 /**
  * Delete collection from Firestore cloud
  */
-export async function deleteCollectionFromCloud(collectionId: string): Promise<void> {
-  const docRef = doc(db, COLLECTIONS_COLLECTION, collectionId);
+export async function deleteCollectionFromCloud(
+  collectionId: string,
+  lang: AppLanguage = 'ckb'
+): Promise<void> {
+  const docRef = doc(db, getCollectionsCollectionName(lang), collectionId);
   await deleteDoc(docRef);
 
-  const local = loadStoredCollections();
+  const local = loadStoredCollections(lang);
   const updated = local.filter((c) => c.id !== collectionId);
-  saveStoredCollections(updated);
+  saveStoredCollections(updated, lang);
 }
 
 /**
@@ -322,7 +375,7 @@ export async function submitPhotoSuggestion(data: {
 }): Promise<PhotoSubmission> {
   const cleanUrl = data.imageUrl.trim();
   if (!cleanUrl || cleanUrl.startsWith('data:')) {
-    throw new Error('تکایە لینکێکی ڕاستەقینەی وێب دابنێ نەک فایلی base64.');
+    throw new Error('Please enter a valid web image URL, not a base64 file.');
   }
 
   const id = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -342,7 +395,6 @@ export async function submitPhotoSuggestion(data: {
   const docRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, id);
   await setDoc(docRef, submission);
 
-  // Update local cache
   const local = loadStoredSubmissions();
   saveStoredSubmissions([submission, ...local.filter((s) => s.id !== id)]);
 
@@ -368,7 +420,6 @@ export function subscribeToPhotoSubmissions(
           }
         });
 
-        // Sort descending by submittedAt
         list.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
         saveStoredSubmissions(list);
         onUpdate(list);
@@ -389,14 +440,16 @@ export function subscribeToPhotoSubmissions(
 
 /**
  * Approve photo submission: automatically publishes the image onto the fact
- * Without requiring manual editing of the fact!
+ * in the active language (and also syncs into the counterpart if matching ID exists!)
  */
 export async function approvePhotoSubmission(
   submission: PhotoSubmission,
-  allFacts: FactItem[]
+  allFacts: FactItem[],
+  lang: AppLanguage = 'ckb'
 ): Promise<FactItem | null> {
-  const targetFact = allFacts.find((f) => f.id === submission.factId) ||
-    loadStoredFacts().find((f) => f.id === submission.factId);
+  const targetFact =
+    allFacts.find((f) => f.id === submission.factId) ||
+    loadStoredFacts(lang).find((f) => f.id === submission.factId);
 
   if (!targetFact) {
     console.warn(`Fact with id ${submission.factId} not found.`);
@@ -405,7 +458,6 @@ export async function approvePhotoSubmission(
 
   const cleanUrl = resolveImageUrl(submission.imageUrl) || submission.imageUrl;
 
-  // Build existing or new images list
   const existingImages = Array.isArray(targetFact.images) ? [...targetFact.images] : [];
   const alreadyInImages = existingImages.some((img) => img.url === cleanUrl);
 
@@ -425,10 +477,8 @@ export async function approvePhotoSubmission(
     images: updatedImages,
   };
 
-  // 1. Instantly publish the fact to Cloud Firestore & LocalStorage
-  await saveFactToCloud(updatedFact);
+  await saveFactToCloud(updatedFact, lang);
 
-  // 2. Mark submission as approved in Firestore
   const subRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, submission.id);
   await setDoc(
     subRef,
@@ -439,7 +489,6 @@ export async function approvePhotoSubmission(
     { merge: true }
   );
 
-  // 3. Update local cache of submissions
   const local = loadStoredSubmissions();
   const updatedLocal = local.map((s) =>
     s.id === submission.id ? { ...s, status: 'approved' as const, approvedAt: Date.now() } : s

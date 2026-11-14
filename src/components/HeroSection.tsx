@@ -5,12 +5,11 @@ import {
   SlidersHorizontal,
   Compass,
   History,
-  Sparkles,
+  Globe,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { getAllFactImages } from '../utils/historicalImages';
-import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 
 // Local 3 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
 import bg1 from '../assets/images/hero/bg1.jpg';
@@ -121,6 +120,7 @@ export const HeroSection: React.FC<Props> = ({
   onOpenJourney,
 }) => {
   const { theme } = useTheme();
+  const { language, isEn, dir, setLanguage } = useLanguage();
 
   // 1. Responsive Screen Orientation Tracking
   const [isPortrait, setIsPortrait] = useState<boolean>(() => {
@@ -241,7 +241,7 @@ export const HeroSection: React.FC<Props> = ({
   return (
     <section
       id="hero-section"
-      className="fixed inset-0 z-40 w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans animate-fade-in"
+      className="preserve-contrast fixed inset-0 z-40 w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans animate-fade-in"
     >
       {/* Scoped CSS guaranteeing 100% luminous contrast in both Light and Dark modes */}
       <style>{`
@@ -418,8 +418,40 @@ export const HeroSection: React.FC<Props> = ({
         />
       </div>
 
-      {/* B. Top Section: English Brand Title in New York Times Editorial Serif Font */}
+      {/* B. Top Section: Language Toggle + English Brand Title in New York Times Editorial Serif Font */}
       <header className="relative z-10 w-full pt-6 sm:pt-10 px-4 sm:px-12 flex flex-col items-center text-center">
+        {/* Independent Language Switcher (Kurdish Sorani / English) */}
+        <div
+          className="preserve-contrast absolute top-3.5 right-3.5 sm:top-6 sm:right-6 z-20 flex items-center gap-1 p-1 rounded-[4px] bg-[#0b0f1c]/95 border border-amber-500/45 shadow-[0_6px_20px_rgba(0,0,0,0.75)] backdrop-blur-md"
+          dir="ltr"
+        >
+          <Globe className="w-3.5 h-3.5 text-amber-400 mx-1.5 hidden sm:block shrink-0" />
+          <button
+            type="button"
+            onClick={() => setLanguage('ckb')}
+            className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-all cursor-pointer ${
+              language === 'ckb'
+                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                : 'bg-white/10 text-slate-100 hover:text-white hover:bg-white/20'
+            }`}
+            title="زمانی کوردی سۆرانی"
+          >
+            کوردی
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage('en')}
+            className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-all cursor-pointer ${
+              language === 'en'
+                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                : 'bg-white/10 text-slate-100 hover:text-white hover:bg-white/20'
+            }`}
+            title="English Edition"
+          >
+            EN
+          </button>
+        </div>
+
         {/* Soft, natural dark shadow behind the title for sharp text contrast without hard borders */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-36 sm:h-44 pointer-events-none z-0 opacity-85"
@@ -493,9 +525,9 @@ export const HeroSection: React.FC<Props> = ({
         {/* The 4 Main Buttons Cluster - Warm Architectural Craftsmanship */}
         <div
           className="w-full max-w-2xl grid grid-cols-4 gap-1.5 sm:gap-2.5 p-2 sm:p-2.5 bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.9),0_0_20px_rgba(245,158,11,0.08)] rounded-[4px]"
-          dir="rtl"
+          dir={dir}
         >
-          {/* Button 1: نەخشە (Interactive Map - Warm Gold Featured Action) */}
+          {/* Button 1: Map (Featured Action) */}
           <button
             type="button"
             onClick={onEnterMap}
@@ -504,15 +536,15 @@ export const HeroSection: React.FC<Props> = ({
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <Map className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 group-hover:scale-110 transition-transform" />
               <span className="text-xs sm:text-base font-black tracking-tight text-white drop-shadow-sm">
-                نەخشە
+                {isEn ? 'Map' : 'نەخشە'}
               </span>
             </div>
             <span className="text-[9px] sm:text-xs font-bold hidden xs:inline text-amber-300/90 truncate max-w-full">
-              گەڕانی نەخشە
+              {isEn ? 'Explore Map' : 'گەڕانی نەخشە'}
             </span>
           </button>
 
-          {/* Button 2: گەشتی مێژوویی (Historical Journey) */}
+          {/* Button 2: Historical Journey */}
           <button
             type="button"
             onClick={onOpenJourney}
@@ -520,16 +552,16 @@ export const HeroSection: React.FC<Props> = ({
           >
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
-              <span className="text-[11px] sm:text-sm font-extrabold tracking-tight text-slate-100 group-hover:text-white">
-                گەشتی مێژوویی
+              <span className="text-[11px] sm:text-sm font-extrabold tracking-tight text-slate-100 group-hover:text-white truncate">
+                {isEn ? 'Journey' : 'گەشتی مێژوویی'}
               </span>
             </div>
             <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
-              کارتەکانی مێژوو
+              {isEn ? 'History Cards' : 'کارتەکانی مێژوو'}
             </span>
           </button>
 
-          {/* Button 3: پێڕست (Historical Directory) */}
+          {/* Button 3: Historical Directory */}
           <button
             type="button"
             onClick={onOpenMenu}
@@ -538,15 +570,15 @@ export const HeroSection: React.FC<Props> = ({
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
               <span className="text-[11px] sm:text-sm font-bold tracking-tight text-slate-100 group-hover:text-white">
-                پێڕست
+                {isEn ? 'Directory' : 'پێڕست'}
               </span>
             </div>
             <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
-              بابەتەکان
+              {isEn ? `${facts.length} Entries` : 'بابەتەکان'}
             </span>
           </button>
 
-          {/* Button 4: ڕێکخستنەکان (Settings) */}
+          {/* Button 4: Settings */}
           <button
             type="button"
             onClick={onOpenSettings}
@@ -555,11 +587,11 @@ export const HeroSection: React.FC<Props> = ({
             <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
               <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
               <span className="text-[11px] sm:text-sm font-bold tracking-tight text-slate-100 group-hover:text-white">
-                ڕێکخستنەکان
+                {isEn ? 'Settings' : 'ڕێکخستنەکان'}
               </span>
             </div>
             <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
-              دیمەن و شێواز
+              {isEn ? 'Lang & Theme' : 'دیمەن و شێواز'}
             </span>
           </button>
         </div>

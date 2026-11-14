@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { CollectionItem } from '../types/history';
+import { useLanguage } from '../context/LanguageContext';
+import { formatDigits } from '../utils/yearUtils';
 import { X, Plus, Trash2, Edit3, Check, Layers, Palette } from 'lucide-react';
 
 interface Props {
@@ -30,6 +32,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
   onUpdateCollection,
   onDeleteCollection,
 }) => {
+  const { language, isEn, dir } = useLanguage();
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [color, setColor] = useState('#f59e0b');
@@ -48,6 +51,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
           ...existing,
           name: name.trim(),
           description: desc.trim(),
+          ...(isEn ? { nameEn: name.trim(), descriptionEn: desc.trim() } : {}),
           color,
         });
       }
@@ -57,6 +61,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
         id: `custom_${Date.now()}`,
         name: name.trim(),
         description: desc.trim(),
+        ...(isEn ? { nameEn: name.trim(), descriptionEn: desc.trim() } : {}),
         color,
         isCustom: true,
       };
@@ -70,8 +75,8 @@ export const CollectionManagerModal: React.FC<Props> = ({
 
   const handleStartEdit = (col: CollectionItem) => {
     setEditingId(col.id);
-    setName(col.name);
-    setDesc(col.description || '');
+    setName(isEn ? col.nameEn || col.name : col.name);
+    setDesc(isEn ? col.descriptionEn || col.description || '' : col.description || '');
     setColor(col.color || '#f59e0b');
   };
 
@@ -84,7 +89,8 @@ export const CollectionManagerModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[1260] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-xl animate-fade-in text-right"
+      dir={dir}
+      className="fixed inset-0 z-[1260] flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-xl animate-fade-in text-start"
       onClick={onClose}
     >
       <div
@@ -100,9 +106,13 @@ export const CollectionManagerModal: React.FC<Props> = ({
               <Layers className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">بەڕێوەبردنی دەستە و کۆلێکشنەکان</h3>
+              <h3 className="text-sm font-bold text-white">
+                {isEn ? 'Manage Categories & Collections' : 'بەڕێوەبردنی دەستە و کۆلێکشنەکان'}
+              </h3>
               <p className="text-[11px] text-amber-200/80">
-                زیادکردن و دەستکاریکردنی دەستەکانی پێڕست
+                {isEn
+                  ? 'Add or edit independent directory collections'
+                  : 'زیادکردن و دەستکاریکردنی دەستەکانی پێڕست'}
               </p>
             </div>
           </div>
@@ -110,7 +120,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
-            title="داخستن"
+            title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -120,32 +130,44 @@ export const CollectionManagerModal: React.FC<Props> = ({
         <form onSubmit={handleSave} className="p-4 rounded-2xl liquid-glass-card space-y-3 mb-4 text-xs transition-all shadow-sm">
           <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5 pb-1 border-b border-white/10">
             {editingId ? <Edit3 className="w-3.5 h-3.5 text-amber-400" /> : <Plus className="w-3.5 h-3.5 text-amber-400" />}
-            <span>{editingId ? 'دەستکاریکردنی دەستە' : 'زیادکردنی دەستەی نوێ'}</span>
+            <span>
+              {editingId
+                ? isEn
+                  ? 'Edit Collection'
+                  : 'دەستکاریکردنی دەستە'
+                : isEn
+                ? 'Add New Collection'
+                : 'زیادکردنی دەستەی نوێ'}
+            </span>
           </h4>
 
           <div>
             <label className="block text-[11px] font-bold text-amber-200/90 mb-1">
-              ناوی کۆلێکشن *
+              {isEn ? 'Collection Name *' : 'ناوی کۆلێکشن *'}
             </label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="بۆ نموونە: شاعیرانی کلاسیک، میرنشینە هاوپەیمانەکان..."
+              placeholder={
+                isEn
+                  ? 'e.g. Classical Poets, Allied Emirates...'
+                  : 'بۆ نموونە: شاعیرانی کلاسیک، میرنشینە هاوپەیمانەکان...'
+              }
               className="w-full liquid-glass-input text-white px-3 py-2 rounded-xl text-xs"
             />
           </div>
 
           <div>
             <label className="block text-[11px] font-bold text-amber-200/90 mb-1">
-              وەسف و تێبینی کورت
+              {isEn ? 'Short Description' : 'وەسف و تێبینی کورت'}
             </label>
             <input
               type="text"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              placeholder="وەسفێکی کورت..."
+              placeholder={isEn ? 'Short summary...' : 'وەسفێکی کورت...'}
               className="w-full liquid-glass-input text-white px-3 py-2 rounded-xl text-xs"
             />
           </div>
@@ -154,7 +176,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
           <div>
             <label className="block text-[11px] font-bold text-amber-200/90 mb-1.5 flex items-center gap-1">
               <Palette className="w-3.5 h-3.5 text-amber-400" />
-              <span>ڕەنگی نیشاندەر لەسەر نەخشە</span>
+              <span>{isEn ? 'Map Marker Color' : 'ڕەنگی نیشاندەر لەسەر نەخشە'}</span>
             </label>
             <div className="flex items-center gap-2 flex-wrap">
               {PRESET_COLORS.map((c) => (
@@ -180,7 +202,7 @@ export const CollectionManagerModal: React.FC<Props> = ({
                 onClick={handleCancelEdit}
                 className="px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-300 text-xs hover:text-white cursor-pointer"
               >
-                هەڵوەشاندنەوە
+                {isEn ? 'Cancel' : 'هەڵوەشاندنەوە'}
               </button>
             )}
             <button
@@ -188,7 +210,15 @@ export const CollectionManagerModal: React.FC<Props> = ({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold text-xs shadow-sm transition-all cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
-              <span>{editingId ? 'نوێکردنەوە' : 'زیادکردنی کۆلێکشن'}</span>
+              <span>
+                {editingId
+                  ? isEn
+                    ? 'Update'
+                    : 'نوێکردنەوە'
+                  : isEn
+                  ? 'Add Collection'
+                  : 'زیادکردنی کۆلێکشن'}
+              </span>
             </button>
           </div>
         </form>
@@ -197,60 +227,67 @@ export const CollectionManagerModal: React.FC<Props> = ({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-200">
-              کۆلێکشنە بەردەستەکان
+              {isEn ? 'Available Collections' : 'کۆلێکشنە بەردەستەکان'}
             </span>
             <span className="text-[11px] font-mono font-bold text-amber-300 liquid-glass-subtle px-2 py-0.5 rounded-full">
-              {collections.length} دەستە
+              {isEn
+                ? `${collections.length} items`
+                : `${formatDigits(collections.length, language)} دەستە`}
             </span>
           </div>
 
           <div className="divide-y divide-white/10 border border-white/15 rounded-2xl overflow-hidden liquid-glass-subtle max-h-56 overflow-y-auto custom-scrollbar">
-            {collections.map((col) => (
-              <div
-                key={col.id}
-                className="flex items-center justify-between gap-3 p-3 hover:bg-white/5 transition-colors text-xs"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span
-                    className="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm"
-                    style={{ backgroundColor: col.color }}
-                  />
-                  <div className="min-w-0">
-                    <span className="font-bold text-white truncate block">
-                      {col.name}
-                    </span>
-                    {col.description && (
-                      <span className="text-[11px] text-slate-300/80 truncate block mt-0.5">
-                        {col.description}
+            {collections.map((col) => {
+              const displayName = isEn ? col.nameEn || col.name : col.name;
+              const displayDesc = isEn ? col.descriptionEn || col.description : col.description;
+              return (
+                <div
+                  key={col.id}
+                  className="flex items-center justify-between gap-3 p-3 hover:bg-white/5 transition-colors text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm"
+                      style={{ backgroundColor: col.color }}
+                    />
+                    <div className="min-w-0">
+                      <span className="font-bold text-white truncate block">
+                        {displayName}
                       </span>
+                      {displayDesc && (
+                        <span className="text-[11px] text-slate-300/80 truncate block mt-0.5">
+                          {displayDesc}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleStartEdit(col)}
+                      className="p-1.5 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 transition-colors cursor-pointer"
+                      title={isEn ? 'Edit' : 'دەستکاریکردن'}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {col.id !== 'all' && (
+                      <button
+                        onClick={() => onDeleteCollection(col.id)}
+                        className="p-1.5 rounded-lg text-red-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
+                        title={isEn ? 'Delete' : 'سڕینەوە'}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => handleStartEdit(col)}
-                    className="p-1.5 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 transition-colors cursor-pointer"
-                    title="دەستکاریکردن"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-
-                  {col.id !== 'all' && (
-                    <button
-                      onClick={() => onDeleteCollection(col.id)}
-                      className="p-1.5 rounded-lg text-red-300 hover:text-white liquid-glass-btn transition-colors cursor-pointer"
-                      title="سڕینەوە"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
     </div>
   );
 };
+

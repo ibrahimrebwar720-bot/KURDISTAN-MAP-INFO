@@ -13,9 +13,10 @@ import {
   MIN_HISTORICAL_YEAR,
   MAX_HISTORICAL_YEAR,
   formatKurdishYear,
-  toKurdishDigits,
+  formatDigits,
   normalizeYearString,
 } from '../utils/yearUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
   facts: FactItem[];
@@ -43,6 +44,7 @@ export const TimelineSlider: React.FC<Props> = ({
   isTourActive = false,
   onToggleTour,
 }) => {
+  const { language, isEn, dir } = useLanguage();
   const [directInputYear, setDirectInputYear] = useState('');
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [scrubYear, setScrubYear] = useState<number | null>(null);
@@ -87,7 +89,7 @@ export const TimelineSlider: React.FC<Props> = ({
 
     // 1. Ancient & Classical Ruler marks (-3000 to 1800)
     for (let y = -3000; y < -500; y += 100) {
-      marks.push({ year: y, type: 'cm', label: formatKurdishYear(y) });
+      marks.push({ year: y, type: 'cm', label: formatKurdishYear(y, language) });
       marks.push({ year: y + 50, type: 'half' });
     }
 
@@ -95,7 +97,7 @@ export const TimelineSlider: React.FC<Props> = ({
       marks.push({
         year: y,
         type: y % 100 === 0 ? 'cm' : 'half',
-        label: y % 100 === 0 ? formatKurdishYear(y) : undefined,
+        label: y % 100 === 0 ? formatKurdishYear(y, language) : undefined,
       });
       marks.push({ year: y + 25, type: 'mm' });
     }
@@ -104,21 +106,18 @@ export const TimelineSlider: React.FC<Props> = ({
       marks.push({
         year: y,
         type: y % 50 === 0 ? 'cm' : 'half',
-        label: y % 50 === 0 ? formatKurdishYear(y) : undefined,
+        label: y % 50 === 0 ? formatKurdishYear(y, language) : undefined,
       });
       marks.push({ year: y + 10, type: 'mm' });
     }
 
     // 2. Modern Era Ruler Marks (1800 to 2026)
-    // Every decade is a major centimeter line with bold label
-    // Every 5 years is a half-centimeter line
-    // Individual years are millimeter tick lines
     for (let y = 1800; y <= 2026; y += 1) {
       if (y % 10 === 0) {
         marks.push({
           year: y,
           type: 'cm',
-          label: toKurdishDigits(y),
+          label: formatDigits(y, language),
           isFactYear: factYearsSet.has(y),
         });
       } else if (y % 5 === 0) {
@@ -133,7 +132,7 @@ export const TimelineSlider: React.FC<Props> = ({
           year: y,
           type: 'mm',
           isFactYear: factYearsSet.has(y),
-          label: factYearsSet.has(y) ? toKurdishDigits(y) : undefined,
+          label: factYearsSet.has(y) ? formatDigits(y, language) : undefined,
         });
       }
     }
@@ -144,14 +143,14 @@ export const TimelineSlider: React.FC<Props> = ({
         marks.push({
           year: fy,
           type: 'cm',
-          label: formatKurdishYear(fy),
+          label: formatKurdishYear(fy, language),
           isFactYear: true,
         });
       }
     });
 
     return marks.sort((a, b) => a.year - b.year);
-  }, [facts]);
+  }, [facts, language]);
 
   // Fast O(log N) needle detection: find the tick element closest to the center needle
   const getYearAtNeedle = useCallback((): number | null => {
@@ -268,7 +267,8 @@ export const TimelineSlider: React.FC<Props> = ({
     const match = norm.match(/-?\d+/);
     if (match) {
       let num = parseInt(match[0], 10);
-      if (directInputYear.includes('پ.ز') || directInputYear.includes('پێش')) {
+      const lower = directInputYear.toLowerCase();
+      if (directInputYear.includes('پ.ز') || directInputYear.includes('پێش') || lower.includes('bc')) {
         num = -Math.abs(num);
       }
       if (num >= MIN_HISTORICAL_YEAR && num <= MAX_HISTORICAL_YEAR) {
@@ -407,51 +407,62 @@ export const TimelineSlider: React.FC<Props> = ({
   const activeDisplayYear = scrubYear !== null ? scrubYear : selectedYear;
 
   return (
-    <div className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-right select-none transition-all">
+    <div
+      className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-start select-none transition-all"
+      dir={dir}
+    >
       {/* 2026 Spatial Chronological Dock */}
       <div className="relative w-full glass-dock-2026 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 flex flex-col gap-1.5 sm:gap-2.5 transition-all overflow-hidden shadow-2xl">
         {/* Tier 1: Top Status Header */}
         <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
-          {/* Right: Year Label & Fact Count */}
+          {/* Year Label & Fact Count */}
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center shrink-0 shadow-xs">
               <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
             </div>
 
             <div className="flex items-center gap-1.5 truncate">
-              {/* Year readout */}
               <span className="font-extrabold text-white text-xs sm:text-sm font-mono tracking-wide">
                 {activeDisplayYear === 'all'
-                  ? 'هەموو ساڵەکان'
-                  : formatKurdishYear(activeDisplayYear)}
+                  ? isEn
+                    ? 'All Years'
+                    : 'هەموو ساڵەکان'
+                  : formatKurdishYear(activeDisplayYear, language)}
               </span>
 
-              {/* Zero-pill unboxed metric */}
               <span className="text-slate-600 font-mono text-xs">·</span>
               <span className="text-[11px] sm:text-xs font-mono font-semibold text-amber-300/90 tabular-nums">
-                {toKurdishDigits(filteredCount)} شوێن
+                {formatDigits(filteredCount, language)} {isEn ? 'sites' : 'شوێن'}
               </span>
             </div>
           </div>
 
-          {/* Left: Quick Actions Cluster */}
+          {/* Quick Actions Cluster */}
           <div className="flex items-center gap-1 shrink-0">
             {/* Step -1 Year */}
             <button
               onClick={() => handleStepYear(-1)}
-              title="١ ساڵ بۆ دواوە"
+              title={isEn ? 'Step -1 year' : '١ ساڵ بۆ دواوە'}
               className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer border border-white/[0.08]"
             >
-              <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              {isEn ? (
+                <ChevronLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              ) : (
+                <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              )}
             </button>
 
-            {/* Cinematic Guided Tour / Story Mode (گەشتی بینراوی مێژوویی) */}
+            {/* Cinematic Guided Tour / Story Mode */}
             {onToggleTour && (
               <button
                 onClick={onToggleTour}
                 title={
                   isTourActive
-                    ? 'وەستاندنی گەشتی بینراوی مێژوویی (Story Mode)'
+                    ? isEn
+                      ? 'Stop Visual History Tour'
+                      : 'وەستاندنی گەشتی بینراوی مێژوویی (Story Mode)'
+                    : isEn
+                    ? 'Start Visual History Tour (Story Mode)'
                     : 'گەشتی بینراوی مێژوویی (Cinematic Guided Tour / Story Mode)'
                 }
                 className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
@@ -467,18 +478,20 @@ export const TimelineSlider: React.FC<Props> = ({
             {/* Step +1 Year */}
             <button
               onClick={() => handleStepYear(1)}
-              title="١ ساڵ بۆ پێشەوە"
+              title={isEn ? 'Step +1 year' : '١ ساڵ بۆ پێشەوە'}
               className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
             >
-              <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              {isEn ? (
+                <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              ) : (
+                <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              )}
             </button>
-
-
 
             {/* Search Toggle */}
             <button
               onClick={() => setShowDirectInput(!showDirectInput)}
-              title="دیاریکردنی ساڵ بە ژمارە"
+              title={isEn ? 'Jump to specific year' : 'دیاریکردنی ساڵ بە ژمارە'}
               className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 showDirectInput
                   ? 'liquid-glass-btn-active font-bold'
@@ -488,12 +501,16 @@ export const TimelineSlider: React.FC<Props> = ({
               <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
 
-            {/* Toggle All Years Button (Clicking again toggles OFF) */}
+            {/* Toggle All Years Button */}
             <button
               onClick={handleToggleAllYears}
               title={
                 selectedYear === 'all'
-                  ? 'کلیک بکەرەوە بۆ گەڕانەوە بۆ ساڵی دیاریکراو'
+                  ? isEn
+                    ? 'Click again to restore selected year'
+                    : 'کلیک بکەرەوە بۆ گەڕانەوە بۆ ساڵی دیاریکراو'
+                  : isEn
+                  ? 'Show all historical years'
                   : 'پیشاندانی هەموو ساڵەکان'
               }
               className={`flex items-center gap-1 px-2 sm:px-2.5 h-5 sm:h-6 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer ${
@@ -503,7 +520,7 @@ export const TimelineSlider: React.FC<Props> = ({
               }`}
             >
               <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              <span>هەمووی</span>
+              <span>{isEn ? 'All' : 'هەمووی'}</span>
             </button>
           </div>
         </div>
@@ -515,21 +532,21 @@ export const TimelineSlider: React.FC<Props> = ({
             className="flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-xl liquid-glass-card animate-fade-in shadow-md"
           >
             <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold shrink-0">
-              ساڵ بنووسە:
+              {isEn ? 'Enter year:' : 'ساڵ بنووسە:'}
             </span>
             <input
               type="text"
               autoFocus
               value={directInputYear}
               onChange={(e) => setDirectInputYear(e.target.value)}
-              placeholder="1940، 1890، 612 پ.ز..."
+              placeholder={isEn ? '1940, 1890, 612 BCE...' : '1940، 1890، 612 پ.ز...'}
               className="flex-1 liquid-glass-input text-white px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs focus:outline-none font-mono"
             />
             <button
               type="submit"
               className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg liquid-glass-btn-active text-black font-extrabold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
             >
-              بڕۆ
+              {isEn ? 'Go' : 'بڕۆ'}
             </button>
             <button
               type="button"
@@ -541,24 +558,22 @@ export const TimelineSlider: React.FC<Props> = ({
           </form>
         )}
 
-        {/* 
-          Tier 2: The Precision Ruler Controller (ڕاستەی پێوان)
-          Each centimeter is a graduated measure; user drags or scrolls it like a physical ruler!
-        */}
+        {/* Tier 2: Precision Ruler Controller */}
         <div className="relative w-full flex items-center gap-1 sm:gap-1.5 border-t border-white/10 pt-1">
-          {/* Scroll forward / right nudge */}
           <button
             type="button"
-            onClick={() => handleScrollRuler('right')}
-            title="سکرۆڵکردنی ڕاستە بۆ پێشەوە"
+            onClick={() => handleScrollRuler(isEn ? 'left' : 'right')}
+            title={isEn ? 'Scroll ruler earlier' : 'سکرۆڵکردنی ڕاستە بۆ پێشەوە'}
             className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
           >
-            <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            {isEn ? (
+              <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            ) : (
+              <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            )}
           </button>
 
-          {/* Precision Ruler Strip (شوشەی شلە بە دەرزی زێڕینی پێوانە) */}
           <div className="relative flex-1 liquid-glass-subtle rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1 shadow-inner">
-            {/* Center Fixed Hairline Indicator (دەرزی پێوانەی ناوەڕاست) */}
             <div
               className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 bg-amber-400 z-20 pointer-events-none flex flex-col justify-between items-center"
               style={{ boxShadow: '0 0 10px var(--theme-accent)' }}
@@ -567,7 +582,6 @@ export const TimelineSlider: React.FC<Props> = ({
               <span className="text-[5px] sm:text-[7px] text-amber-400 -mb-0.5 leading-none select-none">▲</span>
             </div>
 
-            {/* Scrollable graduated ruler container with drag and wheel support */}
             <div
               ref={rulerContainerRef}
               onWheel={handleWheel}
@@ -604,12 +618,11 @@ export const TimelineSlider: React.FC<Props> = ({
                         isProgrammaticScrollRef.current = false;
                       }, 450);
                     }}
-                    title={`ساڵی ${formatKurdishYear(mark.year)}`}
+                    title={isEn ? `Year ${formatKurdishYear(mark.year, 'en')}` : `ساڵی ${formatKurdishYear(mark.year, 'ckb')}`}
                     className={`group flex flex-col items-center justify-end shrink-0 cursor-pointer transition-all px-0.5 relative ${
                       isSelected ? 'scale-110 z-10' : 'opacity-85 hover:opacity-100'
                     }`}
                   >
-                    {/* Centimeter / Millimeter Tick Line */}
                     <div
                       className={`transition-all rounded-none ${
                         isSelected
@@ -622,7 +635,6 @@ export const TimelineSlider: React.FC<Props> = ({
                       }`}
                     />
 
-                    {/* Centimeter Mark Label */}
                     {(mark.label || isSelected) && (
                       <span
                         className={`text-[7px] sm:text-[8px] font-mono leading-none mt-0.5 sm:mt-1 tracking-tighter whitespace-nowrap select-none transition-colors ${
@@ -633,7 +645,7 @@ export const TimelineSlider: React.FC<Props> = ({
                             : 'text-slate-400/80 group-hover:text-amber-300'
                         }`}
                       >
-                        {mark.label || toKurdishDigits(mark.year)}
+                        {mark.label || formatDigits(mark.year, language)}
                       </span>
                     )}
                   </button>
@@ -642,14 +654,17 @@ export const TimelineSlider: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Scroll backward / left nudge */}
           <button
             type="button"
-            onClick={() => handleScrollRuler('left')}
-            title="سکرۆڵکردنی ڕاستە بۆ دواوە"
+            onClick={() => handleScrollRuler(isEn ? 'right' : 'left')}
+            title={isEn ? 'Scroll ruler later' : 'سکرۆڵکردنی ڕاستە بۆ دواوە'}
             className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
           >
-            <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            {isEn ? (
+              <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            ) : (
+              <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            )}
           </button>
         </div>
       </div>

@@ -3,6 +3,7 @@ import App from './App.tsx';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 // Google Maps Platform error & quota defense monitoring
 (window as any).gm_authFailure = () => {
@@ -18,7 +19,9 @@ console.error = (...args: unknown[]) => {
 };
 
 createRoot(document.getElementById('root')!).render(
-  <ThemeProvider>
-    <App />
-  </ThemeProvider>
+  <LanguageProvider>
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  </LanguageProvider>
 );

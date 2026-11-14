@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { THEME_LIST, ThemeId } from '../types/theme';
 import { X, Palette, Check, Sparkles, RotateCcw, Sun, Moon } from 'lucide-react';
 
@@ -10,12 +11,14 @@ interface Props {
 
 export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { themeId, setTheme, resetTheme, colorMode, setColorMode } = useTheme();
+  const { isEn, dir } = useLanguage();
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[1280] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right"
+      className="fixed inset-0 z-[1280] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-start"
+      dir={dir}
       onClick={onClose}
     >
       <div
@@ -30,11 +33,13 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <span>بەشی ڕووکار و ستایلی نەخشە</span>
+                <span>{isEn ? 'Map Appearance & Themes' : 'بەشی ڕووکار و ستایلی نەخشە'}</span>
                 <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" style={{ color: 'var(--theme-accent)' }} />
               </h3>
               <p className="text-xs text-slate-300">
-                هەڵبژاردنی دۆخی ڕووناکی، ستایل و تێکەڵەی ڕەنگەکان بەپێی دڵخوازی خۆت
+                {isEn
+                  ? 'Customize brightness mode, architectural palette, and accent highlights'
+                  : 'هەڵبژاردنی دۆخی ڕووناکی، ستایل و تێکەڵەی ڕەنگەکان بەپێی دڵخوازی خۆت'}
               </p>
             </div>
           </div>
@@ -43,22 +48,22 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <button
               onClick={resetTheme}
               className="px-3 py-1.5 rounded-[4px] bg-[#101626] border border-amber-500/25 hover:border-amber-400/60 text-[11px] font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
-              title="گەڕانەوە بۆ ڕووکاری بنەڕەتی"
+              title={isEn ? 'Reset to default theme' : 'گەڕانەوە بۆ ڕووکاری بنەڕەتی'}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">بنەڕەتی</span>
+              <span className="hidden sm:inline">{isEn ? 'Default' : 'بنەڕەتی'}</span>
             </button>
             <button
               onClick={onClose}
               className="w-9 h-9 rounded-[4px] flex items-center justify-center text-slate-300 hover:text-white bg-[#101626] border border-amber-500/25 hover:border-amber-400/60 transition-colors cursor-pointer"
-              title="داخستن"
+              title={isEn ? 'Close' : 'داخستن'}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Color Mode Switch (ڕووناکی نەرم / دۆخی تاریک بە سێبەری فەید) */}
+        {/* Color Mode Switch */}
         <div className="p-3 sm:p-4 rounded-[4px] bg-[#070b14] border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="w-9 h-9 rounded-[4px] bg-[#101626] border border-amber-500/25 flex items-center justify-center shrink-0">
@@ -70,10 +75,12 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <span className="text-xs sm:text-sm font-bold text-white block">
-                دۆخی دیمەن (ڕووناک / تاریک)
+                {isEn ? 'Display Mode (Light / Dark)' : 'دۆخی دیمەن (ڕووناک / تاریک)'}
               </span>
               <span className="text-[11px] text-slate-300 block">
-                سپێیەکی نەرمی کەرەیی و شوشەی پۆرسەلین بە سێبەری فەید بۆ دوگمەکان
+                {isEn
+                  ? 'Soft Nordic parchment highlights or deep obsidian slate canvas'
+                  : 'سپێیەکی نەرمی کەرەیی و شوشەی پۆرسەلین بە سێبەری فەید بۆ دوگمەکان'}
               </span>
             </div>
           </div>
@@ -88,8 +95,8 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
               }`}
             >
-              <Sun className="w-3.5 h-3.5 text-amber-950" />
-              <span>دۆخی ڕووناک</span>
+              <Sun className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Light Mode' : 'دۆخی ڕووناک'}</span>
             </button>
             <button
               type="button"
@@ -100,8 +107,8 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
               }`}
             >
-              <Moon className="w-3.5 h-3.5 text-amber-950" />
-              <span>دۆخی تاریک</span>
+              <Moon className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Dark Mode' : 'دۆخی تاریک'}</span>
             </button>
           </div>
         </div>
@@ -110,6 +117,11 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
           {THEME_LIST.map((item) => {
             const isSelected = themeId === item.id;
+            const title = isEn ? item.englishName : item.name;
+            const subTitle = isEn ? item.name : item.englishName;
+            const desc = isEn ? item.descriptionEn : item.description;
+            const primaryLbl = isEn ? item.primaryLabelEn : item.primaryLabel;
+            const secondaryLbl = isEn ? item.secondaryLabelEn : item.secondaryLabel;
 
             return (
               <div
@@ -134,9 +146,8 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   />
                 )}
 
-                {/* Top Row: Dual Swatches & Selection Badge */}
+                {/* Top Row */}
                 <div className="flex items-center justify-between gap-2">
-                  {/* Dual Color Swatch Bubble */}
                   <div className="flex items-center -space-x-1 rtl:space-x-reverse">
                     <span
                       className="w-6 h-6 rounded-[3px] shadow-md border border-white/60 relative z-10 transition-transform group-hover:scale-105"
@@ -144,18 +155,17 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         backgroundColor: item.primaryColor,
                         boxShadow: `0 0 10px ${item.primaryColor}88`,
                       }}
-                      title={item.primaryLabel}
+                      title={primaryLbl}
                     />
                     <span
                       className="w-6 h-6 rounded-[3px] shadow-sm border border-black/50 relative z-0"
                       style={{
                         backgroundColor: item.secondaryColor,
                       }}
-                      title={item.secondaryLabel}
+                      title={secondaryLbl}
                     />
                   </div>
 
-                  {/* Active Badge */}
                   {isSelected ? (
                     <span
                       className="flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-[3px] shadow-md"
@@ -165,11 +175,11 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       }}
                     >
                       <Check className="w-3 h-3 stroke-[3]" />
-                      <span>چالاکە</span>
+                      <span>{isEn ? 'Active' : 'چالاکە'}</span>
                     </span>
                   ) : (
                     <span className="text-[10px] text-slate-400 group-hover:text-slate-200 transition-colors">
-                      کلیک بکە بۆ گۆڕین
+                      {isEn ? 'Click to apply' : 'کلیک بکە بۆ گۆڕین'}
                     </span>
                   )}
                 </div>
@@ -177,13 +187,13 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 {/* Titles */}
                 <div>
                   <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <span>{item.name}</span>
+                    <span>{title}</span>
                   </h4>
                   <span className="text-[10px] font-mono text-slate-400 block mt-0.5 tracking-tight">
-                    {item.englishName}
+                    {subTitle}
                   </span>
                   <p className="text-[11px] text-slate-300/90 leading-relaxed mt-2 line-clamp-2">
-                    {item.description}
+                    {desc}
                   </p>
                 </div>
 
@@ -194,14 +204,14 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       className="w-2.5 h-2.5 rounded-[2px]"
                       style={{ backgroundColor: item.primaryColor }}
                     />
-                    <span className="text-slate-300 font-medium">{item.primaryLabel}</span>
+                    <span className="text-slate-300 font-medium">{primaryLbl}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span
                       className="w-2.5 h-2.5 rounded-[2px] border border-white/30"
                       style={{ backgroundColor: item.secondaryColor }}
                     />
-                    <span className="text-slate-300 font-medium">{item.secondaryLabel}</span>
+                    <span className="text-slate-300 font-medium">{secondaryLbl}</span>
                   </div>
                 </div>
               </div>
@@ -211,12 +221,16 @@ export const ThemeSelectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Modal Footer Note */}
         <div className="pt-3 border-t border-amber-500/20 flex items-center justify-between text-xs text-slate-400">
-          <span>✓ ڕووکاری هەڵبژێردراو بە شێوەی خۆکار لەسەر ئامێرەکەت دەمێنێتەوە.</span>
+          <span>
+            {isEn
+              ? '✓ Your selected theme is saved automatically on this device.'
+              : '✓ ڕووکاری هەڵبژێردراو بە شێوەی خۆکار لەسەر ئامێرەکەت دەمێنێتەوە.'}
+          </span>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs cursor-pointer shadow-md transition-all active:scale-95"
           >
-            تەواو
+            {isEn ? 'Done' : 'تەواو'}
           </button>
         </div>
       </div>

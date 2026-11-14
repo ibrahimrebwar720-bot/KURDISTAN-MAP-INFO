@@ -1,3 +1,5 @@
+import boundaryPolygons from './kurdistanBoundaryPolygons.json';
+
 export interface FactImageItem {
   url: string;
   caption?: string;
@@ -18,6 +20,7 @@ export interface FactItem {
   tag: string;
   category?: string;
   region?: string;
+  provinceId?: string;
   collectionId?: string;
   additionalNotes?: string;
   isCustom?: boolean;
@@ -44,16 +47,20 @@ export interface FactItem {
   parentFactId?: number;
   relatedFactIds?: number[];
   allyFactIds?: number[];
+  updatedAt?: number;
 }
 
 export interface EraInfo {
   id: number;
   title: string;
+  titleEn: string;
   range: string;
+  rangeEn: string;
   color: string;
   accent: string;
   icon: string;
   description: string;
+  descriptionEn: string;
   count: number;
 }
 
@@ -61,95 +68,72 @@ export const ERAS: EraInfo[] = [
   {
     id: 1,
     title: 'دەسەڵات و گەلە دێرینەکانی پێش ماد',
+    titleEn: 'Ancient Pre-Median Polities & Peoples',
     range: 'هەزارەی ٣ پێش زایین - سەدەی ٨ پێش زایین',
+    rangeEn: '3rd Millennium BCE – 8th Century BCE',
     color: 'from-amber-600 to-amber-700',
     accent: '#d97706',
     icon: 'Landmark',
     description: 'شارستانیەتەکانی گوتی، لولوبی، هۆری، کاشی، میتانی، ئۆرارتۆ، نائیری، مانایی و ئیلام.',
+    descriptionEn: 'Ancient civilizations of Gutium, Lullubi, Hurrians, Kassites, Mitanni, Urartu, Nairi, Mannaea, and Elam.',
     count: 43
   },
   {
     id: 2,
     title: 'ئیمپراتۆریەتی ماد و سەردەمی کۆن',
+    titleEn: 'The Median Empire & Classical Antiquity',
     range: '٧٠٠ پێش زایین - ٥٥٠ پێش زایین',
+    rangeEn: '700 BCE – 550 BCE',
     color: 'from-emerald-600 to-teal-700',
     accent: '#059669',
     icon: 'Crown',
     description: 'دامەزراندنی دەوڵەتی یەکگرتووی ماد لە ئەکباتانا (هەمەدان)، ڕووخانی نەینەوا و یەکێتیی شەش هۆزەکە.',
+    descriptionEn: 'Founding of the unified Median state at Ecbatana (Hamadan), the fall of Nineveh, and the six Median confederated tribes.',
     count: 35
   },
   {
     id: 3,
     title: 'سەردەمی دوای ماد تا هاتنی ئیسلام',
+    titleEn: 'Post-Median Kingdoms to Early Islam',
     range: 'سەدەی ٤ پێش زایین - سەدەی ٧ی زایینی',
+    rangeEn: '4th Century BCE – 7th Century CE',
     color: 'from-cyan-600 to-blue-700',
     accent: '#0284c7',
     icon: 'Shield',
     description: 'دەوڵەتەکانی ئاترۆپاتین، کاردۆخ، ئادیابین (حودەیب لە هەولێر)، ئەلیماسی، کەیۆسییەکان و بەڵگەنامەکانی هەورامان.',
+    descriptionEn: 'Kingdoms of Atropatene, Corduene (Kardukhi), Adiabene (Erbil), Elymais, the House of Kayus, and the Avroman parchments.',
     count: 38
   },
   {
     id: 4,
     title: 'دەوڵەت، میرنشین و ئەتابەگییە ئیسلامییەکان',
+    titleEn: 'Medieval Dynasties, Atabegs & Emirate Era',
     range: 'سەدەی ٩ - سەدەی ١٩ی زایینی',
+    rangeEn: '9th – 19th Century CE',
     color: 'from-purple-600 to-indigo-700',
     accent: '#7c3aed',
     icon: 'Castle',
     description: 'ئەتابەگەکانی لوڕستان، شوانکارە، حەسەنوەیهی، ئەییووبی، چەمیشگەزەک، پاڵوو، ئەگیل، بابان، سۆران و بۆتان.',
+    descriptionEn: 'Atabegs of Luristan, Shabankara, Hasanwayhids, Ayyubids, Marwanids, Shaddadids, Ardalan, Baban, Soran, and Bohtan.',
     count: 140
   },
   {
     id: 5,
     title: 'سەردەمی عوسمانی، قاجاری، کیان و کۆمارە مۆدێرنەکان',
+    titleEn: 'Late Ottoman, Qajar, Kingdoms & Modern Republics',
     range: 'سەدەی ١٩ تا ئەمڕۆ',
+    rangeEn: '19th Century CE – Present',
     color: 'from-rose-600 to-red-700',
     accent: '#e11d48',
     icon: 'Flag',
     description: 'دەوڵەتی زەند، والیانی فەیلی، شۆڕشی دێرسیم، شانشینی کوردستان، کۆماری مەهاباد، کۆماری ئارارات و بزووتنەوەی ڕزگاریخوازی.',
+    descriptionEn: 'Zand Dynasty, Valis of Poshtkuh, Dersim resistance, Kingdom of Kurdistan, Republic of Mahabad, Republic of Ararat, and modern era.',
     count: 94
   }
 ];
 
-export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
-  // Northwest (Afrin, Maras, Malatya, Erzurum)
-  [36.85, 36.2], [37.5, 36.8], [38.2, 37.2], [39.2, 38.0], [39.8, 38.5],
-  [40.2, 40.5], [41.1, 42.8], [41.0, 43.8], [39.9, 44.6], [38.8, 45.2],
-  [38.0, 45.8], [37.2, 46.2], [36.2, 46.8], [35.3, 47.5], [34.8, 48.5],
-  [33.8, 48.8], [32.8, 49.5], [31.8, 50.2], [30.5, 50.8], [29.8, 50.4],
-  [30.3, 49.5], [31.2, 48.8], [32.0, 48.0],
-  // Southern Zagros down to Wasit Governorate (Badra & Jassan)
-  [32.45, 47.1],   // Dehloran / Tib foothills
-  [32.70, 46.4],   // Southeast Wasit border
-  [32.90, 46.15],  // South of Jassan (باشووری جەسان لە پارێزگای واست)
-  [32.96, 45.92],  // Southwest of Jassan & Badra (جەسان و بەدرە)
-  [33.15, 45.80],  // West of Badra (بەدرە لە پارێزگای واست)
-  [33.45, 45.58],  // Tersaq / Mandali south (تەرەق و باشووری مەندەلی)
-  [33.78, 45.38],  // West of Mandali (مەندەلی)
-  // Garmian & Khanaqin
-  [34.15, 45.10],  // West of Jalawla / Qoratu (جەلەولا)
-  [34.38, 44.95],  // West of Khanaqin (خانەقین و ئەڵوەن)
-  [34.70, 44.48],  // South of Kifri & Tuz Khurmatu (کفری و خورماتوو)
-  // Kirkuk & Erbil plains
-  [35.08, 44.15],  // South of Daquq (داقووق و کەرکووک)
-  [35.45, 43.75],  // West of Kirkuk (ڕۆژئاوای کەرکووک)
-  [35.75, 43.20],  // Makhmur & Qaraj (دەشتی هەولێر و مەخموور)
-  [35.95, 42.65],  // South of Nineveh Plains (دەشتی نەینەوا)
-  // Sinjar (Shingal) region
-  [36.08, 41.80],  // South of Mount Sinjar (باشووری چیای شنگاڵ)
-  [36.18, 41.15],  // Southwest of Sinjar (باشووری ڕۆژئاوای شنگاڵ)
-  // پارێزگای حەسەکە (Hasakah Governorate)
-  [36.05, 40.95],  // South of Hasakah / Al-Hawl & Shaddadi (باشووری پارێزگای حەسەکە)
-  [36.35, 40.20],  // Mount Abdulaziz & southwest Hasakah (چیای عەبدولعەزیز و باشووری حەسەکە)
-  // گرێ سپی (Girê Spî / Tell Abyad)
-  [36.35, 38.90],  // South of Girê Spî / Ayn Issa (باشووری گرێ سپی و عەین عیسا)
-  // کۆبانێ (Kobanî)
-  [36.45, 38.25],  // South of Kobanî / Sarrin & Euphrates (باشووری کۆبانێ و ڕووباری فورات)
-  // باکووری حەلەب، مەنبەج، شەهبا و عەفرین (Northern Aleppo, Manbij, Shahba & Afrin)
-  [36.40, 37.60],  // Manbij & Shahba (مەنبەج و دەشتی شەهبا)
-  [36.20, 37.15],  // Northern Aleppo / Sheikh Maqsoud (باکووری حەلەب، شێخ مەقسوود و تەل ڕەفعەت)
-  [36.35, 36.70],  // South of Afrin / Mount Simeon & Jenderes (باشووری عەفرین و جۆندێرێس)
-  [36.60, 36.40]   // West of Afrin (چیای کورمێنج و سنوری باکووری ڕۆژئاوا)
-];
+export const GREAT_KURDISTAN_POLYGON: [number, number][] =
+  boundaryPolygons.greatKurdistan as [number, number][];
 
 // Helper to determine category tag
 function getTag(id: number): 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture' {

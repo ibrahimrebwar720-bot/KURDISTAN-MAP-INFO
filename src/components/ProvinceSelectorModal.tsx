@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   MapPin,
@@ -6,6 +6,8 @@ import {
   Check,
   Compass,
   MapPinned,
+  Globe,
+  Loader2,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
@@ -15,6 +17,9 @@ import {
 } from '../data/kurdishProvincesData';
 import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import { formatDigits } from '../utils/yearUtils';
+import { verifyFactsProvincesWithGoogle } from '../services/googleMapsSearchService';
 
 interface ProvinceSelectorModalProps {
   isOpen: boolean;
@@ -32,32 +37,83 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
   onSelectProvince,
 }) => {
   const { colorMode } = useTheme();
+  const { language, isEn, dir } = useLanguage();
   const isDark = colorMode !== 'light';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activePartFilter, setActivePartFilter] = useState<ProvincePart | 'all'>('all');
+  const [cacheTick, setCacheTick] = useState<number>(0);
+  const [isVerifyingGoogle, setIsVerifyingGoogle] = useState<boolean>(false);
+  const [verifyProgress, setVerifyProgress] = useState<{ done: number; total: number } | null>(null);
+  const [verifyStatusMsg, setVerifyStatusMsg] = useState<string | null>(null);
 
-  // Compute provinces with dynamic counts based on facts
+  useEffect(() => {
+    const onUpdated = () => setCacheTick((t) => t + 1);
+    window.addEventListener('google-province-cache-updated', onUpdated);
+    return () => window.removeEventListener('google-province-cache-updated', onUpdated);
+  }, []);
+
+  const handleVerifyWithGoogle = async () => {
+    if (isVerifyingGoogle) return;
+    setIsVerifyingGoogle(true);
+    setVerifyStatusMsg(null);
+    try {
+      const result = await verifyFactsProvincesWithGoogle(facts, {
+        onProgress: (done, total) => {
+          setVerifyProgress({ done, total });
+        },
+        onResolvedFact: () => {
+          setCacheTick((t) => t + 1);
+        },
+      });
+      setCacheTick((t) => t + 1);
+      window.dispatchEvent(new CustomEvent('google-province-cache-updated'));
+      if (result.quotaHit) {
+        setVerifyStatusMsg(
+          isEn
+            ? 'Google Maps daily quota reached; local province boundaries were used.'
+            : 'کۆتای ڕۆژانەی گۆگڵ پڕبووەوە؛ سنوورە ناوخۆییەکان بەکارهێنران.'
+        );
+      } else if (result.checkedCount === 0) {
+        setVerifyStatusMsg(
+          isEn
+            ? 'All points have already been verified against Google Maps boundaries.'
+            : 'هەموو پۆینتەکان پێشتر بە داتای گۆگڵ پشتڕاستکراونەتەوە.'
+        );
+      } else {
+        setVerifyStatusMsg(
+          isEn
+            ? `${result.updatedCount} locations updated via Google Maps boundary data.`
+            : `${result.updatedCount} شوێن بە داتای سنوری گۆگڵ نوێکرانەوە.`
+        );
+      }
+    } finally {
+      setIsVerifyingGoogle(false);
+      setVerifyProgress(null);
+    }
+  };
+
+  // Compute provinces with dynamic counts based on facts and active language
   const { allProvinces, outsideProvinces, totalFacts } = useMemo(() => {
-    return getProvincesWithCounts(facts);
-  }, [facts]);
+    return getProvincesWithCounts(facts, language);
+  }, [facts, cacheTick, language]);
 
   // Filtered list based on search and part tab
   const filteredProvinces = useMemo(() => {
     let list = allProvinces;
 
-    // Filter by Part tab
     if (activePartFilter !== 'all') {
       list = list.filter((p) => p.part === activePartFilter);
     }
 
-    // Filter by Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.trim();
       list = list.filter((p) => {
         return (
           kurdishSearchMatch(p.name, q) ||
+          kurdishSearchMatch(p.nameEn, q) ||
           kurdishSearchMatch(p.partName, q) ||
+          kurdishSearchMatch(p.partNameEn, q) ||
           p.aliases.some((a) => kurdishSearchMatch(a, q))
         );
       });
@@ -110,13 +166,13 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
       onClick={onClose}
     >
       <div
-        className={`relative w-full max-w-lg rounded-[4px] p-4 sm:p-5 shadow-2xl max-h-[92dvh] flex flex-col overflow-hidden text-right border transition-colors ${
+        className={`relative w-full max-w-lg rounded-[4px] p-4 sm:p-5 shadow-2xl max-h-[92dvh] flex flex-col overflow-hidden text-start border transition-colors ${
           isDark
             ? 'bg-[#090d18] text-slate-100 border-white/10'
             : 'bg-white text-slate-900 border-slate-300'
         }`}
         onClick={(e) => e.stopPropagation()}
-        dir="rtl"
+        dir={dir}
       >
         {/* Modal Header */}
         <div className={`flex items-center justify-between pb-3 mb-3 border-b shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
@@ -130,15 +186,17 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
               <h3 className={`text-sm sm:text-base font-extrabold font-heading truncate flex items-center gap-2 ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                <span>پۆلێنی پارێزگاکان</span>
+                <span>{isEn ? 'Provinces Directory' : 'پۆلێنی پارێزگاکان'}</span>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-[3px] border font-bold ${
                   isDark ? 'bg-amber-400/15 text-amber-300 border-amber-400/30' : 'bg-amber-100 text-amber-900 border-amber-300'
                 }`}>
-                  {allProvinces.length} پارێزگا
+                  {formatDigits(allProvinces.length, language)} {isEn ? 'Provinces' : 'پارێزگا'}
                 </span>
               </h3>
               <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                فلتەرکردنی شوێنەکان بەپێی پارێزگاکانی کوردستان
+                {isEn
+                  ? 'Filter historical sites by Kurdistan province'
+                  : 'فلتەرکردنی شوێنەکان بەپێی پارێزگاکانی کوردستان'}
               </p>
             </div>
           </div>
@@ -150,7 +208,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 ? 'bg-white/[0.06] text-slate-400 hover:text-white border-white/10'
                 : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-300'
             }`}
-            title="داخستن"
+            title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -158,13 +216,17 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
 
         {/* Search Input Box */}
         <div className="relative mb-3 shrink-0">
-          <Search className={`w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+          <Search className={`w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="گەڕان بەپێی ناوی پارێزگا (هەولێر، ئامەد، سنە، عەفرین، ماردین...)"
-            className={`w-full text-xs pr-9 pl-8 py-2 rounded-[4px] border focus:outline-none transition-all ${
+            placeholder={
+              isEn
+                ? 'Search province (Erbil, Amed, Sine, Afrin, Mardin...)'
+                : 'گەڕان بەپێی ناوی پارێزگا (هەولێر، ئامەد، سنە، عەفرین، ماردین...)'
+            }
+            className={`w-full text-xs ps-9 pe-8 py-2 rounded-[4px] border focus:outline-none transition-all ${
               isDark
                 ? 'bg-white/[0.05] text-white placeholder:text-slate-500 border-white/10 focus:border-amber-400'
                 : 'bg-slate-50 text-slate-900 placeholder:text-slate-400 border-slate-300 focus:bg-white focus:border-amber-500 font-medium'
@@ -173,7 +235,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className={`absolute left-2.5 top-1/2 -translate-y-1/2 p-0.5 cursor-pointer ${
+              className={`absolute end-2.5 top-1/2 -translate-y-1/2 p-0.5 cursor-pointer ${
                 isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -192,7 +254,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.05] text-slate-300 hover:text-white border-white/10' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300')
             }`}
           >
-            هەموو پارێزگاکان ({allProvinces.length})
+            {isEn ? `All (${allProvinces.length})` : `هەموو پارێزگاکان (${allProvinces.length})`}
           </button>
 
           <button
@@ -203,7 +265,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-emerald-400 border-white/10' : 'bg-emerald-50 text-emerald-800 border-emerald-200')
             }`}
           >
-            باشوور (٩)
+            {isEn ? 'South (9)' : 'باشوور (٩)'}
           </button>
 
           <button
@@ -214,7 +276,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-amber-400 border-white/10' : 'bg-amber-50 text-amber-900 border-amber-200')
             }`}
           >
-            باکوور (٢٤)
+            {isEn ? 'North (24)' : 'باکوور (٢٤)'}
           </button>
 
           <button
@@ -225,7 +287,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-cyan-400 border-white/10' : 'bg-cyan-50 text-cyan-900 border-cyan-200')
             }`}
           >
-            ڕۆژهەڵات (٩)
+            {isEn ? 'East (9)' : 'ڕۆژهەڵات (٩)'}
           </button>
 
           <button
@@ -236,7 +298,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-purple-400 border-white/10' : 'bg-purple-50 text-purple-900 border-purple-200')
             }`}
           >
-            ڕۆژئاوا (٥)
+            {isEn ? 'West (5)' : 'ڕۆژئاوا (٥)'}
           </button>
 
           {outsideProvinces.length > 0 && (
@@ -248,7 +310,9 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                   : (isDark ? 'bg-white/[0.04] text-rose-400 border-white/10' : 'bg-rose-50 text-rose-900 border-rose-200')
               }`}
             >
-              دەرەوەی کوردستان ({outsideProvinces.length})
+              {isEn
+                ? `Outside Kurdistan (${outsideProvinces.length})`
+                : `دەرەوەی کوردستان (${outsideProvinces.length})`}
             </button>
           )}
         </div>
@@ -260,7 +324,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
               onSelectProvince('all');
               onClose();
             }}
-            className={`w-full flex items-center justify-between p-2.5 rounded-[4px] transition-all cursor-pointer text-right border ${
+            className={`w-full flex items-center justify-between p-2.5 rounded-[4px] transition-all cursor-pointer text-start border ${
               selectedProvinceId === 'all' || !selectedProvinceId
                 ? (isDark ? 'bg-amber-400/20 text-amber-300 border-amber-400/50 font-bold shadow-sm' : 'bg-amber-100 text-amber-950 border-amber-400 font-bold shadow-xs')
                 : (isDark ? 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 hover:text-white border-white/10' : 'bg-slate-50 hover:bg-white text-slate-800 border-slate-300 shadow-xs')
@@ -269,22 +333,22 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-amber-500" />
               <span className="text-xs sm:text-sm font-bold font-heading">
-                هەموو پارێزگاکان (سەرجەم کوردستان)
+                {isEn ? 'All Provinces (Greater Kurdistan)' : 'هەموو پارێزگاکان (سەرجەم کوردستان)'}
               </span>
             </div>
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-[3px] border ${
               isDark ? 'bg-white/10 text-amber-300 border-white/10' : 'bg-white text-amber-900 border-slate-300'
             }`}>
-              {totalFacts} شوێن
+              {formatDigits(totalFacts, language)} {isEn ? 'sites' : 'شوێن'}
             </span>
           </button>
         </div>
 
         {/* Provinces List */}
-        <div className="space-y-1.5 overflow-y-auto pr-1 custom-scrollbar flex-1">
+        <div className="space-y-1.5 overflow-y-auto pe-1 custom-scrollbar flex-1">
           {filteredProvinces.length === 0 ? (
             <div className={`py-8 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              هیچ پارێزگایەک بەم ناوەوە نەدۆزرایەوە.
+              {isEn ? 'No province matching your search was found.' : 'هیچ پارێزگایەک بەم ناوەوە نەدۆزرایەوە.'}
             </div>
           ) : (
             filteredProvinces.map((prov) => {
@@ -297,7 +361,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                     onSelectProvince(prov.id, prov);
                     onClose();
                   }}
-                  className={`w-full flex items-center justify-between p-2 sm:p-2.5 rounded-[4px] transition-all cursor-pointer text-right group border ${
+                  className={`w-full flex items-center justify-between p-2 sm:p-2.5 rounded-[4px] transition-all cursor-pointer text-start group border ${
                     isSelected
                       ? (isDark ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow-sm' : 'bg-amber-500 text-slate-950 border-amber-600 font-bold shadow-xs')
                       : (isDark ? 'bg-white/[0.03] hover:bg-white/[0.08] hover:border-amber-400/40 text-slate-200 border-white/10' : 'bg-white hover:bg-amber-50/60 hover:border-amber-400 text-slate-900 border-slate-200 shadow-xs')
@@ -346,7 +410,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                           : (isDark ? 'bg-white/5 text-slate-500 border-white/10' : 'bg-slate-100 text-slate-500 border-slate-200')
                       }`}
                     >
-                      {prov.count} شوێن
+                      {formatDigits(prov.count, language)} {isEn ? 'sites' : 'شوێن'}
                     </span>
                     {isSelected && <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />}
                   </div>
@@ -357,31 +421,79 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className={`pt-3 mt-3 border-t flex items-center justify-between gap-2 shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-          <div className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-            {currentSelected && currentSelected.id !== 'all' ? (
-              <span className={`flex items-center gap-1 font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                <MapPin className="w-3 h-3" />
-                <span>پارێزگای هەڵبژێردراو: {currentSelected.name}</span>
-              </span>
-            ) : (
-              <span>هەموو کوردستان پیشاندراوە</span>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              onSelectProvince('all');
-              onClose();
-            }}
-            className={`px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+        <div className={`pt-3 mt-3 border-t space-y-2 shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+          {verifyStatusMsg && (
+            <div className={`text-[10px] font-bold px-2.5 py-1.5 rounded-[4px] border flex items-center gap-1.5 ${
               isDark
-                ? 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border-white/10'
-                : 'bg-slate-100 hover:bg-slate-200 text-amber-900 border-slate-300'
-            }`}
-          >
-            <span>پاککردنەوە</span>
-          </button>
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
+              <Check className="w-3 h-3 shrink-0" />
+              <span>{verifyStatusMsg}</span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              {currentSelected && currentSelected.id !== 'all' ? (
+                <span className={`flex items-center gap-1 font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                  <MapPin className="w-3 h-3" />
+                  <span>{isEn ? `Selected: ${currentSelected.name}` : `هەڵبژێردراو: ${currentSelected.name}`}</span>
+                </span>
+              ) : (
+                <span>{isEn ? 'Showing all of Kurdistan' : 'هەموو کوردستان پیشاندراوە'}</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleVerifyWithGoogle}
+                disabled={isVerifyingGoogle}
+                className={`px-2.5 py-1.5 rounded-[4px] text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border disabled:opacity-60 ${
+                  isDark
+                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-400/40'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+                }`}
+                title={
+                  isEn
+                    ? 'Verify administrative boundaries via Google Maps data'
+                    : 'پشکنینی سنورە ئیدارییەکان بە داتای فەرمی گۆگڵ ماپس'
+                }
+              >
+                {isVerifyingGoogle ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>
+                      {verifyProgress
+                        ? `${verifyProgress.done}/${verifyProgress.total}`
+                        : isEn
+                        ? 'Checking...'
+                        : 'پشکنین...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>{isEn ? 'Verify via Google' : 'پشکنینی سنور بە گۆگڵ'}</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  onSelectProvince('all');
+                  onClose();
+                }}
+                className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  isDark
+                    ? 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border-white/10'
+                    : 'bg-slate-100 hover:bg-slate-200 text-amber-900 border-slate-300'
+                }`}
+              >
+                <span>{isEn ? 'Clear' : 'پاککردنەوە'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

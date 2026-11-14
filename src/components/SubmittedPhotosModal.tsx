@@ -12,7 +12,6 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   Loader2,
   Sparkles,
 } from 'lucide-react';
@@ -24,6 +23,8 @@ import {
   deletePhotoSubmission,
 } from '../services/firestoreHistoryService';
 import { kurdishSearchMatch } from '../utils/kurdishSearch';
+import { useLanguage } from '../context/LanguageContext';
+import { formatDigits } from '../utils/yearUtils';
 
 interface SubmittedPhotosModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   onFactUpdated,
   onSelectFact,
 }) => {
+  const { language, isEn, dir } = useLanguage();
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -51,7 +53,6 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Filter & Search with Kurdish character normalization
   const filteredList = submissions.filter((item) => {
     if (filter !== 'all' && item.status !== filter) return false;
     if (!searchQuery.trim()) return true;
@@ -81,11 +82,15 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   const handleApprove = async (submission: PhotoSubmission) => {
     setProcessingId(submission.id);
     try {
-      const updatedFact = await approvePhotoSubmission(submission, allFacts);
+      const updatedFact = await approvePhotoSubmission(submission, allFacts, language);
       if (updatedFact && onFactUpdated) {
         onFactUpdated(updatedFact);
       }
-      setSuccessMsg(`وێنەکە بە سەرکەوتوویی لەسەر بابەتی «${submission.factName}» بڵاوکرایەوە!`);
+      setSuccessMsg(
+        isEn
+          ? `Photo published to "${submission.factName}" successfully!`
+          : `وێنەکە بە سەرکەوتوویی لەسەر بابەتی «${submission.factName}» بڵاوکرایەوە!`
+      );
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error('Failed to approve photo submission:', err);
@@ -106,7 +111,13 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   };
 
   const handleDelete = async (submissionId: string) => {
-    if (window.confirm('ئایا دڵنیایت لە سڕینەوەی ئەم وێنە نێردراوە؟')) {
+    if (
+      window.confirm(
+        isEn
+          ? 'Are you sure you want to delete this submitted photo?'
+          : 'ئایا دڵنیایت لە سڕینەوەی ئەم وێنە نێردراوە؟'
+      )
+    ) {
       try {
         await deletePhotoSubmission(submissionId);
       } catch (err) {
@@ -119,7 +130,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
     if (!timestamp) return '';
     try {
       const d = new Date(timestamp);
-      return d.toLocaleDateString('ckb', {
+      return d.toLocaleDateString(isEn ? 'en-US' : 'ckb', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -132,10 +143,10 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-start">
       <div
         className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 text-white overflow-hidden animate-scale-up shadow-[0_24px_70px_rgba(0,0,0,0.9)]"
-        dir="rtl"
+        dir={dir}
       >
         {/* Modal Header */}
         <div className="relative z-10 px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
@@ -146,16 +157,18 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black font-heading text-white">
-                  وێنە نێردراوەکان
+                  {isEn ? 'Submitted Photos' : 'وێنە نێردراوەکان'}
                 </h2>
                 {pendingCount > 0 && (
                   <span className="px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold">
-                    {pendingCount} چاوەڕوانکراو
+                    {formatDigits(pendingCount, language)} {isEn ? 'Pending' : 'چاوەڕوانکراو'}
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                پێداچوونەوە و پەسەندکردنی ئەو وێنانەی کە لەلایەن بەکارهێنەرانەوە نێردراون
+                {isEn
+                  ? 'Review and approve historical photograph links submitted by visitors'
+                  : 'پێداچوونەوە و پەسەندکردنی ئەو وێنانەی کە لەلایەن بەکارهێنەرانەوە نێردراون'}
               </p>
             </div>
           </div>
@@ -164,7 +177,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
             onClick={onClose}
             type="button"
             className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white bg-white/5 hover:bg-white/15 transition-all cursor-pointer border border-white/10"
-            title="داخستن"
+            title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -188,7 +201,6 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
 
         {/* Filter Tabs & Search Bar */}
         <div className="relative z-10 px-5 pt-3 pb-2 border-b border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
-          {/* Filter Tabs */}
           <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/10 overflow-x-auto scrollbar-none">
             <button
               onClick={() => setFilter('pending')}
@@ -199,7 +211,10 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
-              <span>چاوەڕوانکراو ({submissions.filter((s) => s.status === 'pending').length})</span>
+              <span>
+                {isEn ? 'Pending' : 'چاوەڕوانکراو'} (
+                {formatDigits(submissions.filter((s) => s.status === 'pending').length, language)})
+              </span>
             </button>
 
             <button
@@ -211,7 +226,10 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>پەسەندکراو ({submissions.filter((s) => s.status === 'approved').length})</span>
+              <span>
+                {isEn ? 'Approved' : 'پەسەندکراو'} (
+                {formatDigits(submissions.filter((s) => s.status === 'approved').length, language)})
+              </span>
             </button>
 
             <button
@@ -223,7 +241,10 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
               }`}
             >
               <XCircle className="w-3.5 h-3.5" />
-              <span>ڕەتکراوە ({submissions.filter((s) => s.status === 'rejected').length})</span>
+              <span>
+                {isEn ? 'Rejected' : 'ڕەتکراوە'} (
+                {formatDigits(submissions.filter((s) => s.status === 'rejected').length, language)})
+              </span>
             </button>
 
             <button
@@ -234,19 +255,19 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-white/5'
               }`}
             >
-              هەمووی ({submissions.length})
+              {isEn ? 'All' : 'هەمووی'} ({formatDigits(submissions.length, language)})
             </button>
           </div>
 
           {/* Search Box */}
           <div className="relative sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute start-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="گەڕان بەپێی بابەت، نێرەر..."
-              className="w-full h-9 pr-9 pl-3 rounded-xl bg-black/50 border border-white/15 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-white placeholder-slate-500 text-xs transition-all outline-hidden"
+              placeholder={isEn ? 'Search by entry, sender...' : 'گەڕان بەپێی بابەت، نێرەر...'}
+              className="w-full h-9 ps-9 pe-3 rounded-xl bg-black/50 border border-white/15 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-white placeholder-slate-500 text-xs transition-all outline-hidden"
             />
           </div>
         </div>
@@ -259,10 +280,12 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                 <Images className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-slate-300">
-                هیچ وێنەیەکی نێردراو لەم بەشەدا نییە
+                {isEn ? 'No photo submissions in this category' : 'هیچ وێنەیەکی نێردراو لەم بەشەدا نییە'}
               </h3>
               <p className="text-xs text-slate-500">
-                کاتێک بەکارهێنەران وێنە بۆ بابەتە بێ وێنەکان دەنێرن، لێرەدا دەردەکەون.
+                {isEn
+                  ? 'When visitors suggest photographs for entries without images, they will appear here.'
+                  : 'کاتێک بەکارهێنەران وێنە بۆ بابەتە بێ وێنەکان دەنێرن، لێرەدا دەردەکەون.'}
               </p>
             </div>
           ) : (
@@ -277,13 +300,11 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                     key={item.id}
                     className="group relative rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-amber-500/30 p-3.5 transition-all flex flex-col justify-between gap-3 shadow-sm hover:shadow-lg"
                   >
-                    {/* Top: Image Thumbnail + Details */}
                     <div className="flex items-start gap-3">
-                      {/* Image Preview Box */}
                       <div
                         onClick={() => setPreviewImage(item.imageUrl)}
                         className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-black/90 border border-white/15 shrink-0 cursor-pointer group/img shadow-md"
-                        title="داگرە بۆ بینینی تەواوی قەبارەی وێنە"
+                        title={isEn ? 'Click to view full size' : 'داگرە بۆ بینینی تەواوی قەبارەی وێنە'}
                       >
                         <img
                           src={item.imageUrl}
@@ -296,7 +317,6 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Fact & Submitter Details */}
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center justify-between gap-1">
                           <span
@@ -309,9 +329,15 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                             }`}
                           >
                             {item.status === 'approved'
-                              ? 'پەسەندکراو'
+                              ? isEn
+                                ? 'Approved'
+                                : 'پەسەندکراو'
                               : item.status === 'rejected'
-                              ? 'ڕەتکراوە'
+                              ? isEn
+                                ? 'Rejected'
+                                : 'ڕەتکراوە'
+                              : isEn
+                              ? 'Pending'
                               : 'چاوەڕوانکراو'}
                           </span>
 
@@ -320,7 +346,6 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                           </span>
                         </div>
 
-                        {/* Fact Name Button */}
                         <div className="flex items-center gap-1.5">
                           <h4 className="text-sm font-extrabold text-white truncate">
                             {item.factName}
@@ -333,22 +358,22 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                                 onClose();
                               }}
                               className="text-[10px] font-bold text-amber-400 hover:text-amber-300 underline cursor-pointer shrink-0"
-                              title="کردنەوەی بابەت لە نەخشەدا"
+                              title={isEn ? 'Open entry on map' : 'کردنەوەی بابەت لە نەخشەدا'}
                             >
-                              (کردنەوە)
+                              {isEn ? '(Open)' : '(کردنەوە)'}
                             </button>
                           )}
                         </div>
 
-                        {/* Submitter Name if any */}
                         {item.senderName && (
                           <div className="flex items-center gap-1 text-[11px] text-slate-300">
                             <User className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate">نێرەر: {item.senderName}</span>
+                            <span className="truncate">
+                              {isEn ? 'Sender:' : 'نێرەر:'} {item.senderName}
+                            </span>
                           </div>
                         )}
 
-                        {/* Note / Source if any */}
                         {item.note && (
                           <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-white/[0.03] p-1.5 rounded-lg">
                             <FileText className="w-3 h-3 text-slate-500 shrink-0" />
@@ -356,16 +381,13 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                           </div>
                         )}
 
-                        {/* Image URL with truncation */}
                         <div className="text-[10px] font-mono text-slate-400 truncate bg-black/40 px-2 py-1 rounded-md" dir="ltr">
                           {item.imageUrl}
                         </div>
                       </div>
                     </div>
 
-                    {/* Bottom Action Buttons: Copy, Approve, Reject */}
                     <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-white/10">
-                      {/* Copy Link Button */}
                       <button
                         type="button"
                         onClick={() => handleCopyUrl(item)}
@@ -374,22 +396,21 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                             : 'bg-white/5 hover:bg-white/10 text-amber-400 border-white/10'
                         }`}
-                        title="کۆپیکردنی بەستەری وێنە"
+                        title={isEn ? 'Copy image URL' : 'کۆپیکردنی بەستەری وێنە'}
                       >
                         {isCopied ? (
                           <>
                             <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>کۆپیکرا</span>
+                            <span>{isEn ? 'Copied' : 'کۆپیکرا'}</span>
                           </>
                         ) : (
                           <>
                             <Copy className="w-3.5 h-3.5" />
-                            <span>کۆپی</span>
+                            <span>{isEn ? 'Copy' : 'کۆپی'}</span>
                           </>
                         )}
                       </button>
 
-                      {/* Moderation Controls: Approve / Reject / Delete */}
                       <div className="flex items-center gap-1.5">
                         {item.status !== 'approved' && (
                           <button
@@ -397,14 +418,18 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                             onClick={() => handleApprove(item)}
                             disabled={isProcessing}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-extrabold bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 shadow-md transition-all cursor-pointer active:scale-95 disabled:opacity-40"
-                            title="ڕازیبوون و بڵاوکردنەوە لەسەر بابەتەکە بێ دەستکاری"
+                            title={
+                              isEn
+                                ? 'Approve & publish directly to entry'
+                                : 'ڕازیبوون و بڵاوکردنەوە لەسەر بابەتەکە بێ دەستکاری'
+                            }
                           >
                             {isProcessing ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
                             )}
-                            <span>ڕازی بوون</span>
+                            <span>{isEn ? 'Approve' : 'ڕازی بوون'}</span>
                           </button>
                         )}
 
@@ -414,10 +439,10 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                             onClick={() => handleReject(item)}
                             disabled={isProcessing}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition-all cursor-pointer active:scale-95 disabled:opacity-40"
-                            title="ڕەتکردنەوەی ئەم وێنەیە"
+                            title={isEn ? 'Reject this photo' : 'ڕەتکردنەوەی ئەم وێنەیە'}
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>ڕەتکردنەوە</span>
+                            <span>{isEn ? 'Reject' : 'ڕەتکردنەوە'}</span>
                           </button>
                         )}
 
@@ -425,7 +450,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                           type="button"
                           onClick={() => handleDelete(item.id)}
                           className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                          title="سڕینەوەی ئەم پێشنیارە"
+                          title={isEn ? 'Delete submission' : 'سڕینەوەی ئەم پێشنیارە'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -441,14 +466,22 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
         {/* Footer info */}
         <div className="relative z-10 px-5 py-3 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-xs text-slate-400">
           <span>
-            سەرجەم وێنە پەسەندکراوەکان ڕاستەوخۆ دەخرێنە سەر نەخشە و ئینسایکلۆپیدیای <strong>kurdistan info map</strong>.
+            {isEn ? (
+              <>
+                All approved photographs are published directly to the <strong>kurdistan info map</strong> archive.
+              </>
+            ) : (
+              <>
+                سەرجەم وێنە پەسەندکراوەکان ڕاستەوخۆ دەخرێنە سەر نەخشە و ئینسایکلۆپیدیای <strong>kurdistan info map</strong>.
+              </>
+            )}
           </span>
           <button
             onClick={onClose}
             type="button"
             className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
           >
-            داخستن
+            {isEn ? 'Close' : 'داخستن'}
           </button>
         </div>
       </div>
@@ -462,13 +495,13 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
           <div className="relative max-w-4xl max-h-[90vh]">
             <img
               src={previewImage}
-              alt="پێشبینینی گەورەی وێنە"
+              alt={isEn ? 'Full photo preview' : 'پێشبینینی گەورەی وێنە'}
               className="max-h-[85vh] max-w-full rounded-2xl object-contain border border-white/20 shadow-2xl"
             />
             <button
               onClick={() => setPreviewImage(null)}
-              className="absolute top-3 left-3 w-9 h-9 rounded-full bg-black/70 text-white flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all cursor-pointer"
-              title="داخستن"
+              className="absolute top-3 end-3 w-9 h-9 rounded-full bg-black/70 text-white flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all cursor-pointer"
+              title={isEn ? 'Close' : 'داخستن'}
             >
               <X className="w-4 h-4" />
             </button>

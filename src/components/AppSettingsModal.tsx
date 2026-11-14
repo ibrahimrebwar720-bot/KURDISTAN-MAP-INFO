@@ -12,11 +12,13 @@ import {
   Shield,
   ShieldCheck,
   Plus,
-  SlidersHorizontal,
   Images,
+  Globe,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { THEME_LIST } from '../types/theme';
+import { formatDigits } from '../utils/yearUtils';
 
 interface Props {
   isOpen: boolean;
@@ -55,11 +57,6 @@ export const AppSettingsModal: React.FC<Props> = ({
   setShowBottomPhotoStrip,
   showAllMarkers,
   setShowAllMarkers,
-  showPolygon,
-  setShowPolygon,
-  onReplayIntro,
-  onOpenDocumentaryTour,
-  onOpenGallery,
   onOpenTheme,
   isAdmin,
   onTriggerAdminPin,
@@ -70,6 +67,7 @@ export const AppSettingsModal: React.FC<Props> = ({
   factsCount,
 }) => {
   const { theme, themeId, setTheme, colorMode, setColorMode } = useTheme();
+  const { language, isEn, dir, setLanguage } = useLanguage();
 
   // Admin secret 6-tap tracking
   const [adminTapCount, setAdminTapCount] = useState(0);
@@ -102,13 +100,13 @@ export const AppSettingsModal: React.FC<Props> = ({
       onClick={onClose}
     >
       <div
-        className={`relative w-full max-w-md rounded-[4px] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.85)] max-h-[90vh] overflow-y-auto text-right flex flex-col gap-4 animate-scale-in ${
+        className={`relative w-full max-w-md rounded-[4px] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.85)] max-h-[90vh] overflow-y-auto text-start flex flex-col gap-4 animate-scale-in ${
           colorMode === 'light'
             ? 'bg-[#ffffff] text-slate-900 border border-slate-200 border-t-amber-500/50'
             : 'bg-[#0a0e1a] text-slate-100 border border-white/10 border-t-amber-500/40'
         }`}
         onClick={(e) => e.stopPropagation()}
-        dir="rtl"
+        dir={dir}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
@@ -122,23 +120,67 @@ export const AppSettingsModal: React.FC<Props> = ({
             </div>
             <div>
               <h2 className="font-heading font-extrabold text-sm sm:text-base">
-                ڕێکخستنەکان و ئامرازەکان
+                {isEn ? 'Settings & Tools' : 'ڕێکخستنەکان و ئامرازەکان'}
               </h2>
               <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                ڕێکخستنی شێوازی نەخشە، دیمەن و ڕووکار
+                {isEn
+                  ? 'Language, map style, appearance & preferences'
+                  : 'ڕێکخستنی زمان، شێوازی نەخشە، دیمەن و ڕووکار'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-            title="داخستن"
+            title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* 1. دۆخی دیمەن (ڕووناکی نەرم / تاریک) */}
+        {/* 0. Language Selector (کوردی سۆرانی / English) */}
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold flex items-center gap-1.5">
+              <Globe className="w-4 h-4 text-amber-500" />
+              <span>{isEn ? 'Language & Dataset Edition' : 'زمان و داتابەیسی سەربەخۆ'}</span>
+            </span>
+            <span className="text-[11px] font-bold text-amber-500">
+              {isEn ? 'English (LTR)' : 'کوردی (RTL)'}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setLanguage('ckb')}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                language === 'ckb'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-800 dark:text-slate-200 border-slate-300 dark:border-white/15 hover:bg-slate-100 dark:hover:bg-white/15'
+              }`}
+            >
+              <span>کوردی سۆرانی</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('en')}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                language === 'en'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-800 dark:text-slate-200 border-slate-300 dark:border-white/15 hover:bg-slate-100 dark:hover:bg-white/15'
+              }`}
+            >
+              <span>English</span>
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            {isEn
+              ? 'Kurdish and English editions maintain completely separate historical datasets.'
+              : 'بەشی کوردی و ئینگلیزی خاوەنی داتابەیس و بابەتی سەربەخۆ و جیاوازن لە یەکتری.'}
+          </p>
+        </div>
+
+        {/* 1. Color Mode */}
         <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
@@ -147,10 +189,10 @@ export const AppSettingsModal: React.FC<Props> = ({
               ) : (
                 <Moon className="w-4 h-4 text-amber-400" />
               )}
-              <span>دۆخی دیمەن (ڕووناک / تاریک)</span>
+              <span>{isEn ? 'Color Mode (Light / Dark)' : 'دۆخی دیمەن (ڕووناک / تاریک)'}</span>
             </span>
             <span className="text-[11px] font-bold text-amber-500">
-              {colorMode === 'light' ? 'ڕووناک' : 'تاریک'}
+              {isEn ? (colorMode === 'light' ? 'Light' : 'Dark') : colorMode === 'light' ? 'ڕووناک' : 'تاریک'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -164,7 +206,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               }`}
             >
               <Sun className="w-3.5 h-3.5" />
-              <span>ڕووناک</span>
+              <span>{isEn ? 'Light Mode' : 'ڕووناک'}</span>
             </button>
             <button
               type="button"
@@ -176,20 +218,26 @@ export const AppSettingsModal: React.FC<Props> = ({
               }`}
             >
               <Moon className="w-3.5 h-3.5" />
-              <span>تاریک (Dark)</span>
+              <span>{isEn ? 'Dark Mode' : 'تاریک (Dark)'}</span>
             </button>
           </div>
         </div>
 
-        {/* 2. شێوازی نیشاندانی مارکەرەکان (وێنەیی / خاڵەکان) */}
+        {/* 2. Marker View Mode */}
         <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
               <ImageIcon className="w-4 h-4 text-amber-500" />
-              <span>شێوازی نیشاندانی شوێنەکان</span>
+              <span>{isEn ? 'Map Marker Style' : 'شێوازی نیشاندانی شوێنەکان'}</span>
             </span>
             <span className="text-[11px] font-bold text-amber-500">
-              {markerViewMode === 'photo' ? 'وێنەیی (چوارگۆشە)' : 'خاڵەکان (پۆینت)'}
+              {isEn
+                ? markerViewMode === 'photo'
+                  ? 'Photo Cards'
+                  : 'Classic Pins'
+                : markerViewMode === 'photo'
+                ? 'وێنەیی (چوارگۆشە)'
+                : 'خاڵەکان (پۆینت)'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -203,7 +251,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
-              <span>نیشاندانی وێنەیی</span>
+              <span>{isEn ? 'Photo View' : 'نیشاندانی وێنەیی'}</span>
             </button>
             <button
               type="button"
@@ -218,7 +266,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               }`}
             >
               <MapPin className="w-3.5 h-3.5" />
-              <span>خاڵە کلاسیکییەکان</span>
+              <span>{isEn ? 'Classic Pins' : 'خاڵە کلاسیکییەکان'}</span>
             </button>
           </div>
 
@@ -228,23 +276,23 @@ export const AppSettingsModal: React.FC<Props> = ({
               onClick={() => setShowBottomPhotoStrip((prev) => !prev)}
               className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 transition-all cursor-pointer mt-1"
             >
-              <span>شریتی وێنەیی خوارەوە</span>
+              <span>{isEn ? 'Bottom Photo Strip' : 'شریتی وێنەیی خوارەوە'}</span>
               <span className={`text-[11px] font-extrabold ${showBottomPhotoStrip ? 'text-emerald-500' : 'text-slate-400'}`}>
-                {showBottomPhotoStrip ? 'کراوەیە' : 'داخراوە'}
+                {isEn ? (showBottomPhotoStrip ? 'Shown' : 'Hidden') : showBottomPhotoStrip ? 'کراوەیە' : 'داخراوە'}
               </span>
             </button>
           )}
         </div>
 
-        {/* 3. جۆری نەخشە: مانگی دەستکرد / تاریک */}
+        {/* 3. Base Map Layer */}
         <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
               <Satellite className="w-4 h-4 text-amber-500" />
-              <span>تایلی نەخشەی بنەڕەت</span>
+              <span>{isEn ? 'Base Map Tiles' : 'تایلی نەخشەی بنەڕەت'}</span>
             </span>
             <span className="text-[11px] font-bold text-amber-500">
-              {mapMode === 'satellite' ? 'مانگی دەستکرد' : 'نەخشەی ئەسڵی'}
+              {isEn ? (mapMode === 'satellite' ? 'Satellite' : 'Standard') : mapMode === 'satellite' ? 'مانگی دەستکرد' : 'نەخشەی ئەسڵی'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -258,7 +306,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               }`}
             >
               <Compass className="w-3.5 h-3.5" />
-              <span>نەخشەی ئەسڵی</span>
+              <span>{isEn ? 'Atlas Map' : 'نەخشەی ئەسڵی'}</span>
             </button>
             <button
               type="button"
@@ -270,17 +318,17 @@ export const AppSettingsModal: React.FC<Props> = ({
               }`}
             >
               <Satellite className="w-3.5 h-3.5" />
-              <span>مانگی دەستکرد</span>
+              <span>{isEn ? 'Satellite' : 'مانگی دەستکرد'}</span>
             </button>
           </div>
         </div>
 
-        {/* 4. بەشی ڕووکار و ڕەنگەکانی بەرنامە (Theme & Colors) */}
+        {/* 4. Theme & Colors */}
         <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
               <Palette className="w-4 h-4 text-amber-500" />
-              <span>ڕەنگی سەرەکی و ڕووکار</span>
+              <span>{isEn ? 'Accent Theme & Palette' : 'ڕەنگی سەرەکی و ڕووکار'}</span>
             </span>
             {onOpenTheme && (
               <button
@@ -291,13 +339,13 @@ export const AppSettingsModal: React.FC<Props> = ({
                 }}
                 className="text-[11px] text-amber-500 hover:underline font-bold cursor-pointer"
               >
-                هەموو ستایلەکان
+                {isEn ? 'All Themes' : 'هەموو ستایلەکان'}
               </button>
             )}
           </div>
           <div className="flex items-center justify-between px-1 py-1">
-            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
-              {theme.name}
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
+              {isEn ? theme.englishName : theme.name}
             </span>
             <div className="flex items-center gap-1.5">
               {THEME_LIST.map((t) => {
@@ -313,7 +361,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                         : 'border-black/30 dark:border-black/60 opacity-80 hover:opacity-100 hover:scale-110'
                     }`}
                     style={{ backgroundColor: t.primaryColor }}
-                    title={`${t.name} (${t.englishName})`}
+                    title={isEn ? t.englishName : `${t.name} (${t.englishName})`}
                   />
                 );
               })}
@@ -321,9 +369,8 @@ export const AppSettingsModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* 5. کۆنتڕۆڵی نەخشە و ئامرازەکان */}
+        {/* 5. Map Controls */}
         <div className="space-y-1.5">
-          {/* نیشاندانی هەموو مارکەرەکان */}
           <button
             type="button"
             onClick={() => setShowAllMarkers(!showAllMarkers)}
@@ -331,15 +378,21 @@ export const AppSettingsModal: React.FC<Props> = ({
           >
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-amber-500" />
-              <span className="font-bold">نیشاندانی مارکەرەکان</span>
+              <span className="font-bold">{isEn ? 'Markers Visibility' : 'نیشاندانی مارکەرەکان'}</span>
             </div>
             <span className="text-[11px] px-2 py-0.5 rounded-lg bg-black/10 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-bold">
-              {showAllMarkers ? `هەمووی (${factsCount})` : 'یەک پۆینت'}
+              {showAllMarkers
+                ? isEn
+                  ? `All (${formatDigits(factsCount, language)})`
+                  : `هەمووی (${factsCount})`
+                : isEn
+                ? 'Selected Only'
+                : 'یەک پۆینت'}
             </span>
           </button>
         </div>
 
-        {/* 6. بەشی ئەدمین (Admin Controls) */}
+        {/* 6. Admin Controls */}
         <div className="pt-2 border-t border-black/10 dark:border-white/10">
           {isAdmin && onOpenSubmittedPhotos && (
             <button
@@ -352,14 +405,14 @@ export const AppSettingsModal: React.FC<Props> = ({
             >
               <div className="flex items-center gap-2">
                 <Images className="w-4 h-4 text-amber-500" />
-                <span>وێنە نێردراوەکان (Submitted Photos)</span>
+                <span>{isEn ? 'Submitted Photos Review' : 'وێنە نێردراوەکان (Submitted Photos)'}</span>
               </div>
               {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 ? (
                 <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px] animate-pulse">
-                  {pendingSubmissionsCount} نوێ
+                  {formatDigits(pendingSubmissionsCount, language)} {isEn ? 'New' : 'نوێ'}
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-400">بینین</span>
+                <span className="text-[10px] text-slate-400">{isEn ? 'View' : 'بینین'}</span>
               )}
             </button>
           )}
@@ -375,7 +428,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                 className="py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 border border-amber-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <ImageIcon className="w-3.5 h-3.5" />
-                <span>فۆڕمی وێنە</span>
+                <span>{isEn ? 'Photo Entry' : 'فۆڕمی وێنە'}</span>
               </button>
               <button
                 type="button"
@@ -386,7 +439,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                 className="py-2 px-3 rounded-xl text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 border border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>بابەتی نوێ</span>
+                <span>{isEn ? 'New Entry' : 'بابەتی نوێ'}</span>
               </button>
             </div>
           )}
@@ -408,13 +461,23 @@ export const AppSettingsModal: React.FC<Props> = ({
               )}
               <span>
                 {isAdmin
-                  ? 'دۆخی ئەدمین چالاکە (داگرە بۆ دەرچوون)'
+                  ? isEn
+                    ? 'Admin Mode Active (Tap to sign out)'
+                    : 'دۆخی ئەدمین چالاکە (داگرە بۆ دەرچوون)'
                   : adminTapCount > 0
-                  ? `دۆخی ئەدمین (${adminTapCount}/6)`
+                  ? isEn
+                    ? `Admin Mode (${adminTapCount}/6)`
+                    : `دۆخی ئەدمین (${adminTapCount}/6)`
+                  : isEn
+                  ? 'Admin Access'
                   : 'چوونەژوورەوەی ئەدمین'}
               </span>
             </div>
-            {isAdmin && <span className="text-[10px] text-emerald-500 font-bold">دەرچوون</span>}
+            {isAdmin && (
+              <span className="text-[10px] text-emerald-500 font-bold">
+                {isEn ? 'Sign Out' : 'دەرچوون'}
+              </span>
+            )}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, X, Lock, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ADMIN_SECRET_CODE } from '../types/history';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
+  const { isEn, dir } = useLanguage();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -60,7 +62,8 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
 
   return (
     <div
-      className="fixed inset-0 z-[1300] flex items-center justify-center p-3.5 bg-black/85 animate-fade-in text-right"
+      className="fixed inset-0 z-[1300] flex items-center justify-center p-3.5 bg-black/85 animate-fade-in text-start"
+      dir={dir}
       onClick={onClose}
     >
       <div
@@ -70,8 +73,8 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 left-4 w-8 h-8 rounded-[4px] flex items-center justify-center text-slate-300 hover:text-white bg-[#101626] border border-amber-500/20 hover:border-amber-400/50 transition-colors cursor-pointer"
-          title="داخستن"
+          className="absolute top-4 end-4 w-8 h-8 rounded-[4px] flex items-center justify-center text-slate-300 hover:text-white bg-[#101626] border border-amber-500/20 hover:border-amber-400/50 transition-colors cursor-pointer"
+          title={isEn ? 'Close' : 'داخستن'}
         >
           <X className="w-4 h-4" />
         </button>
@@ -82,10 +85,12 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
             <Lock className="w-6 h-6 animate-pulse" />
           </div>
           <h3 className="text-base font-bold text-white tracking-wide">
-            چوونەژوورەوەی بەڕێوەبەر (ئەدمین)
+            {isEn ? 'Administrator Access' : 'چوونەژوورەوەی بەڕێوەبەر (ئەدمین)'}
           </h3>
-          <p className="text-xs text-amber-200/80 mt-1 max-w-[240px]">
-            تکایە کۆدی نهێنی بنووسە بۆ بەڕێوەبردنی نەخشە و زانیارییەکان
+          <p className="text-xs text-amber-200/80 mt-1 max-w-[260px]">
+            {isEn
+              ? 'Enter the admin PIN code to manage historical entries & AI translations'
+              : 'تکایە کۆدی نهێنی بنووسە بۆ بەڕێوەبردنی نەخشە و زانیارییەکان'}
           </p>
         </div>
 
@@ -98,11 +103,11 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
               maxLength={10}
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="کۆدی ئەدمین..."
+              placeholder={isEn ? 'Admin PIN...' : 'کۆدی ئەدمین...'}
               autoFocus
               className="w-full h-12 bg-[#070b14] border border-amber-500/30 text-center font-mono text-xl font-extrabold tracking-widest text-amber-300 rounded-[4px] placeholder:text-slate-500 placeholder:tracking-normal placeholder:text-xs focus:outline-none focus:border-amber-400"
             />
-            <KeyRound className="w-4 h-4 text-amber-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <KeyRound className="w-4 h-4 text-amber-400 absolute end-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           {/* Keypad Quick Input */}
@@ -126,14 +131,14 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
           {error && (
             <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-[4px] bg-red-950/80 border border-red-500/70 text-red-200 text-xs animate-shake font-medium">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>کۆدی داخڵکراو هەڵەیە، دووبارە تاقی بکەرەوە!</span>
+              <span>{isEn ? 'Incorrect PIN code, please try again!' : 'کۆدی داخڵکراو هەڵەیە، دووبارە تاقی بکەرەوە!'}</span>
             </div>
           )}
 
           {success && (
             <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-[4px] bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 text-xs animate-fade-in font-bold">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>کۆد درووستە! دەروازەی ئەدمین دەکرێتەوە...</span>
+              <span>{isEn ? 'PIN verified! Unlocking admin tools...' : 'کۆد درووستە! دەروازەی ئەدمین دەکرێتەوە...'}</span>
             </div>
           )}
 
@@ -142,7 +147,7 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
             className="w-full py-3 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>چوونەژوورەوە و چالاککردن</span>
+            <span>{isEn ? 'Sign In & Activate' : 'چوونەژوورەوە و چالاککردن'}</span>
           </button>
         </form>
       </div>

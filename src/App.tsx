@@ -60,15 +60,19 @@ const HeroSection = lazyWithRetry(() => import('./components/HeroSection'), 'Her
 const HistoricalJourneyModal = lazyWithRetry(() => import('./components/HistoricalJourneyModal'), 'HistoricalJourneyModal');
 const AppSettingsModal = lazyWithRetry(() => import('./components/AppSettingsModal'), 'AppSettingsModal');
 const SubmittedPhotosModal = lazyWithRetry(() => import('./components/SubmittedPhotosModal'), 'SubmittedPhotosModal');
+const CrossLangSyncModal = lazyWithRetry(() => import('./components/CrossLangSyncModal'), 'CrossLangSyncModal');
 import { useTheme } from './context/ThemeContext';
+import { AppLanguage, useLanguage, getInitialLanguage } from './context/LanguageContext';
+import { translateFactToLanguageDetailed } from './services/aiTranslationService';
 import {
   parseCurrentUrl,
   updateBrowserUrl,
-  getShareableTopicUrl,
 } from './utils/urlRouter';
+import { updateDynamicSeo } from './services/seoManager';
 
 export default function App() {
   const { colorMode } = useTheme();
+  const { language, isEn } = useLanguage();
   const [showIntro, setShowIntro] = useState<boolean>(false);
 
   // Initial URL parsing for deep-linking & direct article loading
@@ -76,7 +80,8 @@ export default function App() {
   const initialTopicFact = useRef<FactItem | null>(null);
 
   const [facts, setFacts] = useState<FactItem[]>(() => {
-    const loaded = loadStoredFacts();
+    const initLang = getInitialLanguage();
+    const loaded = loadStoredFacts(initLang);
     if (initialUrlRef.current.topicId) {
       const match = loaded.find((f) => f.id === initialUrlRef.current.topicId);
       if (match) {
@@ -87,11 +92,15 @@ export default function App() {
   });
 
   const [collections, setCollections] = useState<CollectionItem[]>(() =>
-    loadStoredCollections()
+    loadStoredCollections(getInitialLanguage())
   );
   const [isAdmin, setIsAdmin] = useState<boolean>(() => getAdminState());
   const [photoSubmissions, setPhotoSubmissions] = useState<PhotoSubmission[]>(() => loadStoredSubmissions());
   const [isSubmittedPhotosOpen, setIsSubmittedPhotosOpen] = useState(false);
+  const [crossLangSyncTarget, setCrossLangSyncTarget] = useState<{
+    fact: FactItem;
+    sourceLang: AppLanguage;
+  } | null>(null);
 
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(() => initialTopicFact.current);
   const [detailFact, setDetailFact] = useState<FactItem | null>(() => initialTopicFact.current);
@@ -119,13 +128,15 @@ export default function App() {
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [showPolygon, setShowPolygon] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedProvince, setSelectedProvince] = useState<string>('all');
+  const [selectedProvince, setSelectedProvince] = useState<string>(
+    () => initialUrlRef.current.province || 'all'
+  );
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
 
   // Hero Section, Historical Journey & Settings Modal State
-  // If URL has a direct topic or specific view, open directly into that view (classic website behavior!)
+  // If URL has a direct topic, province, or specific view, open directly into that view (classic website behavior!)
   const [isHeroOpen, setIsHeroOpen] = useState<boolean>(() => {
-    if (initialUrlRef.current.topicId) return false;
+    if (initialUrlRef.current.topicId || initialUrlRef.current.province) return false;
     if (
       initialUrlRef.current.view === 'map' ||
       initialUrlRef.current.view === 'journey' ||
@@ -173,6 +184,39 @@ export default function App() {
     return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
   }, []);
 
+  // Synchronize SEO meta tags, OpenGraph, canonical URL & Schema.org JSON-LD
+  useEffect(() => {
+    const activeView = isJourneyOpen
+      ? 'journey'
+      : isGalleryOpen
+      ? 'gallery'
+      : isMenuOpen
+      ? 'menu'
+      : isDocumentaryTourOpen
+      ? 'tour'
+      : isHeroOpen
+      ? 'hero'
+      : 'map';
+
+    updateDynamicSeo({
+      detailFact,
+      selectedProvinceId: selectedProvince,
+      activeView,
+      facts,
+      language,
+    });
+  }, [detailFact, selectedProvince, isHeroOpen, isJourneyOpen, isGalleryOpen, isMenuOpen, isDocumentaryTourOpen, facts, language]);
+
+  const handleProvinceChange = (provId: string) => {
+    setSelectedProvince(provId);
+    updateBrowserUrl({
+      province: provId === 'all' ? null : provId,
+      view: isHeroOpen ? 'hero' : 'map',
+      lang: language,
+      replace: false,
+    });
+  };
+
   // Global copy event listener: whenever someone copies text from the app, append source attribution
   useEffect(() => {
     const handleCopy = (e: ClipboardEvent) => {
@@ -192,8 +236,13 @@ export default function App() {
       const selectedText = selection.toString().trim();
       if (!selectedText) return;
 
-      const attribution = '\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map';
-      if (selectedText.includes('سەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map')) {
+      const attribution = isEn
+        ? '\n\nSource: kurdistan info map'
+        : '\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map';
+      if (
+        selectedText.includes('سەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map') ||
+        selectedText.includes('Source: kurdistan info map')
+      ) {
         return;
       }
 
@@ -205,10 +254,17 @@ export default function App() {
 
     document.addEventListener('copy', handleCopy);
     return () => document.removeEventListener('copy', handleCopy);
-  }, []);
+  }, [isEn]);
 
-  // 1. Real-time Firebase Cloud Database synchronization for all users worldwide
+  // 1. Real-time Firebase Cloud Database synchronization for all users worldwide (isolated per language)
   useEffect(() => {
+    const cachedFacts = loadStoredFacts(language);
+    setFacts(cachedFacts);
+    setCollections(loadStoredCollections(language));
+    setSelectedFact((prev) => (prev ? cachedFacts.find((f) => f.id === prev.id) || null : null));
+    setDetailFact((prev) => (prev ? cachedFacts.find((f) => f.id === prev.id) || null : null));
+    setIsFactEditorOpen(false);
+
     const unsubFacts = subscribeToCloudFacts((cloudFacts) => {
       setFacts(cloudFacts);
       // Keep selected fact synced
@@ -231,6 +287,7 @@ export default function App() {
               topicId: foundFromUrl.id,
               factName: foundFromUrl.name,
               view: 'map',
+              lang: language,
               replace: true,
             });
             return foundFromUrl;
@@ -238,11 +295,11 @@ export default function App() {
         }
         return null;
       });
-    });
+    }, language);
 
     const unsubCollections = subscribeToCloudCollections((cloudCols) => {
       setCollections(cloudCols);
-    });
+    }, language);
 
     const unsubSubmissions = subscribeToPhotoSubmissions((subs) => {
       setPhotoSubmissions(subs);
@@ -253,20 +310,24 @@ export default function App() {
       unsubCollections();
       unsubSubmissions();
     };
-  }, []);
+  }, [language]);
 
   // 2. Initial mount effect: synchronize deep link, title and external flyTo
   useEffect(() => {
+    const initLang = getInitialLanguage();
     if (initialTopicFact.current) {
       updateBrowserUrl({
         topicId: initialTopicFact.current.id,
         factName: initialTopicFact.current.name,
         view: 'map',
+        lang: initLang,
         replace: true,
       });
-    } else if (initialUrlRef.current.view) {
+    } else if (initialUrlRef.current.view || initialUrlRef.current.province) {
       updateBrowserUrl({
         view: initialUrlRef.current.view,
+        province: initialUrlRef.current.province,
+        lang: initLang,
         replace: true,
       });
     }
@@ -276,6 +337,7 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const urlState = parseCurrentUrl();
+      setSelectedProvince(urlState.province || 'all');
       if (urlState.topicId) {
         const found = facts.find((f) => f.id === urlState.topicId);
         if (found) {
@@ -285,7 +347,6 @@ export default function App() {
           setIsJourneyOpen(false);
           setIsGalleryOpen(false);
           setIsMenuOpen(false);
-          document.title = `${found.name} | مێژووی کوردستان`;
         }
       } else {
         setDetailFact(null);
@@ -388,6 +449,7 @@ export default function App() {
       topicId: fact.id,
       factName: fact.name,
       view: 'map',
+      lang: language,
       replace: false,
     });
   };
@@ -397,6 +459,7 @@ export default function App() {
     updateBrowserUrl({
       topicId: null,
       view: isHeroOpen ? 'hero' : 'map',
+      lang: language,
       replace: false,
     });
   };
@@ -407,6 +470,7 @@ export default function App() {
       topicId: detailFact?.id || null,
       view: 'map',
       factName: detailFact?.name,
+      lang: language,
     });
   };
 
@@ -419,6 +483,7 @@ export default function App() {
     updateBrowserUrl({
       topicId: null,
       view: 'hero',
+      lang: language,
     });
   };
 
@@ -426,6 +491,7 @@ export default function App() {
     setIsJourneyOpen(true);
     updateBrowserUrl({
       view: 'journey',
+      lang: language,
     });
   };
 
@@ -433,6 +499,7 @@ export default function App() {
     setIsJourneyOpen(false);
     updateBrowserUrl({
       view: isHeroOpen ? 'hero' : 'map',
+      lang: language,
     });
   };
 
@@ -440,6 +507,7 @@ export default function App() {
     setIsGalleryOpen(true);
     updateBrowserUrl({
       view: 'gallery',
+      lang: language,
     });
   };
 
@@ -447,6 +515,7 @@ export default function App() {
     setIsGalleryOpen(false);
     updateBrowserUrl({
       view: isHeroOpen ? 'hero' : 'map',
+      lang: language,
     });
   };
 
@@ -454,6 +523,7 @@ export default function App() {
     setIsMenuOpen(true);
     updateBrowserUrl({
       view: 'menu',
+      lang: language,
     });
   };
 
@@ -461,6 +531,7 @@ export default function App() {
     setIsMenuOpen(false);
     updateBrowserUrl({
       view: isHeroOpen ? 'hero' : 'map',
+      lang: language,
     });
   };
 
@@ -478,6 +549,7 @@ export default function App() {
     updateBrowserUrl({
       topicId: targetFact.id,
       factName: targetFact.name,
+      lang: language,
       replace: false,
     });
   };
@@ -512,7 +584,10 @@ export default function App() {
     setIsFactEditorOpen(true);
   };
 
-  const handleSaveFact = (savedFact: FactItem) => {
+  const handleSaveFact = (
+    savedFact: FactItem,
+    options?: { isEdit?: boolean; skipCrossLangPrompt?: boolean }
+  ) => {
     const exists = facts.some((f) => f.id === savedFact.id);
     const updatedList = exists
       ? facts.map((f) => (f.id === savedFact.id ? savedFact : f))
@@ -526,9 +601,13 @@ export default function App() {
     setPickedCoords(null);
 
     // Persist text/topic data to Firestore cloud (URLs only, zero binary uploads)
-    saveFactToCloud(savedFact).catch((err) => {
+    saveFactToCloud(savedFact, language).catch((err) => {
       console.error('Failed to sync fact to cloud:', err);
     });
+
+    if (isAdmin && (options?.isEdit ?? exists) && !options?.skipCrossLangPrompt) {
+      setCrossLangSyncTarget({ fact: savedFact, sourceLang: language });
+    }
   };
 
   const handleDeleteFact = (factId: number) => {
@@ -543,7 +622,7 @@ export default function App() {
     }
 
     // Persist delete to Firestore cloud
-    deleteFactFromCloud(factId).catch((err) => {
+    deleteFactFromCloud(factId, language).catch((err) => {
       console.error('Failed to delete fact from cloud:', err);
     });
   };
@@ -551,6 +630,7 @@ export default function App() {
   // Save additional notes inline
   const handleSaveNotes = (factId: number, notes: string) => {
     const targetFact = facts.find((f) => f.id === factId);
+    const updatedFact = targetFact ? { ...targetFact, additionalNotes: notes } : null;
     const updatedList = facts.map((f) => {
       if (f.id === factId) {
         return { ...f, additionalNotes: notes };
@@ -568,9 +648,13 @@ export default function App() {
     }
 
     // Persist to Firestore cloud
-    saveNotesToCloud(factId, notes, targetFact).catch((err) => {
+    saveNotesToCloud(factId, notes, targetFact, language).catch((err) => {
       console.error('Failed to save notes to cloud:', err);
     });
+
+    if (isAdmin && updatedFact) {
+      setCrossLangSyncTarget({ fact: updatedFact, sourceLang: language });
+    }
   };
 
   // Save relations / topic linking (Strictly Admin only)
@@ -584,6 +668,16 @@ export default function App() {
       console.warn('Unauthorized: Only Admin can link or modify topic relationships.');
       return;
     }
+
+    const existingFact = facts.find((f) => f.id === sourceFactId);
+    const updatedFact: FactItem | null = existingFact
+      ? {
+          ...existingFact,
+          relatedFactIds: targetFactIds,
+          parentFactId: typeof parentFactId === 'number' ? parentFactId : existingFact.parentFactId,
+          allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : existingFact.allyFactIds,
+        }
+      : null;
 
     // 1. Optimistic local update
     setFacts((prev) =>
@@ -614,9 +708,20 @@ export default function App() {
     }
 
     // 2. Cloud Firestore update
-    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId, allyFactIds).catch((err) => {
+    await updateFactRelationsInCloud(sourceFactId, targetFactIds, parentFactId, allyFactIds, language).catch((err) => {
       console.error('Failed to sync fact relations to cloud:', err);
     });
+
+    if (updatedFact) {
+      setCrossLangSyncTarget({ fact: updatedFact, sourceLang: language });
+    }
+  };
+
+  const handleConfirmCrossLangSync = async () => {
+    if (!crossLangSyncTarget) return;
+    const targetLang: AppLanguage = crossLangSyncTarget.sourceLang === 'ckb' ? 'en' : 'ckb';
+    await translateFactToLanguageDetailed(crossLangSyncTarget.fact, targetLang);
+    setCrossLangSyncTarget(null);
   };
 
   // Map Point Picking flow
@@ -641,7 +746,7 @@ export default function App() {
   const handleAddCollection = (newCol: CollectionItem) => {
     const updated = [...collections, newCol];
     setCollections(updated);
-    saveCollectionToCloud(newCol).catch((err) => {
+    saveCollectionToCloud(newCol, language).catch((err) => {
       console.error('Failed to save collection to cloud:', err);
     });
   };
@@ -651,7 +756,7 @@ export default function App() {
       c.id === updatedCol.id ? updatedCol : c
     );
     setCollections(updated);
-    saveCollectionToCloud(updatedCol).catch((err) => {
+    saveCollectionToCloud(updatedCol, language).catch((err) => {
       console.error('Failed to update collection in cloud:', err);
     });
   };
@@ -662,7 +767,7 @@ export default function App() {
     if (selectedCategory === colId) {
       setSelectedCategory('all');
     }
-    deleteCollectionFromCloud(colId).catch((err) => {
+    deleteCollectionFromCloud(colId, language).catch((err) => {
       console.error('Failed to delete collection from cloud:', err);
     });
   };
@@ -704,7 +809,7 @@ export default function App() {
           activeTagFilter={selectedCategory}
           setActiveTagFilter={setSelectedCategory}
           selectedProvince={selectedProvince}
-          onSelectProvince={setSelectedProvince}
+          onSelectProvince={handleProvinceChange}
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           isAdmin={isAdmin}
@@ -750,7 +855,7 @@ export default function App() {
               activeCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               selectedProvince={selectedProvince}
-              onSelectProvince={setSelectedProvince}
+              onSelectProvince={handleProvinceChange}
               isAdmin={isAdmin}
               onOpenAddFact={handleOpenAddFact}
               onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}
@@ -941,6 +1046,17 @@ export default function App() {
             handleSelectFact(fact);
             handleOpenDetail(fact);
           }}
+        />
+      )}
+
+      {/* Cross-Language Edit Sync Confirmation Modal */}
+      {crossLangSyncTarget && (
+        <CrossLangSyncModal
+          isOpen={Boolean(crossLangSyncTarget)}
+          fact={crossLangSyncTarget.fact}
+          sourceLang={crossLangSyncTarget.sourceLang}
+          onConfirmYes={handleConfirmCrossLangSync}
+          onDeclineNo={() => setCrossLangSyncTarget(null)}
         />
       )}
     </React.Suspense>

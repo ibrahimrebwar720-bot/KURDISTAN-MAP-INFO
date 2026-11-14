@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import { GREAT_KURDISTAN_POLYGON } from '../data/kurdishHistoryData';
 import { FastForward } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
   map: L.Map | null;
@@ -43,6 +44,7 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
   onComplete,
   durationMs = 4000,
 }) => {
+  const { isEn } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameIdRef = useRef<number | null>(null);
@@ -311,7 +313,7 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
       ref={containerRef}
       onClick={handleSkip}
       className="absolute inset-0 w-full h-full pointer-events-auto cursor-pointer z-20 overflow-hidden select-none"
-      title="کلیک بکە بۆ تێپەڕاندن"
+      title={isEn ? 'Click to skip intro' : 'کلیک بکە بۆ تێپەڕاندن'}
     >
       {/* 1. Hardware-accelerated 2D Canvas - No dark backdrop or background tint */}
       <canvas
@@ -329,7 +331,7 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
           }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#070b14]/75 hover:bg-[#0c1220]/90 border border-amber-500/25 hover:border-amber-400/50 backdrop-blur-md text-[10px] sm:text-xs text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] transition-all cursor-pointer group"
         >
-          <span>تێپەڕاندن</span>
+          <span>{isEn ? 'Skip' : 'تێپەڕاندن'}</span>
           <FastForward className="w-3 h-3 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>

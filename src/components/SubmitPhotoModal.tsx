@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { submitPhotoSuggestion } from '../services/firestoreHistoryService';
+import { useLanguage } from '../context/LanguageContext';
 
 interface SubmitPhotoModalProps {
   fact: FactItem;
@@ -27,6 +28,7 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { isEn, dir } = useLanguage();
   const [url, setUrl] = useState('');
   const [senderName, setSenderName] = useState('');
   const [note, setNote] = useState('');
@@ -34,7 +36,6 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Live image preview test state
   const [previewLoaded, setPreviewLoaded] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [pastedFeedback, setPastedFeedback] = useState(false);
@@ -63,17 +64,29 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
     const cleanUrl = url.trim();
 
     if (!cleanUrl) {
-      setError('تکایە بەستەری (لینکی) وێنەکە بنووسە یان پێستی بکە.');
+      setError(
+        isEn
+          ? 'Please enter or paste the image URL.'
+          : 'تکایە بەستەری (لینکی) وێنەکە بنووسە یان پێستی بکە.'
+      );
       return;
     }
 
     if (cleanUrl.startsWith('data:')) {
-      setError('تکایە بەستەری ڕاستەقینەی سەر وێب دابنێ (http یان https) نەک کۆدی فایل.');
+      setError(
+        isEn
+          ? 'Please provide a public web link (http:// or https://), not an embedded file.'
+          : 'تکایە بەستەری ڕاستەقینەی سەر وێب دابنێ (http یان https) نەک کۆدی فایل.'
+      );
       return;
     }
 
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-      setError('دەبێت بەستەرەکە بە http:// یان https:// دەستپێبکات.');
+      setError(
+        isEn
+          ? 'URL must start with http:// or https://.'
+          : 'دەبێت بەستەرەکە بە http:// یان https:// دەستپێبکات.'
+      );
       return;
     }
 
@@ -101,17 +114,21 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
       }, 2600);
     } catch (err) {
       console.error('Failed to submit photo suggestion:', err);
-      setError('نەتوانرا بنێردرێت، تکایە دڵنیابە لە هێڵی ئینتەرنێت و دووبارە تاقی بکەرەوە.');
+      setError(
+        isEn
+          ? 'Could not send submission. Check your connection and try again.'
+          : 'نەتوانرا بنێردرێت، تکایە دڵنیابە لە هێڵی ئینتەرنێت و دووبارە تاقی بکەرەوە.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-right">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/85 animate-fade-in text-start">
       <div
         className="relative w-full max-w-lg rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-5 sm:p-6 text-white overflow-hidden animate-scale-up shadow-[0_20px_60px_rgba(0,0,0,0.9)]"
-        dir="rtl"
+        dir={dir}
       >
         {/* Header */}
         <div className="relative z-10 flex items-start justify-between gap-3 border-b border-white/10 pb-4 mb-4">
@@ -121,10 +138,20 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black font-heading text-white tracking-wide">
-                یارمەتی <span className="text-amber-400">kurdistan info map</span> بدە بۆ ناردنی لینکی وێنە
+                {isEn ? (
+                  <>
+                    Help <span className="text-amber-400">kurdistan info map</span> by submitting a photo URL
+                  </>
+                ) : (
+                  <>
+                    یارمەتی <span className="text-amber-400">kurdistan info map</span> بدە بۆ ناردنی لینکی وێنە
+                  </>
+                )}
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                ناردنی پێشنیاری وێنەی شایستە و مێژوویی بۆ ئەم بابەتە
+                {isEn
+                  ? 'Suggest an authentic historical photograph for this entry'
+                  : 'ناردنی پێشنیاری وێنەی شایستە و مێژوویی بۆ ئەم بابەتە'}
               </p>
             </div>
           </div>
@@ -133,51 +160,61 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
             onClick={onClose}
             type="button"
             className="w-8 h-8 rounded-[3px] flex items-center justify-center text-slate-400 hover:text-white bg-white/5 hover:bg-white/15 transition-all cursor-pointer border border-white/10"
-            title="داخستن"
+            title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {isSubmitted ? (
-          /* Success Screen */
           <div className="relative z-10 py-8 flex flex-col items-center justify-center text-center space-y-3 animate-fade-in">
             <div className="w-16 h-16 rounded-none bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400">
               <Check className="w-8 h-8 stroke-[3]" />
             </div>
             <h3 className="text-lg font-black font-heading text-emerald-300">
-              دەستت خۆش بێت! وێنەکە بە سەرکەوتوویی نێردرا
+              {isEn
+                ? 'Thank you! Photo link submitted successfully'
+                : 'دەستت خۆش بێت! وێنەکە بە سەرکەوتوویی نێردرا'}
             </h3>
             <p className="text-xs text-slate-300 max-w-sm leading-relaxed">
-              لینکی وێنەکەت گەیشتە بەشی ئەدمینی <strong className="text-amber-400">kurdistan info map</strong>، دوای پێداچوونەوە ڕاستەوخۆ لەسەر بابەتی <span className="text-white font-bold">«{fact.name}»</span> بڵاو دەکرێتەوە.
+              {isEn ? (
+                <>
+                  Your photo suggestion has been sent to the{' '}
+                  <strong className="text-amber-400">kurdistan info map</strong> review queue. Once approved, it will appear on{' '}
+                  <span className="text-white font-bold">&ldquo;{fact.name}&rdquo;</span>.
+                </>
+              ) : (
+                <>
+                  لینکی وێنەکەت گەیشتە بەشی ئەدمینی <strong className="text-amber-400">kurdistan info map</strong>، دوای پێداچوونەوە ڕاستەوخۆ لەسەر بابەتی <span className="text-white font-bold">«{fact.name}»</span> بڵاو دەکرێتەوە.
+                </>
+              )}
             </p>
             <div className="flex items-center gap-1.5 text-[11px] text-amber-400/90 pt-2">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>سوپاس بۆ بەشداریت لە دەوڵەمەندکردنی مێژووی کوردستان</span>
+              <span>
+                {isEn
+                  ? 'Thank you for enriching Kurdish historical archives'
+                  : 'سوپاس بۆ بەشداریت لە دەوڵەمەندکردنی مێژووی کوردستان'}
+              </span>
             </div>
           </div>
         ) : (
-          /* Form Body */
           <form onSubmit={handleSubmit} className="relative z-10 space-y-4">
-            {/* Fact Target Info Box */}
             <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3">
               <div className="space-y-0.5">
                 <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                  بابەتی مەبەست
+                  {isEn ? 'Target Entry' : 'بابەتی مەبەست'}
                 </span>
-                <h4 className="text-sm font-extrabold text-white">
-                  {fact.name}
-                </h4>
+                <h4 className="text-sm font-extrabold text-white">{fact.name}</h4>
                 <p className="text-[11px] text-slate-400">
                   {fact.desc} {fact.century ? `· ${fact.century}` : ''}
                 </p>
               </div>
               <span className="px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold shrink-0">
-                بێ وێنەیە
+                {isEn ? 'No Photo' : 'بێ وێنەیە'}
               </span>
             </div>
 
-            {/* Error Message if any */}
             {error && (
               <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2 animate-fade-in">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -185,28 +222,27 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
               </div>
             )}
 
-            {/* Image URL Input with Paste Button */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                   <Link2 className="w-3.5 h-3.5 text-amber-400" />
-                  <span>لینکی وێنەکە (URL) *</span>
+                  <span>{isEn ? 'Image URL *' : 'لینکی وێنەکە (URL) *'}</span>
                 </label>
                 <button
                   type="button"
                   onClick={handlePaste}
                   className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-2.5 py-0.5 rounded-lg border border-amber-400/25 transition-all cursor-pointer"
-                  title="لەبەرگیراوە لە کلیپبۆردەوە دابنێ"
+                  title={isEn ? 'Paste from clipboard' : 'لەبەرگیراوە لە کلیپبۆردەوە دابنێ'}
                 >
                   {pastedFeedback ? (
                     <>
                       <Check className="w-3 h-3 text-emerald-400" />
-                      <span className="text-emerald-300">دانرا!</span>
+                      <span className="text-emerald-300">{isEn ? 'Pasted!' : 'دانرا!'}</span>
                     </>
                   ) : (
                     <>
                       <Clipboard className="w-3 h-3" />
-                      <span>پێستکردن (Paste)</span>
+                      <span>{isEn ? 'Paste' : 'پێستکردن (Paste)'}</span>
                     </>
                   )}
                 </button>
@@ -229,23 +265,24 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
                 />
               </div>
               <p className="text-[10px] text-slate-400">
-                دەتوانیت بەستەری وێنە لە ویکیپیدیا، گووگڵ، یان هەر ماڵپەڕێکی متمانەپێکراو کۆپی بکەیت و لێرە دایبنێیت.
+                {isEn
+                  ? 'You can copy a direct image link from Wikimedia Commons, Wikipedia, or any trusted archive.'
+                  : 'دەتوانیت بەستەری وێنە لە ویکیپیدیا، گووگڵ، یان هەر ماڵپەڕێکی متمانەپێکراو کۆپی بکەیت و لێرە دایبنێیت.'}
               </p>
             </div>
 
-            {/* Live Image Preview if URL provided */}
             {url.trim().length > 10 && (
               <div className="p-2.5 rounded-2xl bg-black/70 border border-white/10 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] text-slate-300 font-bold">
-                  <span>پێشبینینی وێنەکە:</span>
+                  <span>{isEn ? 'Image Preview:' : 'پێشبینینی وێنەکە:'}</span>
                   {previewLoaded && !previewError && (
                     <span className="text-emerald-400 flex items-center gap-1 text-[10px]">
-                      <Check className="w-3 h-3" /> وێنەکە کار دەکات
+                      <Check className="w-3 h-3" /> {isEn ? 'Image loaded' : 'وێنەکە کار دەکات'}
                     </span>
                   )}
                   {previewError && (
                     <span className="text-rose-400 flex items-center gap-1 text-[10px]">
-                      <AlertCircle className="w-3 h-3" /> نەتوانرا وێنەکە باربکرێت
+                      <AlertCircle className="w-3 h-3" /> {isEn ? 'Failed to load image' : 'نەتوانرا وێنەکە باربکرێت'}
                     </span>
                   )}
                 </div>
@@ -253,7 +290,7 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
                 <div className="relative w-full h-36 rounded-xl overflow-hidden bg-black/90 flex items-center justify-center border border-white/10">
                   <img
                     src={url.trim()}
-                    alt="پێشبینینی وێنە"
+                    alt={isEn ? 'Photo preview' : 'پێشبینینی وێنە'}
                     onLoad={() => {
                       setPreviewLoaded(true);
                       setPreviewError(false);
@@ -269,51 +306,54 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
                   {!previewLoaded && !previewError && (
                     <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs gap-1.5">
                       <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                      <span>پشکنینی وێنە...</span>
+                      <span>{isEn ? 'Checking image...' : 'پشکنینی وێنە...'}</span>
                     </div>
                   )}
                   {previewError && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-rose-400 text-xs p-2 text-center gap-1">
                       <AlertCircle className="w-5 h-5 text-rose-500" />
-                      <span className="font-semibold">لینکی وێنەکە ڕاستەوخۆ ناکرێتەوە</span>
-                      <span className="text-[10px] text-slate-400">دڵنیابە بەستەرەکە ڕاستەوخۆ بە .jpg، .png یان وێب دەبێتەوە</span>
+                      <span className="font-semibold">
+                        {isEn ? 'Direct image link failed to load' : 'لینکی وێنەکە ڕاستەوخۆ ناکرێتەوە'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {isEn
+                          ? 'Ensure the URL points directly to an image (.jpg, .png, .webp)'
+                          : 'دڵنیابە بەستەرەکە ڕاستەوخۆ بە .jpg، .png یان وێب دەبێتەوە'}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Sender Name (Optional) */}
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-slate-400" />
-                <span>ناوی بەڕێزت (ئارەزوومەندانە)</span>
+                <span>{isEn ? 'Your Name (Optional)' : 'ناوی بەڕێزت (ئارەزوومەندانە)'}</span>
               </label>
               <input
                 type="text"
                 value={senderName}
                 onChange={(e) => setSenderName(e.target.value)}
-                placeholder="بۆ نموونە: ئارام محەمەد"
+                placeholder={isEn ? 'e.g., Aram Mohammed' : 'بۆ نموونە: ئارام محەمەد'}
                 className="w-full h-9.5 px-3 rounded-xl bg-black/50 border border-white/15 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-white placeholder-slate-500 text-xs transition-all outline-hidden"
               />
             </div>
 
-            {/* Note or Source Citation (Optional) */}
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-slate-400" />
-                <span>تێبینی یان سەرچاوەی وێنە (ئارەزوومەندانە)</span>
+                <span>{isEn ? 'Note or Image Source (Optional)' : 'تێبینی یان سەرچاوەی وێنە (ئارەزوومەندانە)'}</span>
               </label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="سەرچاوەی وێنە یان شوێنی دۆزینەوە"
+                placeholder={isEn ? 'Source URL, archive citation, or date' : 'سەرچاوەی وێنە یان شوێنی دۆزینەوە'}
                 className="w-full h-9.5 px-3 rounded-xl bg-black/50 border border-white/15 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-white placeholder-slate-500 text-xs transition-all outline-hidden"
               />
             </div>
 
-            {/* Submit & Cancel Buttons */}
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
               <button
                 type="button"
@@ -321,7 +361,7 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
                 disabled={isSubmitting}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
               >
-                پاشگەزبوونەوە
+                {isEn ? 'Cancel' : 'پاشگەزبوونەوە'}
               </button>
 
               <button
@@ -332,12 +372,12 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>ناردن...</span>
+                    <span>{isEn ? 'Sending...' : 'ناردن...'}</span>
                   </>
                 ) : (
                   <>
                     <ImagePlus className="w-4 h-4 stroke-[2.5]" />
-                    <span>ناردنی وێنە بۆ ئادمین</span>
+                    <span>{isEn ? 'Submit to Admin' : 'ناردنی وێنە بۆ ئادمین'}</span>
                   </>
                 )}
               </button>

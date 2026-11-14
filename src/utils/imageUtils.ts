@@ -3,6 +3,8 @@
  * Supports Google Drive, Dropbox, OneDrive, Wikipedia, Wikimedia Commons, Imgur, and Image Hosts
  */
 
+import type { AppLanguage } from '../context/LanguageContext';
+
 export interface ResolvedLinkInfo {
   resolvedUrl: string;
   sourceType:
@@ -157,7 +159,8 @@ export function getOptimizedImageUrl(rawUrl: string | null | undefined, size: 't
 /**
  * Inspects a link and returns source metadata, conversion status, and drive guidance
  */
-export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
+export function getLinkTypeInfo(url: string, lang: AppLanguage = 'ckb'): ResolvedLinkInfo {
+  const isEn = lang === 'en';
   const resolved = resolveImageUrl(url);
   const isConverted = Boolean(url && resolved && url.trim() !== resolved);
 
@@ -165,7 +168,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: '',
       sourceType: 'other',
-      label: 'بەتاڵ',
+      label: isEn ? 'Empty' : 'بەتاڵ',
       isConverted: false,
     };
   }
@@ -179,8 +182,9 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
       sourceType: 'mega',
       label: 'MEGA Cloud',
       isConverted: false,
-      warningNote:
-        'سێرڤەری MEGA فایلەکانی بە شێوەی کۆدکراوی تایبەت (End-to-End Encrypted) هەڵدەگرێت، بۆیە ڕێگە بە پەخشی ڕاستەوخۆ لەسەر وێب نادات. پێشنیار دەکرێت ئەم وێنەیە لە Google Drive یان ماڵپەڕی ImgBB دابنێیت تا بە خێرایی ڕاستەوخۆ پەخش ببێت.',
+      warningNote: isEn
+        ? 'MEGA encrypts files end-to-end and blocks direct web streaming. Consider hosting this image on Google Drive or ImgBB for instant direct loading.'
+        : 'سێرڤەری MEGA فایلەکانی بە شێوەی کۆدکراوی تایبەت (End-to-End Encrypted) هەڵدەگرێت، بۆیە ڕێگە بە پەخشی ڕاستەوخۆ لەسەر وێب نادات. پێشنیار دەکرێت ئەم وێنەیە لە Google Drive یان ماڵپەڕی ImgBB دابنێیت تا بە خێرایی ڕاستەوخۆ پەخش ببێت.',
     };
   }
 
@@ -189,7 +193,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: resolved,
       sourceType: 'gdrive',
-      label: 'گووگڵ درایڤ (Google Drive)',
+      label: isEn ? 'Google Drive' : 'گووگڵ درایڤ (Google Drive)',
       isConverted,
     };
   }
@@ -199,7 +203,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: resolved,
       sourceType: 'dropbox',
-      label: 'دراپبۆکس (Dropbox)',
+      label: isEn ? 'Dropbox' : 'دراپبۆکس (Dropbox)',
       isConverted,
     };
   }
@@ -209,7 +213,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: resolved,
       sourceType: 'onedrive',
-      label: 'وەن درایڤ (OneDrive)',
+      label: isEn ? 'OneDrive' : 'وەن درایڤ (OneDrive)',
       isConverted,
     };
   }
@@ -219,7 +223,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: resolved,
       sourceType: 'wikipedia',
-      label: 'ویکیپێدیا (Wikipedia)',
+      label: isEn ? 'Wikipedia' : 'ویکیپێدیا (Wikipedia)',
       isConverted,
     };
   }
@@ -229,7 +233,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: resolved,
       sourceType: 'wikimedia',
-      label: 'ویکیمێدیا (Wikimedia Commons)',
+      label: isEn ? 'Wikimedia Commons' : 'ویکیمێدیا (Wikimedia Commons)',
       isConverted,
     };
   }
@@ -269,7 +273,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
     return {
       resolvedUrl: resolved,
       sourceType: 'direct',
-      label: 'بەستەری ڕاستەوخۆی وێنە',
+      label: isEn ? 'Direct Image URL' : 'بەستەری ڕاستەوخۆی وێنە',
       isConverted,
     };
   }
@@ -277,7 +281,7 @@ export function getLinkTypeInfo(url: string): ResolvedLinkInfo {
   return {
     resolvedUrl: resolved,
     sourceType: 'other',
-    label: 'هۆست ئیمەیج / وێب',
+    label: isEn ? 'Image Host / Web' : 'هۆست ئیمەیج / وێب',
     isConverted,
   };
 }

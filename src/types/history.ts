@@ -1,3 +1,5 @@
+import type { AppLanguage } from '../context/LanguageContext';
+
 export type CategoryId =
   | 'principality'
   | 'civilization'
@@ -13,7 +15,9 @@ export type CategoryId =
 export interface CategoryItem {
   id: CategoryId | 'all' | string;
   name: string;
+  nameEn?: string;
   description?: string;
+  descriptionEn?: string;
   color: string;
   isCustom?: boolean;
 }
@@ -40,61 +44,81 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
   {
     id: 'all',
     name: 'هەموو پۆلێنەکان',
+    nameEn: 'All Categories',
     description: 'تەواوی بابەتە مێژووییەکان لە هەموو پۆلێنەکاندا',
+    descriptionEn: 'All historical entries across every category',
     color: '#f59e0b',
   },
   {
     id: 'principality',
     name: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت',
+    nameEn: 'Principalities, States & Empires',
     description: 'میرنشین، دەسەڵات، دەوڵەت و ئیمپراتۆرییەتە فەرمانڕەواکانی کوردستان',
+    descriptionEn: 'Ruling Kurdish principalities, polities, states, and empires',
     color: '#eab308',
   },
   {
     id: 'civilization',
     name: 'شارستانییەتەکان',
-    description: 'شارستانییەتە دێرینەکان و سەردەمە کۆنەکان',
+    nameEn: 'Civilizations',
+    description: 'شارستانیەتە دێرینەکان و سەردەمە کۆنەکان',
+    descriptionEn: 'Ancient civilizations and early historical peoples of Zagros & Kurdistan',
     color: '#10b981',
   },
   {
     id: 'leader',
     name: 'سەرکردەکان',
+    nameEn: 'Leaders & Rulers',
     description: 'سەرکردە، فەرماندە و پێشەوا مێژوویی و نەتەوەییەکانی کوردستان',
+    descriptionEn: 'Historical commanders, rulers, and national leaders of Kurdistan',
     color: '#f43f5e',
   },
   {
     id: 'scholar',
     name: 'زانا و شاعیر و ئەدیبان',
+    nameEn: 'Scholars, Poets & Historians',
     description: 'زانایان، شاعیران، ئەدیبان، فەیلەسوفان و مێژوونووسانی کورد',
+    descriptionEn: 'Kurdish scholars, classical poets, philosophers, and historians',
     color: '#06b6d4',
   },
   {
     id: 'official',
     name: 'وەزیر و کاربەدەستان',
+    nameEn: 'Ministers & Statesmen',
     description: 'وەزیران، کاربەدەستان و بەڕێوەبەرانی مێژوویی',
+    descriptionEn: 'Historical viziers, governors, diplomats, and administrators',
     color: '#3b82f6',
   },
   {
     id: 'other_figure',
     name: 'کەسایەتی تر',
+    nameEn: 'Notable Figures',
     description: 'کەسایەتییە کاریگەر، هونەری و مێژووییەکانی تر',
+    descriptionEn: 'Other influential cultural, artistic, and historical figures',
     color: '#ec4899',
   },
   {
     id: 'castle',
     name: 'قەڵاکان',
+    nameEn: 'Castles & Citadels',
     description: 'قەڵا مێژووییەکان، پایتەخت و بارەگاکان',
+    descriptionEn: 'Historic citadels, fortresses, capitals, and strongholds',
     color: '#8b5cf6',
   },
   {
     id: 'battle',
     name: 'جەنگ و ڕووداوەکان',
+    nameEn: 'Battles & Events',
     description: 'جەنگە چارەنووسسازەکان، شۆڕش و ڕووداوەکان',
+    descriptionEn: 'Decisive battles, treaties, revolutions, and turning points',
     color: '#ef4444',
   },
   {
     id: 'monument',
     name: 'شوێنەوار',
+    nameEn: 'Archaeological Sites',
     description: 'شوێنەوارە مێژووییەکان، ئەشکەوت، نەخشە بەردینەکان و شوێنە کۆنەکان',
+    descriptionEn: 'Ancient archaeological sites, rock reliefs, caves, and heritage landmarks',
     color: '#14b8a6',
   },
 ];
@@ -102,16 +126,48 @@ export const UNIFIED_CATEGORIES: CategoryItem[] = [
 // Alias for backwards compatibility
 export const DEFAULT_COLLECTIONS: CategoryItem[] = UNIFIED_CATEGORIES;
 
+export function getUnifiedCategories(lang: AppLanguage = 'ckb'): CategoryItem[] {
+  if (lang === 'ckb') return UNIFIED_CATEGORIES;
+  return UNIFIED_CATEGORIES.map((c) => ({
+    ...c,
+    name: c.nameEn || c.name,
+    description: c.descriptionEn || c.description,
+  }));
+}
+
+export function getCategoryDisplayName(cat: CategoryItem, lang: AppLanguage = 'ckb'): string {
+  return lang === 'en' ? cat.nameEn || cat.name : cat.name;
+}
+
 /**
- * دۆزینەوەی ناوی کوردی و ناسنامەی پۆلێنی هەر بابەتێک بە یەکگرتوویی
+ * دۆزینەوەی ناو و ناسنامەی پۆلێنی هەر بابەتێک بە یەکگرتوویی (کوردی یان ئینگلیزی)
  */
-export function getCategoryInfo(fact: { category?: string; tag?: string; collectionId?: string; name?: string; desc?: string } | null | undefined): {
+export function getCategoryInfo(
+  fact: { category?: string; tag?: string; collectionId?: string; name?: string; desc?: string } | null | undefined,
+  lang: AppLanguage = 'ckb'
+): {
   id: CategoryId;
   name: string;
   color: string;
 } {
+  const byId = (id: CategoryId): { id: CategoryId; name: string; color: string } => {
+    const found = UNIFIED_CATEGORIES.find((c) => c.id === id);
+    if (!found) {
+      return {
+        id: 'principality',
+        name: lang === 'en' ? 'Principalities, States & Empires' : 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت',
+        color: '#eab308',
+      };
+    }
+    return {
+      id,
+      name: lang === 'en' ? found.nameEn || found.name : found.name,
+      color: found.color,
+    };
+  };
+
   if (!fact) {
-    return { id: 'principality', name: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت', color: '#eab308' };
+    return byId('principality');
   }
 
   const raw = (fact.category || fact.tag || fact.collectionId || '').toLowerCase().trim();
@@ -130,10 +186,10 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
     raw.includes('میرنشین') ||
     raw.includes('ئیمپراتۆریەت')
   ) {
-    return { id: 'principality', name: 'میرنشین - دەسەڵات - دەوڵەت - ئیمپراتۆرییەت', color: '#eab308' };
+    return byId('principality');
   }
   if (raw === 'civilization' || raw === 'culture' || raw === 'شارستانییەتەکان' || raw === 'شارستانییەت') {
-    return { id: 'civilization', name: 'شارستانییەتەکان', color: '#10b981' };
+    return byId('civilization');
   }
   if (
     raw === 'leader' ||
@@ -149,7 +205,7 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
     raw === 'پێشەوا' ||
     raw === 'پێشەوایان'
   ) {
-    return { id: 'leader', name: 'سەرکردەکان', color: '#f43f5e' };
+    return byId('leader');
   }
   if (
     raw === 'scholar' ||
@@ -162,7 +218,7 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
     raw === 'ئەدیب' ||
     raw === 'ئەدیبان'
   ) {
-    return { id: 'scholar', name: 'زانا و شاعیر و ئەدیبان', color: '#06b6d4' };
+    return byId('scholar');
   }
   if (
     raw === 'official' ||
@@ -173,10 +229,10 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
     raw === 'وەزیر' ||
     raw === 'کاربەدەست'
   ) {
-    return { id: 'official', name: 'وەزیر و کاربەدەستان', color: '#3b82f6' };
+    return byId('official');
   }
   if (raw === 'castle' || raw === 'capital' || raw === 'قەڵاکان' || raw === 'قەڵا') {
-    return { id: 'castle', name: 'قەڵاکان', color: '#8b5cf6' };
+    return byId('castle');
   }
   if (
     raw === 'monument' ||
@@ -188,28 +244,16 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
     raw === 'شوێنەوارەکان' ||
     raw === 'شوێنەواری'
   ) {
-    return { id: 'monument', name: 'شوێنەوار', color: '#14b8a6' };
+    return byId('monument');
   }
   if (raw === 'battle' || raw === 'battles' || raw === 'جەنگ و ڕووداوەکان' || raw === 'جەنگ') {
-    return { id: 'battle', name: 'جەنگ و ڕووداوەکان', color: '#ef4444' };
+    return byId('battle');
   }
 
   // Detect leader from category/tag or historical names/titles
   const nameDesc = `${fact.name || ''} ${fact.desc || ''}`.toLowerCase();
   if (
-    raw === 'leader' ||
-    raw === 'leaders' ||
-    raw === 'commander' ||
-    raw === 'commanders' ||
     raw === 'rulers' ||
-    raw === 'سەرکردەکان' ||
-    raw === 'سەرکردە' ||
-    raw === 'فەرماندە' ||
-    raw === 'فەرماندەکان' ||
-    raw === 'ڕابەر' ||
-    raw === 'ڕابەران' ||
-    raw === 'پێشەوا' ||
-    raw === 'پێشەوایان' ||
     raw === 'سەرۆک' ||
     nameDesc.includes('سەرکردە') ||
     nameDesc.includes('فەرماندە') ||
@@ -233,12 +277,18 @@ export function getCategoryInfo(fact: { category?: string; tag?: string; collect
     nameDesc.includes('پاشای کۆرە') ||
     nameDesc.includes('کەریم خانی زەند') ||
     nameDesc.includes('جەنەراڵ') ||
-    nameDesc.includes('سەردار')
+    nameDesc.includes('سەردار') ||
+    nameDesc.includes('qazi muhammad') ||
+    nameDesc.includes('saladin') ||
+    nameDesc.includes('sheikh mahmud') ||
+    nameDesc.includes('mustafa barzani') ||
+    nameDesc.includes('bedirxan') ||
+    nameDesc.includes('karim khan zand')
   ) {
-    return { id: 'leader', name: 'سەرکردەکان', color: '#f43f5e' };
+    return byId('leader');
   }
 
-  return { id: 'other_figure', name: 'کەسایەتی تر', color: '#ec4899' };
+  return byId('other_figure');
 }
 
 export interface PhotoSubmission {

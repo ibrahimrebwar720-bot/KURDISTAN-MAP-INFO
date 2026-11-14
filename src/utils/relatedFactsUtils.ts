@@ -9,8 +9,13 @@ import { getFactChronologicalYear } from './yearUtils';
  * 3. Explicit related IDs: fact.relatedFactIds contains other.id or vice versa (user-assigned)
  *
  * NOTE: Automatic keyword linking has been removed so only user-added connections appear.
- */
-export function getLinkedFactsForFact(fact: FactItem | null | undefined, allFacts: FactItem[]): FactItem[] {
+import type { AppLanguage } from '../context/LanguageContext';
+
+export function getLinkedFactsForFact(
+  fact: FactItem | null | undefined,
+  allFacts: FactItem[],
+  lang: AppLanguage = 'ckb'
+): FactItem[] {
   if (!fact || !Array.isArray(allFacts) || allFacts.length === 0) return [];
 
   const linkedMap = new Map<number, FactItem>();
@@ -54,7 +59,7 @@ export function getLinkedFactsForFact(fact: FactItem | null | undefined, allFact
     const yearA = getFactChronologicalYear(a);
     const yearB = getFactChronologicalYear(b);
     if (yearA !== yearB) return yearA - yearB;
-    return a.name.localeCompare(b.name, 'ckb');
+    return a.name.localeCompare(b.name, lang === 'en' ? 'en' : 'ckb');
   });
 }
 

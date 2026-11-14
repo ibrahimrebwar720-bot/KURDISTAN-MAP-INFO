@@ -17,6 +17,8 @@ import {
 
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAllFactImages } from '../utils/historicalImages';
+import { useLanguage } from '../context/LanguageContext';
+import { formatDigits } from '../utils/yearUtils';
 
 export interface GalleryItem {
   id: string | number;
@@ -37,23 +39,21 @@ interface Props {
   initialIndex?: number;
 }
 
-/**
- * Hardware-accelerated GPU progress bar for slideshow.
- * Runs completely on the GPU compositor via CSS scaleX animation.
- * Triggers zero React state updates / re-renders during playback.
- */
 const SlideshowProgressBar: React.FC<{
   intervalSeconds: number;
   slideKey: number;
+  isEn: boolean;
   onTimeout: () => void;
-}> = React.memo(({ intervalSeconds, slideKey, onTimeout }) => {
+}> = React.memo(({ intervalSeconds, slideKey, isEn, onTimeout }) => {
   if (intervalSeconds === 0) return null;
 
   return (
     <div className="relative z-20 w-full h-1 bg-black/60 overflow-hidden shrink-0">
       <div
         key={`${slideKey}-${intervalSeconds}`}
-        className="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300 origin-right"
+        className={`h-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300 ${
+          isEn ? 'origin-left' : 'origin-right'
+        }`}
         style={{
           width: '100%',
           animation: `gallerySlideProgress ${intervalSeconds}s linear forwards`,
@@ -66,11 +66,6 @@ const SlideshowProgressBar: React.FC<{
 
 SlideshowProgressBar.displayName = 'SlideshowProgressBar';
 
-/**
- * Isolated memoized thumbnail component.
- * Only re-renders when selection state changes.
- * Uses optimized 240px CDN thumbnails + lazy loading + async decoding.
- */
 const ThumbnailButton: React.FC<{
   item: GalleryItem;
   index: number;
@@ -125,7 +120,10 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   onFlyToFact,
   initialIndex = 0,
 }) => {
-  // Extract all valid images from facts (cached until facts array changes)
+  const { language, isEn, dir } = useLanguage();
+  const PrevIcon = isEn ? ChevronLeft : ChevronRight;
+  const NextIcon = isEn ? ChevronRight : ChevronLeft;
+
   const galleryItems: GalleryItem[] = useMemo(() => {
     if (!isOpen) return [];
     const list: GalleryItem[] = [];
@@ -156,18 +154,15 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
   const total = galleryItems.length;
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  // Interval in seconds: 5, 7, 9 or 0 (کوژانەوەی کات / off)
   const [intervalSeconds, setIntervalSeconds] = useState<5 | 7 | 9 | 0>(7);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Main Image Loading & Error States
   const [isMainImgLoading, setIsMainImgLoading] = useState(true);
   const [mainImgHasError, setMainImgHasError] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const thumbStripRef = useRef<HTMLDivElement>(null);
 
-  // Sync initialIndex when modal opens
   useEffect(() => {
     if (isOpen) {
       if (initialIndex >= 0 && initialIndex < galleryItems.length) {
@@ -178,13 +173,11 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
     }
   }, [isOpen, initialIndex, galleryItems.length]);
 
-  // Reset loading & error state whenever currentIndex changes
   useEffect(() => {
     setIsMainImgLoading(true);
     setMainImgHasError(false);
   }, [currentIndex]);
 
-  // Auto-scroll active thumbnail into view smoothly
   useEffect(() => {
     if (!thumbStripRef.current || total <= 1) return;
     const activeThumb = thumbStripRef.current.querySelector<HTMLElement>(
@@ -199,7 +192,6 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
     }
   }, [currentIndex, total]);
 
-  // Navigation callbacks
   const handleNext = useCallback(() => {
     if (total === 0) return;
     setCurrentIndex((prev) => (prev + 1) % total);
@@ -210,7 +202,6 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
 
-  // Smart background prefetching for the next & previous images (instant 0ms switching)
   useEffect(() => {
     if (!isOpen || total <= 1) return;
 
@@ -230,7 +221,6 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
     }
   }, [isOpen, currentIndex, total, galleryItems]);
 
-  // Keyboard navigation: Escape to close, Arrows to navigate, Space to toggle autoplay
   useEffect(() => {
     if (!isOpen) return;
 
@@ -244,10 +234,18 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         } else {
           onClose();
         }
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (isEn) handleNext();
+        else handlePrev();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (isEn) handlePrev();
+        else handleNext();
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         handleNext();
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         handlePrev();
       } else if (e.key === ' ') {
@@ -258,9 +256,8 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isFullscreen, onClose, handleNext, handlePrev]);
+  }, [isOpen, isFullscreen, isEn, onClose, handleNext, handlePrev]);
 
-  // Toggle Fullscreen Mode
   const handleToggleFullscreen = () => {
     if (!containerRef.current) return;
 
@@ -294,38 +291,38 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       className={`fixed inset-0 z-50 flex flex-col bg-[#04060c] text-slate-100 select-none overflow-hidden animate-page-enter ${
         isFullscreen ? 'p-2 sm:p-4' : 'p-2 sm:p-6'
       }`}
-      dir="rtl"
+      dir={dir}
     >
       {/* Top Header Bar */}
       <div className="relative z-20 flex items-center justify-between p-3 sm:p-3.5 rounded-none glass-dock-2026 shrink-0 overflow-hidden">
-        {/* Title and Kurdish Sun Emblem */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-amber-400 shadow-md shrink-0">
             <span className="text-base select-none leading-none">☀️</span>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 text-start">
             <div className="flex items-center gap-2">
               <h2 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide truncate">
-                گەلەری مێژوویی کوردستان
+                {isEn ? 'Kurdistan Historical Gallery' : 'گەلەری مێژوویی کوردستان'}
               </h2>
               <span className="text-slate-600 font-mono text-xs">·</span>
               <span className="text-xs font-mono tabular-nums text-amber-300 font-bold">
-                {total} وێنە
+                {formatDigits(total, language)} {isEn ? 'Photos' : 'وێنە'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate mt-0.5 font-medium">
-              ئەرشیفی بینراوی دەسەڵات و شوێنەوارەکانی کوردستان
+              {isEn
+                ? 'Visual archive of Kurdistan dynasties, rulers, and landmarks'
+                : 'ئەرشیفی بینراوی دەسەڵات و شوێنەوارەکانی کوردستان'}
             </p>
           </div>
         </div>
 
-        {/* Action Controls: 5s, 7s, 9s, Off & Fullscreen & Close */}
+        {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* کاتی پەخشی وێنە: ٥، ٧، ٩ چرکە و کوژانەوەی کات */}
           {total > 1 && (
             <div className="flex items-center gap-1 liquid-glass-subtle p-1 rounded-xl shadow-xs">
               <span className="text-[10px] text-amber-300 font-bold px-1 hidden md:inline">
-                کات:
+                {isEn ? 'Timer:' : 'کات:'}
               </span>
               {([5, 7, 9] as const).map((sec) => (
                 <button
@@ -337,9 +334,9 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                       ? 'liquid-glass-btn-active text-black shadow-sm'
                       : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
                   }`}
-                  title={`گۆڕینی وێنە لە ${sec} چرکەدا`}
+                  title={isEn ? `Switch slide every ${sec}s` : `گۆڕینی وێنە لە ${sec} چرکەدا`}
                 >
-                  {sec === 5 ? '٥ چ' : sec === 7 ? '٧ چ' : '٩ چ'}
+                  {isEn ? `${sec}s` : sec === 5 ? '٥ چ' : sec === 7 ? '٧ چ' : '٩ چ'}
                 </button>
               ))}
 
@@ -351,38 +348,48 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                     ? 'bg-rose-950/80 text-rose-300 border border-rose-700/80'
                     : 'liquid-glass-btn text-slate-300 hover:text-white'
                 }`}
-                title={intervalSeconds === 0 ? 'کاتی گۆڕین کوژاوەتەوە' : 'کوژانەوەی کات'}
+                title={
+                  intervalSeconds === 0
+                    ? isEn
+                      ? 'Slideshow timer paused'
+                      : 'کاتی گۆڕین کوژاوەتەوە'
+                    : isEn
+                    ? 'Pause slideshow timer'
+                    : 'کوژانەوەی کات'
+                }
               >
                 {intervalSeconds === 0 ? (
                   <>
                     <Pause className="w-3 h-3 fill-current text-rose-400" />
-                    <span>کوژاوەتەوە</span>
+                    <span>{isEn ? 'Paused' : 'کوژاوەتەوە'}</span>
                   </>
                 ) : (
-                  <span>کوژانەوەی کات</span>
+                  <span>{isEn ? 'Stop Timer' : 'کوژانەوەی کات'}</span>
                 )}
               </button>
             </div>
           )}
 
-          {/* Fullscreen Button */}
           <button
             onClick={handleToggleFullscreen}
             className="p-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
-            title={isFullscreen ? 'دەرچوون لە شاشەی پڕ' : 'شاشەی پڕ (Fullscreen)'}
+            title={
+              isFullscreen
+                ? isEn
+                  ? 'Exit Fullscreen'
+                  : 'دەرچوون لە شاشەی پڕ'
+                : isEn
+                ? 'Fullscreen'
+                : 'شاشەی پڕ (Fullscreen)'
+            }
           >
-            {isFullscreen ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
-          {/* Close Modal Button */}
           <button
             onClick={onClose}
             className="p-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-red-300 transition-colors cursor-pointer"
-            title="داخستن (Escape)"
+            title={isEn ? 'Close (Escape)' : 'داخستن (Escape)'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -394,18 +401,17 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         <SlideshowProgressBar
           intervalSeconds={intervalSeconds}
           slideKey={currentIndex}
+          isEn={isEn}
           onTimeout={handleNext}
         />
       )}
 
-      {/* Center Display: Focused strictly on Image and Info Under the Image */}
+      {/* Center Display */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-2 sm:p-4 min-h-0 overflow-y-auto custom-scrollbar">
         {currentItem ? (
           <div className="w-full max-w-4xl flex flex-col items-center my-auto">
-            {/* The Image Container */}
             <div className="relative w-full rounded-[4px] overflow-hidden border border-amber-500/35 bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] group">
               <div className="relative w-full min-h-[240px] sm:min-h-[320px] max-h-[60vh] flex items-center justify-center bg-black/95 p-2 sm:p-3 overflow-hidden">
-                {/* Smooth Loading Spinner Skeleton */}
                 {isMainImgLoading && !mainImgHasError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 z-10 transition-opacity duration-200">
                     <div className="relative w-12 h-12 flex items-center justify-center mb-2">
@@ -413,22 +419,23 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                       <span className="absolute text-sm select-none">☀️</span>
                     </div>
                     <span className="text-[11px] font-mono text-amber-300/80">
-                      بارکردنی خێرای وێنە...
+                      {isEn ? 'Loading high-resolution image...' : 'بارکردنی خێرای وێنە...'}
                     </span>
                   </div>
                 )}
 
-                {/* Error Fallback Card if link fails or CORS blocked */}
                 {mainImgHasError ? (
                   <div className="flex flex-col items-center justify-center p-6 text-center z-10 max-w-md my-6">
                     <div className="w-12 h-12 rounded-[4px] bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3">
                       <AlertCircle className="w-6 h-6 text-amber-400" />
                     </div>
                     <h4 className="text-sm font-bold text-white mb-1">
-                      وێنەکە بە شێوەی ڕاستەوخۆ بار نەکرا
+                      {isEn ? 'Could not display image inline' : 'وێنەکە بە شێوەی ڕاستەوخۆ بار نەکرا'}
                     </h4>
                     <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-                      لەوانەیە بەستەرەکە لەلایەن سێرڤەری سەرەکییەوە سنووردار کرابێت یان پێویستی بە کردنەوە لە پەڕەی نوێ بێت.
+                      {isEn
+                        ? 'The image host may restrict direct embedding. Try opening the link in a new tab.'
+                        : 'لەوانەیە بەستەرەکە لەلایەن سێرڤەری سەرەکییەوە سنووردار کرابێت یان پێویستی بە کردنەوە لە پەڕەی نوێ بێت.'}
                     </p>
                     <div className="flex items-center gap-2">
                       <a
@@ -438,7 +445,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        <span>کردنەوەی بەستەر</span>
+                        <span>{isEn ? 'Open Link' : 'کردنەوەی بەستەر'}</span>
                       </a>
                       {total > 1 && (
                         <button
@@ -446,7 +453,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                           onClick={handleNext}
                           className="px-3 py-1.5 rounded-[4px] bg-[#101626] border border-amber-500/20 text-slate-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
                         >
-                          وێنەی داهاتوو
+                          {isEn ? 'Next Photo' : 'وێنەی داهاتوو'}
                         </button>
                       )}
                     </div>
@@ -469,43 +476,39 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                   />
                 )}
 
-                {/* Subtle vignette border gradient */}
                 <div className="absolute inset-0 ring-1 ring-inset ring-amber-500/20 pointer-events-none rounded-[4px]" />
 
-                {/* Left/Right Floating Navigation Arrows */}
                 {total > 1 && (
                   <>
                     <button
                       onClick={handlePrev}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-[4px] bg-[#0b0f1c] hover:bg-[#121829] border border-amber-500/35 hover:border-amber-400 text-amber-300 transition-all shadow-xl cursor-pointer active:scale-95 z-30"
-                      title="وێنەی پێشوو (تیرەی ڕاست)"
+                      className="absolute start-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-[4px] bg-[#0b0f1c] hover:bg-[#121829] border border-amber-500/35 hover:border-amber-400 text-amber-300 transition-all shadow-xl cursor-pointer active:scale-95 z-30"
+                      title={isEn ? 'Previous Photo' : 'وێنەی پێشوو'}
                     >
-                      <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <PrevIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
 
                     <button
                       onClick={handleNext}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-[4px] bg-[#0b0f1c] hover:bg-[#121829] border border-amber-500/35 hover:border-amber-400 text-amber-300 transition-all shadow-xl cursor-pointer active:scale-95 z-30"
-                      title="وێنەی داهاتوو (تیرەی چەپ)"
+                      className="absolute end-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 rounded-[4px] bg-[#0b0f1c] hover:bg-[#121829] border border-amber-500/35 hover:border-amber-400 text-amber-300 transition-all shadow-xl cursor-pointer active:scale-95 z-30"
+                      title={isEn ? 'Next Photo' : 'وێنەی داهاتوو'}
                     >
-                      <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <NextIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
                   </>
                 )}
 
-                {/* Image Counter Badge on top corner */}
-                <div className="absolute top-3 right-3 px-3 py-1 rounded-[3px] bg-[#0b0f1c] border border-amber-500/30 text-amber-300 font-mono text-xs font-bold shadow-md flex items-center gap-1.5 z-20">
+                <div className="absolute top-3 start-3 px-3 py-1 rounded-[3px] bg-[#0b0f1c] border border-amber-500/30 text-amber-300 font-mono text-xs font-bold shadow-md flex items-center gap-1.5 z-20">
                   <Camera className="w-3.5 h-3.5 text-amber-400" />
                   <span>
-                    {currentIndex + 1} / {total}
+                    {formatDigits(currentIndex + 1, language)} / {formatDigits(total, language)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Information Strictly UNDER the Image - Basalt Architectural Panel */}
-            <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_15px_40px_rgba(0,0,0,0.85)] text-right transition-all overflow-hidden">
-              {/* Title & Badges Row */}
+            {/* Information Panel Under Image */}
+            <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_15px_40px_rgba(0,0,0,0.85)] text-start transition-all overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-500/20">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-2.5 h-2.5 rounded-[1px] bg-amber-400 animate-pulse shrink-0" />
@@ -533,21 +536,18 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         onFlyToFact(currentItem.fact!);
                       }}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-bold transition-colors cursor-pointer shadow-sm"
-                      title="فڕین بۆ شوێنی ئەم بابەتە لەسەر نەخشە"
+                      title={isEn ? 'Fly to this location on the map' : 'فڕین بۆ شوێنی ئەم بابەتە لەسەر نەخشە'}
                     >
                       <MapPin className="w-3 h-3 text-slate-950" />
-                      <span>فڕین لەسەر نەخشە</span>
+                      <span>{isEn ? 'Fly on Map' : 'فڕین لەسەر نەخشە'}</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* The Information Under the Image */}
               <div className="flex items-start gap-2.5 text-amber-100/90 text-xs sm:text-sm leading-relaxed">
                 <Camera className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="font-medium whitespace-pre-line">
-                  {currentItem.caption}
-                </p>
+                <p className="font-medium whitespace-pre-line">{currentItem.caption}</p>
               </div>
             </div>
           </div>
@@ -557,26 +557,26 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               <Camera className="w-8 h-8" />
             </div>
             <h3 className="text-base sm:text-lg font-bold font-heading text-white mb-2">
-              هیچ وێنەیەک دانەنراوە
+              {isEn ? 'No Photos Available Yet' : 'هیچ وێنەیەک دانەنراوە'}
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed mb-5">
-              تەنها ئەو وێنانە لێرە نیشان دەدرێن کە لە بەشی ئەدمین بۆ بابەتەکانت دایاندەنێیت.
-              کاتێک بابەتێکی نوێ زیاد دەکەیت یان دەستکاری دەکەیت، وێنە و زانیاری ژێر وێنە دابنێ تا لەم گەلەرییەدا دەربکەوێت.
+              {isEn
+                ? 'Images added to entries via the Admin editor will appear automatically in this visual gallery.'
+                : 'تەنها ئەو وێنانە لێرە نیشان دەدرێن کە لە بەشی ئەدمین بۆ بابەتەکانت دایاندەنێیت. کاتێک بابەتێکی نوێ زیاد دەکەیت یان دەستکاری دەکەیت، وێنە و زانیاری ژێر وێنە دابنێ تا لەم گەلەرییەدا دەربکەوێت.'}
             </p>
             <button
               onClick={onClose}
               className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors cursor-pointer shadow-lg"
             >
-              داخستن
+              {isEn ? 'Close' : 'داخستن'}
             </button>
           </div>
         )}
       </div>
 
-      {/* Bottom Thumbnail Strip (Memoized, Lazy Loaded & Auto-centered) */}
+      {/* Bottom Thumbnail Strip */}
       {total > 1 && (
         <div className="relative z-20 pt-2.5 pb-2 border-t border-white/10 liquid-glass-dock border-x-0 border-b-0 rounded-none shrink-0 flex flex-col gap-2 shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
-          {/* Thumbnails row */}
           <div
             ref={thumbStripRef}
             className="flex items-center justify-start sm:justify-center gap-2 px-2 overflow-x-auto scrollbar-none max-w-full touch-pan-x"
@@ -592,22 +592,25 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
             ))}
           </div>
 
-          {/* Bottom controls helper text */}
           <div className="flex items-center justify-between px-3 text-[10px] sm:text-[11px] text-slate-400">
             <div className="flex items-center gap-2">
-              <span>کۆنترۆڵ: تیرەکانی تەختەکلیل بۆ گۆڕین</span>
+              <span>
+                {isEn ? 'Controls: Arrow keys to navigate' : 'کۆنترۆڵ: تیرەکانی تەختەکلیل بۆ گۆڕین'}
+              </span>
               <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline">Space بۆ وەستاندن / دەستپێکردن</span>
+              <span className="hidden sm:inline">
+                {isEn ? 'Space to Pause / Play' : 'Space بۆ وەستاندن / دەستپێکردن'}
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentIndex(0)}
                 className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1"
-                title="گەڕانەوە بۆ سەرەتا"
+                title={isEn ? 'Back to Start' : 'گەڕانەوە بۆ سەرەتا'}
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>دەستپێک</span>
+                <span>{isEn ? 'Start' : 'دەستپێک'}</span>
               </button>
             </div>
           </div>

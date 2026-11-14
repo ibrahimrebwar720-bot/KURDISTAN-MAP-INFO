@@ -3,7 +3,7 @@ import { FactItem } from '../data/kurdishHistoryData';
 import {
   CollectionItem,
   CategoryId,
-  UNIFIED_CATEGORIES,
+  getUnifiedCategories,
   getCategoryInfo,
 } from '../types/history';
 import {
@@ -22,7 +22,6 @@ import {
   Search,
   Loader2,
   Clock,
-  User,
   Shield,
   Compass,
   Sliders,
@@ -33,11 +32,10 @@ import {
   Link2,
   Landmark,
   Plus,
-  Eye,
-  ExternalLink,
   Globe,
   Copy,
   Images,
+  Languages,
 } from 'lucide-react';
 import { FactRelationsModal } from './FactRelationsModal';
 import {
@@ -49,7 +47,7 @@ import {
   formatKurdishYearRange,
   formatKurdishYear,
   normalizeYearString,
-  toKurdishDigits,
+  formatDigits,
   centuryToYearSpan,
   centuryRangeToYearSpan,
   formatKurdishCentury,
@@ -59,7 +57,15 @@ import {
   searchPlacesOnMap,
   PlaceSearchResult,
   loadGoogleMapsScript,
+  reverseGeocodeProvinceWithGoogle,
 } from '../services/googleMapsSearchService';
+import {
+  KURDISTAN_PROVINCES,
+  matchFactToProvince,
+} from '../data/kurdishProvincesData';
+import { useLanguage } from '../context/LanguageContext';
+import { translateFactToEnglishDetailed } from '../services/aiTranslationService';
+import { findDuplicateNotesOwnerForFact } from '../utils/factConsistency';
 
 interface Props {
   isOpen: boolean;
@@ -68,21 +74,19 @@ interface Props {
   initialMode?: 'photo_only' | 'standard';
   collections: CollectionItem[];
   allFacts?: FactItem[];
-  onSave: (fact: FactItem) => void;
+  onSave: (fact: FactItem, options?: { isEdit?: boolean; skipCrossLangPrompt?: boolean }) => void;
   onDelete?: (factId: number) => void;
   onStartPickLocation: () => void;
   pickedCoords?: { lat: number; lng: number } | null;
   totalFactsCount: number;
 }
 
-const EDITABLE_CATEGORIES = UNIFIED_CATEGORIES.filter((c) => c.id !== 'all');
-
 export const FactEditorModal: React.FC<Props> = ({
   isOpen,
   onClose,
   factToEdit,
   initialMode = 'photo_only',
-  collections,
+  collections: _collections,
   allFacts = [],
   onSave,
   onDelete,
@@ -90,6 +94,12 @@ export const FactEditorModal: React.FC<Props> = ({
   pickedCoords,
   totalFactsCount,
 }) => {
+  const { language, isEn, dir } = useLanguage();
+  const editableCategories = useMemo(
+    () => getUnifiedCategories(language).filter((c) => c.id !== 'all'),
+    [language]
+  );
+
   const [formMode, setFormMode] = useState<'photo_only' | 'standard'>('photo_only');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
@@ -98,8 +108,22 @@ export const FactEditorModal: React.FC<Props> = ({
   const [lat, setLat] = useState<number>(36.8);
   const [lng, setLng] = useState<number>(44.5);
   const [showManualCoords, setShowManualCoords] = useState(false);
-  // Unified single category state (میرنشینەکان، شارستانییەتەکان، ئیمپراتۆرییەتەکان، زانا و شاعیر و ئەدیبان، وەزیر و کاربەدەستان، کەسایەتی تر، قەڵاکان، جەنگ و ڕووداوەکان)
+  const [provinceId, setProvinceId] = useState<string>('');
+  const [regionName, setRegionName] = useState<string>('');
+  const [googleAdminSummary, setGoogleAdminSummary] = useState<string>('');
+  const [isResolvingProvince, setIsResolvingProvince] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('principality');
+  const [isSavingAndTranslating, setIsSavingAndTranslating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const duplicateNotesOwner = useMemo(() => {
+    if (!isOpen || !additionalNotes.trim() || !allFacts.length) return null;
+    return findDuplicateNotesOwnerForFact(
+      factToEdit || { id: 0, name },
+      additionalNotes,
+      allFacts
+    );
+  }, [isOpen, factToEdit, name, additionalNotes, allFacts]);
 
   // Hierarchy & Topic Linking state
   const [parentFactId, setParentFactId] = useState<number | undefined>(undefined);
@@ -107,11 +131,11 @@ export const FactEditorModal: React.FC<Props> = ({
   const [allyFactIds, setAllyFactIds] = useState<number[]>([]);
   const [isLinkingModalOpen, setIsLinkingModalOpen] = useState(false);
 
-  // Fast memoized lookups for parent and related entities (prevents O(N) re-filtering on every keystroke)
+  // Fast memoized lookups for parent and related entities
   const availableParentFacts = useMemo(() => {
     return allFacts
       .filter((f) => {
-        const c = getCategoryInfo(f).id;
+        const c = getCategoryInfo(f, language).id;
         return (
           (c === 'principality' || c === 'empire' || c === 'civilization') &&
           (!factToEdit || f.id !== factToEdit.id)
@@ -122,7 +146,7 @@ export const FactEditorModal: React.FC<Props> = ({
         name: ent.name,
         desc: ent.desc,
       }));
-  }, [allFacts, factToEdit]);
+  }, [allFacts, factToEdit, language]);
 
   const factsByIdMap = useMemo(() => {
     const map = new Map<number, FactItem>();
@@ -173,19 +197,25 @@ export const FactEditorModal: React.FC<Props> = ({
     return extraImages.filter((img) => img.url.trim().length > 0).length;
   }, [extraImages]);
 
-  const linkInfo = useMemo(() => getLinkTypeInfo(imageUrl), [imageUrl]);
+  const linkInfo = useMemo(() => getLinkTypeInfo(imageUrl, language), [imageUrl, language]);
 
   const handleImageUrlChange = (rawUrl: string) => {
     const trimmed = rawUrl.trim();
     if (trimmed.startsWith('data:')) {
-      setImageLoadError('بارکردنی فایلی وێنە ناچالاک کراوە بۆ پاراستنی خێرایی و کەمکردنەوەی قەبارەی بەرنامە. تکایە تەنها لینکی وێنە دابنێ.');
+      setImageLoadError(
+        isEn
+          ? 'Direct file uploads are disabled to protect speed and storage. Please paste a web image URL instead.'
+          : 'بارکردنی فایلی وێنە ناچالاک کراوە بۆ پاراستنی خێرایی و کەمکردنەوەی قەبارەی بەرنامە. تکایە تەنها لینکی وێنە دابنێ.'
+      );
       return;
     }
     setImageLoadError(null);
     const resolved = resolveImageUrl(trimmed);
     setImageUrl(resolved);
     if (resolved && !imageCaption.trim() && name.trim()) {
-      setImageCaption(`وێنەی تایبەت بە «${name.trim()}»`);
+      setImageCaption(
+        isEn ? `Archival image for "${name.trim()}"` : `وێنەی تایبەت بە «${name.trim()}»`
+      );
     }
   };
 
@@ -208,14 +238,24 @@ export const FactEditorModal: React.FC<Props> = ({
       if (field === 'url') {
         const trimmed = val.trim();
         if (trimmed.startsWith('data:')) {
-          setImageLoadError('بارکردنی فایلی وێنە ناچالاک کراوە. تکایە تەنها لینکی وێنە دابنێ.');
+          setImageLoadError(
+            isEn
+              ? 'Direct file uploads are disabled. Please paste an image URL.'
+              : 'بارکردنی فایلی وێنە ناچالاک کراوە. تکایە تەنها لینکی وێنە دابنێ.'
+          );
           return prev;
         }
         const resolved = resolveImageUrl(trimmed);
         const currentCaption = next[index]?.caption || '';
         next[index] = {
           url: resolved,
-          caption: currentCaption.trim() ? currentCaption : (name.trim() ? `وێنەی #${index + 2} ی «${name.trim()}»` : ''),
+          caption: currentCaption.trim()
+            ? currentCaption
+            : name.trim()
+            ? isEn
+              ? `Photo #${index + 2} for "${name.trim()}"`
+              : `وێنەی #${index + 2} ی «${name.trim()}»`
+            : '',
         };
       } else {
         next[index] = {
@@ -273,12 +313,14 @@ export const FactEditorModal: React.FC<Props> = ({
       if (factToEdit) {
         const isPhotoItem =
           factToEdit.tag === 'وێنەی مێژوویی' ||
+          factToEdit.tag === 'Historical Photo' ||
           (!!factToEdit.imageUrl && !factToEdit.additionalNotes && factToEdit.category === 'monument');
         setFormMode(isPhotoItem ? 'photo_only' : 'standard');
         setName(factToEdit.name);
         setDesc(factToEdit.desc);
         setSelectedPlaceName(factToEdit.desc || null);
         setFullText(factToEdit.fullText);
+        setAdditionalNotes(factToEdit.additionalNotes || '');
         setImageUrl(factToEdit.imageUrl || '');
         setImageCaption(factToEdit.imageCaption || '');
 
@@ -286,8 +328,6 @@ export const FactEditorModal: React.FC<Props> = ({
         const initialExtras = Array.from({ length: 9 }, () => ({ url: '', caption: '' }));
         let hasExistingExtras = false;
         if (Array.isArray(factToEdit.images) && factToEdit.images.length > 0) {
-          // If first image in images matches factToEdit.imageUrl, extra are images.slice(1)
-          // Otherwise, collect remaining items
           const extrasList = factToEdit.images.slice(1, 10);
           extrasList.forEach((item, idx) => {
             if (idx < 9 && item) {
@@ -304,8 +344,12 @@ export const FactEditorModal: React.FC<Props> = ({
         setShowExtraImages(hasExistingExtras);
         setLat(factToEdit.lat);
         setLng(factToEdit.lng);
+        const existingProv = matchFactToProvince(factToEdit, language);
+        setProvinceId(factToEdit.provinceId || existingProv?.id || '');
+        setRegionName(factToEdit.region || existingProv?.name || '');
+        setGoogleAdminSummary('');
         // Unified Category
-        const catInfo = getCategoryInfo(factToEdit);
+        const catInfo = getCategoryInfo(factToEdit, language);
         setSelectedCategory(catInfo.id);
 
         // Topic Hierarchy & Relations
@@ -343,8 +387,18 @@ export const FactEditorModal: React.FC<Props> = ({
         } else {
           // Detect mode for legacy facts
           const rawYearText = (factToEdit.year || '') + ' ' + (factToEdit.century || '');
-          const hasCenturyWord = rawYearText.includes('سەدە') || rawYearText.includes('سەدەی');
-          const isCenturyRange = hasCenturyWord && (rawYearText.includes('-') || rawYearText.includes('تا') || rawYearText.includes('—'));
+          const lowerRaw = rawYearText.toLowerCase();
+          const hasCenturyWord =
+            rawYearText.includes('سەدە') ||
+            rawYearText.includes('سەدەی') ||
+            lowerRaw.includes('century');
+          const isCenturyRange =
+            hasCenturyWord &&
+            (rawYearText.includes('-') ||
+              rawYearText.includes('–') ||
+              rawYearText.includes('تا') ||
+              rawYearText.includes('—') ||
+              /\bto\b/i.test(rawYearText));
 
           if (isCenturyRange) {
             setTimeMode('century_range');
@@ -356,14 +410,23 @@ export const FactEditorModal: React.FC<Props> = ({
               setStartCenturyInput('10');
               setEndCenturyInput('12');
             }
-            const isBC = factToEdit.isBC || rawYearText.includes('پ.ز') || rawYearText.includes('پێش');
+            const isBC =
+              factToEdit.isBC ||
+              rawYearText.includes('پ.ز') ||
+              rawYearText.includes('پێش') ||
+              /\bbce?\b/i.test(rawYearText);
             setStartCenturyEra(isBC ? 'BC' : 'AD');
             setEndCenturyEra(isBC ? 'BC' : 'AD');
           } else if (hasCenturyWord || (!factToEdit.startYear && factToEdit.century)) {
             setTimeMode('single_century');
             const numMatch = rawYearText.match(/\d+/);
             setStartCenturyInput(numMatch ? numMatch[0] : (factToEdit.centuryNumber ? Math.abs(factToEdit.centuryNumber).toString() : '1'));
-            const isBC = factToEdit.isBC || (factToEdit.centuryNumber ? factToEdit.centuryNumber < 0 : false) || rawYearText.includes('پ.ز') || rawYearText.includes('پێش');
+            const isBC =
+              factToEdit.isBC ||
+              (factToEdit.centuryNumber ? factToEdit.centuryNumber < 0 : false) ||
+              rawYearText.includes('پ.ز') ||
+              rawYearText.includes('پێش') ||
+              /\bbce?\b/i.test(rawYearText);
             setStartCenturyEra(isBC ? 'BC' : 'AD');
           } else if (typeof factToEdit.birthYear === 'number') {
             setStartYearInput(Math.abs(factToEdit.birthYear).toString());
@@ -393,7 +456,7 @@ export const FactEditorModal: React.FC<Props> = ({
               setEndEra(factToEdit.startYear < 0 ? 'BC' : 'AD');
             }
           } else {
-            const span = getFactYearSpan(factToEdit);
+            const span = getFactYearSpan(factToEdit, language);
             setStartYearInput(Math.abs(span.startYear).toString());
             setStartEra(span.startYear < 0 ? 'BC' : 'AD');
             if (span.isRange && span.endYear !== span.startYear) {
@@ -431,7 +494,10 @@ export const FactEditorModal: React.FC<Props> = ({
           setLat(36.8);
           setLng(44.5);
           setHasLocationPicked(false);
+          setProvinceId('');
+          setRegionName('');
         }
+        setGoogleAdminSummary('');
         setSelectedCategory('principality');
         setParentFactId(undefined);
         setRelatedFactIds([]);
@@ -444,6 +510,19 @@ export const FactEditorModal: React.FC<Props> = ({
       }
       setYearError(null);
       setConfirmDelete(false);
+      setAiError(null);
+    } else {
+      setName('');
+      setDesc('');
+      setFullText('');
+      setAdditionalNotes('');
+      setImageUrl('');
+      setImageCaption('');
+      setExtraImages(Array.from({ length: 9 }, () => ({ url: '', caption: '' })));
+      setShowExtraImages(false);
+      setYearError(null);
+      setConfirmDelete(false);
+      setAiError(null);
     }
   }, [isOpen, factToEdit, initialMode]);
 
@@ -473,13 +552,71 @@ export const FactEditorModal: React.FC<Props> = ({
     }, 350);
   };
 
+  const resolveProvinceFromCoords = async (targetLat: number, targetLng: number, skipCache = false) => {
+    if (!Number.isFinite(targetLat) || !Number.isFinite(targetLng)) return;
+    setIsResolvingProvince(true);
+    try {
+      const res = await reverseGeocodeProvinceWithGoogle(targetLat, targetLng, { skipCache });
+      setProvinceId(res.provinceId);
+      const matchedProv = KURDISTAN_PROVINCES.find((p) => p.id === res.provinceId);
+      const localizedProvName = isEn
+        ? matchedProv?.nameEn ||
+          (res.provinceName === 'دەرەوەی هێڵی کوردستان' ? 'Outside Kurdistan' : res.provinceName)
+        : matchedProv?.name || res.provinceName;
+      setRegionName(localizedProvName);
+      const adminParts = [res.adminLevel2, res.adminLevel1, res.countryCode].filter(Boolean);
+      setGoogleAdminSummary(
+        adminParts.length > 0
+          ? `${
+              res.source === 'google'
+                ? isEn
+                  ? 'Google'
+                  : 'گۆگڵ'
+                : isEn
+                ? 'Map'
+                : 'نەخشە'
+            }: ${adminParts.join(' • ')}`
+          : ''
+      );
+    } catch {
+      // keep fallback
+    } finally {
+      setIsResolvingProvince(false);
+    }
+  };
+
   const handleSelectSearchedPlace = (place: PlaceSearchResult) => {
     setLat(place.lat);
     setLng(place.lng);
     setHasLocationPicked(true);
     setSelectedPlaceName(place.name);
     if (!desc.trim()) {
-      setDesc(place.formattedAddress.split(',').slice(0, 2).join('، '));
+      setDesc(place.formattedAddress.split(',').slice(0, 2).join(isEn ? ', ' : '، '));
+    }
+    if (place.provinceId) {
+      setProvinceId(place.provinceId);
+      const matchedProv = KURDISTAN_PROVINCES.find((p) => p.id === place.provinceId);
+      const localizedProvName = isEn
+        ? matchedProv?.nameEn ||
+          (place.provinceName === 'دەرەوەی هێڵی کوردستان' ? 'Outside Kurdistan' : place.provinceName || '')
+        : matchedProv?.name || place.provinceName || '';
+      setRegionName(localizedProvName);
+      const adminParts = [place.adminLevel2, place.adminLevel1, place.countryCode].filter(Boolean);
+      setGoogleAdminSummary(
+        adminParts.length > 0
+          ? `${
+              place.source === 'google'
+                ? isEn
+                  ? 'Google'
+                  : 'گۆگڵ'
+                : isEn
+                ? 'Map'
+                : 'نەخشە'
+            }: ${adminParts.join(' • ')}`
+          : ''
+      );
+    } else {
+      resolveProvinceFromCoords(place.lat, place.lng);
     }
     setPlaceSearchResults([]);
     setPlaceSearchQuery('');
@@ -491,6 +628,7 @@ export const FactEditorModal: React.FC<Props> = ({
       setLat(pickedCoords.lat);
       setLng(pickedCoords.lng);
       setHasLocationPicked(true);
+      resolveProvinceFromCoords(pickedCoords.lat, pickedCoords.lng);
     }
   }, [pickedCoords]);
 
@@ -502,8 +640,10 @@ export const FactEditorModal: React.FC<Props> = ({
       if (isNaN(num)) return null;
       const actualYear = startEra === 'BC' ? -Math.abs(num) : Math.abs(num);
       return {
-        label: formatKurdishYear(actualYear),
-        subLabel: `ساڵی ${toKurdishDigits(Math.abs(actualYear))} (${startEra === 'BC' ? 'پێش زایین' : 'زایینی'}) لەسەر تایملاین`,
+        label: formatKurdishYear(actualYear, language),
+        subLabel: isEn
+          ? `Year ${Math.abs(actualYear)} (${startEra === 'BC' ? 'BCE' : 'CE'}) on timeline`
+          : `ساڵی ${formatDigits(Math.abs(actualYear), language)} (${startEra === 'BC' ? 'پێش زایین' : 'زایینی'}) لەسەر تایملاین`,
         isCrossEra: false,
         finalStart: actualYear,
         finalEnd: actualYear,
@@ -528,8 +668,10 @@ export const FactEditorModal: React.FC<Props> = ({
       const isCrossEra = finalStart < 0 && finalEnd > 0;
 
       return {
-        label: formatKurdishYearRange(finalStart, finalEnd),
-        subLabel: `ماوەی ${toKurdishDigits(finalEnd - finalStart)} ساڵ (لەسەر تایملاین لە ${formatKurdishYear(finalStart)} تا ${formatKurdishYear(finalEnd)})`,
+        label: formatKurdishYearRange(finalStart, finalEnd, language),
+        subLabel: isEn
+          ? `${finalEnd - finalStart}-year span (${formatKurdishYear(finalStart, language)} to ${formatKurdishYear(finalEnd, language)})`
+          : `ماوەی ${formatDigits(finalEnd - finalStart, language)} ساڵ (لەسەر تایملاین لە ${formatKurdishYear(finalStart, language)} تا ${formatKurdishYear(finalEnd, language)})`,
         isCrossEra,
         finalStart,
         finalEnd,
@@ -543,8 +685,10 @@ export const FactEditorModal: React.FC<Props> = ({
       const isBC = startCenturyEra === 'BC';
       const span = centuryToYearSpan(c, isBC);
       return {
-        label: formatKurdishCentury(c, isBC, true),
-        subLabel: `هاوتایە لەگەڵ ساڵانی (${formatKurdishYear(span.startYear)} تا ${formatKurdishYear(span.endYear)}) لەسەر تایملاین`,
+        label: formatKurdishCentury(c, isBC, true, language),
+        subLabel: isEn
+          ? `Corresponds to ${formatKurdishYear(span.startYear, language)} – ${formatKurdishYear(span.endYear, language)} on timeline`
+          : `هاوتایە لەگەڵ ساڵانی (${formatKurdishYear(span.startYear, language)} تا ${formatKurdishYear(span.endYear, language)}) لەسەر تایملاین`,
         isCrossEra: false,
         finalStart: span.startYear,
         finalEnd: span.endYear,
@@ -566,8 +710,10 @@ export const FactEditorModal: React.FC<Props> = ({
       const isCrossEra = span.startYear < 0 && span.endYear > 0;
 
       return {
-        label: formatKurdishCenturyRange(c1, startBC, validC2, endBC, true),
-        subLabel: `هاوتایە لەگەڵ ساڵانی (${formatKurdishYear(span.startYear)} تا ${formatKurdishYear(span.endYear)}) لەسەر تایملاین`,
+        label: formatKurdishCenturyRange(c1, startBC, validC2, endBC, true, language),
+        subLabel: isEn
+          ? `Corresponds to ${formatKurdishYear(span.startYear, language)} – ${formatKurdishYear(span.endYear, language)} on timeline`
+          : `هاوتایە لەگەڵ ساڵانی (${formatKurdishYear(span.startYear, language)} تا ${formatKurdishYear(span.endYear, language)}) لەسەر تایملاین`,
         isCrossEra,
         finalStart: span.startYear,
         finalEnd: span.endYear,
@@ -585,46 +731,53 @@ export const FactEditorModal: React.FC<Props> = ({
     endCenturyInput,
     startCenturyEra,
     endCenturyEra,
+    language,
+    isEn,
   ]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const buildFactItemFromForm = (): FactItem | null => {
+    setAiError(null);
     if (formMode === 'photo_only') {
       if (!imageUrl.trim()) {
-        setImageLoadError('تکایە لینکی وێنەکە لێرە بنووسە یان پەیستی بکە.');
-        return;
+        setImageLoadError(
+          isEn ? 'Please enter or paste an image URL here.' : 'تکایە لینکی وێنەکە لێرە بنووسە یان پەیستی بکە.'
+        );
+        return null;
       }
       const normStart = normalizeYearString(startYearInput.trim());
       const startNum = normStart ? parseInt(normStart, 10) : NaN;
       if (isNaN(startNum)) {
-        setYearError('تکایە ساڵی وێنەکە بە درووستی بنووسە.');
-        return;
+        setYearError(isEn ? 'Please enter a valid year for the photograph.' : 'تکایە ساڵی وێنەکە بە درووستی بنووسە.');
+        return null;
       }
       const actualYear = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
-      const formattedYear = formatKurdishYear(actualYear);
+      const formattedYear = formatKurdishYear(actualYear, language);
       const centuryNum = actualYear < 0 ? -Math.ceil(Math.abs(actualYear) / 100) : Math.ceil(actualYear / 100);
-      const centuryLabel = formatKurdishCentury(Math.abs(centuryNum), actualYear < 0, true);
+      const centuryLabel = formatKurdishCentury(Math.abs(centuryNum), actualYear < 0, true, language);
 
       let eraId = 4;
-      let eraName = 'میرنشین و دەسەڵاتە ئیسلامییەکان';
+      let eraName = isEn ? 'Medieval Dynasties & Emirates' : 'میرنشین و دەسەڵاتە ئیسلامییەکان';
       if (actualYear < -800) {
         eraId = 1;
-        eraName = 'دەسەڵات و گەلە دێرینەکانی پێش ماد';
+        eraName = isEn ? 'Ancient Pre-Median Polities & Peoples' : 'دەسەڵات و گەلە دێرینەکانی پێش ماد';
       } else if (actualYear < -500) {
         eraId = 2;
-        eraName = 'ئیمپراتۆریەتی ماد و سەردەمی کۆن';
+        eraName = isEn ? 'The Median Empire & Classical Antiquity' : 'ئیمپراتۆریەتی ماد و سەردەمی کۆن';
       } else if (actualYear < 650) {
         eraId = 3;
-        eraName = actualYear < 0 ? 'سەردەمی پێش و دوای زایین' : 'سەردەمی کلاسیک و کۆن';
+        eraName = isEn
+          ? 'Post-Median Kingdoms to Early Islam'
+          : actualYear < 0
+          ? 'سەردەمی پێش و دوای زایین'
+          : 'سەردەمی کلاسیک و کۆن';
       } else if (actualYear < 1918) {
         eraId = 4;
-        eraName = 'میرنشین و دەسەڵاتە ئیسلامییەکان';
+        eraName = isEn ? 'Medieval Dynasties & Emirates' : 'میرنشین و دەسەڵاتە ئیسلامییەکان';
       } else {
         eraId = 5;
-        eraName = 'سەردەمی هاوچەرخ';
+        eraName = isEn ? 'Modern & Contemporary Era' : 'سەردەمی هاوچەرخ';
       }
 
       const resolvedPrimary = resolveImageUrl(imageUrl.trim());
@@ -635,17 +788,19 @@ export const FactEditorModal: React.FC<Props> = ({
           ? imageCaption.trim().slice(0, 45)
           : fullText.trim()
           ? fullText.trim().slice(0, 45)
+          : isEn
+          ? 'Historical Photograph'
           : 'وێنەی مێژوویی');
       const finalCaption = imageCaption.trim() || fullText.trim() || finalTitle;
-      const finalDesc = selectedPlaceName || desc.trim() || 'کوردستان';
+      const finalDesc = selectedPlaceName || desc.trim() || (isEn ? 'Kurdistan' : 'کوردستان');
       const finalFullText = fullText.trim() || finalCaption;
 
-      const item: FactItem = {
+      return {
         id: factToEdit ? factToEdit.id : Date.now(),
         num: factToEdit ? factToEdit.num : totalFactsCount + 1,
         eraId: factToEdit ? factToEdit.eraId : eraId,
         eraName: factToEdit ? factToEdit.eraName : eraName,
-        eraPeriod: factToEdit ? factToEdit.eraPeriod : 'مێژووی کوردستان',
+        eraPeriod: factToEdit ? factToEdit.eraPeriod : isEn ? 'History of Kurdistan' : 'مێژووی کوردستان',
         name: finalTitle,
         desc: finalDesc,
         fullText: finalFullText,
@@ -660,7 +815,9 @@ export const FactEditorModal: React.FC<Props> = ({
         lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
         lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
         zoom: factToEdit?.zoom || 8,
-        tag: 'وێنەی مێژوویی',
+        region: regionName.trim() || undefined,
+        provinceId: provinceId.trim() || undefined,
+        tag: isEn ? 'Historical Photo' : 'وێنەی مێژوویی',
         collectionId: 'monument',
         category: 'monument',
         imageUrl: resolvedPrimary,
@@ -668,13 +825,9 @@ export const FactEditorModal: React.FC<Props> = ({
         images: [{ url: resolvedPrimary, caption: finalCaption }],
         isCustom: true,
       };
-
-      onSave(item);
-      onClose();
-      return;
     }
 
-    if (!name.trim()) return;
+    if (!name.trim()) return null;
 
     let finalStart = 0;
     let finalEnd = 0;
@@ -686,15 +839,15 @@ export const FactEditorModal: React.FC<Props> = ({
       const normStart = normalizeYearString(startYearInput.trim());
       const startNum = normStart ? parseInt(normStart, 10) : NaN;
       if (isNaN(startNum)) {
-        setYearError('تکایە ساڵەکە بە درووستی بنووسە.');
-        return;
+        setYearError(isEn ? 'Please enter a valid year.' : 'تکایە ساڵەکە بە درووستی بنووسە.');
+        return null;
       }
       const actualYear = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
       finalStart = actualYear;
       finalEnd = isPerson ? Math.min(2026, actualYear + 75) : actualYear;
-      formattedYear = formatKurdishYear(actualYear);
+      formattedYear = formatKurdishYear(actualYear, language);
       centuryNum = actualYear < 0 ? -Math.ceil(Math.abs(actualYear) / 100) : Math.ceil(actualYear / 100);
-      centuryLabel = formatKurdishCentury(Math.abs(centuryNum), actualYear < 0, true);
+      centuryLabel = formatKurdishCentury(Math.abs(centuryNum), actualYear < 0, true, language);
     } else if (timeMode === 'year_range') {
       const normStart = normalizeYearString(startYearInput.trim());
       const normEnd = normalizeYearString(endYearInput.trim());
@@ -702,8 +855,16 @@ export const FactEditorModal: React.FC<Props> = ({
       const endNum = normEnd ? parseInt(normEnd, 10) : NaN;
 
       if (isNaN(startNum)) {
-        setYearError(isPerson ? 'تکایە ساڵی لەدایکبوون بنووسە.' : 'تکایە ساڵی دەستپێک بنووسە.');
-        return;
+        setYearError(
+          isPerson
+            ? isEn
+              ? 'Please enter birth year.'
+              : 'تکایە ساڵی لەدایکبوون بنووسە.'
+            : isEn
+            ? 'Please enter start year.'
+            : 'تکایە ساڵی دەستپێک بنووسە.'
+        );
+        return null;
       }
 
       const actualStart = startEra === 'BC' ? -Math.abs(startNum) : Math.abs(startNum);
@@ -713,22 +874,26 @@ export const FactEditorModal: React.FC<Props> = ({
 
       finalStart = Math.min(actualStart, actualEnd);
       finalEnd = Math.max(actualStart, actualEnd);
-      formattedYear = formatKurdishYearRange(finalStart, finalEnd);
+      formattedYear = formatKurdishYearRange(finalStart, finalEnd, language);
       centuryNum = finalStart < 0 ? -Math.ceil(Math.abs(finalStart) / 100) : Math.ceil(finalStart / 100);
-      centuryLabel = formatKurdishCentury(Math.abs(centuryNum), finalStart < 0, true);
+      centuryLabel = formatKurdishCentury(Math.abs(centuryNum), finalStart < 0, true, language);
     } else if (timeMode === 'single_century') {
       const normC = normalizeYearString(startCenturyInput.trim());
       const c = normC ? parseInt(normC, 10) : NaN;
       if (isNaN(c) || c < 1) {
-        setYearError('تکایە ژمارەی سەدەکە بە درووستی بنووسە (بۆ نموونە: ٤ یان ١٢).');
-        return;
+        setYearError(
+          isEn
+            ? 'Please enter a valid century number (e.g. 4 or 12).'
+            : 'تکایە ژمارەی سەدەکە بە درووستی بنووسە (بۆ نموونە: ٤ یان ١٢).'
+        );
+        return null;
       }
       const isBC = startCenturyEra === 'BC';
       const span = centuryToYearSpan(c, isBC);
       finalStart = span.startYear;
       finalEnd = span.endYear;
-      formattedYear = formatKurdishCentury(c, isBC, false);
-      centuryLabel = formatKurdishCentury(c, isBC, true);
+      formattedYear = formatKurdishCentury(c, isBC, false, language);
+      centuryLabel = formatKurdishCentury(c, isBC, true, language);
       centuryNum = isBC ? -c : c;
     } else if (timeMode === 'century_range') {
       const normC1 = normalizeYearString(startCenturyInput.trim());
@@ -737,8 +902,8 @@ export const FactEditorModal: React.FC<Props> = ({
       const c2 = normC2 ? parseInt(normC2, 10) : NaN;
 
       if (isNaN(c1) || c1 < 1) {
-        setYearError('تکایە سەدەی دەستپێک دیاری بکە.');
-        return;
+        setYearError(isEn ? 'Please enter the start century.' : 'تکایە سەدەی دەستپێک دیاری بکە.');
+        return null;
       }
       const validC2 = isNaN(c2) || c2 < 1 ? c1 : c2;
       const startBC = startCenturyEra === 'BC';
@@ -746,30 +911,38 @@ export const FactEditorModal: React.FC<Props> = ({
       const span = centuryRangeToYearSpan(c1, startBC, validC2, endBC);
       finalStart = span.startYear;
       finalEnd = span.endYear;
-      formattedYear = formatKurdishCenturyRange(c1, startBC, validC2, endBC, false);
-      centuryLabel = formatKurdishCenturyRange(c1, startBC, validC2, endBC, true);
+      formattedYear = formatKurdishCenturyRange(c1, startBC, validC2, endBC, false, language);
+      centuryLabel = formatKurdishCenturyRange(c1, startBC, validC2, endBC, true, language);
       centuryNum = span.startYear < 0 ? -c1 : c1;
     }
 
     // Dynamic era assignment for new custom items
     let eraId = factToEdit ? factToEdit.eraId : 4;
-    let eraName = factToEdit ? factToEdit.eraName : 'دەسەڵاتە مێژووییەکان';
+    let eraName = factToEdit
+      ? factToEdit.eraName
+      : isEn
+      ? 'Historical Polities'
+      : 'دەسەڵاتە مێژووییەکان';
     if (!factToEdit) {
       if (finalStart < -800) {
         eraId = 1;
-        eraName = 'دەسەڵات و گەلە دێرینەکانی پێش ماد';
+        eraName = isEn ? 'Ancient Pre-Median Polities & Peoples' : 'دەسەڵات و گەلە دێرینەکانی پێش ماد';
       } else if (finalStart < -500) {
         eraId = 2;
-        eraName = 'ئیمپراتۆریەتی ماد و سەردەمی کۆن';
+        eraName = isEn ? 'The Median Empire & Classical Antiquity' : 'ئیمپراتۆریەتی ماد و سەردەمی کۆن';
       } else if (finalStart < 650) {
         eraId = 3;
-        eraName = finalStart < 0 && finalEnd > 0 ? 'سەردەمی پێش و دوای زایین' : 'سەردەمی کلاسیک و کۆن';
+        eraName = isEn
+          ? 'Post-Median Kingdoms to Early Islam'
+          : finalStart < 0 && finalEnd > 0
+          ? 'سەردەمی پێش و دوای زایین'
+          : 'سەردەمی کلاسیک و کۆن';
       } else if (finalStart < 1918) {
         eraId = 4;
-        eraName = 'میرنشین و دەسەڵاتە ئیسلامییەکان';
+        eraName = isEn ? 'Medieval Dynasties, Atabegs & Emirates' : 'میرنشین و دەسەڵاتە ئیسلامییەکان';
       } else {
         eraId = 5;
-        eraName = 'سەردەمی هاوچەرخ';
+        eraName = isEn ? 'Modern & Contemporary Era' : 'سەردەمی هاوچەرخ';
       }
     }
 
@@ -798,14 +971,14 @@ export const FactEditorModal: React.FC<Props> = ({
     const finalImagesArray = allImagesList.slice(0, 10);
     const finalPrimaryImage = finalImagesArray[0];
 
-    const item: FactItem = {
+    return {
       id: factToEdit ? factToEdit.id : Date.now(),
       num: factToEdit ? factToEdit.num : totalFactsCount + 1,
       eraId: eraId,
       eraName: eraName,
-      eraPeriod: factToEdit ? factToEdit.eraPeriod : 'مێژووی کوردستان',
+      eraPeriod: factToEdit ? factToEdit.eraPeriod : isEn ? 'History of Kurdistan' : 'مێژووی کوردستان',
       name: name.trim(),
-      desc: desc.trim() || 'کوردستان',
+      desc: desc.trim() || (isEn ? 'Kurdistan' : 'کوردستان'),
       fullText: fullText.trim(),
       additionalNotes: additionalNotes.trim(),
       timeSpanType: timeMode,
@@ -824,6 +997,8 @@ export const FactEditorModal: React.FC<Props> = ({
       lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
       lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
       zoom: factToEdit?.zoom || 8,
+      region: regionName.trim() || undefined,
+      provinceId: provinceId.trim() || undefined,
       tag: selectedCategory,
       collectionId: selectedCategory,
       category: selectedCategory,
@@ -835,14 +1010,42 @@ export const FactEditorModal: React.FC<Props> = ({
       allyFactIds: allyFactIds.length > 0 ? allyFactIds : undefined,
       isCustom: true,
     };
+  };
 
-    onSave(item);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const item = buildFactItemFromForm();
+    if (!item) return;
+    onSave(item, { isEdit: Boolean(factToEdit) });
     onClose();
+  };
+
+  const handleSaveAndTranslateAi = async () => {
+    const item = buildFactItemFromForm();
+    if (!item || isSavingAndTranslating) return;
+    setIsSavingAndTranslating(true);
+    setAiError(null);
+    try {
+      onSave(item, { isEdit: Boolean(factToEdit), skipCrossLangPrompt: true });
+      await translateFactToEnglishDetailed(item);
+      onClose();
+    } catch (err) {
+      setAiError(
+        err instanceof Error
+          ? err.message
+          : isEn
+          ? 'AI translation failed'
+          : 'وەرگێڕانی AI سەرکەوتوو نەبوو'
+      );
+    } finally {
+      setIsSavingAndTranslating(false);
+    }
   };
 
   return (
     <div
-      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xs animate-fade-in text-right fast-glass-modal"
+      dir={dir}
+      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xs animate-fade-in text-start fast-glass-modal"
       onClick={onClose}
     >
       <div
@@ -863,16 +1066,34 @@ export const FactEditorModal: React.FC<Props> = ({
               <div className="flex items-center gap-2">
                 <h3 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide">
                   {factToEdit
-                    ? (formMode === 'photo_only' ? 'دەستکاریکردنی وێنەی مێژوویی' : 'دەستکاریکردنی دەسەڵات و بابەت')
-                    : (formMode === 'photo_only' ? 'فۆڕمی تایبەتی وێنەی مێژوویی' : 'زیادکردنی بابەت و شوێنی نوێ')}
+                    ? formMode === 'photo_only'
+                      ? isEn
+                        ? 'Edit Historical Photograph'
+                        : 'دەستکاریکردنی وێنەی مێژوویی'
+                      : isEn
+                      ? 'Edit Historical Entry'
+                      : 'دەستکاریکردنی دەسەڵات و بابەت'
+                    : formMode === 'photo_only'
+                    ? isEn
+                      ? 'Quick Historical Photo Form'
+                      : 'فۆڕمی تایبەتی وێنەی مێژوویی'
+                    : isEn
+                    ? 'Add New Historical Entry'
+                    : 'زیادکردنی بابەت و شوێنی نوێ'}
                 </h3>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
                 {formMode === 'photo_only'
-                  ? 'دانانی وێنەی مێژوویی لەسەر نەخشە تەنها بە ٤ خانە: لینکی وێنە، ساڵ، شوێن، و زانیاری وێنە'
-                  : (factToEdit
-                      ? `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و ئەرشیف`
-                      : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە وردەکاریی تەواو')}
+                  ? isEn
+                    ? 'Pin an archival photograph to the map with 4 quick fields: Image URL, Year, Location, and Caption'
+                    : 'دانانی وێنەی مێژوویی لەسەر نەخشە تەنها بە ٤ خانە: لینکی وێنە، ساڵ، شوێن، و زانیاری وێنە'
+                  : factToEdit
+                  ? isEn
+                    ? `Editing details for "${factToEdit.name}" on the map and archive`
+                    : `دەستکاریکردنی زانیارییەکانی «${factToEdit.name}» لەسەر نەخشە و ئەرشیف`
+                  : isEn
+                  ? 'Record a new polity, ruler, fortress, battle, or site with full details'
+                  : 'تۆمارکردنی دەسەڵات، کەسایەتی، قەڵا یان ڕووداوێکی نوێ بە وردەکاریی تەواو'}
               </p>
             </div>
           </div>
@@ -880,13 +1101,13 @@ export const FactEditorModal: React.FC<Props> = ({
           <button
             onClick={onClose}
             className="w-9 h-9 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
-            title="داخستن"
+            title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Mode Selector: فۆڕمی وێنەی مێژوویی vs فۆڕمی تەواوی بابەت */}
+        {/* Form Mode Selector */}
         <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] mb-4 shrink-0">
           <button
             type="button"
@@ -898,7 +1119,9 @@ export const FactEditorModal: React.FC<Props> = ({
             }`}
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
-            <span>فۆڕمی وێنەی مێژوویی (تەنها ٤ خانەکە)</span>
+            <span>
+              {isEn ? 'Historical Photo Mode (4 Fields)' : 'فۆڕمی وێنەی مێژوویی (تەنها ٤ خانەکە)'}
+            </span>
           </button>
           <button
             type="button"
@@ -910,13 +1133,12 @@ export const FactEditorModal: React.FC<Props> = ({
             }`}
           >
             <FileText className="w-4 h-4 shrink-0" />
-            <span>فۆڕمی گشتی (تەواوی بابەت)</span>
+            <span>{isEn ? 'Full Entry Mode' : 'فۆڕمی گشتی (تەواوی بابەت)'}</span>
           </button>
         </div>
 
-        {/* Scrollable Form Body with Refined Structure */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-4 text-xs flex-1 custom-scrollbar">
-          
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto pe-1 space-y-4 text-xs flex-1 custom-scrollbar">
           {formMode === 'photo_only' ? (
             <div className="space-y-4 animate-fade-in">
               {/* Guidance Banner */}
@@ -924,15 +1146,19 @@ export const FactEditorModal: React.FC<Props> = ({
                 <div className="w-7 h-7 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 mt-0.5">
                   <Sparkles className="w-4 h-4" />
                 </div>
-                <div className="text-right">
-                  <h4 className="text-xs font-bold text-amber-300">فۆڕمی خێرا و سەربەخۆی وێنەی مێژوویی</h4>
+                <div className="text-start">
+                  <h4 className="text-xs font-bold text-amber-300">
+                    {isEn ? 'Quick Historical Photograph Form' : 'فۆڕمی خێرا و سەربەخۆی وێنەی مێژوویی'}
+                  </h4>
                   <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
-                    تەنها بە پڕکردنەوەی ئەم ٤ خانەیە، وێنە مێژووییەکە لەسەر نەخشەی وێنەیی و شریتەکەی خوارەوە بە خێرایی پیشان دەدرێت.
+                    {isEn
+                      ? 'Fill in these 4 fields to display an archival photograph immediately on the map and photo strip.'
+                      : 'تەنها بە پڕکردنەوەی ئەم ٤ خانەیە، وێنە مێژووییەکە لەسەر نەخشەی وێنەیی و شریتەکەی خوارەوە بە خێرایی پیشان دەدرێت.'}
                   </p>
                 </div>
               </div>
 
-              {/* 1. بەستەری وێنە (Image Link / URL) */}
+              {/* 1. Image Link / URL */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
@@ -940,14 +1166,14 @@ export const FactEditorModal: React.FC<Props> = ({
                       01
                     </span>
                     <ImageIcon className="w-4 h-4 text-amber-400" />
-                    <span>لینکی وێنە (بەستەری وێنەی مێژوویی)</span>
+                    <span>{isEn ? 'Photo URL (Historical Image Link)' : 'لینکی وێنە (بەستەری وێنەی مێژوویی)'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">بەستەری سەرەکی</span>
+                  <span className="text-[11px] text-slate-400">{isEn ? 'Primary URL' : 'بەستەری سەرەکی'}</span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                    بەستەری وێنە (Image URL) <span className="text-amber-400">*</span>
+                    {isEn ? 'Image URL' : 'بەستەری وێنە (Image URL)'} <span className="text-amber-400">*</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
@@ -956,7 +1182,11 @@ export const FactEditorModal: React.FC<Props> = ({
                         type="url"
                         value={imageUrl}
                         onChange={(e) => handleImageUrlChange(e.target.value)}
-                        placeholder="https://... لینکی ڕاستەوخۆی وێنە لێرە دابنێ"
+                        placeholder={
+                          isEn
+                            ? 'https://... Paste direct image link here'
+                            : 'https://... لینکی ڕاستەوخۆی وێنە لێرە دابنێ'
+                        }
                         dir="ltr"
                         className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs pr-10 pl-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-mono"
                       />
@@ -965,7 +1195,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           type="button"
                           onClick={() => setImageUrl('')}
                           className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer"
-                          title="سڕینەوە"
+                          title={isEn ? 'Clear' : 'سڕینەوە'}
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -976,10 +1206,10 @@ export const FactEditorModal: React.FC<Props> = ({
                       type="button"
                       onClick={handlePasteClipboard}
                       className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl liquid-glass-btn hover:border-amber-400/50 text-slate-200 hover:text-amber-300 text-xs font-semibold shrink-0 cursor-pointer transition-all"
-                      title="پەیستکردن لە کلیپبۆرد"
+                      title={isEn ? 'Paste from clipboard' : 'پەیستکردن لە کلیپبۆرد'}
                     >
                       <Copy className="w-3.5 h-3.5" />
-                      <span>پەیست</span>
+                      <span>{isEn ? 'Paste' : 'پەیست'}</span>
                     </button>
                   </div>
 
@@ -997,15 +1227,21 @@ export const FactEditorModal: React.FC<Props> = ({
                     <div className="w-full max-h-72 overflow-hidden rounded-xl flex items-center justify-center bg-black/90">
                       <img
                         src={imageUrl}
-                        alt="پێشبینینی وێنەی مێژوویی"
+                        alt={isEn ? 'Historical photo preview' : 'پێشبینینی وێنەی مێژوویی'}
                         className="max-h-72 w-auto object-contain rounded-lg shadow-lg"
-                        onError={() => setImageLoadError('نەتوانرا ئەم وێنەیە باربکرێت، تکایە دڵنیابە لە درووستی بەستەرەکە.')}
+                        onError={() =>
+                          setImageLoadError(
+                            isEn
+                              ? 'Could not load this image. Please verify the direct link.'
+                              : 'نەتوانرا ئەم وێنەیە باربکرێت، تکایە دڵنیابە لە درووستی بەستەرەکە.'
+                          )
+                        }
                       />
                     </div>
                     <div className="flex items-center justify-between w-full px-2 text-[11px] text-slate-400">
                       <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
                         <Check className="w-3.5 h-3.5" />
-                        <span>پێشبینینی وێنە ئامادەیە</span>
+                        <span>{isEn ? 'Image preview ready' : 'پێشبینینی وێنە ئامادەیە'}</span>
                       </div>
                       {linkInfo && (
                         <span className="font-mono text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
@@ -1017,15 +1253,19 @@ export const FactEditorModal: React.FC<Props> = ({
                 ) : (
                   <div className="p-4 rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex flex-col items-center justify-center text-center gap-1.5 text-slate-400">
                     <ImageIcon className="w-7 h-7 text-slate-500 mb-1" />
-                    <span className="text-xs font-medium text-slate-300">هیچ بەستەرێکی وێنە دانەنراوە</span>
+                    <span className="text-xs font-medium text-slate-300">
+                      {isEn ? 'No image URL entered yet' : 'هیچ بەستەرێکی وێنە دانەنراوە'}
+                    </span>
                     <span className="text-[11px] text-slate-500">
-                      دەتوانیت هەر لینکێکی وێنە لە ویکیپیدیا، ئیمگەر یان وێب لێرە دابنێیت.
+                      {isEn
+                        ? 'Paste any direct image link from Wikimedia Commons, ImgBB, or the web.'
+                        : 'دەتوانیت هەر لینکێکی وێنە لە ویکیپیدیا، ئیمگەر یان وێب لێرە دابنێیت.'}
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* 2. ساڵ و کات (Year) */}
+              {/* 2. Year & Date */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
@@ -1033,15 +1273,17 @@ export const FactEditorModal: React.FC<Props> = ({
                       02
                     </span>
                     <Calendar className="w-4 h-4 text-amber-400" />
-                    <span>ساڵ و ڕێکەوت</span>
+                    <span>{isEn ? 'Year & Date' : 'ساڵ و ڕێکەوت'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">کاتی وێنە لە مێژوودا</span>
+                  <span className="text-[11px] text-slate-400">
+                    {isEn ? 'Historical date of the photograph' : 'کاتی وێنە لە مێژوودا'}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                   <div>
                     <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                      ساڵ <span className="text-amber-400">*</span>
+                      {isEn ? 'Year' : 'ساڵ'} <span className="text-amber-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -1050,7 +1292,7 @@ export const FactEditorModal: React.FC<Props> = ({
                         setStartYearInput(e.target.value);
                         setYearError(null);
                       }}
-                      placeholder="بۆ نموونە: 1920 یان 1187"
+                      placeholder={isEn ? 'e.g., 1920 or 1187' : 'بۆ نموونە: 1920 یان 1187'}
                       dir="ltr"
                       className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-mono font-bold"
                     />
@@ -1058,7 +1300,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                      سەردەم (زایینی / پێش زایین)
+                      {isEn ? 'Era (CE / BCE)' : 'سەردەم (زایینی / پێش زایین)'}
                     </label>
                     <div className="grid grid-cols-2 gap-2 bg-black/40 p-1 rounded-xl border border-white/10">
                       <button
@@ -1070,7 +1312,7 @@ export const FactEditorModal: React.FC<Props> = ({
                             : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        زایینی (ز)
+                        {isEn ? 'CE (AD)' : 'زایینی (ز)'}
                       </button>
                       <button
                         type="button"
@@ -1081,7 +1323,7 @@ export const FactEditorModal: React.FC<Props> = ({
                             : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        پێش زایین (پ.ز)
+                        {isEn ? 'BCE (BC)' : 'پێش زایین (پ.ز)'}
                       </button>
                     </div>
                   </div>
@@ -1104,7 +1346,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 )}
               </div>
 
-              {/* 3. شوێن لەسەر نەخشە (Location on Map) */}
+              {/* 3. Location on Map */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
@@ -1112,31 +1354,36 @@ export const FactEditorModal: React.FC<Props> = ({
                       03
                     </span>
                     <MapPin className="w-4 h-4 text-amber-400" />
-                    <span>شوێن لەسەر نەخشە</span>
+                    <span>{isEn ? 'Location on Map' : 'شوێن لەسەر نەخشە'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">دیاریکردنی خاڵ</span>
+                  <span className="text-[11px] text-slate-400">
+                    {isEn ? 'Pinpoint coordinates' : 'دیاریکردنی خاڵ'}
+                  </span>
                 </div>
 
                 {/* Place Search */}
                 <div className="relative">
                   <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                    گەڕان بۆ شوێن یان شار (Google Places)
+                    {isEn ? 'Search City or Place (Google Places)' : 'گەڕان بۆ شوێن یان شار (Google Places)'}
                   </label>
                   <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       value={placeSearchQuery}
                       onChange={(e) => handlePlaceSearch(e.target.value)}
-                      placeholder="بۆ نموونە: قەڵای هەولێر، سلێمانی، ئامەد، مەهاباد، زاخۆ، کرماشان..."
-                      className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs pr-10 pl-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all"
+                      placeholder={
+                        isEn
+                          ? 'e.g., Erbil Citadel, Sulaymaniyah, Amed, Mahabad, Zakho, Kermanshah...'
+                          : 'بۆ نموونە: قەڵای هەولێر، سلێمانی، ئامەد، مەهاباد، زاخۆ، کرماشان...'
+                      }
+                      className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs ps-10 pe-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all"
                     />
                     {isSearchingPlaces && (
-                      <Loader2 className="w-4 h-4 text-amber-400 absolute left-3 top-1/2 -translate-y-1/2 animate-spin pointer-events-none" />
+                      <Loader2 className="w-4 h-4 text-amber-400 absolute end-3 top-1/2 -translate-y-1/2 animate-spin pointer-events-none" />
                     )}
                   </div>
 
-                  {/* Place Results */}
                   {placeSearchResults.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 z-30 max-h-48 overflow-y-auto rounded-xl bg-[#0b0f19] border border-white/15 shadow-2xl p-1 space-y-1">
                       {placeSearchResults.map((place, idx) => (
@@ -1144,7 +1391,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           key={idx}
                           type="button"
                           onClick={() => handleSelectSearchedPlace(place)}
-                          className="w-full text-right px-3 py-2 rounded-lg hover:bg-white/10 flex items-center justify-between text-xs text-slate-200 transition-colors cursor-pointer"
+                          className="w-full text-start px-3 py-2 rounded-lg hover:bg-white/10 flex items-center justify-between text-xs text-slate-200 transition-colors cursor-pointer"
                         >
                           <div>
                             <div className="font-bold text-white">{place.name}</div>
@@ -1165,10 +1412,18 @@ export const FactEditorModal: React.FC<Props> = ({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">
-                        {selectedPlaceName ? selectedPlaceName : (hasLocationPicked ? 'شوێن دیاریکراوە' : 'شوێن دیاری نەکراوە')}
+                        {selectedPlaceName
+                          ? selectedPlaceName
+                          : hasLocationPicked
+                          ? isEn
+                            ? 'Location Selected'
+                            : 'شوێن دیاریکراوە'
+                          : isEn
+                          ? 'Location Not Selected'
+                          : 'شوێن دیاری نەکراوە'}
                       </div>
-                      <div className="text-[10px] font-mono text-slate-400">
-                        پۆوتانەکان: {lat.toFixed(4)}, {lng.toFixed(4)}
+                      <div className="text-[10px] font-mono text-slate-400" dir="ltr">
+                        {isEn ? 'Coords:' : 'پۆوتانەکان:'} {lat.toFixed(4)}, {lng.toFixed(4)}
                       </div>
                     </div>
                   </div>
@@ -1179,12 +1434,12 @@ export const FactEditorModal: React.FC<Props> = ({
                     className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
                   >
                     <Crosshair className="w-3.5 h-3.5" />
-                    <span>دیاریکردن بە دەست لەسەر نەخشە</span>
+                    <span>{isEn ? 'Pick on Map Manually' : 'دیاریکردن بە دەست لەسەر نەخشە'}</span>
                   </button>
                 </div>
               </div>
 
-              {/* 4. زانیاری لەسەر وێنە (Information on Image / Caption) */}
+              {/* 4. Photo Information & Caption */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
@@ -1192,27 +1447,35 @@ export const FactEditorModal: React.FC<Props> = ({
                       04
                     </span>
                     <Info className="w-4 h-4 text-amber-400" />
-                    <span>زانیاری لەسەر وێنە</span>
+                    <span>{isEn ? 'Photograph Details' : 'زانیاری لەسەر وێنە'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">تێبینی و وەسفی مێژوویی</span>
+                  <span className="text-[11px] text-slate-400">
+                    {isEn ? 'Historical note & description' : 'تێبینی و وەسفی مێژوویی'}
+                  </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                    ناونیشانی وێنە (ناوی کورت یان سەردێڕ) <span className="text-amber-400">*</span>
+                    {isEn ? 'Photo Title (Short Heading)' : 'ناونیشانی وێنە (ناوی کورت یان سەردێڕ)'}{' '}
+                    <span className="text-amber-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="بۆ نموونە: وێنەی شێخ مەحمودی حەفید، قەڵای دمدم، دیمەنی کۆنی سلێمانی..."
+                    placeholder={
+                      isEn
+                        ? 'e.g., Sheikh Mahmud Barzanji, Dimdim Citadel, Old Sulaymaniyah...'
+                        : 'بۆ نموونە: وێنەی شێخ مەحمودی حەفید، قەڵای دمدم، دیمەنی کۆنی سلێمانی...'
+                    }
                     className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-semibold"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                    زانیاری و وەسفی تەواوی وێنە <span className="text-amber-400">*</span>
+                    {isEn ? 'Full Description & Context' : 'زانیاری و وەسفی تەواوی وێنە'}{' '}
+                    <span className="text-amber-400">*</span>
                   </label>
                   <textarea
                     rows={4}
@@ -1223,7 +1486,11 @@ export const FactEditorModal: React.FC<Props> = ({
                         setImageCaption(e.target.value.slice(0, 100));
                       }
                     }}
-                    placeholder="زانیاری لەسەر ئەم وێنەیە، لە کوێ گیراوە، کێ تێیدایە، کات و سەردەم، و گرنگییە مێژوویییەکەی بنووسە..."
+                    placeholder={
+                      isEn
+                        ? 'Describe where this photograph was taken, who appears in it, its date, and historical significance...'
+                        : 'زانیاری لەسەر ئەم وێنەیە، لە کوێ گیراوە، کێ تێیدایە، کات و سەردەم، و گرنگییە مێژوویییەکەی بنووسە...'
+                    }
                     className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs p-3.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all resize-y leading-relaxed"
                   />
                 </div>
@@ -1231,254 +1498,401 @@ export const FactEditorModal: React.FC<Props> = ({
             </div>
           ) : (
             <>
-              {/* SECTION 1: ناو و پۆلێنبەندی (Basic Information & Classification) */}
+              {/* SECTION 1: Basic Information & Classification */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                       01
                     </span>
-                    <span>ناونیشان و پۆلێنبەندی بابەت</span>
+                    <span>{isEn ? 'Entry Title & Classification' : 'ناونیشان و پۆلێنبەندی بابەت'}</span>
                   </span>
-              <span className="text-[11px] text-slate-400">زانیارییە سەرەکییەکان</span>
-            </div>
-
-            {/* Name Field */}
-            <div>
-              <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                ناوی دەسەڵات / کەسایەتی / شوێن <span className="text-amber-400">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند، شەرەفخانی بەدلیسی..."
-                className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold placeholder:text-slate-500"
-              />
-            </div>
-
-            {/* Unified Category Selector (تەنها یەک پۆلێن لەنێوان ٩ پۆلێنە سەرەکییەکە) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-200 mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-amber-300">
-                  <Layers className="w-3.5 h-3.5 text-amber-400" />
-                  <span>پۆلێنی بابەت <span className="text-amber-400">*</span></span>
-                </span>
-                <span className="text-[10px] text-slate-400">یەکێک لە ١٠ پۆلێنە سەرەکییەکە هەڵبژێرە</span>
-              </label>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {EDITABLE_CATEGORIES.map((cat) => {
-                  const isSelected = selectedCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedCategory(cat.id as CategoryId)}
-                      className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'liquid-glass-btn-active font-extrabold shadow-md scale-[1.02]'
-                          : 'liquid-glass-btn text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: isSelected ? '#000000' : cat.color }}
-                      />
-                      <span className="truncate">{cat.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 2: شوێن و جوگرافیا (Geographic Location & Google Maps) */}
-          <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
-                  02
-                </span>
-                <span>شوێن و پۆوتانی جوگرافی لەسەر نەخشە</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowManualCoords(!showManualCoords)}
-                className="text-[11px] text-amber-400/90 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>{showManualCoords ? 'شاردنەوەی پۆوتانی دەستی' : 'دەستکاریکردنی دەستی پۆوتان'}</span>
-              </button>
-            </div>
-
-            {/* Region / Geographic description */}
-            <div>
-              <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                پێگەی جوگرافی / شار، ناوچە یان وڵات
-              </label>
-              <input
-                type="text"
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد، جزیرە، هەولێر..."
-                className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
-              />
-            </div>
-
-            {/* Google Maps Search Bar + Direct Map Picker */}
-            <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                  <Search className="w-4 h-4 text-amber-400" />
-                  <span>گەڕان لە گۆگڵ ماپ بۆ دۆزینەوەی دەستبەجێ:</span>
-                </span>
-
-                <button
-                  type="button"
-                  onClick={onStartPickLocation}
-                  className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
-                >
-                  <Crosshair className="w-3.5 h-3.5 text-amber-400" />
-                  <span>
-                    {hasLocationPicked
-                      ? 'گۆڕینی شوێن بە دەست لەسەر نەخشە'
-                      : 'دیاریکردن بە کلیک لەسەر نەخشە'}
+                  <span className="text-[11px] text-slate-400">
+                    {isEn ? 'Core Information' : 'زانیارییە سەرەکییەکان'}
                   </span>
-                </button>
-              </div>
+                </div>
 
-              {/* Search Input Box */}
-              <div className="relative">
-                <input
-                  type="text"
-                  value={placeSearchQuery}
-                  onChange={(e) => handlePlaceSearch(e.target.value)}
-                  placeholder="ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوند بنووسە (بۆ نموونە: سلێمانی، ڕواندز، قەڵای دمدم، بەدلیس، ئامێدی...)"
-                  className="w-full liquid-glass-input text-white pl-9 pr-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                  {isSearchingPlaces ? (
-                    <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
-                  ) : placeSearchQuery ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPlaceSearchQuery('');
-                        setPlaceSearchResults([]);
-                      }}
-                      className="text-slate-400 hover:text-white cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <Search className="w-4 h-4 text-slate-500" />
-                  )}
+                {/* Name Field */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    {isEn ? 'Polity / Figure / Site Name' : 'ناوی دەسەڵات / کەسایەتی / شوێن'}{' '}
+                    <span className="text-amber-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={
+                      isEn
+                        ? 'e.g., Principality of Baban, Sharafkhan Bidlisi, Erbil Citadel...'
+                        : 'بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند، شەرەفخانی بەدلیسی...'
+                    }
+                    className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold placeholder:text-slate-500"
+                  />
+                </div>
+
+                {/* Unified Category Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-2 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-amber-300">
+                      <Layers className="w-3.5 h-3.5 text-amber-400" />
+                      <span>
+                        {isEn ? 'Category' : 'پۆلێنی بابەت'} <span className="text-amber-400">*</span>
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {isEn
+                        ? `Select 1 of ${editableCategories.length} categories`
+                        : `یەکێک لە ${formatDigits(editableCategories.length, language)} پۆلێنە سەرەکییەکە هەڵبژێرە`}
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {editableCategories.map((cat) => {
+                      const isSelected = selectedCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat.id as CategoryId)}
+                          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'liquid-glass-btn-active font-extrabold shadow-md scale-[1.02]'
+                              : 'liquid-glass-btn text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: isSelected ? '#000000' : cat.color }}
+                          />
+                          <span className="truncate">{cat.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Search Results Dropdown List */}
-              {placeSearchResults.length > 0 && (
-                <div className="liquid-glass-card rounded-2xl overflow-hidden shadow-2xl divide-y divide-white/10 max-h-56 overflow-y-auto animate-fade-in">
-                  <div className="p-2 liquid-glass-subtle text-[10px] text-amber-300 font-bold flex items-center justify-between px-3">
-                    <span>کلیک لە ناوی شوێنەکە بکە بۆ دیاریکردنی دەستبەجێ:</span>
-                    <span className="font-mono text-slate-400">{placeSearchResults.length} ئەنجام</span>
-                  </div>
-                  {placeSearchResults.map((place) => (
+              {/* SECTION 2: Geographic Location & Google Maps */}
+              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                      02
+                    </span>
+                    <span>
+                      {isEn ? 'Geographic Location & Map Coordinates' : 'شوێن و پۆوتانی جوگرافی لەسەر نەخشە'}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualCoords(!showManualCoords)}
+                    className="text-[11px] text-amber-400/90 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-medium"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>
+                      {showManualCoords
+                        ? isEn
+                          ? 'Hide Manual Coords'
+                          : 'شاردنەوەی پۆوتانی دەستی'
+                        : isEn
+                        ? 'Edit Manual Coords'
+                        : 'دەستکاریکردنی دەستی پۆوتان'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Region / Geographic description */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    {isEn ? 'Geographic Location / City, Region or Country' : 'پێگەی جوگرافی / شار، ناوچە یان وڵات'}
+                  </label>
+                  <input
+                    type="text"
+                    value={desc}
+                    onChange={(e) => setDesc(e.target.value)}
+                    placeholder={
+                      isEn
+                        ? 'e.g., Sulaymaniyah, Urmia, Amed (Diyarbakir), Cizre, Erbil...'
+                        : 'بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد، جزیرە، هەولێر...'
+                    }
+                    className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
+                  />
+                </div>
+
+                {/* Google Maps Search Bar + Direct Map Picker */}
+                <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Search className="w-4 h-4 text-amber-400" />
+                      <span>
+                        {isEn ? 'Search Google Maps for instant placement:' : 'گەڕان لە گۆگڵ ماپ بۆ دۆزینەوەی دەستبەجێ:'}
+                      </span>
+                    </span>
+
                     <button
-                      key={place.id}
                       type="button"
-                      onClick={() => handleSelectSearchedPlace(place)}
-                      className="w-full text-right p-3 hover:liquid-glass-btn transition-colors flex items-start gap-3 cursor-pointer group"
+                      onClick={onStartPickLocation}
+                      className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
                     >
-                      <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:scale-125 transition-transform" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-white group-hover:text-amber-300 truncate">
-                          {place.name}
+                      <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                      <span>
+                        {hasLocationPicked
+                          ? isEn
+                            ? 'Reposition on Map'
+                            : 'گۆڕینی شوێن بە دەست لەسەر نەخشە'
+                          : isEn
+                          ? 'Pick by Clicking Map'
+                          : 'دیاریکردن بە کلیک لەسەر نەخشە'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Search Input Box */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={placeSearchQuery}
+                      onChange={(e) => handlePlaceSearch(e.target.value)}
+                      placeholder={
+                        isEn
+                          ? 'Type any city, fortress, town, archaeological site, or village (e.g., Sulaymaniyah, Rawanduz, Bitlis...)'
+                          : 'ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوند بنووسە (بۆ نموونە: سلێمانی، ڕواندز، قەڵای دمدم، بەدلیس، ئامێدی...)'
+                      }
+                      className="w-full liquid-glass-input text-white pe-9 ps-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
+                    />
+                    <div className="absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                      {isSearchingPlaces ? (
+                        <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                      ) : placeSearchQuery ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlaceSearchQuery('');
+                            setPlaceSearchResults([]);
+                          }}
+                          className="text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <Search className="w-4 h-4 text-slate-500" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Search Results Dropdown List */}
+                  {placeSearchResults.length > 0 && (
+                    <div className="liquid-glass-card rounded-2xl overflow-hidden shadow-2xl divide-y divide-white/10 max-h-56 overflow-y-auto animate-fade-in">
+                      <div className="p-2 liquid-glass-subtle text-[10px] text-amber-300 font-bold flex items-center justify-between px-3">
+                        <span>
+                          {isEn ? 'Click a place to select it immediately:' : 'کلیک لە ناوی شوێنەکە بکە بۆ دیاریکردنی دەستبەجێ:'}
+                        </span>
+                        <span className="font-mono text-slate-400">
+                          {formatDigits(placeSearchResults.length, language)} {isEn ? 'results' : 'ئەنجام'}
+                        </span>
+                      </div>
+                      {placeSearchResults.map((place) => (
+                        <button
+                          key={place.id}
+                          type="button"
+                          onClick={() => handleSelectSearchedPlace(place)}
+                          className="w-full text-start p-3 hover:liquid-glass-btn transition-colors flex items-start gap-3 cursor-pointer group"
+                        >
+                          <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:scale-125 transition-transform" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-bold text-white group-hover:text-amber-300 truncate">
+                              {place.name}
+                            </div>
+                            <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                              {place.formattedAddress}
+                            </div>
+                            <div className="text-[10px] font-mono text-amber-400/80 mt-0.5" dir="ltr">
+                              {place.lat.toFixed(4)}° N, {place.lng.toFixed(4)}° E
+                            </div>
+                          </div>
+                          <span className="text-[10px] px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 shrink-0 font-bold group-hover:liquid-glass-btn-active group-hover:text-black transition-colors">
+                            {isEn ? 'Select' : 'دەستنیشانکردن'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Visual Confirmation Badge */}
+                  <div className="flex items-center justify-between p-3 rounded-xl liquid-glass-subtle text-xs">
+                    {hasLocationPicked ? (
+                      <div className="flex items-center gap-2.5 text-emerald-400 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
                         </div>
-                        <div className="text-[11px] text-slate-400 truncate mt-0.5">
-                          {place.formattedAddress}
-                        </div>
-                        <div className="text-[10px] font-mono text-amber-400/80 mt-0.5">
-                          {place.lat.toFixed(4)}° N, {place.lng.toFixed(4)}° E
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-100 truncate block">
+                            {selectedPlaceName
+                              ? isEn
+                                ? `Selected: ${selectedPlaceName}`
+                                : `شوێن دیاریکراوە: ${selectedPlaceName}`
+                              : isEn
+                              ? 'Location coordinates set.'
+                              : 'شوێنی ئەم دەسەڵاتە دیاریکراوە.'}
+                          </span>
+                          <span className="text-[11px] font-mono text-amber-300" dir="ltr">
+                            {isEn ? 'Coords:' : 'پۆوتان:'} {lat.toFixed(4)}° N, {lng.toFixed(4)}° E
+                          </span>
                         </div>
                       </div>
-                      <span className="text-[10px] px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 shrink-0 font-bold group-hover:liquid-glass-btn-active group-hover:text-black transition-colors">
-                        دەستنیشانکردن
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    ) : (
+                      <div className="flex items-center gap-2 text-amber-300 text-xs">
+                        <div className="w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
+                          <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                        </div>
+                        <span>
+                          {isEn
+                            ? 'Use Google Maps search above or click the map picker button to set coordinates.'
+                            : 'دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە یان بە دوگمەی نەخشە پۆینتەکە دیاری بکەیت.'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Visual Confirmation Badge */}
-              <div className="flex items-center justify-between p-3 rounded-xl liquid-glass-subtle text-xs">
-                {hasLocationPicked ? (
-                  <div className="flex items-center gap-2.5 text-emerald-400 min-w-0">
-                    <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  {/* Optional Manual GPS Coordinates fields */}
+                  {showManualCoords && (
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800 animate-fade-in">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                          {isEn ? 'Latitude' : 'هێڵی پانی (Latitude)'}
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={lat}
+                          onChange={(e) => {
+                            setLat(parseFloat(e.target.value) || 0);
+                            setHasLocationPicked(true);
+                          }}
+                          dir="ltr"
+                          className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                          {isEn ? 'Longitude' : 'هێڵی درێژی (Longitude)'}
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={lng}
+                          onChange={(e) => {
+                            setLng(parseFloat(e.target.value) || 0);
+                            setHasLocationPicked(true);
+                          }}
+                          dir="ltr"
+                          className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <span className="font-bold text-slate-100 truncate block">
-                        {selectedPlaceName
-                          ? `شوێن دیاریکراوە: ${selectedPlaceName}`
-                          : 'شوێنی ئەم دەسەڵاتە دیاریکراوە.'}
-                      </span>
-                      <span className="text-[11px] font-mono text-amber-300">
-                        پۆوتان: {lat.toFixed(4)}° N, {lng.toFixed(4)}° E
-                      </span>
+                  )}
+
+                  {/* Province Classification & Google Boundary Verification */}
+                  <div className="pt-2.5 border-t border-white/10 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                        <Compass className="w-3.5 h-3.5 text-amber-400" />
+                        <span>
+                          {isEn
+                            ? 'Province Classification (Boundaries & Google Data):'
+                            : 'پۆلێنی پارێزگا (بەپێی سنوور و داتای گۆگڵ):'}
+                        </span>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => resolveProvinceFromCoords(lat, lng, true)}
+                        disabled={isResolvingProvince}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-[11px] font-bold cursor-pointer transition-all disabled:opacity-50"
+                      >
+                        {isResolvingProvince ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Globe className="w-3 h-3" />
+                        )}
+                        <span>{isEn ? 'Detect Boundary via Google' : 'دیاریکردنی سنوور بە داتای گۆگڵ'}</span>
+                      </button>
                     </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <select
+                        value={provinceId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProvinceId(val);
+                          const found = KURDISTAN_PROVINCES.find((p) => p.id === val);
+                          if (found) setRegionName(isEn ? found.nameEn || found.name : found.name);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0b101d] text-slate-100 text-xs font-bold focus:border-amber-400 focus:outline-none"
+                      >
+                        <option value="">
+                          {isEn ? 'Auto-detect on Map' : 'دیاریکردنی خۆکار لەسەر نەخشە'}
+                        </option>
+                        <optgroup label={isEn ? 'Southern Kurdistan' : 'باشووری کوردستان'}>
+                          {KURDISTAN_PROVINCES.filter((p) => p.part === 'south').map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {isEn ? p.nameEn || p.name : p.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label={isEn ? 'Northern Kurdistan' : 'باکووری کوردستان'}>
+                          {KURDISTAN_PROVINCES.filter((p) => p.part === 'north').map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {isEn ? p.nameEn || p.name : p.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label={isEn ? 'Eastern Kurdistan' : 'ڕۆژهەڵاتی کوردستان'}>
+                          {KURDISTAN_PROVINCES.filter((p) => p.part === 'east').map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {isEn ? p.nameEn || p.name : p.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label={isEn ? 'Western Kurdistan' : 'ڕۆژئاوای کوردستان'}>
+                          {KURDISTAN_PROVINCES.filter((p) => p.part === 'west').map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {isEn ? p.nameEn || p.name : p.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        {provinceId.startsWith('outside_') && (
+                          <option value={provinceId}>
+                            {isEn ? 'Outside Kurdistan: ' : 'دەرەوەی کوردستان: '}
+                            {regionName || provinceId.replace('outside_', '')}
+                          </option>
+                        )}
+                      </select>
+
+                      <input
+                        type="text"
+                        value={regionName}
+                        onChange={(e) => setRegionName(e.target.value)}
+                        placeholder={
+                          isEn
+                            ? 'Province or region name (e.g., Erbil, Baghdad)'
+                            : 'ناوی پارێزگا یان هەرێم (بۆ نموونە: هەولێر، بەغدا)'
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0b101d] text-slate-100 text-xs placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+
+                    {googleAdminSummary && (
+                      <div className="text-[10px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg px-2.5 py-1.5 font-mono flex items-center gap-1.5">
+                        <Check className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{googleAdminSummary}</span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-amber-300 text-xs">
-                    <div className="w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
-                      <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    </div>
-                    <span>
-                      دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە یان بە دوگمەی نەخشە پۆینتەکە دیاری بکەیت.
-                    </span>
-                  </div>
-                )}
+                </div>
               </div>
-
-              {/* Optional Manual GPS Coordinates fields */}
-              {showManualCoords && (
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800 animate-fade-in">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                      هێڵی پانی (Latitude)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={lat}
-                      onChange={(e) => {
-                        setLat(parseFloat(e.target.value) || 0);
-                        setHasLocationPicked(true);
-                      }}
-                      className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                      هێڵی درێژی (Longitude)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={lng}
-                      onChange={(e) => {
-                        setLng(parseFloat(e.target.value) || 0);
-                        setHasLocationPicked(true);
-                      }}
-                      className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* SECTION 3: ساڵنامە و تایملاین (Timeline & Eras - ساڵ یان سەدە) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
@@ -1488,13 +1902,15 @@ export const FactEditorModal: React.FC<Props> = ({
                   03
                 </span>
                 <span>
-                  دیاریکردنی کاتی مێژوویی (بە ساڵ یان بە سەدە) بۆ تایملاین و نەخشە
+                  {isEn
+                    ? 'Historical Chronology (by Year or Century) for Timeline & Map'
+                    : 'دیاریکردنی کاتی مێژوویی (بە ساڵ یان بە سەدە) بۆ تایملاین و نەخشە'}
                 </span>
               </span>
 
               {previewTimeSpan?.isCrossEra && (
                 <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold liquid-glass-btn-active text-black shadow-sm animate-pulse">
-                  نێوان پێش و دوای زایین (پ.ز ⟷ ز)
+                  {isEn ? 'Cross-Era (BCE ⟷ CE)' : 'نێوان پێش و دوای زایین (پ.ز ⟷ ز)'}
                 </span>
               )}
             </div>
@@ -1502,7 +1918,7 @@ export const FactEditorModal: React.FC<Props> = ({
             {/* Mode Selector Segmented Tabs: ٤ بژاردەی سەرەکی بە شێوازی Liquid Glass */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold text-amber-200/90">
-                شێوازی دیاریکردنی کات هەڵبژێرە:
+                {isEn ? 'Select Date Format Mode:' : 'شێوازی دیاریکردنی کات هەڵبژێرە:'}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl liquid-glass-subtle">
                 <button
@@ -1518,7 +1934,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">ساڵێکی دیاریکراو</span>
+                  <span className="truncate">{isEn ? 'Single Year' : 'ساڵێکی دیاریکراو'}</span>
                 </button>
 
                 <button
@@ -1534,7 +1950,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">نێوان دوو ساڵ</span>
+                  <span className="truncate">{isEn ? 'Year Range' : 'نێوان دوو ساڵ'}</span>
                 </button>
 
                 <button
@@ -1550,7 +1966,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">بەتەنیا یەک سەدە</span>
+                  <span className="truncate">{isEn ? 'Single Century' : 'بەتەنیا یەک سەدە'}</span>
                 </button>
 
                 <button
@@ -1566,7 +1982,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   }`}
                 >
                   <Sliders className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">نێوان دوو سەدە</span>
+                  <span className="truncate">{isEn ? 'Century Range' : 'نێوان دوو سەدە'}</span>
                 </button>
               </div>
             </div>
@@ -1585,7 +2001,15 @@ export const FactEditorModal: React.FC<Props> = ({
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{isPerson ? 'ساڵی لەدایکبوون یان ساڵی چالاکی' : 'ساڵی ڕووداو یان دامەزراندن'}</span>
+                    <span>
+                      {isPerson
+                        ? isEn
+                          ? 'Birth Year or Active Year'
+                          : 'ساڵی لەدایکبوون یان ساڵی چالاکی'
+                        : isEn
+                        ? 'Event or Founding Year'
+                        : 'ساڵی ڕووداو یان دامەزراندن'}
+                    </span>
                     <span className="text-amber-400">*</span>
                   </label>
 
@@ -1600,7 +2024,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      پ.ز
+                      {isEn ? 'BCE' : 'پ.ز'}
                     </button>
                     <button
                       type="button"
@@ -1611,7 +2035,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      ز
+                      {isEn ? 'CE' : 'ز'}
                     </button>
                   </div>
                 </div>
@@ -1625,15 +2049,25 @@ export const FactEditorModal: React.FC<Props> = ({
                       setStartYearInput(e.target.value);
                       setYearError(null);
                     }}
-                    placeholder={startEra === 'BC' ? 'بۆ نموونە: 612 (پێش زایین)' : 'بۆ نموونە: 1514 (زایینی)'}
-                    className="w-full liquid-glass-input text-white pr-3 pl-20 py-2.5 rounded-xl text-xs font-mono font-bold"
+                    placeholder={
+                      isEn
+                        ? startEra === 'BC'
+                          ? 'e.g. 612 (BCE)'
+                          : 'e.g. 1514 (CE)'
+                        : startEra === 'BC'
+                        ? 'بۆ نموونە: 612 (پێش زایین)'
+                        : 'بۆ نموونە: 1514 (زایینی)'
+                    }
+                    className="w-full liquid-glass-input text-white ps-3 pe-24 py-2.5 rounded-xl text-xs font-mono font-bold"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
-                    {startEra === 'BC' ? 'پێش زایین' : 'زایینی'}
+                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
+                    {isEn ? (startEra === 'BC' ? 'BCE' : 'CE') : startEra === 'BC' ? 'پێش زایین' : 'زایینی'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  ئەم بابەتە بەتەنیا بۆ ئەم ساڵە لەسەر نەخشە و تایملاین جێگیر دەبێت.
+                  {isEn
+                    ? 'This entry will be pinned specifically to this year on the map and timeline.'
+                    : 'ئەم بابەتە بەتەنیا بۆ ئەم ساڵە لەسەر نەخشە و تایملاین جێگیر دەبێت.'}
                 </p>
               </div>
             )}
@@ -1647,7 +2081,15 @@ export const FactEditorModal: React.FC<Props> = ({
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{isPerson ? 'ساڵی لەدایکبوون' : 'ساڵی دەستپێک / دامەزراندن'}</span>
+                        <span>
+                          {isPerson
+                            ? isEn
+                              ? 'Birth Year'
+                              : 'ساڵی لەدایکبوون'
+                            : isEn
+                            ? 'Start / Founding Year'
+                            : 'ساڵی دەستپێک / دامەزراندن'}
+                        </span>
                         <span className="text-amber-400">*</span>
                       </label>
 
@@ -1661,7 +2103,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          پ.ز
+                          {isEn ? 'BCE' : 'پ.ز'}
                         </button>
                         <button
                           type="button"
@@ -1672,7 +2114,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          ز
+                          {isEn ? 'CE' : 'ز'}
                         </button>
                       </div>
                     </div>
@@ -1686,11 +2128,19 @@ export const FactEditorModal: React.FC<Props> = ({
                           setStartYearInput(e.target.value);
                           setYearError(null);
                         }}
-                        placeholder={startEra === 'BC' ? 'بۆ نموونە: 150 (پ.ز)' : 'بۆ نموونە: 1514 (ز)'}
-                        className="w-full liquid-glass-input text-white pr-3 pl-16 py-2 rounded-xl text-xs font-mono font-bold"
+                        placeholder={
+                          isEn
+                            ? startEra === 'BC'
+                              ? 'e.g. 150 (BCE)'
+                              : 'e.g. 1514 (CE)'
+                            : startEra === 'BC'
+                            ? 'بۆ نموونە: 150 (پ.ز)'
+                            : 'بۆ نموونە: 1514 (ز)'
+                        }
+                        className="w-full liquid-glass-input text-white ps-3 pe-16 py-2 rounded-xl text-xs font-mono font-bold"
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
-                        {startEra === 'BC' ? 'پ.ز' : 'ز'}
+                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        {isEn ? (startEra === 'BC' ? 'BCE' : 'CE') : startEra === 'BC' ? 'پ.ز' : 'ز'}
                       </span>
                     </div>
                   </div>
@@ -1700,7 +2150,15 @@ export const FactEditorModal: React.FC<Props> = ({
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{isPerson ? 'ساڵی کۆچی دوایی' : 'ساڵی کۆتایی / ڕووخان'}</span>
+                        <span>
+                          {isPerson
+                            ? isEn
+                              ? 'Death Year'
+                              : 'ساڵی کۆچی دوایی'
+                            : isEn
+                            ? 'End / Decline Year'
+                            : 'ساڵی کۆتایی / ڕووخان'}
+                        </span>
                       </label>
 
                       <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
@@ -1713,7 +2171,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          پ.ز
+                          {isEn ? 'BCE' : 'پ.ز'}
                         </button>
                         <button
                           type="button"
@@ -1724,7 +2182,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          ز
+                          {isEn ? 'CE' : 'ز'}
                         </button>
                       </div>
                     </div>
@@ -1737,11 +2195,19 @@ export const FactEditorModal: React.FC<Props> = ({
                           setEndYearInput(e.target.value);
                           setYearError(null);
                         }}
-                        placeholder={endEra === 'BC' ? 'بۆ نموونە: 40 (پ.ز)' : 'بۆ نموونە: 1851 (ز)'}
-                        className="w-full liquid-glass-input text-white pr-3 pl-16 py-2 rounded-xl text-xs font-mono font-bold"
+                        placeholder={
+                          isEn
+                            ? endEra === 'BC'
+                              ? 'e.g. 40 (BCE)'
+                              : 'e.g. 1851 (CE)'
+                            : endEra === 'BC'
+                            ? 'بۆ نموونە: 40 (پ.ز)'
+                            : 'بۆ نموونە: 1851 (ز)'
+                        }
+                        className="w-full liquid-glass-input text-white ps-3 pe-16 py-2 rounded-xl text-xs font-mono font-bold"
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
-                        {endEra === 'BC' ? 'پ.ز' : 'ز'}
+                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        {isEn ? (endEra === 'BC' ? 'BCE' : 'CE') : endEra === 'BC' ? 'پ.ز' : 'ز'}
                       </span>
                     </div>
                   </div>
@@ -1755,7 +2221,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-amber-400" />
-                    <span>سەدە دیاری بکە (بەتەنیا یەک سەدە)</span>
+                    <span>{isEn ? 'Select Century (Single Century)' : 'سەدە دیاری بکە (بەتەنیا یەک سەدە)'}</span>
                     <span className="text-amber-400">*</span>
                   </label>
 
@@ -1769,7 +2235,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      پ.ز (پێش زایین)
+                      {isEn ? 'BCE' : 'پ.ز (پێش زایین)'}
                     </button>
                     <button
                       type="button"
@@ -1780,7 +2246,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      ز (زایینی)
+                      {isEn ? 'CE' : 'ز (زایینی)'}
                     </button>
                   </div>
                 </div>
@@ -1794,18 +2260,24 @@ export const FactEditorModal: React.FC<Props> = ({
                       setStartCenturyInput(e.target.value);
                       setYearError(null);
                     }}
-                    placeholder="ژمارەی سەدە بنووسە: بۆ نموونە 4 یان 12"
-                    className="w-full liquid-glass-input text-white pr-3 pl-32 py-2.5 rounded-xl text-xs font-mono font-bold"
+                    placeholder={isEn ? 'Enter century number: e.g. 4 or 12' : 'ژمارەی سەدە بنووسە: بۆ نموونە 4 یان 12'}
+                    className="w-full liquid-glass-input text-white ps-3 pe-32 py-2.5 rounded-xl text-xs font-mono font-bold"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/90 pointer-events-none">
-                    {startCenturyEra === 'BC' ? 'سەدەی پێش زایین' : 'سەدەی زایینی'}
+                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/90 pointer-events-none">
+                    {isEn
+                      ? startCenturyEra === 'BC'
+                        ? 'Century BCE'
+                        : 'Century CE'
+                      : startCenturyEra === 'BC'
+                      ? 'سەدەی پێش زایین'
+                      : 'سەدەی زایینی'}
                   </span>
                 </div>
 
                 {/* Quick preset century buttons */}
                 <div>
                   <span className="block text-[10px] text-slate-400 mb-1.5 font-bold">
-                    هەڵبژاردنی خێرا بۆ سەدە:
+                    {isEn ? 'Quick Century Presets:' : 'هەڵبژاردنی خێرا بۆ سەدە:'}
                   </span>
                   <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((num) => (
@@ -1822,7 +2294,7 @@ export const FactEditorModal: React.FC<Props> = ({
                             : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
                         }`}
                       >
-                        سەدەی {toKurdishDigits(num)}
+                        {isEn ? `C. ${num}` : `سەدەی ${formatDigits(num, language)}`}
                       </button>
                     ))}
                   </div>
@@ -1839,7 +2311,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-amber-400" />
-                        <span>سەدەی دەستپێک</span>
+                        <span>{isEn ? 'Start Century' : 'سەدەی دەستپێک'}</span>
                         <span className="text-amber-400">*</span>
                       </label>
 
@@ -1853,7 +2325,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          پ.ز
+                          {isEn ? 'BCE' : 'پ.ز'}
                         </button>
                         <button
                           type="button"
@@ -1864,7 +2336,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          ز
+                          {isEn ? 'CE' : 'ز'}
                         </button>
                       </div>
                     </div>
@@ -1878,11 +2350,13 @@ export const FactEditorModal: React.FC<Props> = ({
                           setStartCenturyInput(e.target.value);
                           setYearError(null);
                         }}
-                        placeholder="بۆ نموونە: 4 یان 10"
-                        className="w-full liquid-glass-input text-white pr-3 pl-20 py-2 rounded-xl text-xs font-mono font-bold"
+                        placeholder={isEn ? 'e.g. 4 or 10' : 'بۆ نموونە: 4 یان 10'}
+                        className="w-full liquid-glass-input text-white ps-3 pe-24 py-2 rounded-xl text-xs font-mono font-bold"
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
-                        سەدەی {startCenturyEra === 'BC' ? 'پ.ز' : 'ز'}
+                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        {isEn
+                          ? `C. ${startCenturyEra === 'BC' ? 'BCE' : 'CE'}`
+                          : `سەدەی ${startCenturyEra === 'BC' ? 'پ.ز' : 'ز'}`}
                       </span>
                     </div>
 
@@ -1899,7 +2373,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'bg-white/5 hover:bg-white/10 text-slate-300'
                           }`}
                         >
-                          {toKurdishDigits(n)}
+                          {formatDigits(n, language)}
                         </button>
                       ))}
                     </div>
@@ -1910,7 +2384,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-slate-400" />
-                        <span>سەدەی کۆتایی</span>
+                        <span>{isEn ? 'End Century' : 'سەدەی کۆتایی'}</span>
                       </label>
 
                       <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
@@ -1923,7 +2397,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          پ.ز
+                          {isEn ? 'BCE' : 'پ.ز'}
                         </button>
                         <button
                           type="button"
@@ -1934,7 +2408,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          ز
+                          {isEn ? 'CE' : 'ز'}
                         </button>
                       </div>
                     </div>
@@ -1947,11 +2421,13 @@ export const FactEditorModal: React.FC<Props> = ({
                           setEndCenturyInput(e.target.value);
                           setYearError(null);
                         }}
-                        placeholder="بۆ نموونە: 2 یان 12"
-                        className="w-full liquid-glass-input text-white pr-3 pl-20 py-2 rounded-xl text-xs font-mono font-bold"
+                        placeholder={isEn ? 'e.g. 2 or 12' : 'بۆ نموونە: 2 یان 12'}
+                        className="w-full liquid-glass-input text-white ps-3 pe-24 py-2 rounded-xl text-xs font-mono font-bold"
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
-                        سەدەی {endCenturyEra === 'BC' ? 'پ.ز' : 'ز'}
+                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                        {isEn
+                          ? `C. ${endCenturyEra === 'BC' ? 'BCE' : 'CE'}`
+                          : `سەدەی ${endCenturyEra === 'BC' ? 'پ.ز' : 'ز'}`}
                       </span>
                     </div>
 
@@ -1968,7 +2444,7 @@ export const FactEditorModal: React.FC<Props> = ({
                               : 'bg-white/5 hover:bg-white/10 text-slate-300'
                           }`}
                         >
-                          {toKurdishDigits(n)}
+                          {formatDigits(n, language)}
                         </button>
                       ))}
                     </div>
@@ -1977,13 +2453,13 @@ export const FactEditorModal: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Live Interactive Kurdish Year / Century Preview Badge */}
+            {/* Live Interactive Year / Century Preview Badge */}
             {previewTimeSpan && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl liquid-glass-subtle text-xs border border-amber-400/30">
                 <div className="space-y-0.5 min-w-0">
                   <div className="text-slate-300 text-xs flex items-center gap-1.5 font-bold">
                     <Clock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>پێشبینینی ڕێکەوتی تۆمارکراو:</span>
+                    <span>{isEn ? 'Recorded Date Preview:' : 'پێشبینینی ڕێکەوتی تۆمارکراو:'}</span>
                   </div>
                   {previewTimeSpan.subLabel && (
                     <p className="text-[11px] text-amber-200/85 truncate">
@@ -1998,7 +2474,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   </span>
                   {previewTimeSpan.isCrossEra && (
                     <span className="text-[10px] px-2 py-0.5 rounded-md font-bold liquid-glass-btn-active text-black">
-                      پ.ز ⟷ ز
+                      {isEn ? 'BCE ⟷ CE' : 'پ.ز ⟷ ز'}
                     </span>
                   )}
                 </div>
@@ -2013,22 +2489,36 @@ export const FactEditorModal: React.FC<Props> = ({
                 <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   04
                 </span>
-                <span>پوختەی مێژوویی، شوێنەواری و بەڵگەنامەکان</span>
+                <span>
+                  {isEn
+                    ? 'Historical Summary, Archaeology & Archives'
+                    : 'پوختەی مێژوویی، شوێنەواری و بەڵگەنامەکان'}
+                </span>
               </span>
-              <span className="text-[11px] text-slate-400">دەق و سەرچاوەکان</span>
+              <span className="text-[11px] text-slate-400">
+                {isEn ? 'Narrative & Sources' : 'دەق و سەرچاوەکان'}
+              </span>
             </div>
 
             {/* Full historical overview text */}
             <div>
               <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span>پوختەی مێژوویی و شوێنەواری (دەقی سەرەکی)</span>
+                <span>
+                  {isEn
+                    ? 'Historical & Archaeological Overview (Main Text)'
+                    : 'پوختەی مێژوویی و شوێنەواری (دەقی سەرەکی)'}
+                </span>
               </label>
               <textarea
                 rows={3}
                 value={fullText}
                 onChange={(e) => setFullText(e.target.value)}
-                placeholder="وەسفی مێژوویی ئەم دەسەڵاتە یان کەسایەتییە بنووسە: ڕووداوە گرنگەکان، نەبەردییەکان، ئاسەوارەکان و بەسەرهاتەکانی فەرمانڕەوایی..."
+                placeholder={
+                  isEn
+                    ? 'Write a historical description of this polity, figure, or site: key events, battles, monuments, and legacy...'
+                    : 'وەسفی مێژوویی ئەم دەسەڵاتە یان کەسایەتییە بنووسە: ڕووداوە گرنگەکان، نەبەردییەکان، ئاسەوارەکان و بەسەرهاتەکانی فەرمانڕەوایی...'
+                }
                 className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl leading-relaxed text-xs placeholder:text-slate-500"
               />
             </div>
@@ -2037,13 +2527,43 @@ export const FactEditorModal: React.FC<Props> = ({
             <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-2">
               <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-amber-400" />
-                <span>زانیاریی زیاتر، دەستنووس، وتەی مێژوونووسان و سەرچاوەکان</span>
+                <span>
+                  {isEn
+                    ? 'Additional Notes, Manuscripts, Historians & References'
+                    : 'زانیاریی زیاتر، دەستنووس، وتەی مێژوونووسان و سەرچاوەکان'}
+                </span>
               </label>
+
+              {duplicateNotesOwner && (
+                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-amber-200 text-[11px] flex flex-wrap items-center justify-between gap-2 animate-fade-in">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">
+                      {isEn
+                        ? `Warning: These additional notes match the entry "${duplicateNotesOwner.name}" and appear to be pasted from another topic.`
+                        : `ئاگاداری: ئەم تێبینییە زیادەیە هەمان دەقی بابەتی «${duplicateNotesOwner.name}»ـە و پێدەچێت بە هەڵە تێکەڵ بووبێت.`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdditionalNotes('')}
+                    className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[11px] flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>{isEn ? 'Clear Mismatched Notes' : 'سڕینەوەی تێبینیی تێکەڵبوو'}</span>
+                  </button>
+                </div>
+              )}
+
               <textarea
                 rows={3}
                 value={additionalNotes}
                 onChange={(e) => setAdditionalNotes(e.target.value)}
-                placeholder="لێرە زانیارییە زیاترەکان، دەقی دەستنووس و وتەی مێژوونووسان، شوێنەوارە پارێزراوەکان و سەرچاوەی کتێبەکان تۆمار بکە..."
+                placeholder={
+                  isEn
+                    ? 'Add extended details, manuscript excerpts, historians’ quotes, preserved artifacts, and bibliographic references...'
+                    : 'لێرە زانیارییە زیاترەکان، دەقی دەستنووس و وتەی مێژوونووسان، شوێنەوارە پارێزراوەکان و سەرچاوەی کتێبەکان تۆمار بکە...'
+                }
                 className="w-full liquid-glass-input text-slate-200 placeholder:text-slate-500 px-3.5 py-2 rounded-xl text-xs leading-relaxed"
               />
             </div>
@@ -2056,22 +2576,28 @@ export const FactEditorModal: React.FC<Props> = ({
                 <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   05
                 </span>
-                <span>بەستەری وێنەکان (تا ١٠ وێنە • وێنەی سەرەکی و وێنە زیاترەکان)</span>
+                <span>
+                  {isEn
+                    ? 'Image URLs (Up to 10 Photos • Primary & Extra Slots)'
+                    : 'بەستەری وێنەکان (تا ١٠ وێنە • وێنەی سەرەکی و وێنە زیاترەکان)'}
+                </span>
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/40">
-                تا ١٠ وێنە • بەستەری ڕاستەوخۆ
+                {isEn ? 'Up to 10 Photos • Direct URLs' : 'تا ١٠ وێنە • بەستەری ڕاستەوخۆ'}
               </span>
             </div>
 
-            {/* وێنەی سەرەکی #١ (Image #1 - Primary) */}
+            {/* Image #1 - Primary */}
             <div className="p-3.5 rounded-2xl liquid-glass-subtle border border-amber-400/25 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-md bg-amber-400 text-black font-extrabold text-[10px] font-heading shadow-xs">
-                    وێنەی سەرەکی #١
+                    {isEn ? 'Primary Photo #1' : 'وێنەی سەرەکی #١'}
                   </span>
                   <span className="text-xs font-bold text-white">
-                    پێشاندانی سەر نەخشە و بەرگی سەرەکی بابەت
+                    {isEn
+                      ? 'Featured on the map marker and entry header'
+                      : 'پێشاندانی سەر نەخشە و بەرگی سەرەکی بابەت'}
                   </span>
                 </div>
                 {imageUrl && (
@@ -2085,7 +2611,7 @@ export const FactEditorModal: React.FC<Props> = ({
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
                   <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
-                  <span>بەستەری وێنەی سەرەکی (#١):</span>
+                  <span>{isEn ? 'Primary Image URL (#1):' : 'بەستەری وێنەی سەرەکی (#١):'}</span>
                 </label>
                 <div className="relative flex items-center gap-1.5">
                   <div className="relative flex-1">
@@ -2093,7 +2619,11 @@ export const FactEditorModal: React.FC<Props> = ({
                       type="url"
                       value={imageUrl}
                       onChange={(e) => handleImageUrlChange(e.target.value)}
-                      placeholder="لینکی وێنەی سەرەکی لێرە دابنێ (Wikipedia, ImgBB, Drive...)"
+                      placeholder={
+                        isEn
+                          ? 'Paste primary image URL here (Wikipedia, ImgBB, Drive...)'
+                          : 'لینکی وێنەی سەرەکی لێرە دابنێ (Wikipedia, ImgBB, Drive...)'
+                      }
                       className="w-full liquid-glass-input text-white px-3.5 py-2 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-9"
                       dir="ltr"
                     />
@@ -2105,7 +2635,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           setImageLoadError(null);
                         }}
                         className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-400 cursor-pointer"
-                        title="سڕینەوەی بەستەر"
+                        title={isEn ? 'Clear URL' : 'سڕینەوەی بەستەر'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -2115,10 +2645,10 @@ export const FactEditorModal: React.FC<Props> = ({
                     type="button"
                     onClick={handlePasteClipboard}
                     className="shrink-0 px-3 py-2 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
-                    title="پەیستکردن لە کلیپبۆرد"
+                    title={isEn ? 'Paste from clipboard' : 'پەیستکردن لە کلیپبۆرد'}
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">پەیست</span>
+                    <span className="hidden sm:inline">{isEn ? 'Paste' : 'پەیست'}</span>
                   </button>
                 </div>
               </div>
@@ -2127,13 +2657,19 @@ export const FactEditorModal: React.FC<Props> = ({
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
-                  <span>تێبینی و وەسف لەسەر وێنەی سەرەکی (#١):</span>
+                  <span>
+                    {isEn ? 'Caption & Description for Primary Photo (#1):' : 'تێبینی و وەسف لەسەر وێنەی سەرەکی (#١):'}
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={imageCaption}
                   onChange={(e) => setImageCaption(e.target.value)}
-                  placeholder="بۆ نموونە: نیگاری کەسایەتی، قەڵاکە لە سەدەی بیستەم، یاخود نەخشەی پایتەخت..."
+                  placeholder={
+                    isEn
+                      ? 'e.g. Portrait, the citadel in the early 20th century, or map of the capital...'
+                      : 'بۆ نموونە: نیگاری کەسایەتی، قەڵاکە لە سەدەی بیستەم، یاخود نەخشەی پایتەخت...'
+                  }
                   className="w-full liquid-glass-input text-white px-3.5 py-2 rounded-xl text-xs placeholder:text-slate-500"
                 />
               </div>
@@ -2147,7 +2683,9 @@ export const FactEditorModal: React.FC<Props> = ({
                     className="max-h-52 max-w-full w-auto h-auto object-contain mx-auto rounded-lg shadow-md"
                     onError={() =>
                       setImageLoadError(
-                        'نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.'
+                        isEn
+                          ? 'Could not load image from this URL. Please verify the direct link.'
+                          : 'نەتوانرا وێنەکە لەم بەستەرە باربکرێت، تکایە دڵنیابە لە دروستی بەستەرەکە.'
                       )
                     }
                     onLoad={() => setImageLoadError(null)}
@@ -2155,7 +2693,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   {imageCaption && (
                     <div className="w-full mt-2 p-1.5 px-2.5 rounded-lg liquid-glass-subtle text-amber-200 text-xs flex items-center gap-1.5">
                       <ImageIcon className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="font-medium text-right text-[11px] truncate">{imageCaption}</span>
+                      <span className="font-medium text-start text-[11px] truncate">{imageCaption}</span>
                     </div>
                   )}
                 </div>
@@ -2169,7 +2707,7 @@ export const FactEditorModal: React.FC<Props> = ({
               )}
             </div>
 
-            {/* دوگمەی کردنەوەی بۆشایی ٩ لینکەکەی تر و ٩ بۆشایی تێبینییەکان */}
+            {/* Extra 9 Images Accordion Button */}
             <div className="pt-1">
               <button
                 type="button"
@@ -2190,26 +2728,36 @@ export const FactEditorModal: React.FC<Props> = ({
                   >
                     +9
                   </div>
-                  <div className="text-right">
+                  <div className="text-start">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-white font-heading">
                         {showExtraImages
-                          ? 'شاردنەوەی ٩ بۆشایی وێنەکەی تر'
+                          ? isEn
+                            ? 'Hide Extra 9 Photo Slots'
+                            : 'شاردنەوەی ٩ بۆشایی وێنەکەی تر'
+                          : isEn
+                          ? 'Add More Photos (Open 9 Additional URL & Caption Slots)'
                           : 'زیادکردنی وێنەی تر (کردنەوەی ٩ لینکی تر و ٩ تێبینی)'}
                       </span>
                       {filledExtraCount > 0 ? (
                         <span className="px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold">
-                          {toKurdishDigits(filledExtraCount)} لە ٩ وێنە پڕکراوەتەوە
+                          {isEn
+                            ? `${filledExtraCount} of 9 filled`
+                            : `${formatDigits(filledExtraCount, language)} لە ٩ وێنە پڕکراوەتەوە`}
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 text-[10px]">
-                          تا ٩ وێنەی زیاتر
+                          {isEn ? 'Up to 9 extra photos' : 'تا ٩ وێنەی زیاتر'}
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       {showExtraImages
-                        ? 'کلیک بکە بۆ داخستنی خانەکان'
+                        ? isEn
+                          ? 'Click to collapse extra slots'
+                          : 'کلیک بکە بۆ داخستنی خانەکان'
+                        : isEn
+                        ? 'Click to expand 9 additional image URLs & captions for the photo album'
                         : 'کلیک بکە بۆ نیشاندانی بۆشایی ٩ لینک و ٩ تێبینی بۆ ئەلبوومی وێنەکان'}
                     </p>
                   </div>
@@ -2217,7 +2765,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
                 <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs shrink-0">
                   <span className="hidden sm:inline">
-                    {showExtraImages ? 'داخستن' : 'کردنەوە'}
+                    {showExtraImages ? (isEn ? 'Collapse' : 'داخستن') : isEn ? 'Expand' : 'کردنەوە'}
                   </span>
                   <ChevronDown
                     className={`w-4 h-4 transition-transform duration-300 ${
@@ -2228,18 +2776,20 @@ export const FactEditorModal: React.FC<Props> = ({
               </button>
             </div>
 
-            {/* خانەکانی ٩ وێنەکەی تر و ٩ تێبینییەکەیان کاتێک دوگمەکە دادەگیرێت */}
+            {/* 9 Extra Image Slots */}
             {showExtraImages && (
               <div className="space-y-3.5 pt-1 animate-fade-in">
                 <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-200 text-xs flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Images className="w-4 h-4 text-amber-400 shrink-0" />
                     <span className="font-bold text-[11px]">
-                      ٩ بۆشایی وێنەی زیاتر و ٩ بۆشایی تێبینی (وێنەی #٢ تا #١٠)
+                      {isEn
+                        ? '9 Additional Photo & Caption Slots (Photo #2 to #10)'
+                        : '٩ بۆشایی وێنەی زیاتر و ٩ بۆشایی تێبینی (وێنەی #٢ تا #١٠)'}
                     </span>
                   </div>
                   <span className="text-[10px] text-amber-300 font-mono">
-                    کۆی گشتی بەردەست: ١٠ وێنە
+                    {isEn ? 'Total capacity: 10 photos' : 'کۆی گشتی بەردەست: ١٠ وێنە'}
                   </span>
                 </div>
 
@@ -2266,10 +2816,16 @@ export const FactEditorModal: React.FC<Props> = ({
                                   : 'bg-white/10 text-slate-300'
                               }`}
                             >
-                              وێنەی #{toKurdishDigits(imgNumber)}
+                              {isEn ? `Photo #${imgNumber}` : `وێنەی #${formatDigits(imgNumber, language)}`}
                             </span>
                             <span className="text-[11px] font-medium text-slate-300">
-                              {isFilled ? 'وێنەکە دیاریکراوە' : 'بۆشایی بەتاڵ'}
+                              {isFilled
+                                ? isEn
+                                  ? 'Image configured'
+                                  : 'وێنەکە دیاریکراوە'
+                                : isEn
+                                ? 'Empty slot'
+                                : 'بۆشایی بەتاڵ'}
                             </span>
                           </div>
 
@@ -2278,22 +2834,25 @@ export const FactEditorModal: React.FC<Props> = ({
                               type="button"
                               onClick={() => handleClearExtraImage(idx)}
                               className="flex items-center gap-1 px-2 py-0.5 rounded-lg liquid-glass-btn text-rose-300 hover:text-rose-200 text-[10px] cursor-pointer"
-                              title="سڕینەوەی ئەم وێنەیە"
+                              title={isEn ? 'Remove this photo' : 'سڕینەوەی ئەم وێنەیە'}
                             >
                               <Trash2 className="w-3 h-3" />
-                              <span>سڕینەوە</span>
+                              <span>{isEn ? 'Clear' : 'سڕینەوە'}</span>
                             </button>
                           )}
                         </div>
 
                         {/* Fields: URL + Caption */}
                         <div className="space-y-2.5">
-                          {/* 1. بۆشایی لینکی وێنە */}
                           <div>
                             <label className="block text-[10px] font-bold text-slate-300 mb-1 flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
                                 <LinkIcon className="w-3 h-3 text-amber-400" />
-                                <span>بۆشایی لینکی وێنەی #{toKurdishDigits(imgNumber)}:</span>
+                                <span>
+                                  {isEn
+                                    ? `Image #${imgNumber} URL:`
+                                    : `بۆشایی لینکی وێنەی #${formatDigits(imgNumber, language)}:`}
+                                </span>
                               </span>
                             </label>
                             <div className="relative flex items-center gap-1.5">
@@ -2301,7 +2860,11 @@ export const FactEditorModal: React.FC<Props> = ({
                                 type="url"
                                 value={extra.url}
                                 onChange={(e) => handleExtraImageChange(idx, 'url', e.target.value)}
-                                placeholder={`لینکی وێنەی #${toKurdishDigits(imgNumber)} (Wikipedia, ImgBB, Drive...)`}
+                                placeholder={
+                                  isEn
+                                    ? `Photo #${imgNumber} URL (Wikipedia, ImgBB, Drive...)`
+                                    : `لینکی وێنەی #${formatDigits(imgNumber, language)} (Wikipedia, ImgBB, Drive...)`
+                                }
                                 className="w-full liquid-glass-input text-white px-3 py-1.5 rounded-xl text-xs font-mono placeholder:text-slate-600"
                                 dir="ltr"
                               />
@@ -2309,25 +2872,32 @@ export const FactEditorModal: React.FC<Props> = ({
                                 type="button"
                                 onClick={() => handlePasteExtraClipboard(idx)}
                                 className="shrink-0 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-                                title="پەیستکردن لە کلیپبۆرد"
+                                title={isEn ? 'Paste from clipboard' : 'پەیستکردن لە کلیپبۆرد'}
                               >
                                 <Copy className="w-3 h-3" />
-                                <span className="hidden sm:inline">پەیست</span>
+                                <span className="hidden sm:inline">{isEn ? 'Paste' : 'پەیست'}</span>
                               </button>
                             </div>
                           </div>
 
-                          {/* 2. بۆشایی تێبینی لەسەر وێنە */}
                           <div>
                             <label className="block text-[10px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
                               <FileText className="w-3 h-3 text-amber-400" />
-                              <span>بۆشایی تێبینی لەسەر وێنەی #{toKurdishDigits(imgNumber)}:</span>
+                              <span>
+                                {isEn
+                                  ? `Caption for Photo #${imgNumber}:`
+                                  : `بۆشایی تێبینی لەسەر وێنەی #${formatDigits(imgNumber, language)}:`}
+                              </span>
                             </label>
                             <input
                               type="text"
                               value={extra.caption}
                               onChange={(e) => handleExtraImageChange(idx, 'caption', e.target.value)}
-                              placeholder={`تێبینی، شوێن یان وەسفی وێنەی #${toKurdishDigits(imgNumber)}...`}
+                              placeholder={
+                                isEn
+                                  ? `Caption, location, or description for photo #${imgNumber}...`
+                                  : `تێبینی، شوێن یان وەسفی وێنەی #${formatDigits(imgNumber, language)}...`
+                              }
                               className="w-full liquid-glass-input text-white px-3 py-1.5 rounded-xl text-xs placeholder:text-slate-500"
                             />
                           </div>
@@ -2337,13 +2907,14 @@ export const FactEditorModal: React.FC<Props> = ({
                             <div className="flex items-center gap-2.5 p-2 rounded-xl bg-black/60 border border-white/10 mt-1">
                               <img
                                 src={extra.url}
-                                alt={extra.caption || `وێنەی #${imgNumber}`}
+                                alt={extra.caption || `Photo #${imgNumber}`}
                                 className="w-12 h-12 object-cover rounded-lg border border-amber-400/40 shrink-0"
                                 loading="lazy"
                               />
-                              <div className="min-w-0 flex-1 text-right">
+                              <div className="min-w-0 flex-1 text-start">
                                 <p className="text-[11px] font-bold text-amber-300 truncate">
-                                  {extra.caption || `وێنەی #${toKurdishDigits(imgNumber)}`}
+                                  {extra.caption ||
+                                    (isEn ? `Photo #${imgNumber}` : `وێنەی #${formatDigits(imgNumber, language)}`)}
                                 </p>
                                 <p className="text-[10px] text-slate-400 font-mono truncate" dir="ltr">
                                   {extra.url}
@@ -2367,17 +2938,24 @@ export const FactEditorModal: React.FC<Props> = ({
                 <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
                   06
                 </span>
-                <span>بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان</span>
+                <span>
+                  {isEn
+                    ? 'Linking to Polities, Rulers & Related Entries'
+                    : 'بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان'}
+                </span>
               </span>
-              <span className="text-[11px] text-amber-300/80">میرنشین، میر، زانا، قەڵا، جەنگ</span>
+              <span className="text-[11px] text-amber-300/80">
+                {isEn ? 'Emirate, Ruler, Scholar, Fortress, Battle' : 'میرنشین، میر، زانا، قەڵا، جەنگ'}
+              </span>
             </div>
-
 
             {/* Parent Entity Selector */}
             <div>
               <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
                 <Landmark className="w-3.5 h-3.5 text-amber-400" />
-                <span>دەسەڵات یان میرنشینی سەرەکی (Parent Entity)</span>
+                <span>
+                  {isEn ? 'Parent Polity or Empire' : 'دەسەڵات یان میرنشینی سەرەکی (Parent Entity)'}
+                </span>
               </label>
               <select
                 value={parentFactId || ''}
@@ -2387,7 +2965,9 @@ export const FactEditorModal: React.FC<Props> = ({
                 className="w-full liquid-glass-input text-slate-100 p-2.5 rounded-xl text-xs cursor-pointer focus:outline-none"
               >
                 <option value="" className="bg-slate-900 text-slate-300">
-                  -- بەبێ دەسەڵاتی دایک (سەربەخۆ یان خۆی دەسەڵاتی سەرەکییە) --
+                  {isEn
+                    ? '-- No parent polity (independent or top-level entity) --'
+                    : '-- بەبێ دەسەڵاتی دایک (سەربەخۆ یان خۆی دەسەڵاتی سەرەکییە) --'}
                 </option>
                 {availableParentFacts.map((ent) => (
                   <option key={ent.id} value={ent.id} className="bg-slate-900 text-slate-100">
@@ -2402,7 +2982,11 @@ export const FactEditorModal: React.FC<Props> = ({
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                   <Link2 className="w-3.5 h-3.5 text-amber-400" />
-                  <span>بابەت و کەسایەتییە بەستراوەکان ({relatedFactIds.length})</span>
+                  <span>
+                    {isEn
+                      ? `Linked Entries & Figures (${relatedFactIds.length})`
+                      : `بابەت و کەسایەتییە بەستراوەکان (${formatDigits(relatedFactIds.length, language)})`}
+                  </span>
                 </label>
                 <button
                   type="button"
@@ -2410,7 +2994,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[11px] font-bold cursor-pointer"
                 >
                   <Plus className="w-3 h-3 text-amber-400" />
-                  <span>دیاریکردن و گەڕان بۆ بەستنەوە</span>
+                  <span>{isEn ? 'Select & Link Entries' : 'دیاریکردن و گەڕان بۆ بەستنەوە'}</span>
                 </button>
               </div>
 
@@ -2419,7 +3003,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   {relatedFactIds.map((rfId) => {
                     const found = factsByIdMap.get(rfId);
                     if (!found) return null;
-                    const cat = getCategoryInfo(found);
+                    const cat = getCategoryInfo(found, language);
                     return (
                       <span
                         key={rfId}
@@ -2450,18 +3034,24 @@ export const FactEditorModal: React.FC<Props> = ({
                 </div>
               ) : (
                 <div className="py-2.5 px-3 rounded-xl liquid-glass-subtle text-slate-400 text-xs">
-                  هێشتا هیچ بابەتی تر نەبەستراوەتەوە. کلیک لە دوگمەی سەرەوە بکە بۆ بەستنەوە.
+                  {isEn
+                    ? 'No related entries linked yet. Click the button above to link.'
+                    : 'هێشتا هیچ بابەتی تر نەبەستراوەتەوە. کلیک لە دوگمەی سەرەوە بکە بۆ بەستنەوە.'}
                 </div>
               )}
             </div>
 
-            {/* Allies Section (هاوپەیمانەکان) - for Principality / Authority / State / Empire */}
+            {/* Allies Section */}
             {selectedCategory === 'principality' && (
               <div className="p-3.5 rounded-2xl bg-emerald-950/25 border border-emerald-500/25 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
                     <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>دەسەڵات و میرنشینە هاوپەیمانەکان ({allyFactIds.length})</span>
+                    <span>
+                      {isEn
+                        ? `Allied Polities & Principalities (${allyFactIds.length})`
+                        : `دەسەڵات و میرنشینە هاوپەیمانەکان (${formatDigits(allyFactIds.length, language)})`}
+                    </span>
                   </label>
                   <button
                     type="button"
@@ -2469,11 +3059,13 @@ export const FactEditorModal: React.FC<Props> = ({
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 hover:text-white text-[11px] font-bold cursor-pointer transition-all"
                   >
                     <Plus className="w-3 h-3 text-emerald-400" />
-                    <span>دیاریکردنی هاوپەیمان</span>
+                    <span>{isEn ? 'Select Allies' : 'دیاریکردنی هاوپەیمان'}</span>
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  هاوپەیمانی لەگەڵ دەسەڵات، میرنشین، یان دەوڵەتەکانی تر دیاری بکە تا بە هێڵی سەوزی درەوشاوەی «هاوپەیمان» لەسەر نەخشە و تۆڕی کەسایەتییەکان ببەسترێنەوە.
+                  {isEn
+                    ? 'Select allied principalities or states to connect them with glowing green alliance lines on the map and relations graph.'
+                    : 'هاوپەیمانی لەگەڵ دەسەڵات، میرنشین، یان دەوڵەتەکانی تر دیاری بکە تا بە هێڵی سەوزی درەوشاوەی «هاوپەیمان» لەسەر نەخشە و تۆڕی کەسایەتییەکان ببەسترێنەوە.'}
                 </p>
 
                 {allyFactIds.length > 0 ? (
@@ -2503,7 +3095,9 @@ export const FactEditorModal: React.FC<Props> = ({
                   </div>
                 ) : (
                   <div className="py-2 px-3 rounded-xl bg-black/25 text-slate-400 text-xs border border-white/5">
-                    هیچ هاوپەیمانێک دیاری نەکراوە. کلیک لە دوگمەی سەرەوە بکە بۆ دەستنیشانکردنی هاوپەیمانەکان.
+                    {isEn
+                      ? 'No allies selected. Click the button above to assign allied entities.'
+                      : 'هیچ هاوپەیمانێک دیاری نەکراوە. کلیک لە دوگمەی سەرەوە بکە بۆ دەستنیشانکردنی هاوپەیمانەکان.'}
                   </div>
                 )}
               </div>
@@ -2512,8 +3106,16 @@ export const FactEditorModal: React.FC<Props> = ({
         </>
       )}
 
+          {/* AI Translation Error Banner */}
+          {aiError && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/80 border border-rose-500/70 text-rose-200 text-xs font-medium">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{aiError}</span>
+            </div>
+          )}
+
           {/* Action Buttons Bar */}
-          <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/10 shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10 shrink-0">
             {/* Delete button (when editing) */}
             {factToEdit && onDelete && (
               <div>
@@ -2528,14 +3130,14 @@ export const FactEditorModal: React.FC<Props> = ({
                       className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>دڵنیام، بیسڕەوە</span>
+                      <span>{isEn ? 'Confirm Delete' : 'دڵنیام، بیسڕەوە'}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}
                       className="px-3 py-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs cursor-pointer"
                     >
-                      پەشیمانبوونەوە
+                      {isEn ? 'Cancel' : 'پەشیمانبوونەوە'}
                     </button>
                   </div>
                 ) : (
@@ -2543,7 +3145,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     type="button"
                     onClick={() => setConfirmDelete(true)}
                     className="p-2.5 rounded-xl text-red-400 hover:text-white hover:bg-red-950/70 border border-red-900/40 hover:border-red-700 transition-colors cursor-pointer"
-                    title="سڕینەوەی ئەم بابەتە"
+                    title={isEn ? 'Delete this entry' : 'سڕینەوەی ئەم بابەتە'}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -2551,29 +3153,59 @@ export const FactEditorModal: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Cancel & Save Buttons */}
-            <div className="flex items-center gap-2.5 mr-auto">
+            {/* Cancel, AI Translate & Save Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 ms-auto">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                disabled={isSavingAndTranslating}
+                className="px-4 py-2.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
               >
-                داخستن
+                {isEn ? 'Close' : 'داخستن'}
               </button>
+
+              {!isEn && (
+                <button
+                  type="button"
+                  onClick={handleSaveAndTranslateAi}
+                  disabled={isSavingAndTranslating}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-200 hover:text-white font-bold text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-wait"
+                  title="پاشەکەوتکردن بە کوردی و وەرگێڕانی خۆکار بۆ بەشی ئینگلیزی (facts_en) بە هەمان وێنە و پۆتان"
+                >
+                  {isSavingAndTranslating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-sky-300" />
+                      <span>وەرگێڕان بەردەوامە...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Languages className="w-4 h-4 text-sky-300" />
+                      <span>پاشەکەوت + وەرگێڕان بۆ ئینگلیزی (AI)</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               <button
                 type="submit"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all cursor-pointer active:scale-95"
+                disabled={isSavingAndTranslating}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 {formMode === 'photo_only' ? (
                   <>
                     <ImageIcon className="w-4 h-4 text-black" />
-                    <span>تۆمارکردن و دانانی وێنە لەسەر نەخشە</span>
+                    <span>
+                      {isEn
+                        ? 'Save & Pin Photo on Map'
+                        : 'تۆمارکردن و دانانی وێنە لەسەر نەخشە'}
+                    </span>
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 text-black" />
-                    <span>پاشەکەوتکردنی زانیارییەکان</span>
+                    <span>
+                      {isEn ? 'Save Changes' : 'پاشەکەوتکردنی زانیارییەکان'}
+                    </span>
                   </>
                 )}
               </button>
@@ -2602,7 +3234,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   eraId: 1,
                   eraName: '',
                   eraPeriod: '',
-                  name: name.trim() || 'بابەتی نوێ',
+                  name: name.trim() || (isEn ? 'New Entry' : 'بابەتی نوێ'),
                   desc: desc.trim() || '',
                   fullText: fullText.trim() || '',
                   lat: Number(lat) || 36.8,

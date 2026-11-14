@@ -1,4 +1,5 @@
 import { FactItem } from '../data/kurdishHistoryData';
+import type { AppLanguage } from '../context/LanguageContext';
 
 const CENTURY_WORD_MAP: Record<string, number> = {
   'یەکەم': 1, 'دووەم': 2, 'سێیەم': 3, 'چوارەم': 4, 'پێنجەم': 5,
@@ -17,6 +18,13 @@ export function toKurdishDigits(val: number | string): string {
   return str.replace(/\d/g, (d) => KURDISH_DIGITS[parseInt(d, 10)]);
 }
 
+export function formatDigits(val: number | string, lang: AppLanguage = 'ckb'): string {
+  if (lang === 'en') {
+    return normalizeYearString(val.toString());
+  }
+  return toKurdishDigits(val);
+}
+
 export function normalizeYearString(input: string): string {
   if (!input) return '';
   let res = input;
@@ -27,14 +35,29 @@ export function normalizeYearString(input: string): string {
   return res;
 }
 
+function getEnglishOrdinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
 export const MIN_HISTORICAL_YEAR = -3000;
 export const MAX_HISTORICAL_YEAR = 2026;
 
 /**
- * Format a numeric year to a display string in Kurdish
- * Negative = پ.ز (BC), Positive = ز (AD)
+ * Format a numeric year to a display string in Kurdish or English
+ * Negative = پ.ز (BCE), Positive = ز (CE)
  */
-export function formatKurdishYear(year: number): string {
+export function formatKurdishYear(year: number, lang: AppLanguage = 'ckb'): string {
+  if (lang === 'en') {
+    if (year < 0) return `${Math.abs(year)} BCE`;
+    return `${year} CE`;
+  }
   if (year < 0) {
     const abs = Math.abs(year);
     return `${toKurdishDigits(abs)} پ.ز`;
@@ -42,23 +65,39 @@ export function formatKurdishYear(year: number): string {
   return `${toKurdishDigits(year)} ز`;
 }
 
+export const formatYear = formatKurdishYear;
+
 /**
- * Format a start and end year range nicely in Kurdish
+ * Format a start and end year range nicely in Kurdish or English
  */
-export function formatKurdishYearRange(startYear?: number, endYear?: number): string {
+export function formatKurdishYearRange(
+  startYear?: number,
+  endYear?: number,
+  lang: AppLanguage = 'ckb'
+): string {
   if (startYear === undefined && endYear === undefined) return '';
   if (startYear !== undefined && endYear === undefined) {
-    return formatKurdishYear(startYear);
+    return formatKurdishYear(startYear, lang);
   }
   if (startYear === undefined && endYear !== undefined) {
-    return formatKurdishYear(endYear);
+    return formatKurdishYear(endYear, lang);
   }
   if (startYear === endYear && startYear !== undefined) {
-    return formatKurdishYear(startYear);
+    return formatKurdishYear(startYear, lang);
   }
 
   const s = startYear as number;
   const e = endYear as number;
+
+  if (lang === 'en') {
+    if (s < 0 && e < 0) {
+      return `${Math.abs(s)} – ${Math.abs(e)} BCE`;
+    }
+    if (s < 0 && e >= 0) {
+      return `${Math.abs(s)} BCE – ${e} CE`;
+    }
+    return `${s} – ${e} CE`;
+  }
 
   if (s < 0 && e < 0) {
     return `${toKurdishDigits(Math.abs(s))} - ${toKurdishDigits(Math.abs(e))} پ.ز`;
@@ -68,6 +107,8 @@ export function formatKurdishYearRange(startYear?: number, endYear?: number): st
   }
   return `${toKurdishDigits(s)} - ${toKurdishDigits(e)} ز`;
 }
+
+export const formatYearRange = formatKurdishYearRange;
 
 /**
  * Convert a century number (e.g. 4 for 4th century) and BC flag into start and end years.
@@ -104,29 +145,53 @@ export function centuryRangeToYearSpan(
 }
 
 /**
- * Format a single century in Kurdish: e.g. "سەدەی ٤ی پ.ز" or "سەدەی ١٢ی زایینی"
+ * Format a single century in Kurdish or English
  */
-export function formatKurdishCentury(century: number, isBC: boolean, long = false): string {
+export function formatKurdishCentury(
+  century: number,
+  isBC: boolean,
+  long = false,
+  lang: AppLanguage = 'ckb'
+): string {
   const c = Math.max(1, Math.abs(century));
+  if (lang === 'en') {
+    const eraLabel = isBC ? 'BCE' : 'CE';
+    return `${getEnglishOrdinal(c)} Century ${eraLabel}`;
+  }
   const eraLabel = isBC ? (long ? 'پێش زایین' : 'پ.ز') : (long ? 'زایینی' : 'ز');
   return `سەدەی ${toKurdishDigits(c)}ی ${eraLabel}`;
 }
 
+export const formatCentury = formatKurdishCentury;
+
 /**
- * Format a century range in Kurdish: e.g.
- * - "سەدەی ٤ی پ.ز - سەدەی ٢ی ز" (cross-era)
- * - "سەدەی ١٠ - ١٢ی زایینی"
- * - "سەدەی ٧ - ٦ی پێش زایین"
+ * Format a century range in Kurdish or English
  */
 export function formatKurdishCenturyRange(
   startCentury: number,
   startBC: boolean,
   endCentury: number,
   endBC: boolean,
-  long = false
+  long = false,
+  lang: AppLanguage = 'ckb'
 ): string {
   const c1 = Math.max(1, Math.abs(startCentury));
   const c2 = Math.max(1, Math.abs(endCentury));
+
+  if (lang === 'en') {
+    if (startBC && !endBC) {
+      return `${getEnglishOrdinal(c1)} Century BCE – ${getEnglishOrdinal(c2)} Century CE`;
+    }
+    if (!startBC && endBC) {
+      return `${getEnglishOrdinal(c2)} Century BCE – ${getEnglishOrdinal(c1)} Century CE`;
+    }
+    const minC = Math.min(c1, c2);
+    const maxC = Math.max(c1, c2);
+    if (startBC && endBC) {
+      return `${getEnglishOrdinal(maxC)} – ${getEnglishOrdinal(minC)} Century BCE`;
+    }
+    return `${getEnglishOrdinal(minC)} – ${getEnglishOrdinal(maxC)} Century CE`;
+  }
 
   if (startBC && !endBC) {
     return `سەدەی ${toKurdishDigits(c1)}ی پ.ز - سەدەی ${toKurdishDigits(c2)}ی ز`;
@@ -146,11 +211,25 @@ export function formatKurdishCenturyRange(
   return `سەدەی ${toKurdishDigits(minC)} - ${toKurdishDigits(maxC)}ی ${eraLabel}`;
 }
 
+export const formatCenturyRange = formatKurdishCenturyRange;
+
+function hasBCToken(str?: string): boolean {
+  if (!str) return false;
+  return (
+    str.includes('پ.ز') ||
+    str.includes('پێش') ||
+    /\bb\.?c\.?e?\.?\b/i.test(str)
+  );
+}
+
 /**
  * Extract numeric startYear and endYear from any FactItem.
  * Handles explicit startYear/endYear, birthYear/deathYear, or falls back to parsing year text.
  */
-export function getFactYearSpan(fact: Partial<FactItem>): {
+export function getFactYearSpan(
+  fact: Partial<FactItem>,
+  lang: AppLanguage = 'ckb'
+): {
   startYear: number;
   endYear: number;
   isRange: boolean;
@@ -178,7 +257,7 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
       startYear: s,
       endYear: e,
       isRange: s !== e,
-      label: fact.year || formatKurdishYearRange(s, e),
+      label: fact.year || formatKurdishYearRange(s, e, lang),
     };
   }
 
@@ -192,20 +271,19 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
 
   if (explicitStart !== undefined && explicitEnd === undefined) {
     if (isPersonTag) {
-      // If a person has birthYear but no deathYear, consider active for ~75 years
       const end = Math.min(MAX_HISTORICAL_YEAR, explicitStart + 75);
       return {
         startYear: explicitStart,
         endYear: end,
         isRange: true,
-        label: fact.year || formatKurdishYear(explicitStart),
+        label: fact.year || formatKurdishYear(explicitStart, lang),
       };
     }
     return {
       startYear: explicitStart,
       endYear: explicitStart,
       isRange: false,
-      label: fact.year || formatKurdishYear(explicitStart),
+      label: fact.year || formatKurdishYear(explicitStart, lang),
     };
   }
 
@@ -216,22 +294,24 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
         startYear: start,
         endYear: explicitEnd,
         isRange: true,
-        label: fact.year || formatKurdishYear(explicitEnd),
+        label: fact.year || formatKurdishYear(explicitEnd, lang),
       };
     }
     return {
       startYear: explicitEnd,
       endYear: explicitEnd,
       isRange: false,
-      label: fact.year || formatKurdishYear(explicitEnd),
+      label: fact.year || formatKurdishYear(explicitEnd, lang),
     };
   }
 
   // 2. Parse from year string
   const rawYear = fact.year ? normalizeYearString(fact.year) : '';
   if (rawYear) {
-    const rangeParts = rawYear.split(/[-–—]|(\bتا\b)/);
-    const cleanedParts = rangeParts.filter((p) => p && p.trim() !== 'تا' && /\d/.test(p));
+    const rangeParts = rawYear.split(/[-–—]|(\bتا\b)|(\bto\b)/i);
+    const cleanedParts = rangeParts.filter(
+      (p) => p && p.trim() !== 'تا' && p.trim().toLowerCase() !== 'to' && /\d/.test(p)
+    );
     if (cleanedParts.length >= 2) {
       const p1 = cleanedParts[0];
       const p2 = cleanedParts[1];
@@ -241,19 +321,16 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
         let y1 = parseInt(m1[0], 10);
         let y2 = parseInt(m2[0], 10);
 
-        const p1HasBC = p1.includes('پ.ز') || p1.includes('پێش');
-        const p2HasBC = p2.includes('پ.ز') || p2.includes('پێش');
+        const p1HasBC = hasBCToken(p1);
+        const p2HasBC = hasBCToken(p2);
 
-        // Cross-era: starts BC and ends AD (e.g. "100 پ.ز - 50 ز")
         if (p1HasBC && !p2HasBC) {
           y1 = -Math.abs(y1);
           y2 = Math.abs(y2);
-        } else if (p2HasBC && !p1HasBC && !p1.includes('ز')) {
-          // e.g. "700 - 550 پ.ز" -> both are BC
+        } else if (p2HasBC && !p1HasBC && !p1.includes('ز') && !/\bce\b|\bad\b/i.test(p1)) {
           y1 = -Math.abs(y1);
           y2 = -Math.abs(y2);
         } else if (p1HasBC && p2HasBC) {
-          // e.g. "700 پ.ز - 550 پ.ز" -> both are BC
           y1 = -Math.abs(y1);
           y2 = -Math.abs(y2);
         } else if (fact.isBC || fact.eraId === 1 || fact.eraId === 2) {
@@ -267,7 +344,7 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
           startYear: s,
           endYear: e,
           isRange: true,
-          label: fact.year || formatKurdishYearRange(s, e),
+          label: fact.year || formatKurdishYearRange(s, e, lang),
         };
       }
     }
@@ -275,9 +352,9 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
 
   const isBC =
     Boolean(fact.isBC) ||
-    (fact.year && (fact.year.includes('پ.ز') || fact.year.includes('پێش'))) ||
-    (fact.century && (fact.century.includes('پ.ز') || fact.century.includes('پێش'))) ||
-    (fact.eraPeriod && (fact.eraPeriod.includes('پ.ز') || fact.eraPeriod.includes('پێش'))) ||
+    hasBCToken(fact.year) ||
+    hasBCToken(fact.century) ||
+    hasBCToken(fact.eraPeriod) ||
     (fact.eraId !== undefined && fact.eraId <= 2) ||
     (fact.centuryNumber !== undefined && fact.centuryNumber < 0);
 
@@ -295,7 +372,7 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
       startYear: s,
       endYear: e,
       isRange: true,
-      label: fact.year || formatKurdishYearRange(s, e),
+      label: fact.year || formatKurdishYearRange(s, e, lang),
     };
   } else if (matches && matches.length === 1) {
     let y = parseInt(matches[0], 10);
@@ -304,7 +381,7 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
       startYear: y,
       endYear: y,
       isRange: false,
-      label: fact.year || formatKurdishYear(y),
+      label: fact.year || formatKurdishYear(y, lang),
     };
   }
 
@@ -317,7 +394,7 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
   if (cNumber === undefined && fact.century) {
     const rawC = normalizeYearString(fact.century);
     const cMatch = rawC.match(/\d+/);
-    const isCenturyBC = fact.century.includes('پ.ز') || fact.century.includes('پێش');
+    const isCenturyBC = hasBCToken(fact.century);
     if (cMatch) {
       const val = parseInt(cMatch[0], 10);
       cNumber = isCenturyBC ? -val : val;
@@ -336,11 +413,9 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
     let s: number;
     let e: number;
     if (c < 0) {
-      // e.g. -7 (7th century BC: 700 to 600 BC)
       s = c * 100;
       e = (c + 1) * 100;
     } else {
-      // e.g. 12 (12th century AD: 1100 to 1200 AD)
       s = (c - 1) * 100;
       e = c * 100;
     }
@@ -355,16 +430,41 @@ export function getFactYearSpan(fact: Partial<FactItem>): {
   // 4. Fallback based on eraId
   switch (fact.eraId) {
     case 1:
-      return { startYear: -3000, endYear: -800, isRange: true, label: '٣٠٠٠ - ٨٠٠ پ.ز' };
+      return {
+        startYear: -3000,
+        endYear: -800,
+        isRange: true,
+        label: lang === 'en' ? '3000 – 800 BCE' : '٣٠٠٠ - ٨٠٠ پ.ز',
+      };
     case 2:
-      return { startYear: -700, endYear: -550, isRange: true, label: '٧٠٠ - ٥٥٠ پ.ز' };
+      return {
+        startYear: -700,
+        endYear: -550,
+        isRange: true,
+        label: lang === 'en' ? '700 – 550 BCE' : '٧٠٠ - ٥٥٠ پ.ز',
+      };
     case 3:
-      return { startYear: -400, endYear: 650, isRange: true, label: '٤٠٠ پ.ز - ٦٥٠ ز' };
+      return {
+        startYear: -400,
+        endYear: 650,
+        isRange: true,
+        label: lang === 'en' ? '400 BCE – 650 CE' : '٤٠٠ پ.ز - ٦٥٠ ز',
+      };
     case 4:
-      return { startYear: 900, endYear: 1850, isRange: true, label: '٩٠٠ - ١٨٥٠ ز' };
+      return {
+        startYear: 900,
+        endYear: 1850,
+        isRange: true,
+        label: lang === 'en' ? '900 – 1850 CE' : '٩٠٠ - ١٨٥٠ ز',
+      };
     case 5:
     default:
-      return { startYear: 1919, endYear: 2026, isRange: true, label: '١٩١٩ - ٢٠٢٦ ز' };
+      return {
+        startYear: 1919,
+        endYear: 2026,
+        isRange: true,
+        label: lang === 'en' ? '1919 – 2026 CE' : '١٩١٩ - ٢٠٢٦ ز',
+      };
   }
 }
 

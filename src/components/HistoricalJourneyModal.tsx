@@ -7,7 +7,6 @@ import {
   MapPin,
   Compass,
   BookOpen,
-  Layers,
   Landmark,
   ZoomIn,
   Filter,
@@ -19,9 +18,10 @@ import { SubmitPhotoModal } from './SubmitPhotoModal';
 import { FactItem, RAW_FACTS_DATA } from '../data/kurdishHistoryData';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
-import { toKurdishDigits } from '../utils/yearUtils';
+import { formatDigits } from '../utils/yearUtils';
 import { useTheme } from '../context/ThemeContext';
-import { getCategoryInfo, UNIFIED_CATEGORIES } from '../types/history';
+import { useLanguage, AppLanguage } from '../context/LanguageContext';
+import { getCategoryInfo, getUnifiedCategories } from '../types/history';
 
 interface Props {
   isOpen: boolean;
@@ -60,10 +60,61 @@ const CURATED_HISTORICAL_SUMMARIES: Record<string, string> = {
   'ئەیلوول': 'شۆڕشی مەزنی ئەیلوول لە ساڵی ١٩٦١ بە ڕابەرایەتی مستەفا بارزانی هەڵگیرسا و بووە گەورەترین و درێژترین شۆڕشی سەراسەری باشووری کوردستان کە ڕێککەوتننامەی ١١ی ئاداری بەدەستهێنا.',
 };
 
-function getFactSummaryDisplay(fact: FactItem): string {
+// Curated authentic English historical narratives
+const CURATED_HISTORICAL_SUMMARIES_EN: Record<string, string> = {
+  gutian: 'The Gutians were among the earliest indigenous peoples of the Zagros Mountains in the 3rd millennium BCE. In the 22nd century BCE they toppled the Akkadian Empire in Mesopotamia and ruled the region for nearly a century with Arrapha (historic Kirkuk) as a key highland center.',
+  kassite: 'A powerful Zagros highland people who emerged from the Arrapha and central Zagros region in the 16th century BCE, establishing a stable dynasty in Babylonia for over four centuries renowned for bronze craftsmanship, monumental architecture, and horsemanship.',
+  subartu: 'One of the oldest recorded civilizational regions of Upper Mesopotamia and the Zagros foothills. Named in Sumerian and Akkadian cuneiform tablets as the northern highland homeland of indigenous ancestors of the Kurdish peoples.',
+  hurrian: 'Inhabiting northern and western Kurdistan during the 3rd and 2nd millennia BCE, the Hurrians forged an influential linguistic and cultural legacy foundational to the ethnogenesis and highland heritage of the Kurdish people.',
+  lullubi: 'Centered around Shahrizor, Garmian, and Sarpol-e Zahab, the Lullubi civilization left behind the iconic Anubanini rock relief—one of the oldest monumental carvings in the Near East.',
+  mitanni: 'A formidable Hurrian-Indo-Iranian empire from the 15th to 13th centuries BCE ruled from Washukanni in western Kurdistan, rivaling New Kingdom Egypt in diplomacy and chariot warfare.',
+  urartu: 'A grand highland kingdom centered on Lake Van in northern Kurdistan, famed for stone fortresses, metallurgy, and advanced irrigation canals that rivaled Assyria for centuries.',
+  nairi: 'A resilient confederation of Zagros and Lake Van highland tribes celebrated in ancient annals for their fierce defense against Assyrian imperial campaigns.',
+  mannaea: 'Flourishing south of Lake Urmia (Saqqez, Bukan, Mahabad) between the 9th and 6th centuries BCE, leaving masterpieces of goldsmithing and architecture at Ziwiye and Hasanlu.',
+  median: 'Founded around 700 BCE at Ecbatana (Hamadan) through the confederation of six tribes, the Median Empire allied with Babylon to capture Nineveh in 612 BCE and shaped the foundational historical identity of Kurdistan.',
+  corduene: 'An autonomous mountain kingdom south of Lake Van and the Upper Tigris; Xenophon’s Anabasis vividly describes the courageous resistance of the Carduchians in the 4th century BCE.',
+  adiabene: 'An ancient kingdom centered at the Citadel of Erbil in the 1st century CE, prominent across Upper Mesopotamia for trade, diplomacy, and civic heritage.',
+  hasanwayhid: 'An independent 10th-century Kurdish dynasty ruled from Sarmaj Castle across Kermanshah, Hamadan, and Luristan, noted for its coinage, stability, and public works.',
+  marwanid: 'A prosperous 10th–11th century Kurdish dynasty centered in Diyarbekir, Mayyafariqin (Silvan), and Jazira that built the iconic Ten-Arched Bridge and fostered flourishing scholarship.',
+  shaddadid: 'A medieval Kurdish dynasty governing Arran, Ganja, and Ani (10th–12th centuries CE), renowned for disciplined armies, stone citadels, and the famed Gates of Ganja.',
+  ayyubid: 'Founded by Saladin (Salah al-Din al-Ayyubi), uniting Kurdistan, Syria, Egypt, and Hejaz while earning universal acclaim for chivalry and statecraft after the Battle of Hattin (1187 CE).',
+  ardalan: 'Centered in Sanandaj (Sina), the Principality of Ardalan safeguarded Kurdish political autonomy, classical Gorani literature, and regional historiography for more than six centuries.',
+  baban: 'Seated first at Qalachwalan and from 1784 in newly founded Sulaymaniyah, the Baban Emirate sparked a golden renaissance of classical Sorani literature, architecture, and civic reform.',
+  soran: 'Centered in Rawanduz, reaching its zenith under Mir Muhammad Pasha who organized a regular army, minted independent currency, and cast domestic artillery cannons.',
+  badinan: 'Based atop the dramatic cliff citadel of Amadiya, preserving nearly five centuries of regional self-rule, fortification, and scholarly madrasas across Bahdinan.',
+  bohtan: 'Ruled from Jazira (Cizre), birthplace of Ehmede Khani’s epic Mem u Zin and the 19th-century movement of Bedir Khan Beg in northern Kurdistan.',
+  elam: 'One of the ancient world’s earliest highland civilizations in the southern Zagros and Ilam, creator of Chogha Zanbil and deep cultural traditions.',
+  mahabad: 'Established in 1946 under President Qazi Muhammad as the modern democratic Republic of Kurdistan, complete with national flag, anthem, army, and Kurdish education.',
+  september: 'Launched in September 1961 under Mustafa Barzani, becoming the largest nationwide liberation movement in Southern Kurdistan and securing the March 11 Autonomy Accord.',
+};
+
+function getFactSummaryDisplay(fact: FactItem, isEn: boolean): string {
   if (!fact) return '';
   const nameTrim = fact.name || '';
 
+  if (isEn) {
+    // 1. Prefer fact.fullText when already in English/meaningful prose
+    if (fact.fullText && fact.fullText.trim().length > 35) {
+      return fact.fullText.trim();
+    }
+    // 2. Check English curated summaries by keyword
+    const lowerName = nameTrim.toLowerCase();
+    for (const [key, summary] of Object.entries(CURATED_HISTORICAL_SUMMARIES_EN)) {
+      if (lowerName.includes(key)) {
+        return summary;
+      }
+    }
+    // 3. Check fact.desc if substantial
+    if (fact.desc && fact.desc.trim().length > 25) {
+      return fact.desc.trim();
+    }
+    // 4. Clean English fallback
+    const era = fact.eraName || 'Ancient & Medieval History';
+    const reg = fact.region || 'Kurdistan';
+    return `${nameTrim} is documented in historical archives as an important milestone within ${era} across ${reg}, playing a lasting role in the cultural and political heritage of the region.`;
+  }
+
+  // Kurdish Sorani display
   // 1. Check curated rich historical knowledge base by name keyword
   for (const [key, summary] of Object.entries(CURATED_HISTORICAL_SUMMARIES)) {
     if (nameTrim.includes(key)) {
@@ -108,23 +159,30 @@ function getFactSummaryDisplay(fact: FactItem): string {
   return `${nameTrim} لە بەڵگەنامە و توێژینەوە مێژووییەکاندا وەک بەشێکی بنەڕەتی لە سەردەمی ${era} و جوگرافیای ${reg} ناسراوە کە ڕۆڵێکی گرنگی لە مێژوو و ناسنامەی کەلەپووری نەتەوەکەدا گێڕاوە.`;
 }
 
-function getFactYearDisplay(fact: FactItem): string {
+function getFactYearDisplay(fact: FactItem, language: AppLanguage, isEn: boolean): string {
   if (!fact) return '';
   if (fact.year) {
+    const formatted = formatDigits(fact.year, language);
+    if (isEn) {
+      if (/\b(BCE|CE|BC|AD)\b/i.test(formatted)) return formatted;
+      const isBc = fact.isBC || (typeof fact.startYear === 'number' && fact.startYear < 0);
+      return isBc ? `${formatted} BCE` : `${formatted} CE`;
+    }
     const isBc = fact.isBC || (typeof fact.startYear === 'number' && fact.startYear < 0);
-    return isBc ? `${toKurdishDigits(fact.year)} پ.ز` : `${toKurdishDigits(fact.year)} زاینی`;
+    return isBc ? `${formatted} پ.ز` : `${formatted} زایینی`;
   }
-  if (fact.century) return fact.century;
+  if (fact.century) return formatDigits(fact.century, language);
   if (fact.eraName) return fact.eraName;
-  return 'سەردەمی مێژوویی';
+  return isEn ? 'Historical Era' : 'سەردەمی مێژوویی';
 }
 
-function getFactLocationDisplay(fact: FactItem): string {
-  if (!fact) return 'کوردستان';
+function getFactLocationDisplay(fact: FactItem, isEn: boolean): string {
+  if (!fact) return isEn ? 'Kurdistan' : 'کوردستان';
   if (
     fact.desc &&
-    fact.desc.length <= 40 &&
-    (fact.desc.includes('پایتەخت') ||
+    fact.desc.length <= 45 &&
+    (isEn ||
+      fact.desc.includes('پایتەخت') ||
       fact.desc.includes('کەرکووک') ||
       fact.desc.includes('ئاراپخا') ||
       fact.desc.includes('هەولێر') ||
@@ -138,7 +196,7 @@ function getFactLocationDisplay(fact: FactItem): string {
   if (fact.region && fact.region.trim()) {
     return fact.region.trim();
   }
-  return 'کوردستان · چیاکانی زاگرۆس';
+  return isEn ? 'Kurdistan · Zagros Mountains' : 'کوردستان · چیاکانی زاگرۆس';
 }
 
 export const HistoricalJourneyModal: React.FC<Props> = ({
@@ -148,8 +206,12 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   onFlyToFact,
   onOpenDetail,
 }) => {
-  const { colorMode, theme } = useTheme();
+  const { colorMode } = useTheme();
+  const { language, isEn, dir } = useLanguage();
   const isDark = colorMode === 'dark';
+
+  const PrevIcon = isEn ? ChevronLeft : ChevronRight;
+  const NextIcon = isEn ? ChevronRight : ChevronLeft;
 
   // Category Filter State
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -159,6 +221,8 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string; year?: string } | null>(null);
   const [factToSubmitPhoto, setFactToSubmitPhoto] = useState<FactItem | null>(null);
+
+  const categories = useMemo(() => getUnifiedCategories(language), [language]);
 
   // Close category dropdown when clicking outside
   useEffect(() => {
@@ -172,21 +236,24 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isCategoryDropdownOpen]);
 
-  // Helper: ONLY returns authentic recorded images, strictly excluding self-generated or synthetic fallback images
-  const getAuthenticFactImage = useCallback((f: FactItem | null | undefined): string => {
-    if (!f) return '';
-    if (failedImages.has(f.id)) return '';
-    const img = getFactDisplayImage(f);
-    if (
-      !img ||
-      !img.trim() ||
-      img.includes('kurd_battle_scholar_bg') ||
-      img.includes('hero/bg')
-    ) {
-      return '';
-    }
-    return img;
-  }, [failedImages]);
+  // Helper: ONLY returns authentic recorded images
+  const getAuthenticFactImage = useCallback(
+    (f: FactItem | null | undefined): string => {
+      if (!f) return '';
+      if (failedImages.has(f.id)) return '';
+      const img = getFactDisplayImage(f);
+      if (
+        !img ||
+        !img.trim() ||
+        img.includes('kurd_battle_scholar_bg') ||
+        img.includes('hero/bg')
+      ) {
+        return '';
+      }
+      return img;
+    },
+    [failedImages]
+  );
 
   // Category counts across all facts
   const categoryCounts = useMemo(() => {
@@ -195,23 +262,23 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
       facts.forEach((f) => {
         if (!f || !f.name) return;
         map.all = (map.all || 0) + 1;
-        const cat = getCategoryInfo(f).id;
+        const cat = getCategoryInfo(f, language).id;
         map[cat] = (map[cat] || 0) + 1;
       });
     }
     return map;
-  }, [facts]);
+  }, [facts, language]);
 
   // Current category details
   const currentCategoryObj = useMemo(() => {
     return (
-      UNIFIED_CATEGORIES.find((c) => c.id === selectedCategory) || {
+      categories.find((c) => c.id === selectedCategory) || {
         id: 'all',
-        name: 'هەموو پۆلێنەکان',
+        name: isEn ? 'All Categories' : 'هەموو پۆلێنەکان',
         color: '#f59e0b',
       }
     );
-  }, [selectedCategory]);
+  }, [categories, selectedCategory, isEn]);
 
   // Filter valid facts for historical journey by selected category
   const allJourneyFacts: FactItem[] = useMemo(() => {
@@ -219,10 +286,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     const valid = facts.filter((f) => f && f.name && f.name.trim().length > 0);
     if (selectedCategory === 'all') return valid;
     return valid.filter((f) => {
-      const cat = getCategoryInfo(f);
+      const cat = getCategoryInfo(f, language);
       return cat.id === selectedCategory || f.category === selectedCategory || f.tag === selectedCategory;
     });
-  }, [facts, selectedCategory]);
+  }, [facts, selectedCategory, language]);
 
   const handleSelectCategory = (catId: string) => {
     setSelectedCategory(catId);
@@ -255,7 +322,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     }
   }, [isOpen]);
 
-  // Preload pipeline: Preload 8 upcoming and 2 previous authentic cards with async decoding for instant zero-lag transitions
+  // Preload pipeline
   useEffect(() => {
     if (!isOpen || totalFacts === 0) return;
 
@@ -271,7 +338,6 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         imgObj.src = resolved;
       }
     }
-    // Also preload previous items for smooth backward navigation
     for (const prevOffset of [1, 2]) {
       const prevItem = allJourneyFacts[(currentIndex - prevOffset + totalFacts) % totalFacts];
       const prevImg = getAuthenticFactImage(prevItem);
@@ -285,7 +351,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     }
   }, [isOpen, currentIndex, totalFacts, allJourneyFacts, getAuthenticFactImage]);
 
-  // Navigation: Next (Page flips and falls down smoothly)
+  // Navigation: Next
   const handleNext = useCallback(() => {
     if (totalFacts <= 1 || isTransitioning) return;
     setIsTransitioning(true);
@@ -300,7 +366,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     }, 280);
   }, [totalFacts, isTransitioning, allJourneyFacts, currentIndex]);
 
-  // Navigation: Prev (Page sweeps and rises up from bottom smoothly)
+  // Navigation: Prev
   const handlePrev = useCallback(() => {
     if (totalFacts <= 1 || isTransitioning) return;
     setIsTransitioning(true);
@@ -314,7 +380,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     }, 280);
   }, [totalFacts, isTransitioning]);
 
-  // Keyboard navigation
+  // Keyboard navigation respecting RTL vs LTR
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -324,17 +390,23 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         } else {
           onClose();
         }
-      } else if (!previewImage && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+      } else if (!previewImage && e.key === 'ArrowDown') {
         handleNext();
-      } else if (!previewImage && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+      } else if (!previewImage && e.key === 'ArrowUp') {
         handlePrev();
+      } else if (!previewImage && e.key === 'ArrowRight') {
+        if (isEn) handleNext();
+        else handlePrev();
+      } else if (!previewImage && e.key === 'ArrowLeft') {
+        if (isEn) handlePrev();
+        else handleNext();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleNext, handlePrev, onClose, previewImage]);
+  }, [isOpen, handleNext, handlePrev, onClose, previewImage, isEn]);
 
-  // Touch handlers: tuned for mobile smoothness without vertical scroll conflict
+  // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
     setTouchStartX(e.touches[0].clientX);
@@ -347,9 +419,11 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     const deltaY = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
       if (deltaX < 0) {
-        handleNext();
+        if (isEn) handleNext();
+        else handlePrev();
       } else {
-        handlePrev();
+        if (isEn) handlePrev();
+        else handleNext();
       }
     }
     setTouchStartX(null);
@@ -361,6 +435,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   if (totalFacts === 0) {
     return (
       <div
+        dir={dir}
         className={`fixed inset-0 z-[1200] flex items-center justify-center p-4 backdrop-blur-xl animate-fade-in ${
           isDark ? 'bg-black/95 text-white' : 'bg-white/95 text-slate-900'
         }`}
@@ -372,11 +447,21 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         >
           <BookOpen className="w-10 h-10 text-amber-400 mx-auto mb-3" />
           <h3 className="font-heading font-bold text-base mb-1">
-            {selectedCategory !== 'all' ? 'هیچ بابەتێک لەم پۆلێنەدا نییە' : 'هیچ بابەتێکی مێژوویی بەردەست نییە'}
+            {selectedCategory !== 'all'
+              ? isEn
+                ? 'No entries in this category'
+                : 'هیچ بابەتێک لەم پۆلێنەدا نییە'
+              : isEn
+              ? 'No historical entries available'
+              : 'هیچ بابەتێکی مێژوویی بەردەست نییە'}
           </h3>
           <p className="text-xs text-slate-400 mb-4">
             {selectedCategory !== 'all'
-              ? `لە پۆلێنی «${currentCategoryObj.name}» هیچ تۆمارێک نەدۆزرایەوە.`
+              ? isEn
+                ? `No records were found under "${currentCategoryObj.name}".`
+                : `لە پۆلێنی «${currentCategoryObj.name}» هیچ تۆمارێک نەدۆزرایەوە.`
+              : isEn
+              ? 'Please add historical entries first or wait for archive records to load.'
               : 'تکایە سەرەتا بابەتەکان داخڵ بکە یان دڵنیابەرەوە لە هێنانەوەی تۆمارەکان.'}
           </p>
           <div className="flex items-center justify-center gap-2">
@@ -386,7 +471,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 onClick={() => handleSelectCategory('all')}
                 className="px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs cursor-pointer hover:bg-amber-400 transition-colors shadow-md"
               >
-                هەموو پۆلێنەکان
+                {isEn ? 'All Categories' : 'هەموو پۆلێنەکان'}
               </button>
             )}
             <button
@@ -394,7 +479,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-xs cursor-pointer hover:bg-white/20 transition-colors"
             >
-              داخستن
+              {isEn ? 'Close' : 'داخستن'}
             </button>
           </div>
         </div>
@@ -410,7 +495,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
       }`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      dir="rtl"
+      dir={dir}
     >
       {/* 3D Sketchbook Flip Animation CSS Styles (GPU Composite Accelerated) */}
       <style>{`
@@ -442,7 +527,6 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           will-change: transform, opacity;
         }
 
-        /* Sketchbook Page Drop Down Animation (Pure 2D GPU Transform & Opacity) */
         @keyframes sketchbookFallDown {
           0% {
             transform: translate3d(0, 0, 0) scale(1);
@@ -454,7 +538,6 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           }
         }
 
-        /* Sketchbook Page Return / Sweep Up from Bottom Animation (Pure 2D GPU Transform & Opacity) */
         @keyframes sketchbookRiseUp {
           0% {
             transform: translate3d(0, 32px, 0) scale(0.96);
@@ -498,7 +581,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           />
           <div>
             <h2 className="font-heading font-black text-sm sm:text-lg flex items-center gap-2">
-              <span>گەشتی مێژوویی</span>
+              <span>{isEn ? 'Historical Journey' : 'گەشتی مێژوویی'}</span>
             </h2>
           </div>
         </div>
@@ -516,7 +599,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                   ? 'bg-white/[0.06] border-white/10 text-slate-200 hover:text-white hover:bg-white/[0.12] hover:border-white/20'
                   : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200 hover:border-slate-300'
               }`}
-              title="پۆلێنکردنی بابەتەکانی گەشت"
+              title={isEn ? 'Filter journey entries by category' : 'پۆلێنکردنی بابەتەکانی گەشت'}
             >
               <Filter className="w-3.5 h-3.5 text-amber-500" />
               <span className="max-w-[110px] sm:max-w-[150px] truncate">
@@ -532,27 +615,27 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             {/* Category Dropdown Menu */}
             {isCategoryDropdownOpen && (
               <div
-                className={`absolute top-full mt-1.5 left-0 z-50 w-64 sm:w-72 max-h-80 overflow-y-auto rounded-2xl border p-1.5 shadow-2xl backdrop-blur-xl animate-fade-in ${
+                className={`absolute top-full mt-1.5 end-0 z-50 w-64 sm:w-72 max-h-80 overflow-y-auto rounded-2xl border p-1.5 shadow-2xl backdrop-blur-xl animate-fade-in ${
                   isDark
                     ? 'bg-[#0f1422]/98 border-white/15 text-white shadow-black/80'
                     : 'bg-white/98 border-slate-200 text-slate-900 shadow-slate-400/30'
                 }`}
               >
                 <div className="px-2.5 py-1.5 text-[11px] font-bold text-slate-400 border-b border-white/10 mb-1 flex items-center justify-between">
-                  <span>پۆلێنی بابەتەکان:</span>
+                  <span>{isEn ? 'Categories:' : 'پۆلێنی بابەتەکان:'}</span>
                   {selectedCategory !== 'all' && (
                     <button
                       type="button"
                       onClick={() => handleSelectCategory('all')}
                       className="text-amber-500 hover:underline cursor-pointer text-[10px] font-bold"
                     >
-                      هەموو پۆلێنەکان
+                      {isEn ? 'All Categories' : 'هەموو پۆلێنەکان'}
                     </button>
                   )}
                 </div>
 
                 <div className="space-y-0.5">
-                  {UNIFIED_CATEGORIES.map((cat) => {
+                  {categories.map((cat) => {
                     const count = categoryCounts[cat.id] || 0;
                     const isSelected = selectedCategory === cat.id;
                     return (
@@ -560,7 +643,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         key={cat.id}
                         type="button"
                         onClick={() => handleSelectCategory(cat.id)}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-all text-right cursor-pointer ${
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-all text-start cursor-pointer ${
                           isSelected
                             ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
                             : isDark
@@ -586,7 +669,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                                 : 'bg-slate-200 text-slate-600'
                             }`}
                           >
-                            {toKurdishDigits(count)}
+                            {formatDigits(count, language)}
                           </span>
                           {isSelected && <Check className="w-3.5 h-3.5" />}
                         </div>
@@ -606,9 +689,9 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 : 'bg-slate-100 border-slate-200 text-slate-700'
             }`}
           >
-            <span className="text-amber-500 font-extrabold">{toKurdishDigits(currentIndex + 1)}</span>
+            <span className="text-amber-500 font-extrabold">{formatDigits(currentIndex + 1, language)}</span>
             <span className="opacity-40">/</span>
-            <span>{toKurdishDigits(totalFacts)}</span>
+            <span>{formatDigits(totalFacts, language)}</span>
           </div>
 
           {/* Close Button */}
@@ -620,51 +703,50 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 ? 'bg-white/[0.06] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.15] hover:border-white/20'
                 : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200 hover:border-slate-300'
             }`}
-            title="داخستن (Esc)"
-            aria-label="داخستن"
+            title={isEn ? 'Close (Esc)' : 'داخستن (Esc)'}
+            aria-label={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
-            <span className="hidden sm:inline">داخستن</span>
+            <span className="hidden sm:inline">{isEn ? 'Close' : 'داخستن'}</span>
           </button>
         </div>
       </header>
 
       {/* =========================================================================
-          CENTER 3D STAGE:
-          Front sharp card with hardware-accelerated 3D sketchbook motion
+          CENTER 3D STAGE
           ========================================================================= */}
       <main className="relative flex-1 w-full max-w-4xl mx-auto flex items-center justify-center my-1 sm:my-2 min-h-0 journey-3d-stage">
         <div className="relative w-full h-[560px] sm:h-[620px] max-h-[76dvh] flex items-center justify-center touch-pan-y">
-          {/* Floating Prev Button on the Right (RTL: Previous is rightward) */}
+          {/* Floating Prev Button */}
           <button
             type="button"
             onClick={handlePrev}
             disabled={isTransitioning}
-            className={`hidden md:flex absolute -right-3 lg:-right-8 top-1/2 -translate-y-1/2 z-40 w-11 h-11 rounded-[4px] items-center justify-center border shadow-2xl transition-all cursor-pointer active:scale-90 disabled:opacity-40 group ${
+            className={`hidden md:flex absolute -start-3 lg:-start-8 top-1/2 -translate-y-1/2 z-40 w-11 h-11 rounded-[4px] items-center justify-center border shadow-2xl transition-all cursor-pointer active:scale-90 disabled:opacity-40 group ${
               isDark
                 ? 'bg-[#0b0f1c] border-amber-500/30 text-amber-400 hover:border-amber-400 hover:bg-[#121829]'
                 : 'bg-white border-amber-500/30 text-amber-600 hover:border-amber-500 hover:bg-amber-50/50'
             }`}
-            title="بابەتی پێشوو (تیرەی ڕاست)"
-            aria-label="بابەتی پێشوو"
+            title={isEn ? 'Previous Entry' : 'بابەتی پێشوو'}
+            aria-label={isEn ? 'Previous Entry' : 'بابەتی پێشوو'}
           >
-            <ChevronRight className="w-5 h-5 text-amber-500 transition-transform group-hover:translate-x-0.5" />
+            <PrevIcon className="w-5 h-5 text-amber-500 transition-transform" />
           </button>
 
-          {/* Floating Next Button on the Left (RTL: Next is leftward) */}
+          {/* Floating Next Button */}
           <button
             type="button"
             onClick={handleNext}
             disabled={isTransitioning}
-            className={`hidden md:flex absolute -left-3 lg:-left-8 top-1/2 -translate-y-1/2 z-40 w-11 h-11 rounded-[4px] items-center justify-center border shadow-2xl transition-all cursor-pointer active:scale-90 disabled:opacity-40 group ${
+            className={`hidden md:flex absolute -end-3 lg:-end-8 top-1/2 -translate-y-1/2 z-40 w-11 h-11 rounded-[4px] items-center justify-center border shadow-2xl transition-all cursor-pointer active:scale-90 disabled:opacity-40 group ${
               isDark
                 ? 'bg-[#0b0f1c] border-amber-500/30 text-amber-400 hover:border-amber-400 hover:bg-[#121829]'
                 : 'bg-white border-amber-500/30 text-amber-600 hover:border-amber-500 hover:bg-amber-50/50'
             }`}
-            title="بابەتی دواتر (تیرەی چەپ)"
-            aria-label="بابەتی دواتر"
+            title={isEn ? 'Next Entry' : 'بابەتی دواتر'}
+            aria-label={isEn ? 'Next Entry' : 'بابەتی دواتر'}
           >
-            <ChevronLeft className="w-5 h-5 text-amber-500 transition-transform group-hover:-translate-x-0.5" />
+            <NextIcon className="w-5 h-5 text-amber-500 transition-transform" />
           </button>
 
           {(() => {
@@ -673,7 +755,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
             const imgUrl = getAuthenticFactImage(factItem);
             const optimizedImg = imgUrl ? getOptimizedImageUrl(imgUrl, 'full') : '';
-            const catInfo = getCategoryInfo(factItem);
+            const catInfo = getCategoryInfo(factItem, language);
 
             return (
               <article
@@ -686,10 +768,9 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                     : 'bg-white border-amber-500/30 border-t-amber-400/60 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.15)]'
                 }`}
               >
-                {/* 1. TOP PART: AUTHENTIC IMAGE WITH DUAL-LAYER SIZING & ASPECT RATIO PRESERVATION */}
+                {/* 1. TOP PART: AUTHENTIC IMAGE */}
                 {optimizedImg ? (
                   <div className="relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center group">
-                    {/* Ambient Glow Layer: fast GPU rendering */}
                     <img
                       src={optimizedImg}
                       alt=""
@@ -699,7 +780,6 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 select-none pointer-events-none"
                     />
 
-                    {/* Main Foreground Image: fully preserved aspect ratio without chopping off faces or maps */}
                     <img
                       src={optimizedImg}
                       alt={factItem.name}
@@ -713,13 +793,16 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         setPreviewImage({
                           url: optimizedImg,
                           title: factItem.name,
-                          year: getFactYearDisplay(factItem),
+                          year: getFactYearDisplay(factItem, language, isEn),
                         });
                       }}
-                      title="کلیک بکە بۆ بینینی تەواوی وێنەکە بە قەبارەی گەورە"
+                      title={
+                        isEn
+                          ? 'Click to view full-size image'
+                          : 'کلیک بکە بۆ بینینی تەواوی وێنەکە بە قەبارەی گەورە'
+                      }
                     />
 
-                    {/* Bottom subtle gradient overlay */}
                     <div
                       className={`absolute inset-0 z-10 pointer-events-none bg-gradient-to-t ${
                         isDark
@@ -728,7 +811,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       }`}
                     />
 
-                    {/* Bottom-Left: Fullscreen Zoom Lightbox Button */}
+                    {/* Fullscreen Zoom Lightbox Button */}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -736,14 +819,16 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         setPreviewImage({
                           url: optimizedImg,
                           title: factItem.name,
-                          year: getFactYearDisplay(factItem),
+                          year: getFactYearDisplay(factItem, language, isEn),
                         });
                       }}
-                      className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white shadow-lg transition-all active:scale-90 cursor-pointer"
-                      title="کردنەوەی وێنە بە قەبارەی تەواوی شاشە"
+                      className="absolute bottom-3 end-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white shadow-lg transition-all active:scale-90 cursor-pointer"
+                      title={isEn ? 'Expand Fullscreen' : 'کردنەوەی وێنە بە قەبارەی تەواوی شاشە'}
                     >
                       <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-[10px] font-bold hidden sm:inline">گەورەکردن</span>
+                      <span className="text-[10px] font-bold hidden sm:inline">
+                        {isEn ? 'Expand' : 'گەورەکردن'}
+                      </span>
                     </button>
                   </div>
                 ) : (
@@ -767,7 +852,11 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                           style={{ color: catInfo.color || '#f59e0b' }}
                         />
                       </div>
-                      <span className="text-[11px] text-slate-400 font-medium">ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە</span>
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {isEn
+                          ? 'No official archival photo added for this entry yet'
+                          : 'ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە'}
+                      </span>
                     </div>
 
                     <button
@@ -777,16 +866,24 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         setFactToSubmitPhoto(factItem);
                       }}
                       className="z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
-                      title="یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە"
+                      title={
+                        isEn
+                          ? 'Contribute an archival photo URL for Kurdistan Info Map'
+                          : 'یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە'
+                      }
                     >
                       <ImagePlus className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>(یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە)</span>
+                      <span>
+                        {isEn
+                          ? 'Contribute Archival Photo URL'
+                          : '(یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە)'}
+                      </span>
                     </button>
                   </div>
                 )}
 
                 {/* 2. BOTTOM PART: TITLE, YEAR/LOCATION, AND RICH FULL SUMMARY */}
-                <div className="relative flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-5 text-right">
+                <div className="relative flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-5 text-start">
                   {/* Title & Metadata */}
                   <div className="shrink-0 mb-1.5">
                     <h3
@@ -800,7 +897,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 text-xs sm:text-sm font-semibold">
                       <span className="flex items-center gap-1 text-amber-500 font-mono">
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>{getFactYearDisplay(factItem)}</span>
+                        <span>{getFactYearDisplay(factItem, language, isEn)}</span>
                       </span>
 
                       <span className="opacity-30">•</span>
@@ -811,19 +908,19 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         }`}
                       >
                         <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span className="truncate">{getFactLocationDisplay(factItem)}</span>
+                        <span className="truncate">{getFactLocationDisplay(factItem, isEn)}</span>
                       </span>
                     </div>
                   </div>
 
-                  {/* Narrative Body: Full Summary */}
-                  <div className="flex-1 min-h-0 overflow-y-auto journey-card-scrollbar pr-1 my-1">
+                  {/* Narrative Body */}
+                  <div className="flex-1 min-h-0 overflow-y-auto journey-card-scrollbar pe-1 my-1">
                     <p
                       className={`text-xs sm:text-sm md:text-[15px] font-normal leading-relaxed text-justify ${
                         isDark ? 'text-slate-200' : 'text-slate-700'
                       }`}
                     >
-                      {getFactSummaryDisplay(factItem)}
+                      {getFactSummaryDisplay(factItem, isEn)}
                     </p>
                   </div>
 
@@ -844,10 +941,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                           ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/25 text-amber-300 hover:text-amber-200 hover:border-amber-500/40'
                           : 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200/80 text-amber-900 shadow-xs'
                       }`}
-                      title="بینینی ئەم خاڵە لەسەر نەخشەی کوردستان"
+                      title={isEn ? 'Locate this entry on the Kurdistan map' : 'بینینی ئەم خاڵە لەسەر نەخشەی کوردستان'}
                     >
                       <Compass className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span>لەسەر نەخشە</span>
+                      <span>{isEn ? 'On Map' : 'لەسەر نەخشە'}</span>
                     </button>
 
                     <button
@@ -857,10 +954,14 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         if (onOpenDetail) onOpenDetail(factItem);
                       }}
                       className="flex-[1.2] flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-[0_4px_16px_rgba(245,158,11,0.3)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.45)]"
-                      title="کردنەوەی تەواوی سەرچاوە، بەستراوەکان و وردەکاریی مێژوویی"
+                      title={
+                        isEn
+                          ? 'Open full historical article, archives, and connections'
+                          : 'کردنەوەی تەواوی سەرچاوە، بەستراوەکان و وردەکاریی مێژوویی'
+                      }
                     >
                       <BookOpen className="w-4 h-4 text-slate-950 shrink-0" />
-                      <span>وردەکاریی زیاتر</span>
+                      <span>{isEn ? 'More Details' : 'وردەکاریی زیاتر'}</span>
                     </button>
                   </div>
                 </div>
@@ -868,7 +969,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             );
           })()}
 
-          {/* Falling Card overlay when clicking Next (100% Symmetrical Dimensions & Content) */}
+          {/* Falling Card overlay when clicking Next */}
           {fallingCard && (
             <article
               key={`falling-card-${fallingCard.id}`}
@@ -923,7 +1024,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 );
               })()}
 
-              <div className="relative flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-5 text-right">
+              <div className="relative flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-5 text-start">
                 <div className="shrink-0 mb-1.5">
                   <h3
                     className={`font-heading font-black text-lg sm:text-xl md:text-2xl tracking-tight leading-snug line-clamp-2 ${
@@ -936,7 +1037,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 text-xs sm:text-sm font-semibold">
                     <span className="flex items-center gap-1 text-amber-500 font-mono">
                       <Calendar className="w-3.5 h-3.5" />
-                      <span>{getFactYearDisplay(fallingCard)}</span>
+                      <span>{getFactYearDisplay(fallingCard, language, isEn)}</span>
                     </span>
 
                     <span className="opacity-30">•</span>
@@ -947,18 +1048,18 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       }`}
                     >
                       <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span className="truncate">{getFactLocationDisplay(fallingCard)}</span>
+                      <span className="truncate">{getFactLocationDisplay(fallingCard, isEn)}</span>
                     </span>
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto journey-card-scrollbar pr-1 my-1">
+                <div className="flex-1 min-h-0 overflow-y-auto journey-card-scrollbar pe-1 my-1">
                   <p
                     className={`text-xs sm:text-sm md:text-[15px] font-normal leading-relaxed text-justify ${
                       isDark ? 'text-slate-200' : 'text-slate-700'
                     }`}
                   >
-                    {getFactSummaryDisplay(fallingCard)}
+                    {getFactSummaryDisplay(fallingCard, isEn)}
                   </p>
                 </div>
 
@@ -976,12 +1077,12 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                     }`}
                   >
                     <Compass className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>لەسەر نەخشە</span>
+                    <span>{isEn ? 'On Map' : 'لەسەر نەخشە'}</span>
                   </div>
 
                   <div className="flex-[1.2] flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-[0_4px_16px_rgba(245,158,11,0.3)]">
                     <BookOpen className="w-4 h-4 text-slate-950 shrink-0" />
-                    <span>وردەکاریی زیاتر</span>
+                    <span>{isEn ? 'More Details' : 'وردەکاریی زیاتر'}</span>
                   </div>
                 </div>
               </div>
@@ -991,12 +1092,12 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
       </main>
 
       {/* =========================================================================
-          BOTTOM FOOTER: REFINED COMMAND & NAVIGATION DOCK
+          BOTTOM FOOTER
           ========================================================================= */}
       <footer
         className="w-full max-w-lg md:max-w-xl mx-auto flex items-center justify-between gap-2.5 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] shrink-0 transition-colors z-20"
       >
-        {/* Previous Button (پێشوو) */}
+        {/* Previous Button */}
         <button
           type="button"
           onClick={handlePrev}
@@ -1006,10 +1107,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
               ? 'bg-[#0f1422]/90 hover:bg-[#161d30] border-white/15 text-slate-200 hover:text-white hover:border-amber-500/40'
               : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:border-amber-500/40 shadow-xs'
           }`}
-          title="بابەتی پێشوو (تیرەی ڕاست)"
+          title={isEn ? 'Previous Entry' : 'بابەتی پێشوو'}
         >
-          <ChevronRight className="w-4 h-4 text-amber-500 transition-transform group-hover:translate-x-0.5" />
-          <span>پێشوو</span>
+          <PrevIcon className="w-4 h-4 text-amber-500 transition-transform" />
+          <span>{isEn ? 'Previous' : 'پێشوو'}</span>
         </button>
 
         {/* Center Progress Scrub Indicator */}
@@ -1027,7 +1128,17 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 isDark ? 'text-slate-200' : 'text-slate-700'
               }`}
             >
-              بابەتی <span className="text-amber-500 font-extrabold">{toKurdishDigits(currentIndex + 1)}</span> لە {toKurdishDigits(totalFacts)}
+              {isEn ? (
+                <>
+                  Entry <span className="text-amber-500 font-extrabold">{formatDigits(currentIndex + 1, language)}</span> of{' '}
+                  {formatDigits(totalFacts, language)}
+                </>
+              ) : (
+                <>
+                  بابەتی <span className="text-amber-500 font-extrabold">{formatDigits(currentIndex + 1, language)}</span> لە{' '}
+                  {formatDigits(totalFacts, language)}
+                </>
+              )}
             </span>
           </div>
 
@@ -1042,16 +1153,16 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Next Button (دواتر) */}
+        {/* Next Button */}
         <button
           type="button"
           onClick={handleNext}
           disabled={isTransitioning}
           className="group flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-heading font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-[0_4px_16px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.5)] disabled:opacity-40"
-          title="بابەتی دواتر (تیرەی چەپ)"
+          title={isEn ? 'Next Entry' : 'بابەتی دواتر'}
         >
-          <span>دواتر</span>
-          <ChevronLeft className="w-4 h-4 text-slate-950 transition-transform group-hover:-translate-x-0.5" />
+          <span>{isEn ? 'Next' : 'دواتر'}</span>
+          <NextIcon className="w-4 h-4 text-slate-950 transition-transform" />
         </button>
       </footer>
 
@@ -1060,7 +1171,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         <div
           className="fixed inset-0 z-[1300] flex flex-col items-center justify-between p-3 sm:p-5 bg-black/95 backdrop-blur-xl animate-fade-in text-white select-none"
           onClick={() => setPreviewImage(null)}
-          dir="rtl"
+          dir={dir}
         >
           {/* Top Bar */}
           <div
@@ -1085,16 +1196,16 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-bold transition-all flex items-center gap-1.5 text-slate-200 hover:text-white"
-                title="کردنەوەی وێنەکە لە پەڕەی نوێ"
+                title={isEn ? 'Open image in new tab' : 'کردنەوەی وێنەکە لە پەڕەی نوێ'}
               >
-                <span>کردنەوەی بەستەری وێنە</span>
+                <span>{isEn ? 'Open Source URL' : 'کردنەوەی بەستەری وێنە'}</span>
               </a>
 
               <button
                 type="button"
                 onClick={() => setPreviewImage(null)}
                 className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all cursor-pointer"
-                title="داخستن (Esc)"
+                title={isEn ? 'Close (Esc)' : 'داخستن (Esc)'}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1115,7 +1226,11 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
           {/* Footer Navigation Note */}
           <div className="text-[11px] text-slate-400 pb-1 shrink-0">
-            <span>کلیک لە دەرەوە بکە یان دوگمەی Esc دابگرە بۆ گەڕانەوە</span>
+            <span>
+              {isEn
+                ? 'Click outside or press Esc to return'
+                : 'کلیک لە دەرەوە بکە یان دوگمەی Esc دابگرە بۆ گەڕانەوە'}
+            </span>
           </div>
         </div>
       )}
@@ -1131,3 +1246,4 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     </div>
   );
 };
+

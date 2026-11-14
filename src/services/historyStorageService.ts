@@ -1,22 +1,31 @@
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
-import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
 import {
   CollectionItem,
-  DEFAULT_COLLECTIONS,
-  UNIFIED_CATEGORIES,
+  getUnifiedCategories,
   getCategoryInfo,
   ADMIN_SECRET_CODE,
   PhotoSubmission,
 } from '../types/history';
 import { inferCenturyAndYearForFact } from '../utils/centuryUtils';
 import { resolveImageUrl } from '../utils/imageUtils';
+import type { AppLanguage } from '../context/LanguageContext';
 
 const STORAGE_KEYS = {
   FACTS: 'kurdish_history_facts_v1',
+  FACTS_EN: 'kurdish_history_facts_en_v1',
   COLLECTIONS: 'kurdish_history_collections_v1',
+  COLLECTIONS_EN: 'kurdish_history_collections_en_v1',
   ADMIN_ACTIVE: 'kurdish_history_admin_active_v1',
   PHOTO_SUBMISSIONS: 'kurdish_history_photo_submissions_v1',
 };
+
+function getFactsStorageKey(lang: AppLanguage = 'ckb'): string {
+  return lang === 'en' ? STORAGE_KEYS.FACTS_EN : STORAGE_KEYS.FACTS;
+}
+
+function getCollectionsStorageKey(lang: AppLanguage = 'ckb'): string {
+  return lang === 'en' ? STORAGE_KEYS.COLLECTIONS_EN : STORAGE_KEYS.COLLECTIONS;
+}
 
 // Helper: infer initial collection for default facts
 export function inferCollectionForFact(fact: FactItem): string {
@@ -24,7 +33,6 @@ export function inferCollectionForFact(fact: FactItem): string {
 
   const n = fact.name.toLowerCase();
   const d = fact.desc.toLowerCase();
-  const t = fact.fullText.toLowerCase();
 
   if (
     fact.tag === 'leader' ||
@@ -133,27 +141,53 @@ export function inferCollectionForFact(fact: FactItem): string {
     return 'battles';
   }
 
-  // Default to powers / principalities
   return 'powers';
 }
 
-export function loadStoredCollections(): CollectionItem[] {
-  return UNIFIED_CATEGORIES;
+export function loadStoredCollections(lang: AppLanguage = 'ckb'): CollectionItem[] {
+  const base = getUnifiedCategories(lang);
+  try {
+    const raw = localStorage.getItem(getCollectionsStorageKey(lang));
+    if (!raw) return base;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const map = new Map<string, CollectionItem>();
+      base.forEach((b) => map.set(b.id, b));
+      parsed.forEach((p: CollectionItem) => {
+        if (p && typeof p.id === 'string') {
+          if (map.has(p.id)) {
+            const orig = map.get(p.id)!;
+            map.set(p.id, {
+              ...orig,
+              ...p,
+              name: lang === 'en' ? p.nameEn || p.name || orig.name : p.name || orig.name,
+            });
+          } else {
+            map.set(p.id, p);
+          }
+        }
+      });
+      return Array.from(map.values());
+    }
+  } catch {
+    // ignore storage read error
+  }
+  return base;
 }
 
-export function saveStoredCollections(collections: CollectionItem[]): void {
+export function saveStoredCollections(collections: CollectionItem[], lang: AppLanguage = 'ckb'): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(collections));
+    localStorage.setItem(getCollectionsStorageKey(lang), JSON.stringify(collections));
   } catch (e) {
     console.warn('LocalStorage notice for collections storage:', e);
   }
 }
 
-export function sanitizeFact(fact: any): FactItem {
+export function sanitizeFact(fact: any, lang: AppLanguage = 'ckb'): FactItem {
   const latNum = Number(fact?.lat);
   const lngNum = Number(fact?.lng);
-  const dateInfo = inferCenturyAndYearForFact(fact);
-  const cat = getCategoryInfo(fact);
+  const dateInfo = inferCenturyAndYearForFact(fact, lang);
+  const cat = getCategoryInfo(fact, lang);
 
   return {
     ...fact,
@@ -168,7 +202,6 @@ export function sanitizeFact(fact: any): FactItem {
     imageUrl: (() => {
       if (typeof fact?.imageUrl !== 'string' || !fact.imageUrl.trim()) return undefined;
       const trimmed = fact.imageUrl.trim();
-      // Drop bulky inline base64 images so Firestore quota is fully protected
       if (trimmed.startsWith('data:')) return undefined;
       const resolved = resolveImageUrl(trimmed);
       return resolved || undefined;
@@ -200,7 +233,6 @@ export function isCityFact(fact: Partial<FactItem>): boolean {
   if (!fact) return false;
   if (fact.eraName === 'شارەکانی کوردستان') return true;
   if (typeof fact.id === 'number' && fact.id >= 1001 && fact.id <= 1050) return true;
-  // Remove Hasakah and Rojava province stations as requested by user
   if (typeof fact.id === 'number' && fact.id >= 901 && fact.id <= 904) return true;
   const n = (fact.name || '').trim();
   if (
@@ -211,7 +243,6 @@ export function isCityFact(fact: Partial<FactItem>): boolean {
   ) {
     return true;
   }
-  // Filter out any standalone city names that were added as modern cities or provincial station points
   if (
     n.startsWith('شاری ') &&
     !n.includes('ماد') &&
@@ -227,45 +258,49 @@ export function isCityFact(fact: Partial<FactItem>): boolean {
   return false;
 }
 
-export function loadStoredFacts(): FactItem[] {
+export function loadStoredFacts(lang: AppLanguage = 'ckb'): FactItem[] {
+  const key = getFactsStorageKey(lang);
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.FACTS);
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      return ALL_FACTS;
+      return lang === 'en' ? [] : ALL_FACTS;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Filter out city facts / stations
-      const cleaned = parsed
-        .filter((f) => f && typeof f.id === 'number' && !isCityFact(f))
-        .map((f) => sanitizeFact(f));
+    if (Array.isArray(parsed)) {
+      if (lang === 'en') {
+        return parsed
+          .filter((f) => f && typeof f.id === 'number')
+          .map((f) => sanitizeFact(f, 'en'));
+      }
 
-      const map = new Map<number, FactItem>();
-      // Ensure all 350 historical facts exist as baseline
-      ALL_FACTS.forEach((fact) => map.set(fact.id, fact));
-      cleaned.forEach((f) => map.set(f.id, f));
-      const merged = Array.from(map.values());
+      if (parsed.length > 0) {
+        const cleaned = parsed
+          .filter((f) => f && typeof f.id === 'number' && !isCityFact(f))
+          .map((f) => sanitizeFact(f, 'ckb'));
 
-      return merged;
+        const map = new Map<number, FactItem>();
+        ALL_FACTS.forEach((fact) => map.set(fact.id, fact));
+        cleaned.forEach((f) => map.set(f.id, f));
+        return Array.from(map.values());
+      }
     }
   } catch (e) {
     console.warn('Failed to load facts from storage:', e);
   }
 
-  return ALL_FACTS;
+  return lang === 'en' ? [] : ALL_FACTS;
 }
 
 function sanitizeFactForLocalStorage(fact: FactItem): FactItem {
-  // Preserve image fields reliably
   return fact;
 }
 
-export function saveStoredFacts(facts: FactItem[]): void {
+export function saveStoredFacts(facts: FactItem[], lang: AppLanguage = 'ckb'): void {
+  const key = getFactsStorageKey(lang);
   try {
     const safeFacts = facts.map(sanitizeFactForLocalStorage);
-    localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(safeFacts));
-  } catch (e: any) {
-    // If browser localStorage quota is reached, store essential fields including images
+    localStorage.setItem(key, JSON.stringify(safeFacts));
+  } catch {
     try {
       const compactFacts = facts.map((f) => ({
         id: f.id,
@@ -282,51 +317,56 @@ export function saveStoredFacts(facts: FactItem[]): void {
         century: f.century,
         centuryNumber: f.centuryNumber,
         desc: (f.desc || '').slice(0, 160),
+        region: f.region,
+        provinceId: f.provinceId,
         parentFactId: f.parentFactId,
         relatedFactIds: f.relatedFactIds,
         imageUrl: f.imageUrl,
         imageCaption: f.imageCaption,
       }));
-      localStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(compactFacts));
+      localStorage.setItem(key, JSON.stringify(compactFacts));
     } catch {
       try {
-        localStorage.removeItem(STORAGE_KEYS.FACTS);
-      } catch {}
+        localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
     }
   }
 }
 
-export function saveSingleFact(fact: FactItem): FactItem[] {
-  const local = loadStoredFacts();
-  const sanitized = sanitizeFact(fact);
+export function saveSingleFact(fact: FactItem, lang: AppLanguage = 'ckb'): FactItem[] {
+  const local = loadStoredFacts(lang);
+  const sanitized = sanitizeFact(fact, lang);
   const exists = local.some((f) => f.id === sanitized.id);
   const updated = exists
     ? local.map((f) => (f.id === sanitized.id ? sanitized : f))
     : [sanitized, ...local];
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
   return updated;
 }
 
-export function deleteSingleFact(factId: number): FactItem[] {
-  const local = loadStoredFacts();
+export function deleteSingleFact(factId: number, lang: AppLanguage = 'ckb'): FactItem[] {
+  const local = loadStoredFacts(lang);
   const updated = local.filter((f) => f.id !== factId);
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
   return updated;
 }
 
-export function saveFactNotesLocally(factId: number, notes: string): FactItem[] {
-  const local = loadStoredFacts();
+export function saveFactNotesLocally(factId: number, notes: string, lang: AppLanguage = 'ckb'): FactItem[] {
+  const local = loadStoredFacts(lang);
   const updated = local.map((f) => (f.id === factId ? { ...f, additionalNotes: notes } : f));
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
   return updated;
 }
 
 export function updateFactRelationsLocally(
   factId: number,
   relatedFactIds: number[],
-  parentFactId?: number
+  parentFactId?: number,
+  lang: AppLanguage = 'ckb'
 ): FactItem[] {
-  const local = loadStoredFacts();
+  const local = loadStoredFacts(lang);
   const updated = local.map((f) => {
     if (f.id === factId) {
       return {
@@ -337,24 +377,24 @@ export function updateFactRelationsLocally(
     }
     return f;
   });
-  saveStoredFacts(updated);
+  saveStoredFacts(updated, lang);
   return updated;
 }
 
-export function saveSingleCollection(col: CollectionItem): CollectionItem[] {
-  const cols = loadStoredCollections();
+export function saveSingleCollection(col: CollectionItem, lang: AppLanguage = 'ckb'): CollectionItem[] {
+  const cols = loadStoredCollections(lang);
   const exists = cols.some((c) => c.id === col.id);
   const updated = exists
     ? cols.map((c) => (c.id === col.id ? col : c))
     : [...cols, col];
-  saveStoredCollections(updated);
+  saveStoredCollections(updated, lang);
   return updated;
 }
 
-export function deleteSingleCollection(colId: string): CollectionItem[] {
-  const cols = loadStoredCollections();
+export function deleteSingleCollection(colId: string, lang: AppLanguage = 'ckb'): CollectionItem[] {
+  const cols = loadStoredCollections(lang);
   const updated = cols.filter((c) => c.id !== colId);
-  saveStoredCollections(updated);
+  saveStoredCollections(updated, lang);
   return updated;
 }
 

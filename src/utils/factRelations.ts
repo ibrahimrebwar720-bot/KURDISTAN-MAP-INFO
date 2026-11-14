@@ -1,5 +1,6 @@
 import { FactItem } from '../data/kurdishHistoryData';
 import { getCategoryInfo } from '../types/history';
+import type { AppLanguage } from '../context/LanguageContext';
 
 export interface LinkedFactsResult {
   allRelated: FactItem[];
@@ -18,14 +19,6 @@ export interface LinkedFactsResult {
   };
 }
 
-/**
- * Returns only explicitly user-linked facts for a given fact:
- * 1. Explicitly linked via relatedFactIds (selected by user)
- * 2. Explicitly linked via parentFactId (parent-child hierarchy selected by user)
- * 3. Reverse explicit links (where user selected this fact as parent or related on another item)
- *
- * NOTE: Automatic / inferred keyword linking is completely disabled as per user instruction.
- */
 export function getLinkedFacts(
   currentFact: FactItem | null | undefined,
   allFacts: FactItem[]
@@ -55,7 +48,6 @@ export function getLinkedFacts(
   const explicitList: FactItem[] = [];
   const parentsList: FactItem[] = [];
 
-  // 1. Check user-defined parent link
   if (typeof currentFact.parentFactId === 'number') {
     const parent = allFacts.find((f) => f.id === currentFact.parentFactId);
     if (parent && parent.id !== currentFact.id) {
@@ -65,7 +57,6 @@ export function getLinkedFacts(
     }
   }
 
-  // 2. Check user-defined relatedFactIds
   if (Array.isArray(currentFact.relatedFactIds)) {
     currentFact.relatedFactIds.forEach((rid) => {
       if (typeof rid === 'number' && rid !== currentFact.id && !explicitIds.has(rid)) {
@@ -78,7 +69,6 @@ export function getLinkedFacts(
     });
   }
 
-  // 3. Check reverse: other facts that have user-defined parentFactId === currentFact.id or relatedFactIds containing currentFact.id
   allFacts.forEach((other) => {
     if (other.id === currentFact.id) return;
 
@@ -95,10 +85,8 @@ export function getLinkedFacts(
     }
   });
 
-  // Only explicit user-added links
   const allRelated = explicitList;
 
-  // Group by category
   const byCategory = {
     leaders: [] as FactItem[],
     scholars: [] as FactItem[],
@@ -132,9 +120,6 @@ export function getLinkedFacts(
   };
 }
 
-/**
- * Connect or disconnect a link between two facts (user action)
- */
 export function toggleFactLinkInList(
   sourceFactId: number,
   targetFactId: number,
@@ -185,13 +170,10 @@ export interface KnowledgeGraphNetwork {
   parentFact: FactItem | null;
 }
 
-/**
- * Resolves the complete spiderweb / constellation knowledge graph
- * for any selected Kurdish historical fact (principality, ruler, event, castle, scholar).
- */
 export function getKnowledgeGraphNetwork(
   centerFact: FactItem | null | undefined,
-  allFacts: FactItem[]
+  allFacts: FactItem[],
+  lang: AppLanguage = 'ckb'
 ): KnowledgeGraphNetwork | null {
   if (!centerFact || !Array.isArray(allFacts) || allFacts.length === 0) {
     return null;
@@ -200,45 +182,41 @@ export function getKnowledgeGraphNetwork(
   const nodesMap = new Map<number, FactItem>();
   const links: KnowledgeGraphLink[] = [];
   const addedLinkKeys = new Set<string>();
-
-  const isParentEntity = (fact: FactItem) => {
-    const cat = getCategoryInfo(fact).id;
-    return cat === 'principality' || cat === 'empire' || cat === 'civilization';
-  };
+  const isEn = lang === 'en';
 
   const getRelationColor = (relationType: string, isParent: boolean) => {
-    if (isParent) return '#eab308'; // Royal Gold
+    if (isParent) return '#eab308';
     switch (relationType) {
       case 'ruler':
-        return '#f59e0b'; // Amber Gold
+        return '#f59e0b';
       case 'castle':
-        return '#38bdf8'; // Sky Cyan
+        return '#38bdf8';
       case 'battle':
-        return '#f43f5e'; // Crimson Rose
+        return '#f43f5e';
       case 'scholar':
-        return '#a855f7'; // Purple
+        return '#a855f7';
       case 'city':
-        return '#10b981'; // Emerald
+        return '#10b981';
       default:
-        return '#06b6d4'; // Cyan
+        return '#06b6d4';
     }
   };
 
   const getRelationLabel = (target: FactItem, isParent: boolean) => {
-    if (isParent) return 'دەسەڵاتی دایک';
-    const cat = getCategoryInfo(target).id;
-    if (cat === 'castle') return 'قەڵا و سەنگەر';
-    if (cat === 'battle') return 'جەنگی چارەنووسساز';
-    if (cat === 'leader') return 'فەرمانڕەوا / سەرکردە';
-    if (cat === 'scholar') return 'زانا و ئەدیب';
-    if (cat === 'principality' || cat === 'empire') return 'دەسەڵاتی هاوپەیمان';
-    if (cat === 'monument') return 'ئاسەواری مێژوویی';
-    return 'پەیوەندیدار';
+    if (isParent) return isEn ? 'Parent Power' : 'دەسەڵاتی دایک';
+    const cat = getCategoryInfo(target, lang).id;
+    if (cat === 'castle') return isEn ? 'Castle & Fortress' : 'قەڵا و سەنگەر';
+    if (cat === 'battle') return isEn ? 'Decisive Battle' : 'جەنگی چارەنووسساز';
+    if (cat === 'leader') return isEn ? 'Ruler / Leader' : 'فەرمانڕەوا / سەرکردە';
+    if (cat === 'scholar') return isEn ? 'Scholar & Poet' : 'زانا و ئەدیب';
+    if (cat === 'principality' || cat === 'empire') return isEn ? 'Allied Power' : 'دەسەڵاتی هاوپەیمان';
+    if (cat === 'monument') return isEn ? 'Historical Monument' : 'ئاسەواری مێژوویی';
+    return isEn ? 'Related' : 'پەیوەندیدار';
   };
 
   const getRelationType = (target: FactItem, isParent: boolean): KnowledgeGraphLink['relationType'] => {
     if (isParent) return 'parent';
-    const cat = getCategoryInfo(target).id;
+    const cat = getCategoryInfo(target, lang).id;
     if (cat === 'leader') return 'ruler';
     if (cat === 'castle') return 'castle';
     if (cat === 'battle') return 'battle';
@@ -269,47 +247,40 @@ export function getKnowledgeGraphNetwork(
     });
   };
 
-  // 1. Resolve Explicit Parent Entity (ONLY user-selected parentFactId)
   let resolvedParent: FactItem | null = null;
   if (typeof centerFact.parentFactId === 'number') {
     resolvedParent = allFacts.find((f) => f.id === centerFact.parentFactId) || null;
   }
 
   if (resolvedParent) {
-    addLink(centerFact, resolvedParent, true, 'دەسەڵاتی دایک');
+    addLink(centerFact, resolvedParent, true, isEn ? 'Parent Power' : 'دەسەڵاتی دایک');
   }
 
-  // 2. Resolve Explicit Children and Related facts (ONLY user-selected links)
   allFacts.forEach((f) => {
     if (f.id === centerFact.id) return;
 
-    // A. Explicit children that have centerFact as parent
     if (f.parentFactId === centerFact.id) {
       addLink(centerFact, f, false);
       return;
     }
 
-    // B. Explicit relatedFactIds in centerFact
     if (Array.isArray(centerFact.relatedFactIds) && centerFact.relatedFactIds.includes(f.id)) {
       addLink(centerFact, f, false);
       return;
     }
 
-    // C. Explicit reverse relatedFactIds in other facts
     if (Array.isArray(f.relatedFactIds) && f.relatedFactIds.includes(centerFact.id)) {
       addLink(centerFact, f, false);
       return;
     }
 
-    // D. Explicit Allies in centerFact (دەسەڵاتی هاوپەیمان)
     if (Array.isArray(centerFact.allyFactIds) && centerFact.allyFactIds.includes(f.id)) {
-      addLink(centerFact, f, false, 'هاوپەیمان');
+      addLink(centerFact, f, false, isEn ? 'Ally' : 'هاوپەیمان');
       return;
     }
 
-    // E. Explicit reverse Allies in other facts
     if (Array.isArray(f.allyFactIds) && f.allyFactIds.includes(centerFact.id)) {
-      addLink(centerFact, f, false, 'هاوپەیمان');
+      addLink(centerFact, f, false, isEn ? 'Ally' : 'هاوپەیمان');
       return;
     }
   });

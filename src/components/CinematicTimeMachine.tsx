@@ -5,26 +5,19 @@ import {
   SkipForward,
   SkipBack,
   X,
-  Compass,
-  MapPin,
   Calendar,
   Sparkles,
-  ChevronDown,
-  ChevronUp,
   Maximize2,
   Minimize2,
   BookOpen,
-  Award,
-  Crown,
-  Shield,
-  Eye,
-  Info,
 } from 'lucide-react';
 import {
   CINEMATIC_STATIONS,
   CINEMATIC_EPOCHS,
   CinematicStation,
 } from '../data/cinematicTimeMachineData';
+import { useLanguage } from '../context/LanguageContext';
+import { formatDigits } from '../utils/yearUtils';
 
 interface Props {
   isOpen: boolean;
@@ -39,15 +32,16 @@ export const CinematicTimeMachine: React.FC<Props> = ({
   onFlyToStation,
   onSelectAssociatedFact,
 }) => {
+  const { language, isEn, dir } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isCardMinimized, setIsCardMinimized] = useState(false);
   const [tourProgress, setTourProgress] = useState(0);
 
   const currentStation: CinematicStation = CINEMATIC_STATIONS[currentIndex];
-  const autoPlayTimerRef = useRef<any>(null);
-  const progressIntervalRef = useRef<any>(null);
-  const STATION_DURATION = 9000; // 9 seconds per station in auto-play mode
+  const autoPlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const STATION_DURATION = 9000;
 
   const tourProgressRef = useRef(0);
   const currentIndexRef = useRef(currentIndex);
@@ -73,7 +67,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
   // Initial flight when opening
   useEffect(() => {
     if (isOpen) {
-      navigateToStation(currentIndex);
+      navigateToStation(currentIndexRef.current);
       setIsPlaying(true);
       tourProgressRef.current = 0;
       setTourProgress(0);
@@ -82,7 +76,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
       tourProgressRef.current = 0;
       setTourProgress(0);
     }
-  }, [isOpen]);
+  }, [isOpen, navigateToStation]);
 
   // Autoplay timer and progress bar
   useEffect(() => {
@@ -117,10 +111,13 @@ export const CinematicTimeMachine: React.FC<Props> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        // In RTL right goes forward / or reverse
+      } else if (e.key === 'ArrowRight') {
+        navigateToStation(isEn ? currentIndex + 1 : currentIndex - 1, true);
+      } else if (e.key === 'ArrowLeft') {
+        navigateToStation(isEn ? currentIndex - 1 : currentIndex + 1, true);
+      } else if (e.key === 'ArrowDown') {
         navigateToStation(currentIndex + 1, true);
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp') {
         navigateToStation(currentIndex - 1, true);
       } else if (e.key === ' ') {
         e.preventDefault();
@@ -130,10 +127,10 @@ export const CinematicTimeMachine: React.FC<Props> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, navigateToStation, onClose]);
+  }, [isOpen, currentIndex, navigateToStation, onClose, isEn]);
 
   const handleTogglePlay = () => {
-    setIsPlaying(!isPlaying);
+    setIsPlaying((prev) => !prev);
   };
 
   const handleEpochSelect = (epochId: string) => {
@@ -145,26 +142,46 @@ export const CinematicTimeMachine: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const stationTitle = isEn ? currentStation.titleEn : currentStation.title;
+  const stationSubtitle = isEn ? currentStation.subtitleEn : currentStation.subtitle;
+  const stationPeriod = isEn ? currentStation.periodEn : currentStation.period;
+  const stationLocation = isEn ? currentStation.locationNameEn : currentStation.locationName;
+  const stationEpochTitle = isEn ? currentStation.epochTitleEn : currentStation.epochTitle;
+  const stationSecret = isEn ? currentStation.historicSecretEn : currentStation.historicSecret;
+  const stationNarration = isEn ? currentStation.storyNarrationEn : currentStation.storyNarration;
+  const stationFigures = isEn ? currentStation.keyFiguresEn : currentStation.keyFigures;
+
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none flex flex-col justify-between select-none overflow-hidden font-sans">
+    <div
+      dir={dir}
+      className="fixed inset-0 z-50 pointer-events-none flex flex-col justify-between select-none overflow-hidden font-sans"
+    >
       {/* 1. Cinematic Letterbox Bar - Top HUD */}
       <header className="pointer-events-auto w-full bg-gradient-to-b from-black via-black/90 to-transparent pt-3 pb-8 px-4 md:px-8 flex items-center justify-between z-50">
-        {/* Left: Close & Actions */}
+        {/* Start: Close & Actions */}
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-rose-500/20 text-slate-200 hover:text-rose-300 border border-white/15 hover:border-rose-500/40 backdrop-blur-md transition-all cursor-pointer text-xs"
-            title="دەرچوون لە گەشتی سینەمایی (ESC)"
+            title={isEn ? 'Exit Cinematic Tour (ESC)' : 'دەرچوون لە گەشتی سینەمایی (ESC)'}
           >
             <X className="w-4 h-4" />
-            <span className="font-heading font-medium">داخستن</span>
+            <span className="font-heading font-medium">{isEn ? 'Close' : 'داخستن'}</span>
           </button>
 
           {/* Minimize / Maximize Card */}
           <button
             onClick={() => setIsCardMinimized(!isCardMinimized)}
             className="p-2 rounded-full bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 backdrop-blur-md transition-all cursor-pointer"
-            title={isCardMinimized ? 'گەورەکردنی زانیاری' : 'بچووککردنەوە بۆ بینینی تەواوی نەخشە'}
+            title={
+              isCardMinimized
+                ? isEn
+                  ? 'Expand info card'
+                  : 'گەورەکردنی زانیاری'
+                : isEn
+                ? 'Minimize card to view full map'
+                : 'بچووککردنەوە بۆ بینینی تەواوی نەخشە'
+            }
           >
             {isCardMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
           </button>
@@ -175,33 +192,35 @@ export const CinematicTimeMachine: React.FC<Props> = ({
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
             <span className="font-heading text-xs md:text-sm font-bold tracking-wider text-amber-300 uppercase">
-              گەشتی زەمەنی سینەمایی
+              {isEn ? 'Cinematic Time Machine' : 'گەشتی زەمەنی سینەمایی'}
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30">
               TIME-MACHINE
             </span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] text-slate-300 font-mono mt-0.5">
+          <div className="flex items-center gap-2 text-[10px] text-slate-300 font-mono mt-0.5 tabular-nums">
             <span>
-              وێستگەی {currentIndex + 1} لە {CINEMATIC_STATIONS.length}
+              {isEn
+                ? `Station ${formatDigits(currentIndex + 1, language)} of ${formatDigits(CINEMATIC_STATIONS.length, language)}`
+                : `وێستگەی ${formatDigits(currentIndex + 1, language)} لە ${formatDigits(CINEMATIC_STATIONS.length, language)}`}
             </span>
             <span className="text-amber-500/70">•</span>
-            <span>{currentStation.period}</span>
+            <span>{stationPeriod}</span>
           </div>
         </div>
 
-        {/* Right: GPS HUD / Coordinates */}
-        <div className="hidden sm:flex items-center gap-3 text-right">
-          <div className="flex flex-col text-slate-300 font-mono text-[10px] border-r-2 border-amber-500/60 pr-2.5">
-            <span className="text-amber-400/90 font-medium">{currentStation.locationName}</span>
-            <span className="text-slate-400">
+        {/* End: GPS HUD / Coordinates */}
+        <div className="hidden sm:flex items-center gap-3 text-end">
+          <div className="flex flex-col text-slate-300 font-mono text-[10px] border-e-2 border-amber-500/60 pe-2.5">
+            <span className="text-amber-400/90 font-medium">{stationLocation}</span>
+            <span className="text-slate-400" dir="ltr">
               {currentStation.lat.toFixed(3)}°N, {currentStation.lng.toFixed(3)}°E
             </span>
           </div>
         </div>
       </header>
 
-      {/* 2. Epoch Bar Indicator (Architectural Segmented Selector) */}
+      {/* 2. Epoch Bar Indicator */}
       <div className="pointer-events-auto px-4 w-full flex justify-center -mt-4 mb-2 z-40 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1.5 p-1.5 bg-[#0b0f1c] border border-amber-500/25 rounded-[4px] shadow-xl">
           {CINEMATIC_EPOCHS.map((ep) => {
@@ -216,7 +235,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
                     : 'text-slate-300 hover:text-amber-200 bg-[#12192a] hover:bg-[#18223a] border-white/10'
                 }`}
               >
-                {ep.title}
+                {isEn ? ep.titleEn : ep.title}
               </button>
             );
           })}
@@ -228,9 +247,8 @@ export const CinematicTimeMachine: React.FC<Props> = ({
 
       {/* 4. Bottom Main Presentation Deck & Documentary Storytelling Card */}
       <footer className="pointer-events-auto w-full bg-gradient-to-t from-black via-black/95 to-transparent pt-6 pb-4 px-3 md:px-8 flex flex-col items-center gap-3 z-50">
-        {/* Story Card (Collapsible) */}
         {!isCardMinimized && (
-          <div className="w-full max-w-3xl bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 rounded-[4px] p-4 md:p-5 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(245,158,11,0.1)] text-right animate-slide-up relative overflow-hidden transition-all">
+          <div className="w-full max-w-3xl bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 rounded-[4px] p-4 md:p-5 shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(245,158,11,0.1)] text-start animate-slide-up relative overflow-hidden transition-all">
             {/* Ambient gold glow edge */}
             <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
 
@@ -245,12 +263,12 @@ export const CinematicTimeMachine: React.FC<Props> = ({
                     color: currentStation.epochColor,
                   }}
                 >
-                  {currentStation.epochTitle}
+                  {stationEpochTitle}
                 </span>
 
                 <span className="text-[11px] font-mono text-slate-300 flex items-center gap-1 bg-[#12192a] px-2 py-0.5 rounded-[3px] border border-white/10">
                   <Calendar className="w-3 h-3 text-amber-400" />
-                  {currentStation.period}
+                  {stationPeriod}
                 </span>
               </div>
 
@@ -266,7 +284,7 @@ export const CinematicTimeMachine: React.FC<Props> = ({
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-[11px] transition-colors cursor-pointer"
                   >
                     <BookOpen className="w-3 h-3 text-amber-400" />
-                    <span>تەواوی بابەت لە نەخشە</span>
+                    <span>{isEn ? 'Open Entry on Map' : 'تەواوی بابەت لە نەخشە'}</span>
                   </button>
                 )}
               </div>
@@ -276,44 +294,50 @@ export const CinematicTimeMachine: React.FC<Props> = ({
             <div className="flex flex-col gap-1 mb-3">
               <div className="flex items-baseline gap-2">
                 <h2 className="text-lg md:text-2xl font-bold font-heading text-amber-200 tracking-wide">
-                  {currentStation.title}
+                  {stationTitle}
                 </h2>
               </div>
               <p className="text-xs md:text-sm text-amber-400/90 font-medium">
-                {currentStation.subtitle}
+                {stationSubtitle}
               </p>
             </div>
 
-            {/* Historic Secret Highlight Box ("دانسقە و نهێنی مێژوویی") */}
-            <div className="bg-amber-500/10 border-r-3 border-amber-400 rounded-lg p-2.5 mb-3 text-right">
+            {/* Historic Secret Highlight Box */}
+            <div className="bg-amber-500/10 border-s-3 border-amber-400 rounded-lg p-2.5 mb-3 text-start">
               <div className="flex items-center gap-1.5 text-amber-300 text-xs font-bold mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>نهێنی و گرنگی مێژوویی:</span>
+                <span>{isEn ? 'Historical Significance:' : 'نهێنی و گرنگی مێژوویی:'}</span>
               </div>
               <p className="text-xs text-slate-200 leading-relaxed">
-                {currentStation.historicSecret}
+                {stationSecret}
               </p>
             </div>
 
             {/* Documentary Narration */}
             <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-3">
-              {currentStation.storyNarration}
+              {stationNarration}
             </p>
 
             {/* Historic Quote if available */}
             {currentStation.quote && (
               <blockquote className="bg-black/40 border border-white/5 rounded-xl p-2.5 mb-3 text-xs italic text-slate-300">
-                <p className="text-amber-200/90 font-serif">«{currentStation.quote.text}»</p>
-                <cite className="block text-[10px] text-amber-400/70 not-italic mt-1 text-left">
-                  — {currentStation.quote.author}
+                <p className="text-amber-200/90 font-serif">
+                  {isEn
+                    ? `“${currentStation.quote.textEn}”`
+                    : `«${currentStation.quote.text}»`}
+                </p>
+                <cite className="block text-[10px] text-amber-400/70 not-italic mt-1 text-end">
+                  — {isEn ? currentStation.quote.authorEn : currentStation.quote.author}
                 </cite>
               </blockquote>
             )}
 
             {/* Key Figures badges */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[10px] text-slate-400 font-medium">کەسایەتی و ڕابەران:</span>
-              {currentStation.keyFigures.map((fig, idx) => (
+              <span className="text-[10px] text-slate-400 font-medium">
+                {isEn ? 'Key Figures:' : 'کەسایەتی و ڕابەران:'}
+              </span>
+              {stationFigures.map((fig, idx) => (
                 <span
                   key={idx}
                   className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-slate-200 border border-white/10"
@@ -331,6 +355,8 @@ export const CinematicTimeMachine: React.FC<Props> = ({
           <div className="w-full flex items-center justify-between gap-1 px-1">
             {CINEMATIC_STATIONS.map((st, idx) => {
               const isCurrent = idx === currentIndex;
+              const stTitle = isEn ? st.titleEn : st.title;
+              const stPeriod = isEn ? st.periodEn : st.period;
               return (
                 <button
                   key={st.id}
@@ -342,11 +368,10 @@ export const CinematicTimeMachine: React.FC<Props> = ({
                       ? 'bg-amber-600/70 hover:bg-amber-500/80'
                       : 'bg-white/15 hover:bg-white/30'
                   }`}
-                  title={`${idx + 1}. ${st.title} (${st.period})`}
+                  title={`${formatDigits(idx + 1, language)}. ${stTitle} (${stPeriod})`}
                 >
-                  {/* Tooltip on hover */}
-                  <span className="absolute bottom-4 right-1/2 translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-amber-200 text-[10px] px-2 py-0.5 rounded border border-amber-500/40 pointer-events-none whitespace-nowrap z-50">
-                    {st.title}
+                  <span className="absolute bottom-4 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-amber-200 text-[10px] px-2 py-0.5 rounded border border-amber-500/40 pointer-events-none whitespace-nowrap z-50">
+                    {stTitle}
                   </span>
                 </button>
               );
@@ -369,10 +394,16 @@ export const CinematicTimeMachine: React.FC<Props> = ({
             <button
               onClick={() => navigateToStation(currentIndex - 1, true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-100 border border-white/15 backdrop-blur-md transition-colors cursor-pointer text-xs"
-              title="وێستگەی پێشوو (تیرەی چەپ)"
+              title={isEn ? 'Previous Station' : 'وێستگەی پێشوو'}
             >
-              <SkipForward className="w-4 h-4 text-amber-400 rotate-180" />
-              <span className="font-heading hidden sm:inline">پێشوو</span>
+              {isEn ? (
+                <SkipBack className="w-4 h-4 text-amber-400" />
+              ) : (
+                <SkipForward className="w-4 h-4 text-amber-400" />
+              )}
+              <span className="font-heading hidden sm:inline">
+                {isEn ? 'Previous' : 'پێشوو'}
+              </span>
             </button>
 
             {/* Play / Pause Toggle Center */}
@@ -384,12 +415,12 @@ export const CinematicTimeMachine: React.FC<Props> = ({
                 {isPlaying ? (
                   <>
                     <Pause className="w-4 h-4 fill-current" />
-                    <span>وەستاندنی گەشت</span>
+                    <span>{isEn ? 'Pause Journey' : 'وەستاندنی گەشت'}</span>
                   </>
                 ) : (
                   <>
                     <Play className="w-4 h-4 fill-current" />
-                    <span>بەردەوامی گەشت</span>
+                    <span>{isEn ? 'Resume Journey' : 'بەردەوامی گەشت'}</span>
                   </>
                 )}
               </button>
@@ -399,10 +430,16 @@ export const CinematicTimeMachine: React.FC<Props> = ({
             <button
               onClick={() => navigateToStation(currentIndex + 1, true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-100 border border-white/15 backdrop-blur-md transition-colors cursor-pointer text-xs"
-              title="وێستگەی دواتر (تیرەی ڕاست)"
+              title={isEn ? 'Next Station' : 'وێستگەی دواتر'}
             >
-              <span className="font-heading hidden sm:inline">دواتر</span>
-              <SkipForward className="w-4 h-4 text-amber-400" />
+              <span className="font-heading hidden sm:inline">
+                {isEn ? 'Next' : 'دواتر'}
+              </span>
+              {isEn ? (
+                <SkipForward className="w-4 h-4 text-amber-400" />
+              ) : (
+                <SkipBack className="w-4 h-4 text-amber-400" />
+              )}
             </button>
           </div>
         </div>
@@ -410,3 +447,4 @@ export const CinematicTimeMachine: React.FC<Props> = ({
     </div>
   );
 };
+

@@ -162,11 +162,19 @@
   "firestore": {
     "/facts/{factId}": {
       "schema": "Fact",
-      "description": "Historical facts and places accessible to all users and editable by admin"
+      "description": "Kurdish Sorani historical facts and places accessible to all users and editable by admin"
+    },
+    "/facts_en/{factId}": {
+      "schema": "Fact",
+      "description": "Independent English historical facts and places accessible to all users and editable or AI-translated by admin"
     },
     "/collections/{collectionId}": {
       "schema": "Collection",
-      "description": "Menu collections available to all users and editable by admin"
+      "description": "Kurdish menu collections available to all users and editable by admin"
+    },
+    "/collections_en/{collectionId}": {
+      "schema": "Collection",
+      "description": "Independent English menu collections available to all users and editable by admin"
     },
     "/photo_submissions/{submissionId}": {
       "schema": "PhotoSubmission",

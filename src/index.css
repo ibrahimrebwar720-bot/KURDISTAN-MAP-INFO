@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *, [data-color-mode="dark"], [data-color-mode="dark"] *));
 
 /* ==========================================================================
    Custom Calibri Typography System
@@ -230,6 +231,10 @@
     direction: rtl;
     background-color: var(--theme-bg, #030712);
     color: #f3f4f6;
+  }
+
+  html[dir="ltr"] body {
+    direction: ltr;
   }
 
   #root {
@@ -586,6 +591,11 @@ html.light select:focus,
   font-size: 13px !important;
   direction: rtl !important;
   text-align: right !important;
+}
+
+html[dir="ltr"] .leaflet-popup-content {
+  direction: ltr !important;
+  text-align: left !important;
 }
 
 /* Pulse animation for active marker */
@@ -976,13 +986,13 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 /* 1. All Amber / Gold Texts converted to Deep Bronze in Light Mode (Contrast 7.5:1+) */
-[data-color-mode="light"] .text-amber-100,
-[data-color-mode="light"] .text-amber-200,
-[data-color-mode="light"] .text-amber-300,
-[data-color-mode="light"] .text-amber-400,
-[data-color-mode="light"] .text-amber-500,
-[data-color-mode="light"] .text-yellow-400,
-[data-color-mode="light"] .text-yellow-300 {
+[data-color-mode="light"] .text-amber-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-amber-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-amber-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-amber-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-amber-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-yellow-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-yellow-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #92400e !important;
   font-weight: 600 !important;
 }
