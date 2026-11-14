@@ -18,6 +18,7 @@ import {
   saveCollectionToCloud,
   deleteCollectionFromCloud,
   subscribeToPhotoSubmissions,
+  subscribeToTranslatedFactIds,
 } from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
@@ -95,6 +96,9 @@ export default function App() {
     loadStoredCollections(getInitialLanguage())
   );
   const [isAdmin, setIsAdmin] = useState<boolean>(() => getAdminState());
+  const [translatedFactIds, setTranslatedFactIds] = useState<Set<number>>(
+    () => new Set(loadStoredFacts('en').map((f) => f.id))
+  );
   const [photoSubmissions, setPhotoSubmissions] = useState<PhotoSubmission[]>(() => loadStoredSubmissions());
   const [isSubmittedPhotosOpen, setIsSubmittedPhotosOpen] = useState(false);
   const [crossLangSyncTarget, setCrossLangSyncTarget] = useState<{
@@ -312,6 +316,17 @@ export default function App() {
     };
   }, [language]);
 
+  // Real-time subscription to translated English fact IDs when Admin is active
+  useEffect(() => {
+    if (!isAdmin) return;
+    const unsubTranslatedIds = subscribeToTranslatedFactIds((ids) => {
+      setTranslatedFactIds(ids);
+    });
+    return () => {
+      unsubTranslatedIds();
+    };
+  }, [isAdmin]);
+
   // 2. Initial mount effect: synchronize deep link, title and external flyTo
   useEffect(() => {
     const initLang = getInitialLanguage();
@@ -480,6 +495,12 @@ export default function App() {
     setIsJourneyOpen(false);
     setIsGalleryOpen(false);
     setIsMenuOpen(false);
+    setIsSettingsOpen(false);
+    setIsDocumentaryTourOpen(false);
+    setIsFactEditorOpen(false);
+    setIsCollectionManagerOpen(false);
+    setIsThemeModalOpen(false);
+    setIsSubmittedPhotosOpen(false);
     updateBrowserUrl({
       topicId: null,
       view: 'hero',
@@ -857,6 +878,7 @@ export default function App() {
               selectedProvince={selectedProvince}
               onSelectProvince={handleProvinceChange}
               isAdmin={isAdmin}
+              translatedFactIds={translatedFactIds}
               onOpenAddFact={handleOpenAddFact}
               onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}
               pendingSubmissionsCount={pendingSubmissionsCount}
@@ -864,6 +886,7 @@ export default function App() {
               onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
               onOpenGallery={handleOpenGallery}
               onOpenTheme={() => setIsThemeModalOpen(true)}
+              onOpenHero={handleReturnToHero}
               onClose={handleCloseMenu}
               onLogoutAdmin={handleAdminLogout}
             />
@@ -877,6 +900,7 @@ export default function App() {
         <DocumentaryScrollytellingModal
         isOpen={isDocumentaryTourOpen}
         onClose={() => setIsDocumentaryTourOpen(false)}
+        onOpenHero={handleReturnToHero}
         onFlyToCoords={handleDocumentaryFlyTo}
         facts={facts}
         onOpenFactDetail={(fact: FactItem) => {
@@ -892,6 +916,7 @@ export default function App() {
         onNavigate={handleModalNavigate}
         onFlyToMap={(fact: FactItem) => handleSelectFact(fact)}
         isAdmin={isAdmin}
+        translatedFactIds={translatedFactIds}
         onEditFact={(fact: FactItem) => {
           handleCloseDetail();
           handleOpenEditFact(fact);
@@ -910,6 +935,7 @@ export default function App() {
       <HistoricalGalleryModal
         isOpen={isGalleryOpen}
         onClose={handleCloseGallery}
+        onOpenHero={handleReturnToHero}
         facts={facts}
         onFlyToFact={(fact: FactItem) => {
           handleSelectFact(fact);
@@ -937,6 +963,7 @@ export default function App() {
         onStartPickLocation={handleStartPickLocation}
         pickedCoords={pickedCoords}
         totalFactsCount={facts.length}
+        translatedFactIds={translatedFactIds}
       />
 
       {/* Collection Manager Modal (Manage collections for Menu) */}
@@ -959,6 +986,7 @@ export default function App() {
       <AppSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        onOpenHero={handleReturnToHero}
         mapMode={mapMode}
         setMapMode={setMapMode}
         markerViewMode={markerViewMode}
@@ -1018,6 +1046,7 @@ export default function App() {
       <HistoricalJourneyModal
         isOpen={isJourneyOpen}
         onClose={handleCloseJourney}
+        onOpenHero={handleReturnToHero}
         facts={facts}
         onOpenDetail={(fact: FactItem) => {
           setIsJourneyOpen(false);

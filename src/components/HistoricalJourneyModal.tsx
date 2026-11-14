@@ -29,6 +29,7 @@ interface Props {
   facts: FactItem[];
   onFlyToFact?: (fact: FactItem) => void;
   onOpenDetail?: (fact: FactItem) => void;
+  onOpenHero?: () => void;
 }
 
 // Curated authentic Kurdish historical narratives
@@ -205,6 +206,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   facts,
   onFlyToFact,
   onOpenDetail,
+  onOpenHero,
 }) => {
   const { colorMode } = useTheme();
   const { language, isEn, dir } = useLanguage();
@@ -574,11 +576,18 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         }`}
       >
         <div className="flex items-center gap-2 sm:gap-3">
-          <img
-            src="/kimlogo.png"
-            alt="KURDISTAN INFO MAP Logo"
-            className="w-8 h-8 rounded-xl object-contain drop-shadow-sm shrink-0 select-none"
-          />
+          <button
+            type="button"
+            onClick={onOpenHero}
+            className="rounded-xl p-0.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0"
+            title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+          >
+            <img
+              src="/kimlogo.png"
+              alt="KURDISTAN INFO MAP Logo"
+              className="w-8 h-8 rounded-xl object-contain drop-shadow-sm select-none"
+            />
+          </button>
           <div>
             <h2 className="font-heading font-black text-sm sm:text-lg flex items-center gap-2">
               <span>{isEn ? 'Historical Journey' : 'گەشتی مێژوویی'}</span>

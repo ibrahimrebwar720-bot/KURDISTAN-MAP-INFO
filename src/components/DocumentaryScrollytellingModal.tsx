@@ -379,6 +379,7 @@ interface Props {
   onFlyToCoords: (lat: number, lng: number, zoom: number, storyTitle: string) => void;
   facts: FactItem[];
   onOpenFactDetail?: (fact: FactItem) => void;
+  onOpenHero?: () => void;
 }
 
 export const DocumentaryScrollytellingModal: React.FC<Props> = ({
@@ -387,6 +388,7 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
   onFlyToCoords,
   facts,
   onOpenFactDetail,
+  onOpenHero,
 }) => {
   const { language, isEn, dir } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -499,9 +501,18 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
       <div className="pointer-events-auto p-3 sm:p-5 flex items-center justify-between gap-3 animate-fade-in">
         {/* Brand / Mode Indicator */}
         <div className="flex items-center gap-2.5 px-4 py-2 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_10px_35px_rgba(0,0,0,0.85)]">
-          <div className="w-8 h-8 rounded-[4px] bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-slate-950 shadow-md">
-            <Film className="w-4 h-4 stroke-[2.5]" />
-          </div>
+          <button
+            type="button"
+            onClick={onOpenHero}
+            className="w-8 h-8 rounded-[4px] bg-white/[0.06] hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/50 p-1 flex items-center justify-center shadow-md cursor-pointer hover:scale-105 active:scale-95 transition-all shrink-0"
+            title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+          >
+            <img
+              src="/kimlogo.png"
+              alt="KURDISTAN INFO MAP Logo"
+              className="w-full h-full object-contain"
+            />
+          </button>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-bold text-amber-300 font-heading">

@@ -79,6 +79,7 @@ interface Props {
   onStartPickLocation: () => void;
   pickedCoords?: { lat: number; lng: number } | null;
   totalFactsCount: number;
+  translatedFactIds?: Set<number>;
 }
 
 export const FactEditorModal: React.FC<Props> = ({
@@ -93,6 +94,7 @@ export const FactEditorModal: React.FC<Props> = ({
   onStartPickLocation,
   pickedCoords,
   totalFactsCount,
+  translatedFactIds,
 }) => {
   const { language, isEn, dir } = useLanguage();
   const editableCategories = useMemo(
@@ -3164,7 +3166,7 @@ export const FactEditorModal: React.FC<Props> = ({
                 {isEn ? 'Close' : 'داخستن'}
               </button>
 
-              {!isEn && (
+              {!isEn && !(factToEdit && translatedFactIds?.has(factToEdit.id)) && (
                 <button
                   type="button"
                   onClick={handleSaveAndTranslateAi}

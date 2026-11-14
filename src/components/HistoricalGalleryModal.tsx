@@ -37,6 +37,7 @@ interface Props {
   facts: FactItem[];
   onFlyToFact?: (fact: FactItem) => void;
   initialIndex?: number;
+  onOpenHero?: () => void;
 }
 
 const SlideshowProgressBar: React.FC<{
@@ -119,6 +120,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   facts,
   onFlyToFact,
   initialIndex = 0,
+  onOpenHero,
 }) => {
   const { language, isEn, dir } = useLanguage();
   const PrevIcon = isEn ? ChevronLeft : ChevronRight;
@@ -296,9 +298,18 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       {/* Top Header Bar */}
       <div className="relative z-20 flex items-center justify-between p-3 sm:p-3.5 rounded-none glass-dock-2026 shrink-0 overflow-hidden">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-amber-400 shadow-md shrink-0">
-            <span className="text-base select-none leading-none">☀️</span>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenHero}
+            className="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-amber-500/20 border border-white/[0.1] hover:border-amber-400/50 flex items-center justify-center p-1 shadow-md shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95"
+            title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+          >
+            <img
+              src="/kimlogo.png"
+              alt="KURDISTAN INFO MAP Logo"
+              className="w-full h-full object-contain"
+            />
+          </button>
           <div className="min-w-0 text-start">
             <div className="flex items-center gap-2">
               <h2 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide truncate">

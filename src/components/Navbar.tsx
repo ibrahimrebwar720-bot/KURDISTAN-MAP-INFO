@@ -6,11 +6,12 @@ import { formatDigits } from '../utils/yearUtils';
 interface Props {
   onOpenMenu: () => void;
   isMenuOpen: boolean;
+  onOpenHero?: () => void;
 }
 
 const KURD_MAP_ICON = '/kimlogo.png';
 
-export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
+export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen, onOpenHero }) => {
   const { language, isEn, dir } = useLanguage();
 
   return (
@@ -21,11 +22,18 @@ export const Navbar: React.FC<Props> = ({ onOpenMenu, isMenuOpen }) => {
       <div className="w-full px-2.5 sm:px-4 h-9 sm:h-10 flex items-center justify-between gap-2 relative z-10">
         {/* Logo and Titles */}
         <div className="flex items-center gap-1.5 min-w-0">
-          <img
-            src={KURD_MAP_ICON}
-            alt="KURDISTAN INFO MAP Logo"
-            className="w-6 h-6 rounded-[2px] object-contain shrink-0"
-          />
+          <button
+            type="button"
+            onClick={onOpenHero}
+            className="shrink-0 rounded-[2px] cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+            title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+          >
+            <img
+              src={KURD_MAP_ICON}
+              alt="KURDISTAN INFO MAP Logo"
+              className="w-6 h-6 rounded-[2px] object-contain"
+            />
+          </button>
           <div className="flex items-center gap-1.5 min-w-0">
             <h1 className="text-[11px] sm:text-xs font-black font-heading text-slate-100 tracking-wide truncate">
               KURDISTAN INFO MAP

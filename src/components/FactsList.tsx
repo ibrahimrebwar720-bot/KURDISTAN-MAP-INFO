@@ -42,7 +42,6 @@ import {
   Check,
   AlertCircle,
   Square,
-  RefreshCw,
   Trash2,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -75,6 +74,7 @@ interface Props {
   selectedProvince?: string;
   onSelectProvince?: (provinceId: string, province?: ProvinceItem) => void;
   isAdmin?: boolean;
+  translatedFactIds?: Set<number>;
   onOpenAdminPin?: () => void;
   onOpenAddFact?: (mode?: 'photo_only' | 'standard') => void;
   onOpenSubmittedPhotos?: () => void;
@@ -83,6 +83,7 @@ interface Props {
   onOpenCollectionManager?: () => void;
   onOpenGallery?: () => void;
   onOpenTheme?: () => void;
+  onOpenHero?: () => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
 }
@@ -123,10 +124,12 @@ export const FactsList: React.FC<Props> = ({
   selectedProvince = 'all',
   onSelectProvince,
   isAdmin = false,
+  translatedFactIds,
   onOpenAddFact,
   onOpenSubmittedPhotos,
   pendingSubmissionsCount,
   onOpenEditFact,
+  onOpenHero,
   onClose,
   onLogoutAdmin,
 }) => {
@@ -143,15 +146,22 @@ export const FactsList: React.FC<Props> = ({
   const [translatedFeedback, setTranslatedFeedback] = useState<Record<number, 'ok' | 'err'>>({});
   const [isAiStudioOpen, setIsAiStudioOpen] = useState(false);
   const [kurdishSourceFacts, setKurdishSourceFacts] = useState<FactItem[]>([]);
-  const [englishExistingIds, setEnglishExistingIds] = useState<Set<number>>(new Set());
+  const [englishExistingIds, setEnglishExistingIds] = useState<Set<number>>(
+    () => new Set(translatedFactIds || [])
+  );
   const [studioLoading, setStudioLoading] = useState(false);
-  const [studioFilter, setStudioFilter] = useState<'untranslated' | 'all' | 'translated'>('untranslated');
   const [studioSearch, setStudioSearch] = useState('');
   const [batchProgress, setBatchProgress] = useState<BatchTranslateProgress | null>(null);
   const [isBatchRunning, setIsBatchRunning] = useState(false);
   const stopBatchRef = useRef(false);
   const [studioNotice, setStudioNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [isCleaningMismatches, setIsCleaningMismatches] = useState(false);
+
+  useEffect(() => {
+    if (translatedFactIds) {
+      setEnglishExistingIds(new Set(translatedFactIds));
+    }
+  }, [translatedFactIds]);
 
   const mismatchedNotesList = useMemo(
     () => findMismatchedDuplicateNotesFacts(kurdishSourceFacts),
@@ -264,12 +274,7 @@ export const FactsList: React.FC<Props> = ({
   };
 
   const studioFilteredList = useMemo(() => {
-    let list = kurdishSourceFacts;
-    if (studioFilter === 'untranslated') {
-      list = list.filter((f) => !englishExistingIds.has(f.id));
-    } else if (studioFilter === 'translated') {
-      list = list.filter((f) => englishExistingIds.has(f.id));
-    }
+    let list = kurdishSourceFacts.filter((f) => !englishExistingIds.has(f.id));
     if (studioSearch.trim()) {
       const q = studioSearch.trim();
       list = list.filter(
@@ -280,7 +285,7 @@ export const FactsList: React.FC<Props> = ({
       );
     }
     return list;
-  }, [kurdishSourceFacts, englishExistingIds, studioFilter, studioSearch]);
+  }, [kurdishSourceFacts, englishExistingIds, studioSearch]);
 
   const untranslatedCount = useMemo(
     () => kurdishSourceFacts.filter((f) => !englishExistingIds.has(f.id)).length,
@@ -527,11 +532,18 @@ export const FactsList: React.FC<Props> = ({
         <div className="flex sm:hidden flex-col gap-1.5 px-2.5 py-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              <img
-                src="/kimlogo.png"
-                alt="Logo"
-                className="w-5 h-5 rounded-[3px] object-contain shrink-0"
-              />
+              <button
+                type="button"
+                onClick={onOpenHero}
+                className="shrink-0 rounded-[3px] p-0.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+              >
+                <img
+                  src="/kimlogo.png"
+                  alt="Logo"
+                  className="w-5 h-5 rounded-[3px] object-contain"
+                />
+              </button>
               <h2 className={`text-xs font-black font-heading truncate tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {isEn ? 'Historical Archive' : 'پێڕستی دەسەڵاتەکان'}
               </h2>
@@ -744,15 +756,20 @@ export const FactsList: React.FC<Props> = ({
           {/* Row 1: Brand / Title + Command Search + Action Dock */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 shrink-0">
-              <div className={`w-10 h-10 rounded-[4px] flex items-center justify-center p-1 shadow-md overflow-hidden border ${
-                isDark ? 'bg-[#101626] border-white/10' : 'bg-white border-slate-200'
-              }`}>
+              <button
+                type="button"
+                onClick={onOpenHero}
+                className={`w-10 h-10 rounded-[4px] flex items-center justify-center p-1 shadow-md overflow-hidden border cursor-pointer hover:scale-105 active:scale-95 transition-transform ${
+                  isDark ? 'bg-[#101626] border-white/10 hover:border-amber-400/50' : 'bg-white border-slate-200 hover:border-amber-500'
+                }`}
+                title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+              >
                 <img
                   src="/kimlogo.png"
                   alt="KURDISTAN INFO MAP Logo"
                   className="w-full h-full object-contain"
                 />
-              </div>
+              </button>
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className={`text-base font-extrabold font-heading tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -1322,8 +1339,8 @@ export const FactsList: React.FC<Props> = ({
                       </span>
                     )}
 
-                    {/* Quick AI Translate to English button (Admin in Kurdish mode) */}
-                    {isAdmin && !isEn && (
+                    {/* Quick AI Translate to English button (Admin in Kurdish mode, hidden if already translated) */}
+                    {isAdmin && !isEn && !englishExistingIds.has(fact.id) && (
                       <button
                         type="button"
                         onClick={() => handleQuickTranslateCard(fact)}
@@ -1491,7 +1508,7 @@ export const FactsList: React.FC<Props> = ({
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      {isAdmin && !isEn && (
+                      {isAdmin && !isEn && !englishExistingIds.has(fact.id) && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1633,39 +1650,9 @@ export const FactsList: React.FC<Props> = ({
             <div className="p-3 sm:p-4 border-b border-white/10 space-y-3 bg-[#0a0f1d]">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setStudioFilter('untranslated')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      studioFilter === 'untranslated'
-                        ? 'bg-amber-500 text-slate-950 border-amber-400'
-                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {isEn ? 'Untranslated' : 'وەرگێڕان نەکراوەکان'} ({formatDigits(untranslatedCount, language)})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStudioFilter('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      studioFilter === 'all'
-                        ? 'bg-indigo-500 text-white border-indigo-400'
-                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {isEn ? 'All Kurdish Topics' : 'هەموو بابەتە کوردییەکان'} ({formatDigits(kurdishSourceFacts.length, language)})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStudioFilter('translated')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      studioFilter === 'translated'
-                        ? 'bg-emerald-500 text-slate-950 border-emerald-400'
-                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {isEn ? 'Translated' : 'وەرگێڕدراوەکان'} ({formatDigits(kurdishSourceFacts.length - untranslatedCount, language)})
-                  </button>
+                  <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/35">
+                    {isEn ? 'Untranslated Topics' : 'بابەتە وەرگێڕان نەکراوەکان'} ({formatDigits(untranslatedCount, language)})
+                  </span>
                 </div>
 
                 {/* Batch Translate or Stop */}
@@ -1827,11 +1814,12 @@ export const FactsList: React.FC<Props> = ({
                 </div>
               ) : studioFilteredList.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 text-xs">
-                  {isEn ? 'No matching topics in this filter.' : 'هیچ بابەتێک لەم بەشەدا نییە.'}
+                  {untranslatedCount === 0
+                    ? (isEn ? 'All historical topics have already been translated.' : 'هەموو بابەتەکان پێشتر وەرگێڕانیان بۆ کراوە.')
+                    : (isEn ? 'No matching untranslated topics.' : 'هیچ بابەتێکی وەرگێڕان نەکراو لەم گەڕانەدا نییە.')}
                 </div>
               ) : (
                 studioFilteredList.map((src) => {
-                  const hasEn = englishExistingIds.has(src.id);
                   const isBusy = !!translatingIds[src.id];
                   const thumb = getFactDisplayImage(src);
 
@@ -1858,15 +1846,9 @@ export const FactsList: React.FC<Props> = ({
                             <span className="text-xs sm:text-sm font-bold text-white truncate" dir="rtl">
                               {src.name}
                             </span>
-                            {hasEn ? (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold">
-                                {isEn ? 'In English ✓' : 'وەرگێڕدراوە ✓'}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold">
-                                {isEn ? 'Pending' : 'وەرگێڕان نەکراوە'}
-                              </span>
-                            )}
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold">
+                              {isEn ? 'Pending' : 'وەرگێڕان نەکراوە'}
+                            </span>
                             {mismatchOwnerById.get(src.id) && (
                               <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] font-bold">
                                 {isEn
@@ -1894,24 +1876,16 @@ export const FactsList: React.FC<Props> = ({
                         type="button"
                         disabled={isBusy || isBatchRunning}
                         onClick={() => handleStudioTranslateOne(src)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-all disabled:opacity-50 ${
-                          hasEn
-                            ? 'bg-white/10 hover:bg-indigo-500/30 text-slate-200 border border-white/15'
-                            : 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-sm'
-                        }`}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-all disabled:opacity-50 bg-indigo-500 hover:bg-indigo-400 text-white shadow-sm"
                       >
                         {isBusy ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : hasEn ? (
-                          <RefreshCw className="w-3.5 h-3.5" />
                         ) : (
                           <Languages className="w-3.5 h-3.5" />
                         )}
                         <span>
                           {isBusy
                             ? (isEn ? 'Translating...' : 'وەرگێڕان...')
-                            : hasEn
-                            ? (isEn ? 'Re-translate (AI)' : 'نوێکردنەوە (AI)')
                             : (isEn ? 'Translate to English (AI)' : 'وەرگێڕان بۆ ئینگلیزی')}
                         </span>
                       </button>

@@ -1,5 +1,3 @@
-import boundaryPolygons from './kurdistanBoundaryPolygons.json';
-
 export interface FactImageItem {
   url: string;
   caption?: string;
@@ -132,8 +130,82 @@ export const ERAS: EraInfo[] = [
   }
 ];
 
-export const GREAT_KURDISTAN_POLYGON: [number, number][] =
-  boundaryPolygons.greatKurdistan as [number, number][];
+export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
+  // 1. Southern Khuzestan -> Ilam / Dehloran -> Badra -> Mandali -> Khanaqin
+  [30.55, 49.55],
+  [30.75, 48.85],
+  [31.12, 48.35],
+  [31.65, 47.98],
+  [32.28, 47.55],
+  [32.68, 46.55],
+  [33.15, 45.88],
+  [33.72, 45.55],
+  [34.25, 45.28],
+  // 2. Bashur (South Kurdistan): Garmian -> Tuz Khurmatu -> Kirkuk -> Makhmur -> Nineveh Plains -> Shingal
+  [34.55, 44.92],
+  [34.86, 44.58],
+  [35.18, 44.22],
+  [35.45, 43.88],
+  [35.75, 43.55],
+  [36.35, 43.38],
+  [36.35, 42.85],
+  [36.15, 42.30],
+  [36.15, 41.78],
+  [36.32, 41.32],
+  // 3. Rojava (West Kurdistan): Hasakah -> Sere Kaniye -> Gire Spi -> Kobani -> Jarabulus -> Afrin
+  [36.42, 40.75],
+  [36.50, 40.32],
+  [36.75, 39.95],
+  [36.62, 39.40],
+  [36.60, 38.92],
+  [36.65, 38.58],
+  [36.62, 38.18],
+  [36.82, 37.98],
+  [36.68, 37.45],
+  [36.45, 37.04],
+  [36.34, 36.78],
+  [36.50, 36.54],
+  [36.82, 36.58],
+  // 4. Bakur (North Kurdistan): Islahiye -> Maras -> Elbistan -> Malatya (Darende / Kuluncak / Hekimhan / Arapgir) -> Erzincan -> Erzurum -> Kars -> Igdir / Ararat
+  [37.20, 36.60],
+  [37.62, 36.72],
+  [38.15, 36.95],
+  [38.58, 37.20],
+  [38.98, 37.48],
+  [39.32, 37.85],
+  [39.68, 38.25],
+  [39.92, 38.75],
+  [39.96, 39.35],
+  [39.98, 40.00],
+  [40.15, 40.65],
+  [40.25, 41.35],
+  [40.45, 42.05],
+  [40.70, 42.65],
+  [40.72, 43.25],
+  [40.42, 43.62],
+  [40.12, 43.95],
+  [39.98, 44.60],
+  // 5. Rojhelat (East Kurdistan): Maku -> Khoy -> Urmia -> Mahabad -> Takab/Bijar -> Sanandaj -> Kangavar -> Malayer -> Lorestan (Aligudarz) -> East Khuzestan (Izeh / Behbahan)
+  [39.65, 44.78],
+  [39.25, 44.92],
+  [38.75, 45.05],
+  [38.22, 45.10],
+  [37.75, 45.25],
+  [37.35, 45.38],
+  [36.92, 46.05],
+  [36.55, 46.75],
+  [36.32, 47.45],
+  [35.85, 47.95],
+  [35.22, 48.05],
+  [34.65, 48.10],
+  [34.25, 48.85],
+  [33.80, 49.45],
+  [33.25, 49.95],
+  [32.55, 50.15],
+  [31.85, 50.25],
+  [31.15, 50.42],
+  [30.52, 50.28],
+];
 
 // Helper to determine category tag
 function getTag(id: number): 'empire' | 'principality' | 'capital' | 'battle' | 'figure' | 'culture' {

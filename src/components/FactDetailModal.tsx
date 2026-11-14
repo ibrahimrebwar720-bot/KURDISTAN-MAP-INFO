@@ -48,6 +48,7 @@ interface Props {
   onNavigate: (dir: 'next' | 'prev') => void;
   onFlyToMap: (fact: FactItem) => void;
   isAdmin?: boolean;
+  translatedFactIds?: Set<number>;
   onEditFact?: (fact: FactItem) => void;
   onSaveNotes?: (factId: number, notes: string) => void;
   onOpenGallery?: () => void;
@@ -68,6 +69,7 @@ export const FactDetailModal: React.FC<Props> = ({
   onNavigate,
   onFlyToMap,
   isAdmin = false,
+  translatedFactIds,
   onEditFact,
   onSaveNotes,
   onOpenGallery,
@@ -301,8 +303,8 @@ export const FactDetailModal: React.FC<Props> = ({
               </button>
             )}
 
-            {/* Admin AI Kurdish -> English Translation Button */}
-            {isAdmin && (
+            {/* Admin AI Kurdish -> English Translation Button (only for untranslated topics) */}
+            {isAdmin && !isEn && !translatedFactIds?.has(fact.id) && (
               <button
                 type="button"
                 onClick={handleAdminAiTranslate}

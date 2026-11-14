@@ -109,6 +109,44 @@ export async function loadKurdishFactsFromCloud(): Promise<FactItem[]> {
 }
 
 /**
+ * Real-time subscription to the set of fact IDs that already exist in `facts_en`
+ */
+export function subscribeToTranslatedFactIds(
+  onUpdate: (ids: Set<number>) => void
+): () => void {
+  try {
+    const colRef = collection(db, 'facts_en');
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        const ids = new Set<number>();
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data && typeof data.id === 'number') {
+            ids.add(data.id);
+          } else {
+            const parsedId = Number(docSnap.id);
+            if (Number.isFinite(parsedId) && parsedId > 0) {
+              ids.add(parsedId);
+            }
+          }
+        });
+        onUpdate(ids);
+      },
+      (error) => {
+        console.warn('Realtime translated IDs sync error, using cached:', error);
+        onUpdate(new Set(loadStoredFacts('en').map((f) => f.id)));
+      }
+    );
+    return unsubscribe;
+  } catch (err) {
+    console.warn('Failed to attach translated IDs listener:', err);
+    onUpdate(new Set(loadStoredFacts('en').map((f) => f.id)));
+    return () => {};
+  }
+}
+
+/**
  * Real-time subscription to cloud facts across all users worldwide (strictly separated per language)
  */
 export function subscribeToCloudFacts(

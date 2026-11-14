@@ -44,6 +44,7 @@ interface Props {
   onOpenSubmittedPhotos?: () => void;
   pendingSubmissionsCount?: number;
   factsCount: number;
+  onOpenHero?: () => void;
 }
 
 export const AppSettingsModal: React.FC<Props> = ({
@@ -65,6 +66,7 @@ export const AppSettingsModal: React.FC<Props> = ({
   onOpenSubmittedPhotos,
   pendingSubmissionsCount,
   factsCount,
+  onOpenHero,
 }) => {
   const { theme, themeId, setTheme, colorMode, setColorMode } = useTheme();
   const { language, isEn, dir, setLanguage } = useLanguage();
@@ -111,13 +113,21 @@ export const AppSettingsModal: React.FC<Props> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl p-1 bg-amber-500/15 flex items-center justify-center border border-amber-500/30 overflow-hidden shadow-xs">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenHero?.();
+              }}
+              className="w-8 h-8 rounded-xl p-1 bg-amber-500/15 hover:bg-amber-500/25 flex items-center justify-center border border-amber-500/30 overflow-hidden shadow-xs cursor-pointer transition-transform hover:scale-105 active:scale-95 shrink-0"
+              title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+            >
               <img
                 src="/kimlogo.png"
                 alt="Logo"
                 className="w-full h-full object-contain"
               />
-            </div>
+            </button>
             <div>
               <h2 className="font-heading font-extrabold text-sm sm:text-base">
                 {isEn ? 'Settings & Tools' : 'ڕێکخستنەکان و ئامرازەکان'}
@@ -143,10 +153,10 @@ export const AppSettingsModal: React.FC<Props> = ({
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
               <Globe className="w-4 h-4 text-amber-500" />
-              <span>{isEn ? 'Language & Dataset Edition' : 'زمان و داتابەیسی سەربەخۆ'}</span>
+              <span>{isEn ? 'Language' : 'زمان'}</span>
             </span>
             <span className="text-[11px] font-bold text-amber-500">
-              {isEn ? 'English (LTR)' : 'کوردی (RTL)'}
+              {isEn ? 'English' : 'کوردی'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -173,11 +183,6 @@ export const AppSettingsModal: React.FC<Props> = ({
               <span>English</span>
             </button>
           </div>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            {isEn
-              ? 'Kurdish and English editions maintain completely separate historical datasets.'
-              : 'بەشی کوردی و ئینگلیزی خاوەنی داتابەیس و بابەتی سەربەخۆ و جیاوازن لە یەکتری.'}
-          </p>
         </div>
 
         {/* 1. Color Mode */}
