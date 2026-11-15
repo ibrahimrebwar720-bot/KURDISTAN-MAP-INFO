@@ -64,7 +64,7 @@ import {
   matchFactToProvince,
 } from '../data/kurdishProvincesData';
 import { useLanguage } from '../context/LanguageContext';
-import { translateFactToEnglishDetailed } from '../services/aiTranslationService';
+import { translateFactToEnglishDetailed, formatTranslationError } from '../services/aiTranslationService';
 import { findDuplicateNotesOwnerForFact } from '../utils/factConsistency';
 
 interface Props {
@@ -75,7 +75,7 @@ interface Props {
   collections: CollectionItem[];
   allFacts?: FactItem[];
   onSave: (fact: FactItem, options?: { isEdit?: boolean; skipCrossLangPrompt?: boolean }) => void;
-  onDelete?: (factId: number) => void;
+  onDelete?: (factId: number, options?: { deleteFromEnglish?: boolean }) => void;
   onStartPickLocation: () => void;
   pickedCoords?: { lat: number; lng: number } | null;
   totalFactsCount: number;
@@ -1032,13 +1032,7 @@ export const FactEditorModal: React.FC<Props> = ({
       await translateFactToEnglishDetailed(item);
       onClose();
     } catch (err) {
-      setAiError(
-        err instanceof Error
-          ? err.message
-          : isEn
-          ? 'AI translation failed'
-          : 'وەرگێڕانی AI سەرکەوتوو نەبوو'
-      );
+      setAiError(formatTranslationError(err, language));
     } finally {
       setIsSavingAndTranslating(false);
     }
@@ -1108,6 +1102,12 @@ export const FactEditorModal: React.FC<Props> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {isEn && (
+          <div className="mb-3 px-3 py-2 rounded-xl bg-sky-500/10 border border-sky-400/25 text-sky-200 text-[11px] font-medium shrink-0">
+            Central Kurdish (ckb) is the master knowledge base. Edits made here refine only the English edition without altering the Kurdish source.
+          </div>
+        )}
 
         {/* Form Mode Selector */}
         <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] mb-4 shrink-0">
@@ -3122,18 +3122,44 @@ export const FactEditorModal: React.FC<Props> = ({
             {factToEdit && onDelete && (
               <div>
                 {confirmDelete ? (
-                  <div className="flex items-center gap-1.5 animate-fade-in">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onDelete(factToEdit.id);
-                        onClose();
-                      }}
-                      className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>{isEn ? 'Confirm Delete' : 'دڵنیام، بیسڕەوە'}</span>
-                    </button>
+                  <div className="flex flex-wrap items-center gap-1.5 animate-fade-in">
+                    {!isEn && translatedFactIds?.has(factToEdit.id) ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDelete(factToEdit.id, { deleteFromEnglish: true });
+                            onClose();
+                          }}
+                          className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>سڕینەوە لە هەردوو زمان</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDelete(factToEdit.id, { deleteFromEnglish: false });
+                            onClose();
+                          }}
+                          className="px-3 py-2 rounded-xl bg-amber-600/80 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <span>تەنها لە کوردی</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDelete(factToEdit.id);
+                          onClose();
+                        }}
+                        className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{isEn ? 'Confirm Delete' : 'دڵنیام، بیسڕەوە'}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}

@@ -38,7 +38,7 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { formatDigits } from '../utils/yearUtils';
 import { getShareableTopicUrl, copyTopicToClipboard } from '../utils/urlRouter';
 import { useLanguage } from '../context/LanguageContext';
-import { translateFactToEnglishDetailed } from '../services/aiTranslationService';
+import { translateFactToEnglishDetailed, formatTranslationError } from '../services/aiTranslationService';
 import { loadKurdishFactsFromCloud } from '../services/firestoreHistoryService';
 import { findDuplicateNotesOwnerForFact } from '../utils/factConsistency';
 
@@ -219,7 +219,7 @@ export const FactDetailModal: React.FC<Props> = ({
     } catch (err) {
       setAiTranslateFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : isEn ? 'Translation failed' : 'هەڵەیەک لە وەرگێڕاندا ڕوویدا',
+        message: formatTranslationError(err, language),
       });
     } finally {
       setIsTranslatingAi(false);

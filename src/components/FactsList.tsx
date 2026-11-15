@@ -43,18 +43,24 @@ import {
   AlertCircle,
   Square,
   Trash2,
+  Download,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { loadKurdishFactsFromCloud, saveNotesToCloud } from '../services/firestoreHistoryService';
+import {
+  loadKurdishFactsFromCloud,
+  loadEnglishFactsFromCloud,
+  saveNotesToCloud,
+} from '../services/firestoreHistoryService';
 import {
   translateFactToEnglishDetailed,
   translateFactsBatchToEnglish,
   BatchTranslateProgress,
+  TranslationApiError,
+  formatTranslationError,
 } from '../services/aiTranslationService';
 import { findMismatchedDuplicateNotesFacts } from '../utils/factConsistency';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { CINEMATIC_STATIONS } from '../data/cinematicTimeMachineData';
 
 interface Props {
   facts: FactItem[];
@@ -146,11 +152,13 @@ export const FactsList: React.FC<Props> = ({
   const [translatedFeedback, setTranslatedFeedback] = useState<Record<number, 'ok' | 'err'>>({});
   const [isAiStudioOpen, setIsAiStudioOpen] = useState(false);
   const [kurdishSourceFacts, setKurdishSourceFacts] = useState<FactItem[]>([]);
+  const [englishArchiveFacts, setEnglishArchiveFacts] = useState<FactItem[]>([]);
   const [englishExistingIds, setEnglishExistingIds] = useState<Set<number>>(
     () => new Set(translatedFactIds || [])
   );
   const [studioLoading, setStudioLoading] = useState(false);
   const [studioSearch, setStudioSearch] = useState('');
+  const [studioSortMode, setStudioSortMode] = useState<'priority' | 'chronological'>('priority');
   const [batchProgress, setBatchProgress] = useState<BatchTranslateProgress | null>(null);
   const [isBatchRunning, setIsBatchRunning] = useState(false);
   const stopBatchRef = useRef(false);
@@ -162,6 +170,32 @@ export const FactsList: React.FC<Props> = ({
       setEnglishExistingIds(new Set(translatedFactIds));
     }
   }, [translatedFactIds]);
+
+  const featuredDocumentaryFactIds = useMemo(() => {
+    const ids = new Set<number>();
+    CINEMATIC_STATIONS.forEach((s) => {
+      if (typeof s.associatedFactId === 'number') {
+        ids.add(s.associatedFactId);
+      }
+    });
+    return ids;
+  }, []);
+
+  const linkedByEnFactIds = useMemo(() => {
+    const ids = new Set<number>();
+    englishArchiveFacts.forEach((f) => {
+      if (typeof f.parentFactId === 'number' && !englishExistingIds.has(f.parentFactId)) {
+        ids.add(f.parentFactId);
+      }
+      f.relatedFactIds?.forEach((rid) => {
+        if (!englishExistingIds.has(rid)) ids.add(rid);
+      });
+      f.allyFactIds?.forEach((aid) => {
+        if (!englishExistingIds.has(aid)) ids.add(aid);
+      });
+    });
+    return ids;
+  }, [englishArchiveFacts, englishExistingIds]);
 
   const mismatchedNotesList = useMemo(
     () => findMismatchedDuplicateNotesFacts(kurdishSourceFacts),
@@ -181,22 +215,16 @@ export const FactsList: React.FC<Props> = ({
     setStudioLoading(true);
     setStudioNotice(null);
     try {
-      const [ckbList, enSnap] = await Promise.all([
+      const [ckbList, enList] = await Promise.all([
         loadKurdishFactsFromCloud(),
-        getDocs(collection(db, 'facts_en')),
+        loadEnglishFactsFromCloud(),
       ]);
       const sortedCkb = [...ckbList].sort(
         (a, b) => getFactChronologicalYear(a) - getFactChronologicalYear(b)
       );
       setKurdishSourceFacts(sortedCkb);
-      const enIds = new Set<number>();
-      enSnap.forEach((docSnap) => {
-        const d = docSnap.data();
-        if (d && typeof d.id === 'number') {
-          enIds.add(d.id);
-        }
-      });
-      setEnglishExistingIds(enIds);
+      setEnglishArchiveFacts(enList);
+      setEnglishExistingIds(new Set(enList.map((f) => f.id)));
     } catch (err) {
       setStudioNotice({
         type: 'err',
@@ -204,6 +232,35 @@ export const FactsList: React.FC<Props> = ({
       });
     } finally {
       setStudioLoading(false);
+    }
+  };
+
+  const handleExportEnglishSnapshot = async () => {
+    try {
+      const enList =
+        englishArchiveFacts.length > 0 ? englishArchiveFacts : await loadEnglishFactsFromCloud();
+      const blob = new Blob([JSON.stringify(enList, null, 2)], {
+        type: 'application/json;charset=utf-8',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kurdistan-history-en-snapshot-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStudioNotice({
+        type: 'ok',
+        text: isEn
+          ? `Exported ${enList.length} English entries as JSON snapshot.`
+          : `${formatDigits(enList.length, language)} بابەتی ئینگلیزی وەک فایلی JSON دابەزێنرا.`,
+      });
+    } catch (err) {
+      setStudioNotice({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Failed to export English snapshot.',
+      });
     }
   };
 
@@ -224,7 +281,15 @@ export const FactsList: React.FC<Props> = ({
         return next;
       });
     } catch (err) {
-      console.error('Quick AI translate failed:', err);
+      if (err instanceof TranslationApiError && err.isQuotaExceeded) {
+        console.warn('Quick AI translate paused: quota exceeded (429).');
+        setStudioNotice({
+          type: 'err',
+          text: formatTranslationError(err, language),
+        });
+      } else {
+        console.error('Quick AI translate failed:', err);
+      }
       setTranslatedFeedback((prev) => ({ ...prev, [fact.id]: 'err' }));
     } finally {
       setTranslatingIds((prev) => {
@@ -262,7 +327,7 @@ export const FactsList: React.FC<Props> = ({
     } catch (err) {
       setStudioNotice({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Translation failed',
+        text: formatTranslationError(err, language),
       });
     } finally {
       setTranslatingIds((prev) => {
@@ -284,16 +349,44 @@ export const FactsList: React.FC<Props> = ({
           kurdishSearchMatch(f.year || '', q)
       );
     }
+    if (studioSortMode === 'priority') {
+      const score = (f: FactItem) => {
+        let s = 0;
+        if (linkedByEnFactIds.has(f.id)) s += 100;
+        if (featuredDocumentaryFactIds.has(f.id)) s += 50;
+        if (getFactDisplayImage(f)) s += 10;
+        return s;
+      };
+      list = [...list].sort((a, b) => {
+        const diff = score(b) - score(a);
+        if (diff !== 0) return diff;
+        return getFactChronologicalYear(a) - getFactChronologicalYear(b);
+      });
+    }
     return list;
-  }, [kurdishSourceFacts, englishExistingIds, studioSearch]);
+  }, [
+    kurdishSourceFacts,
+    englishExistingIds,
+    studioSearch,
+    studioSortMode,
+    linkedByEnFactIds,
+    featuredDocumentaryFactIds,
+  ]);
 
   const untranslatedCount = useMemo(
     () => kurdishSourceFacts.filter((f) => !englishExistingIds.has(f.id)).length,
     [kurdishSourceFacts, englishExistingIds]
   );
 
+  const translatedCount = useMemo(
+    () => kurdishSourceFacts.filter((f) => englishExistingIds.has(f.id)).length,
+    [kurdishSourceFacts, englishExistingIds]
+  );
+
   const handleBatchTranslateUntranslated = async () => {
-    const targets = kurdishSourceFacts.filter((f) => !englishExistingIds.has(f.id));
+    const targets = studioFilteredList.length > 0 && studioSearch.trim() === ''
+      ? studioFilteredList
+      : kurdishSourceFacts.filter((f) => !englishExistingIds.has(f.id));
     if (targets.length === 0 || isBatchRunning) return;
     stopBatchRef.current = false;
     setIsBatchRunning(true);
@@ -323,6 +416,15 @@ export const FactsList: React.FC<Props> = ({
     );
 
     setIsBatchRunning(false);
+    if (summary.quotaExceeded) {
+      setStudioNotice({
+        type: 'err',
+        text: isEn
+          ? `Batch paused after ${summary.succeeded.length} translations: Free Tier daily AI quota was reached. Select a billing-enabled Gemini API key in Settings > Secrets to continue, or try again tomorrow.`
+          : `وەرگێڕانی بەکۆمەڵ دوای ${formatDigits(summary.succeeded.length, language)} بابەت وەستێنرا چونکە سنووری ڕۆژانەی پلانی خۆڕایی (Free Tier) پڕبووەوە. بۆ بەردەوامبوون کلیلی Gemini API ی خاوەن Billing لە Settings > Secrets هەڵبژێرە یان سبەینێ هەوڵ بدەرەوە.`,
+      });
+      return;
+    }
     setStudioNotice({
       type: summary.failed.length === 0 ? 'ok' : 'err',
       text: isEn
@@ -1646,17 +1748,76 @@ export const FactsList: React.FC<Props> = ({
               </button>
             </div>
 
-            {/* Toolbar: Tabs + Search + Batch Action */}
+            {/* Toolbar: Coverage + Priority Sort + Export + Batch Action */}
             <div className="p-3 sm:p-4 border-b border-white/10 space-y-3 bg-[#0a0f1d]">
+              {/* Master Knowledge Base Translation Coverage Bar */}
+              {kurdishSourceFacts.length > 0 && (
+                <div className="p-2.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-200">
+                      {isEn
+                        ? 'Knowledge Base Coverage (ckb → en)'
+                        : 'ڕێژەی وەرگێڕان لە بنکەی کوردییەوە (ckb → en)'}
+                    </span>
+                    <span className="font-mono font-bold text-emerald-300">
+                      {formatDigits(translatedCount, language)} / {formatDigits(kurdishSourceFacts.length, language)} (
+                      {formatDigits(
+                        Math.round((translatedCount / kurdishSourceFacts.length) * 100),
+                        language
+                      )}
+                      %)
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-sky-400 transition-all duration-300"
+                      style={{
+                        width: `${Math.round((translatedCount / kurdishSourceFacts.length) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/35">
                     {isEn ? 'Untranslated Topics' : 'بابەتە وەرگێڕان نەکراوەکان'} ({formatDigits(untranslatedCount, language)})
                   </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStudioSortMode((prev) => (prev === 'priority' ? 'chronological' : 'priority'))
+                    }
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border cursor-pointer transition-colors ${
+                      studioSortMode === 'priority'
+                        ? 'bg-sky-500/20 text-sky-300 border-sky-400/40'
+                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {studioSortMode === 'priority'
+                      ? isEn
+                        ? 'Sort: Priority First'
+                        : 'ڕیزکردن: ئەولەوییەت'
+                      : isEn
+                      ? 'Sort: Chronological'
+                      : 'ڕیزکردن: مێژوویی'}
+                  </button>
                 </div>
 
-                {/* Batch Translate or Stop */}
-                <div className="flex items-center gap-2">
+                {/* Export Snapshot + Batch Translate or Stop */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={studioLoading || translatedCount === 0}
+                    onClick={handleExportEnglishSnapshot}
+                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-40 text-slate-200 border border-white/15 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    title={isEn ? 'Download translated English entries as JSON snapshot' : 'داگرتنی داتای ئینگلیزی وەک فایلی JSON'}
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{isEn ? 'Export EN JSON' : 'داگرتنی EN JSON'}</span>
+                  </button>
+
                   {isBatchRunning ? (
                     <button
                       type="button"
@@ -1849,6 +2010,16 @@ export const FactsList: React.FC<Props> = ({
                             <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold">
                               {isEn ? 'Pending' : 'وەرگێڕان نەکراوە'}
                             </span>
+                            {linkedByEnFactIds.has(src.id) && (
+                              <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40 text-[10px] font-bold">
+                                {isEn ? 'Linked in EN' : 'لینکراوە لە ئینگلیزیدا'}
+                              </span>
+                            )}
+                            {featuredDocumentaryFactIds.has(src.id) && (
+                              <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/40 text-[10px] font-bold">
+                                {isEn ? 'Documentary Tour' : 'دۆکیومێنتاری'}
+                              </span>
+                            )}
                             {mismatchOwnerById.get(src.id) && (
                               <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] font-bold">
                                 {isEn

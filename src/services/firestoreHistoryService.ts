@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   setDoc,
   deleteDoc,
   getDocs,
@@ -8,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ALL_FACTS, FactItem } from '../data/kurdishHistoryData';
+import { STATIC_ENGLISH_FACTS } from '../data/kurdishHistoryDataEn';
 import { KURDISH_PROVINCES_CITIES } from '../data/kurdishProvincesData';
 import { CollectionItem, getUnifiedCategories, PhotoSubmission } from '../types/history';
 import {
@@ -53,6 +55,22 @@ function mergeFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
   });
 
   return Array.from(map.values());
+}
+
+// Helper: Merge Firestore English facts with optional STATIC_ENGLISH_FACTS baseline (English mode ONLY)
+function mergeEnglishFactsWithCloud(cloudFacts: FactItem[]): FactItem[] {
+  const map = new Map<number, FactItem>();
+  STATIC_ENGLISH_FACTS.forEach((fact) => {
+    if (fact && typeof fact.id === 'number') {
+      map.set(fact.id, sanitizeFact(fact, 'en'));
+    }
+  });
+  cloudFacts.forEach((cf) => {
+    if (cf && typeof cf.id === 'number') {
+      map.set(cf.id, sanitizeFact(cf, 'en'));
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => (a.num || a.id) - (b.num || b.id));
 }
 
 // Helper: Merge Firestore collections with localized default collections
@@ -106,6 +124,57 @@ export async function loadKurdishFactsFromCloud(): Promise<FactItem[]> {
     console.warn('Failed to load Kurdish facts from cloud, using cache:', err);
     return loadStoredFacts('ckb');
   }
+}
+
+/**
+ * Load all English facts (`facts_en` merged with STATIC_ENGLISH_FACTS) for snapshot export and link integrity checks.
+ */
+export async function loadEnglishFactsFromCloud(): Promise<FactItem[]> {
+  try {
+    const colRef = collection(db, 'facts_en');
+    const snap = await getDocs(colRef);
+    const cloudList: FactItem[] = [];
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data && typeof data.id === 'number') {
+        cloudList.push(sanitizeFact(data as FactItem, 'en'));
+      }
+    });
+    const merged = mergeEnglishFactsWithCloud(cloudList);
+    saveStoredFacts(merged, 'en');
+    return merged;
+  } catch (err) {
+    console.warn('Failed to load English facts from cloud, using cache:', err);
+    return loadStoredFacts('en');
+  }
+}
+
+/**
+ * Fetch a single fact from Firestore (or baseline) for a given language.
+ */
+export async function getFactFromCloud(
+  factId: number,
+  lang: AppLanguage = 'en'
+): Promise<FactItem | null> {
+  try {
+    const docSnap = await getDoc(doc(db, getFactsCollectionName(lang), String(factId)));
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data && typeof data.id === 'number') {
+        return sanitizeFact(data as FactItem, lang);
+      }
+    }
+  } catch (err) {
+    console.warn(`Failed to fetch fact ${factId} (${lang}) from cloud:`, err);
+  }
+  if (lang === 'en') {
+    const staticMatch = STATIC_ENGLISH_FACTS.find((f) => f.id === factId);
+    if (staticMatch) return sanitizeFact(staticMatch, 'en');
+  } else {
+    const baseline = [...ALL_FACTS, ...KURDISH_PROVINCES_CITIES].find((f) => f.id === factId);
+    if (baseline) return sanitizeFact(baseline, 'ckb');
+  }
+  return null;
 }
 
 /**
@@ -172,10 +241,10 @@ export function subscribeToCloudFacts(
           }
         });
 
-        // CRITICAL: English mode (`facts_en`) is 100% independent — never merge Kurdish `ALL_FACTS` into it
+        // CRITICAL: English mode (`facts_en`) is 100% independent from Kurdish `ALL_FACTS`, merged only with its own static snapshot
         const finalFacts =
           lang === 'en'
-            ? cloudList.sort((a, b) => (a.num || a.id) - (b.num || b.id))
+            ? mergeEnglishFactsWithCloud(cloudList)
             : mergeFactsWithCloud(cloudList);
 
         saveStoredFacts(finalFacts, lang);
@@ -477,45 +546,62 @@ export function subscribeToPhotoSubmissions(
 }
 
 /**
- * Approve photo submission: automatically publishes the image onto the fact
- * in the active language (and also syncs into the counterpart if matching ID exists!)
+ * Approve photo submission: since `ckb` is the Master Knowledge Base, always updates `facts` (ckb)
+ * AND automatically syncs the approved image into `facts_en` if that topic already exists there.
  */
 export async function approvePhotoSubmission(
   submission: PhotoSubmission,
   allFacts: FactItem[],
   lang: AppLanguage = 'ckb'
 ): Promise<FactItem | null> {
-  const targetFact =
-    allFacts.find((f) => f.id === submission.factId) ||
-    loadStoredFacts(lang).find((f) => f.id === submission.factId);
+  const cleanUrl = resolveImageUrl(submission.imageUrl) || submission.imageUrl;
 
-  if (!targetFact) {
+  const mergePhotoIntoFact = (fact: FactItem): FactItem => {
+    const existingImages = Array.isArray(fact.images) ? [...fact.images] : [];
+    const alreadyInImages = existingImages.some((img) => img.url === cleanUrl);
+    const updatedImages = alreadyInImages
+      ? existingImages
+      : [
+          {
+            url: cleanUrl,
+            caption: submission.note || fact.name || submission.factName,
+          },
+          ...existingImages,
+        ];
+    return {
+      ...fact,
+      imageUrl: cleanUrl,
+      images: updatedImages,
+    };
+  };
+
+  // 1. Always update Master Kurdish Knowledge Base (`ckb`)
+  const ckbTarget =
+    (lang === 'ckb' ? allFacts.find((f) => f.id === submission.factId) : undefined) ||
+    (await getFactFromCloud(submission.factId, 'ckb')) ||
+    loadStoredFacts('ckb').find((f) => f.id === submission.factId);
+
+  let updatedCkbFact: FactItem | null = null;
+  if (ckbTarget) {
+    updatedCkbFact = mergePhotoIntoFact(ckbTarget);
+    await saveFactToCloud(updatedCkbFact, 'ckb');
+  }
+
+  // 2. Also cascade photo to `facts_en` if this entry exists in English (without AI)
+  const enTarget =
+    (lang === 'en' ? allFacts.find((f) => f.id === submission.factId) : undefined) ||
+    (await getFactFromCloud(submission.factId, 'en'));
+
+  let updatedEnFact: FactItem | null = null;
+  if (enTarget) {
+    updatedEnFact = mergePhotoIntoFact(enTarget);
+    await saveFactToCloud(updatedEnFact, 'en');
+  }
+
+  if (!updatedCkbFact && !updatedEnFact) {
     console.warn(`Fact with id ${submission.factId} not found.`);
     return null;
   }
-
-  const cleanUrl = resolveImageUrl(submission.imageUrl) || submission.imageUrl;
-
-  const existingImages = Array.isArray(targetFact.images) ? [...targetFact.images] : [];
-  const alreadyInImages = existingImages.some((img) => img.url === cleanUrl);
-
-  const updatedImages = alreadyInImages
-    ? existingImages
-    : [
-        {
-          url: cleanUrl,
-          caption: submission.note || submission.factName,
-        },
-        ...existingImages,
-      ];
-
-  const updatedFact: FactItem = {
-    ...targetFact,
-    imageUrl: cleanUrl,
-    images: updatedImages,
-  };
-
-  await saveFactToCloud(updatedFact, lang);
 
   const subRef = doc(db, PHOTO_SUBMISSIONS_COLLECTION, submission.id);
   await setDoc(
@@ -533,7 +619,7 @@ export async function approvePhotoSubmission(
   );
   saveStoredSubmissions(updatedLocal);
 
-  return updatedFact;
+  return lang === 'en' ? updatedEnFact || updatedCkbFact : updatedCkbFact || updatedEnFact;
 }
 
 /**

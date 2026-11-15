@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 
 const PORT = Number(process.env.PORT) || 3000;
 const isProd = process.env.NODE_ENV === 'production';
@@ -19,6 +19,99 @@ function createGeminiClient(): GoogleGenAI {
       },
     },
   });
+}
+
+interface ParsedGeminiError {
+  statusCode: number;
+  code: 'QUOTA_EXHAUSTED' | 'AUTH_ERROR' | 'API_ERROR';
+  message: string;
+  retryAfterSeconds?: number;
+}
+
+function parseGeminiApiError(err: unknown): ParsedGeminiError {
+  const rawMessage = err instanceof Error ? err.message : String(err || 'Translation failed');
+  const statusProp =
+    typeof err === 'object' && err !== null && 'status' in err
+      ? Number((err as { status?: unknown }).status)
+      : NaN;
+
+  let retryAfterSeconds: number | undefined;
+  const retryMatch = rawMessage.match(/retryDelay["']?\s*:\s*["']?(\d+)s/i) || rawMessage.match(/retry in\s+(\d+)s/i);
+  if (retryMatch) {
+    retryAfterSeconds = Number(retryMatch[1]);
+  }
+
+  const isQuota =
+    statusProp === 429 ||
+    rawMessage.includes('"code":429') ||
+    rawMessage.includes('RESOURCE_EXHAUSTED') ||
+    rawMessage.toLowerCase().includes('quota');
+
+  if (isQuota) {
+    return {
+      statusCode: 429,
+      code: 'QUOTA_EXHAUSTED',
+      message:
+        'Free tier AI translation quota has been exceeded. Please select a billing-enabled Gemini API key in Settings > Secrets or try again later.',
+      retryAfterSeconds,
+    };
+  }
+
+  const isAuth =
+    statusProp === 403 ||
+    rawMessage.includes('PERMISSION_DENIED') ||
+    rawMessage.includes('API_KEY_INVALID') ||
+    rawMessage.includes('GEMINI_API_KEY is not configured');
+
+  if (isAuth) {
+    return {
+      statusCode: statusProp === 403 ? 403 : 400,
+      code: 'AUTH_ERROR',
+      message: 'Please check your Gemini API key in Settings > Secrets.',
+    };
+  }
+
+  return {
+    statusCode: 500,
+    code: 'API_ERROR',
+    message: rawMessage,
+  };
+}
+
+const TRANSLATION_MODELS: Array<{ model: string; thinkingLevel: ThinkingLevel }> = [
+  { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW },
+  { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
+];
+
+async function generateTranslationWithFallback(
+  ai: GoogleGenAI,
+  buildRequest: (model: string, thinkingLevel: ThinkingLevel) => Parameters<GoogleGenAI['models']['generateContent']>[0]
+) {
+  let lastError: unknown;
+  for (let i = 0; i < TRANSLATION_MODELS.length; i++) {
+    const { model, thinkingLevel } = TRANSLATION_MODELS[i];
+    try {
+      return await ai.models.generateContent(buildRequest(model, thinkingLevel));
+    } catch (err) {
+      lastError = err;
+      const parsed = parseGeminiApiError(err);
+      if (parsed.code === 'QUOTA_EXHAUSTED') {
+        // Short transient RPM backoff only if retryDelay is small (<= 10s), then retry same model once
+        if (parsed.retryAfterSeconds && parsed.retryAfterSeconds > 0 && parsed.retryAfterSeconds <= 10) {
+          await new Promise((r) => setTimeout(r, parsed.retryAfterSeconds! * 1000 + 250));
+          try {
+            return await ai.models.generateContent(buildRequest(model, thinkingLevel));
+          } catch (retryErr) {
+            lastError = retryErr;
+          }
+        }
+        // Otherwise immediately move to next model in TRANSLATION_MODELS
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
 }
 
 interface TranslateFactRequestBody {
@@ -109,11 +202,12 @@ async function startServer() {
               '7. For imagesCaptions, return an array of the exact same length as the input imagesCaptions array, translating each non-empty caption in exact order and preserving empty strings as "".',
             ].join('\n');
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
+      const response = await generateTranslationWithFallback(ai, (model, thinkingLevel) => ({
+        model,
         contents: structuredInput,
         config: {
           systemInstruction,
+          thinkingConfig: { thinkingLevel },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -153,7 +247,7 @@ async function startServer() {
             ],
           },
         },
-      });
+      }));
 
       const rawText = (response.text || '{}').trim();
       const parsed = JSON.parse(rawText);
@@ -182,9 +276,17 @@ async function startServer() {
         },
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Translation failed';
-      console.error('Gemini /api/translate-fact error:', err);
-      res.status(500).json({ error: message });
+      const parsedErr = parseGeminiApiError(err);
+      if (parsedErr.code === 'QUOTA_EXHAUSTED') {
+        console.warn('Gemini /api/translate-fact quota exhausted (429).');
+      } else {
+        console.error('Gemini /api/translate-fact error:', parsedErr.message);
+      }
+      res.status(parsedErr.statusCode).json({
+        error: parsedErr.message,
+        code: parsedErr.code,
+        ...(parsedErr.retryAfterSeconds ? { retryAfterSeconds: parsedErr.retryAfterSeconds } : {}),
+      });
     }
   });
 
@@ -197,12 +299,13 @@ async function startServer() {
       }
 
       const ai = createGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
+      const response = await generateTranslationWithFallback(ai, (model, thinkingLevel) => ({
+        model,
         contents: JSON.stringify({ name: name || '', description: description || '' }),
         config: {
           systemInstruction:
             'Translate this Kurdish Sorani historical category/collection name and short description into concise, accurate English.',
+          thinkingConfig: { thinkingLevel },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -213,14 +316,22 @@ async function startServer() {
             required: ['name', 'description'],
           },
         },
-      });
+      }));
 
       const parsed = JSON.parse((response.text || '{}').trim());
       res.json({ translated: parsed });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Collection translation failed';
-      console.error('Gemini /api/translate-collection error:', err);
-      res.status(500).json({ error: message });
+      const parsedErr = parseGeminiApiError(err);
+      if (parsedErr.code === 'QUOTA_EXHAUSTED') {
+        console.warn('Gemini /api/translate-collection quota exhausted (429).');
+      } else {
+        console.error('Gemini /api/translate-collection error:', parsedErr.message);
+      }
+      res.status(parsedErr.statusCode).json({
+        error: parsedErr.message,
+        code: parsedErr.code,
+        ...(parsedErr.retryAfterSeconds ? { retryAfterSeconds: parsedErr.retryAfterSeconds } : {}),
+      });
     }
   });
 

@@ -3,11 +3,13 @@ import { Languages, Check, X, Loader2, AlertCircle, Sparkles } from 'lucide-reac
 import { FactItem } from '../data/kurdishHistoryData';
 import { AppLanguage, useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import { formatTranslationError } from '../services/aiTranslationService';
 
 interface CrossLangSyncModalProps {
   isOpen: boolean;
   fact: FactItem | null;
   sourceLang: AppLanguage;
+  syncMode?: 'ai_text' | 'non_text';
   onConfirmYes: () => Promise<void>;
   onDeclineNo: () => void;
 }
@@ -16,10 +18,11 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
   isOpen,
   fact,
   sourceLang,
+  syncMode = 'ai_text',
   onConfirmYes,
   onDeclineNo,
 }) => {
-  const { isEn, dir } = useLanguage();
+  const { language, isEn, dir } = useLanguage();
   const { colorMode } = useTheme();
   const isDark = colorMode === 'dark';
 
@@ -46,13 +49,7 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
     try {
       await onConfirmYes();
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : isEn
-          ? 'Failed to sync changes to the other language.'
-          : 'جێبەجێکردنی گۆڕانکارییەکان لە زمانەکەی تر سەرکەوتوو نەبوو.'
-      );
+      setErrorMsg(formatTranslationError(err, language));
       setIsSyncing(false);
     }
   };
@@ -171,7 +168,11 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
               isDark ? 'text-slate-400' : 'text-slate-600'
             }`}
           >
-            {isEn
+            {syncMode === 'non_text'
+              ? isEn
+                ? 'If you select Yes, only images, coordinates, dates, boundaries, and relations will be copied to the English entry instantly without using AI quota.'
+                : 'ئەگەر «بەڵێ» هەڵبژێریت، تەنها وێنە، پۆینتەکان، ساڵ، سنوور و پەیوەندییەکان ڕاستەوخۆ و بێ بەکارهێنانی کۆتای AI بۆ زمانەکەی تر دەگوازرێنەوە.'
+              : isEn
               ? 'If you select Yes, AI will accurately translate the updated text into the other language while syncing the exact same images, coordinates, dates, and linked entries.'
               : 'ئەگەر «بەڵێ» هەڵبژێریت، زیرەکی دەستکرد دەقە نوێکراوەکە بە وردی وەردەگێڕێتە سەر زمانەکەی تر و هەمان وێنە، پۆوتانی نەخشە، مێژوو و پەیوەندییەکان هاوکات دەکات.'}
           </p>

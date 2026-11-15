@@ -131,15 +131,23 @@ export const ERAS: EraInfo[] = [
 ];
 
 export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
-  // 1. Southern Khuzestan -> Ilam / Dehloran -> Badra -> Mandali -> Khanaqin
-  [30.55, 49.55],
-  [30.75, 48.85],
-  [31.12, 48.35],
-  [31.65, 47.98],
-  [32.28, 47.55],
-  [32.68, 46.55],
-  [33.15, 45.88],
-  [33.72, 45.55],
+  // 1. Persian Gulf -> Iraq-Iran Border (Khuzestan & Ilam side) -> Badra & Jassan (Iraq) -> Mandali -> Khanaqin
+  [29.93, 48.55],
+  [30.15, 48.42],
+  [30.43, 48.16],
+  [30.52, 48.03],
+  [31.02, 47.78],
+  [31.48, 47.72],
+  [31.78, 47.74],
+  [32.05, 47.66],
+  [32.23, 47.56],
+  [32.46, 47.17],
+  [32.79, 46.72],
+  [32.93, 46.21],
+  [32.66, 46.13],
+  [32.80, 45.50],
+  [33.15, 45.56],
+  [33.72, 45.42],
   [34.25, 45.28],
   // 2. Bashur (South Kurdistan): Garmian -> Tuz Khurmatu -> Kirkuk -> Makhmur -> Nineveh Plains -> Shingal
   [34.55, 44.92],
@@ -152,7 +160,7 @@ export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
   [36.15, 42.30],
   [36.15, 41.78],
   [36.32, 41.32],
-  // 3. Rojava (West Kurdistan): Hasakah -> Sere Kaniye -> Gire Spi -> Kobani -> Jarabulus -> Afrin
+  // 3. Rojava -> Mediterranean Sea (Gulf of Iskenderun): Hasakah -> Sere Kaniye -> Gire Spi -> Kobani -> Afrin -> Hatay/Samandag -> Iskenderun -> Dortyol -> Yumurtalik
   [36.42, 40.75],
   [36.50, 40.32],
   [36.75, 39.95],
@@ -164,12 +172,17 @@ export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
   [36.68, 37.45],
   [36.45, 37.04],
   [36.34, 36.78],
-  [36.50, 36.54],
-  [36.82, 36.58],
-  // 4. Bakur (North Kurdistan): Islahiye -> Maras -> Elbistan -> Malatya (Darende / Kuluncak / Hekimhan / Arapgir) -> Erzincan -> Erzurum -> Kars -> Igdir / Ararat
-  [37.20, 36.60],
-  [37.62, 36.72],
-  [38.15, 36.95],
+  [36.32, 36.42],
+  [36.18, 36.12],
+  [36.10, 35.92],
+  [36.40, 35.85],
+  [36.59, 36.16],
+  [36.88, 36.16],
+  [36.85, 35.80],
+  // 4. Bakur (North Kurdistan): Osmaniye -> Maras -> Malatya (Darende / Kuluncak / Hekimhan / Arapgir) -> Erzincan -> Erzurum -> Kars -> Igdir / Ararat
+  [37.15, 36.12],
+  [37.55, 36.52],
+  [38.05, 36.85],
   [38.58, 37.20],
   [38.98, 37.48],
   [39.32, 37.85],
@@ -185,7 +198,7 @@ export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
   [40.42, 43.62],
   [40.12, 43.95],
   [39.98, 44.60],
-  // 5. Rojhelat (East Kurdistan): Maku -> Khoy -> Urmia -> Mahabad -> Takab/Bijar -> Sanandaj -> Kangavar -> Malayer -> Lorestan (Aligudarz) -> East Khuzestan (Izeh / Behbahan)
+  // 5. Rojhelat -> Lorestan -> Khuzestan -> Persian Gulf Coast (Bandar Deylam -> Hendijan -> Mahshahr)
   [39.65, 44.78],
   [39.25, 44.92],
   [38.75, 45.05],
@@ -205,6 +218,10 @@ export const GREAT_KURDISTAN_POLYGON: [number, number][] = [
   [31.85, 50.25],
   [31.15, 50.42],
   [30.52, 50.28],
+  [30.05, 50.15],
+  [30.08, 49.75],
+  [30.38, 49.25],
+  [30.12, 48.95],
 ];
 
 // Helper to determine category tag

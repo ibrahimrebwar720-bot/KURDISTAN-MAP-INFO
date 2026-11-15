@@ -19,6 +19,7 @@ import {
   deleteCollectionFromCloud,
   subscribeToPhotoSubmissions,
   subscribeToTranslatedFactIds,
+  getFactFromCloud,
 } from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
@@ -64,7 +65,14 @@ const SubmittedPhotosModal = lazyWithRetry(() => import('./components/SubmittedP
 const CrossLangSyncModal = lazyWithRetry(() => import('./components/CrossLangSyncModal'), 'CrossLangSyncModal');
 import { useTheme } from './context/ThemeContext';
 import { AppLanguage, useLanguage, getInitialLanguage } from './context/LanguageContext';
-import { translateFactToLanguageDetailed } from './services/aiTranslationService';
+import {
+  translateFactToLanguageDetailed,
+  hasFactTextChanged,
+  hasFactStructureChanged,
+  syncFactNonTextFieldsToLanguage,
+  translateCollectionToEnglish,
+  formatTranslationError,
+} from './services/aiTranslationService';
 import {
   parseCurrentUrl,
   updateBrowserUrl,
@@ -73,7 +81,7 @@ import { updateDynamicSeo } from './services/seoManager';
 
 export default function App() {
   const { colorMode } = useTheme();
-  const { language, isEn } = useLanguage();
+  const { language, isEn, setLanguage } = useLanguage();
   const [showIntro, setShowIntro] = useState<boolean>(false);
 
   // Initial URL parsing for deep-linking & direct article loading
@@ -104,7 +112,24 @@ export default function App() {
   const [crossLangSyncTarget, setCrossLangSyncTarget] = useState<{
     fact: FactItem;
     sourceLang: AppLanguage;
+    syncMode?: 'ai_text' | 'non_text';
   } | null>(null);
+  const [untranslatedTopicNotice, setUntranslatedTopicNotice] = useState<{
+    id: number;
+    name?: string;
+    translating?: boolean;
+    error?: string;
+  } | null>(null);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
+  const pendingTopicSwitchRef = useRef<{ id: number; name?: string } | null>(null);
+  const prevLanguageRef = useRef<AppLanguage>(language);
+
+  const showSyncToast = (msg: string) => {
+    setSyncToast(msg);
+    setTimeout(() => {
+      setSyncToast((cur) => (cur === msg ? null : cur));
+    }, 4200);
+  };
 
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(() => initialTopicFact.current);
   const [detailFact, setDetailFact] = useState<FactItem | null>(() => initialTopicFact.current);
@@ -262,15 +287,48 @@ export default function App() {
 
   // 1. Real-time Firebase Cloud Database synchronization for all users worldwide (isolated per language)
   useEffect(() => {
+    if (prevLanguageRef.current !== language) {
+      if (detailFact) {
+        pendingTopicSwitchRef.current = { id: detailFact.id, name: detailFact.name };
+      } else if (selectedFact) {
+        pendingTopicSwitchRef.current = { id: selectedFact.id, name: selectedFact.name };
+      }
+      prevLanguageRef.current = language;
+    }
+
     const cachedFacts = loadStoredFacts(language);
     setFacts(cachedFacts);
     setCollections(loadStoredCollections(language));
     setSelectedFact((prev) => (prev ? cachedFacts.find((f) => f.id === prev.id) || null : null));
     setDetailFact((prev) => (prev ? cachedFacts.find((f) => f.id === prev.id) || null : null));
     setIsFactEditorOpen(false);
+    setUntranslatedTopicNotice(null);
 
     const unsubFacts = subscribeToCloudFacts((cloudFacts) => {
       setFacts(cloudFacts);
+
+      // Handle cross-language open-topic preservation gracefully
+      if (pendingTopicSwitchRef.current) {
+        const pending = pendingTopicSwitchRef.current;
+        pendingTopicSwitchRef.current = null;
+        const matched = cloudFacts.find((f) => f.id === pending.id);
+        if (matched) {
+          setSelectedFact(matched);
+          setDetailFact(matched);
+          setUntranslatedTopicNotice(null);
+          updateBrowserUrl({
+            topicId: matched.id,
+            factName: matched.name,
+            view: 'map',
+            lang: language,
+            replace: true,
+          });
+          return;
+        } else if (language === 'en') {
+          setUntranslatedTopicNotice({ id: pending.id, name: pending.name });
+        }
+      }
+
       // Keep selected fact synced
       setSelectedFact((prev) => {
         if (!prev) return null;
@@ -609,7 +667,8 @@ export default function App() {
     savedFact: FactItem,
     options?: { isEdit?: boolean; skipCrossLangPrompt?: boolean }
   ) => {
-    const exists = facts.some((f) => f.id === savedFact.id);
+    const prevFact = facts.find((f) => f.id === savedFact.id);
+    const exists = Boolean(prevFact);
     const updatedList = exists
       ? facts.map((f) => (f.id === savedFact.id ? savedFact : f))
       : [savedFact, ...facts];
@@ -626,12 +685,30 @@ export default function App() {
       console.error('Failed to sync fact to cloud:', err);
     });
 
-    if (isAdmin && (options?.isEdit ?? exists) && !options?.skipCrossLangPrompt) {
-      setCrossLangSyncTarget({ fact: savedFact, sourceLang: language });
+    // Since `ckb` is the Master Knowledge Base, edits propagate outward `ckb -> en`
+    if (language === 'ckb' && isAdmin && (options?.isEdit ?? exists) && !options?.skipCrossLangPrompt) {
+      const textChanged = hasFactTextChanged(prevFact, savedFact);
+      const structureChanged = hasFactStructureChanged(prevFact, savedFact);
+
+      if (!textChanged && structureChanged) {
+        // Non-text edit (image, coords, dates, polygon, category, relations): sync directly WITHOUT AI quota!
+        syncFactNonTextFieldsToLanguage(savedFact, 'en')
+          .then((updated) => {
+            if (updated) {
+              showSyncToast('وێنە/شوێن/مێژووی بابەتەکە بێ AI لە بەشی ئینگلیزیش نوێکرایەوە');
+            }
+          })
+          .catch((err) => console.warn('Non-text sync to EN skipped:', err));
+      } else if (textChanged) {
+        setCrossLangSyncTarget({ fact: savedFact, sourceLang: 'ckb', syncMode: 'ai_text' });
+      }
     }
   };
 
-  const handleDeleteFact = (factId: number) => {
+  const handleDeleteFact = (
+    factId: number,
+    options?: { deleteFromEnglish?: boolean }
+  ) => {
     const updatedList = facts.filter((f) => f.id !== factId);
     setFacts(updatedList);
 
@@ -646,6 +723,13 @@ export default function App() {
     deleteFactFromCloud(factId, language).catch((err) => {
       console.error('Failed to delete fact from cloud:', err);
     });
+
+    // Cascade delete from Master ckb to derived English collection if chosen
+    if (language === 'ckb' && options?.deleteFromEnglish) {
+      deleteFactFromCloud(factId, 'en').catch((err) => {
+        console.error('Failed to cascade delete fact from EN cloud:', err);
+      });
+    }
   };
 
   // Save additional notes inline
@@ -673,12 +757,12 @@ export default function App() {
       console.error('Failed to save notes to cloud:', err);
     });
 
-    if (isAdmin && updatedFact) {
-      setCrossLangSyncTarget({ fact: updatedFact, sourceLang: language });
+    if (language === 'ckb' && isAdmin && updatedFact && hasFactTextChanged(targetFact, updatedFact)) {
+      setCrossLangSyncTarget({ fact: updatedFact, sourceLang: 'ckb', syncMode: 'ai_text' });
     }
   };
 
-  // Save relations / topic linking (Strictly Admin only)
+  // Save relations / topic linking (Strictly Admin only; syncs non-text IDs to EN without AI)
   const handleSaveLinks = async (
     sourceFactId: number,
     targetFactIds: number[],
@@ -733,15 +817,23 @@ export default function App() {
       console.error('Failed to sync fact relations to cloud:', err);
     });
 
-    if (updatedFact) {
-      setCrossLangSyncTarget({ fact: updatedFact, sourceLang: language });
+    // 3. Relations are non-text IDs: sync directly from ckb -> en without burning AI quota
+    if (language === 'ckb' && updatedFact) {
+      const synced = await syncFactNonTextFieldsToLanguage(updatedFact, 'en').catch(() => false);
+      if (synced) {
+        showSyncToast('پەیوەندییەکانی بابەتەکە بێ AI لە بەشی ئینگلیزیش هاوکات کران');
+      }
     }
   };
 
   const handleConfirmCrossLangSync = async () => {
     if (!crossLangSyncTarget) return;
     const targetLang: AppLanguage = crossLangSyncTarget.sourceLang === 'ckb' ? 'en' : 'ckb';
-    await translateFactToLanguageDetailed(crossLangSyncTarget.fact, targetLang);
+    if (crossLangSyncTarget.syncMode === 'non_text') {
+      await syncFactNonTextFieldsToLanguage(crossLangSyncTarget.fact, targetLang);
+    } else {
+      await translateFactToLanguageDetailed(crossLangSyncTarget.fact, targetLang);
+    }
     setCrossLangSyncTarget(null);
   };
 
@@ -763,13 +855,18 @@ export default function App() {
     setIsFactEditorOpen(true);
   };
 
-  // Collections handlers (Synced to Firestore cloud)
+  // Collections handlers (Synced to Firestore cloud; ckb -> en cascade)
   const handleAddCollection = (newCol: CollectionItem) => {
     const updated = [...collections, newCol];
     setCollections(updated);
     saveCollectionToCloud(newCol, language).catch((err) => {
       console.error('Failed to save collection to cloud:', err);
     });
+    if (language === 'ckb') {
+      translateCollectionToEnglish(newCol)
+        .then((enCol) => saveCollectionToCloud(enCol, 'en'))
+        .catch((err) => console.warn('Failed to sync new collection to EN:', err));
+    }
   };
 
   const handleUpdateCollection = (updatedCol: CollectionItem) => {
@@ -780,6 +877,11 @@ export default function App() {
     saveCollectionToCloud(updatedCol, language).catch((err) => {
       console.error('Failed to update collection in cloud:', err);
     });
+    if (language === 'ckb') {
+      translateCollectionToEnglish(updatedCol)
+        .then((enCol) => saveCollectionToCloud(enCol, 'en'))
+        .catch((err) => console.warn('Failed to sync updated collection to EN:', err));
+    }
   };
 
   const handleDeleteCollection = (colId: string) => {
@@ -791,6 +893,11 @@ export default function App() {
     deleteCollectionFromCloud(colId, language).catch((err) => {
       console.error('Failed to delete collection from cloud:', err);
     });
+    if (language === 'ckb') {
+      deleteCollectionFromCloud(colId, 'en').catch((err) => {
+        console.warn('Failed to cascade delete collection from EN:', err);
+      });
+    }
   };
 
   const pendingSubmissionsCount = photoSubmissions.filter((s) => s.status === 'pending').length;
@@ -1084,9 +1191,105 @@ export default function App() {
           isOpen={Boolean(crossLangSyncTarget)}
           fact={crossLangSyncTarget.fact}
           sourceLang={crossLangSyncTarget.sourceLang}
+          syncMode={crossLangSyncTarget.syncMode}
           onConfirmYes={handleConfirmCrossLangSync}
           onDeclineNo={() => setCrossLangSyncTarget(null)}
         />
+      )}
+
+      {/* Untranslated Topic Notice when switching to English on a topic only in Master ckb */}
+      {untranslatedTopicNotice && (
+        <div
+          dir={isEn ? 'ltr' : 'rtl'}
+          className="fixed bottom-5 start-1/2 -translate-x-1/2 z-[1400] w-[92vw] max-w-md rounded-2xl bg-[#0b1020]/95 border border-amber-400/50 text-slate-100 p-4 shadow-2xl backdrop-blur-md space-y-2.5 animate-fade-in"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs font-extrabold text-amber-300">
+                {untranslatedTopicNotice.name
+                  ? `"${untranslatedTopicNotice.name}" is not yet translated into English`
+                  : 'This entry is not yet translated into English'}
+              </p>
+              <p className="text-[11px] text-slate-300 leading-snug">
+                This topic exists in the Central Kurdish (ckb) knowledge base and has not been translated into English yet.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUntranslatedTopicNotice(null)}
+              className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 cursor-pointer"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+          {untranslatedTopicNotice.error && (
+            <p className="text-[11px] text-rose-300 bg-rose-950/60 border border-rose-500/40 rounded-lg px-2.5 py-1.5">
+              {untranslatedTopicNotice.error}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                pendingTopicSwitchRef.current = {
+                  id: untranslatedTopicNotice.id,
+                  name: untranslatedTopicNotice.name,
+                };
+                setUntranslatedTopicNotice(null);
+                setLanguage('ckb');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs cursor-pointer transition-colors"
+            >
+              Read in کوردی
+            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                disabled={untranslatedTopicNotice.translating}
+                onClick={async () => {
+                  const targetId = untranslatedTopicNotice.id;
+                  setUntranslatedTopicNotice((prev) =>
+                    prev ? { ...prev, translating: true, error: undefined } : null
+                  );
+                  try {
+                    const ckbSource = await getFactFromCloud(targetId, 'ckb');
+                    if (!ckbSource) {
+                      throw new Error('Kurdish source entry not found.');
+                    }
+                    const outcome = await translateFactToLanguageDetailed(ckbSource, 'en');
+                    setUntranslatedTopicNotice(null);
+                    setDetailFact(outcome.fact);
+                    setSelectedFact(outcome.fact);
+                  } catch (err) {
+                    setUntranslatedTopicNotice((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            translating: false,
+                            error: formatTranslationError(err, language),
+                          }
+                        : null
+                    );
+                  }
+                }}
+                className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-colors"
+              >
+                {untranslatedTopicNotice.translating ? 'Translating...' : 'Translate Now (AI)'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Subtle Non-AI Sync Toast */}
+      {syncToast && (
+        <div
+          dir="rtl"
+          className="fixed top-4 start-1/2 -translate-x-1/2 z-[1450] px-4 py-2 rounded-xl bg-emerald-950/95 border border-emerald-400/50 text-emerald-200 text-xs font-bold shadow-xl backdrop-blur-md animate-fade-in"
+        >
+          {syncToast}
+        </div>
       )}
     </React.Suspense>
   </div>

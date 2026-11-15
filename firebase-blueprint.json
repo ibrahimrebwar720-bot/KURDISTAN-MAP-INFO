@@ -50,10 +50,28 @@
           "description": "Category tag of the fact",
           "enum": ["empire", "principality", "capital", "battle", "figure", "culture"]
         },
+        "category": {
+          "type": "string",
+          "description": "Normalized category identifier",
+          "maxLength": 100
+        },
+        "provinceId": {
+          "type": "string",
+          "description": "Associated Kurdistan province identifier",
+          "maxLength": 100
+        },
         "collectionId": {
           "type": "string",
           "description": "Associated collection ID",
           "maxLength": 100
+        },
+        "startYear": {
+          "type": "number",
+          "description": "Chronological start year (negative for BCE)"
+        },
+        "endYear": {
+          "type": "number",
+          "description": "Chronological end year (negative for BCE)"
         },
         "year": {
           "type": "string",
@@ -62,16 +80,30 @@
         },
         "century": {
           "type": "string",
-          "description": "Historical century in Kurdish",
+          "description": "Historical century label",
           "maxLength": 100
         },
         "centuryNumber": {
           "type": "number",
           "description": "Numeric century code for chronological filtering"
         },
+        "imageUrl": {
+          "type": "string",
+          "description": "Primary historical photo URL",
+          "maxLength": 2000
+        },
+        "imageCaption": {
+          "type": "string",
+          "description": "Caption for primary photo",
+          "maxLength": 500
+        },
+        "parentFactId": {
+          "type": "number",
+          "description": "Parent historical entity ID"
+        },
         "isCustom": {
           "type": "boolean",
-          "description": "Whether this was added by an admin"
+          "description": "Whether this was added or updated by an admin"
         },
         "updatedAt": {
           "type": "number",
@@ -95,9 +127,19 @@
           "description": "Collection display name",
           "maxLength": 200
         },
+        "nameEn": {
+          "type": "string",
+          "description": "English collection display name",
+          "maxLength": 200
+        },
         "description": {
           "type": "string",
           "description": "Collection description",
+          "maxLength": 1000
+        },
+        "descriptionEn": {
+          "type": "string",
+          "description": "English collection description",
           "maxLength": 1000
         },
         "color": {

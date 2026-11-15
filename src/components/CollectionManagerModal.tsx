@@ -35,6 +35,8 @@ export const CollectionManagerModal: React.FC<Props> = ({
   const { language, isEn, dir } = useLanguage();
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+  const [nameEn, setNameEn] = useState('');
+  const [descEn, setDescEn] = useState('');
   const [color, setColor] = useState('#f59e0b');
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -51,7 +53,12 @@ export const CollectionManagerModal: React.FC<Props> = ({
           ...existing,
           name: name.trim(),
           description: desc.trim(),
-          ...(isEn ? { nameEn: name.trim(), descriptionEn: desc.trim() } : {}),
+          ...(isEn
+            ? { nameEn: name.trim(), descriptionEn: desc.trim() }
+            : {
+                ...(nameEn.trim() ? { nameEn: nameEn.trim() } : {}),
+                ...(descEn.trim() ? { descriptionEn: descEn.trim() } : {}),
+              }),
           color,
         });
       }
@@ -61,7 +68,12 @@ export const CollectionManagerModal: React.FC<Props> = ({
         id: `custom_${Date.now()}`,
         name: name.trim(),
         description: desc.trim(),
-        ...(isEn ? { nameEn: name.trim(), descriptionEn: desc.trim() } : {}),
+        ...(isEn
+          ? { nameEn: name.trim(), descriptionEn: desc.trim() }
+          : {
+              ...(nameEn.trim() ? { nameEn: nameEn.trim() } : {}),
+              ...(descEn.trim() ? { descriptionEn: descEn.trim() } : {}),
+            }),
         color,
         isCustom: true,
       };
@@ -70,6 +82,8 @@ export const CollectionManagerModal: React.FC<Props> = ({
 
     setName('');
     setDesc('');
+    setNameEn('');
+    setDescEn('');
     setColor('#f59e0b');
   };
 
@@ -77,6 +91,8 @@ export const CollectionManagerModal: React.FC<Props> = ({
     setEditingId(col.id);
     setName(isEn ? col.nameEn || col.name : col.name);
     setDesc(isEn ? col.descriptionEn || col.description || '' : col.description || '');
+    setNameEn(col.nameEn || '');
+    setDescEn(col.descriptionEn || '');
     setColor(col.color || '#f59e0b');
   };
 
@@ -84,6 +100,8 @@ export const CollectionManagerModal: React.FC<Props> = ({
     setEditingId(null);
     setName('');
     setDesc('');
+    setNameEn('');
+    setDescEn('');
     setColor('#f59e0b');
   };
 
@@ -171,6 +189,37 @@ export const CollectionManagerModal: React.FC<Props> = ({
               className="w-full liquid-glass-input text-white px-3 py-2 rounded-xl text-xs"
             />
           </div>
+
+          {!isEn && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <div>
+                <label className="block text-[10px] font-bold text-sky-200/90 mb-1">
+                  ناوی ئینگلیزی (دڵخواز - بۆ هاوکاتکردن)
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={nameEn}
+                  onChange={(e) => setNameEn(e.target.value)}
+                  placeholder="Auto-translated if empty"
+                  className="w-full liquid-glass-input text-white px-2.5 py-1.5 rounded-xl text-[11px]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-sky-200/90 mb-1">
+                  وەسفی ئینگلیزی (دڵخواز)
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={descEn}
+                  onChange={(e) => setDescEn(e.target.value)}
+                  placeholder="Optional English summary"
+                  className="w-full liquid-glass-input text-white px-2.5 py-1.5 rounded-xl text-[11px]"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Color picker */}
           <div>
