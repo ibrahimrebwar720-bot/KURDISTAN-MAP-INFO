@@ -139,6 +139,30 @@ export function getCategoryDisplayName(cat: CategoryItem, lang: AppLanguage = 'c
   return lang === 'en' ? cat.nameEn || cat.name : cat.name;
 }
 
+const LIGHT_MODE_CATEGORY_COLOR_MAP: Record<string, string> = {
+  '#f59e0b': '#92400e',
+  '#eab308': '#854d0e',
+  '#10b981': '#047857',
+  '#f43f5e': '#be123c',
+  '#06b6d4': '#0e7490',
+  '#3b82f6': '#1d4ed8',
+  '#ec4899': '#be185d',
+  '#8b5cf6': '#6d28d9',
+  '#ef4444': '#b91c1c',
+  '#14b8a6': '#0f766e',
+  '#f97316': '#c2410c',
+};
+
+/**
+ * Returns high-contrast category color for foreground text & borders in Light Mode,
+ * and preserves vivid category hex in Dark Mode.
+ */
+export function getAccessibleCategoryColor(hex: string, isDark: boolean): string {
+  if (isDark) return hex;
+  const normalized = hex.toLowerCase().trim();
+  return LIGHT_MODE_CATEGORY_COLOR_MAP[normalized] || normalized;
+}
+
 /**
  * دۆزینەوەی ناو و ناسنامەی پۆلێنی هەر بابەتێک بە یەکگرتوویی (کوردی یان ئینگلیزی)
  */

@@ -62,7 +62,7 @@ import {
   getFactChronologicalYear,
 } from '../utils/yearUtils';
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
-import { getCategoryInfo } from '../types/history';
+import { getCategoryInfo, getAccessibleCategoryColor } from '../types/history';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getLinkedFacts, getKnowledgeGraphNetwork, KnowledgeGraphNetwork } from '../utils/factRelations';
@@ -442,6 +442,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
   // Theme Context & Modal state
   const { theme, themeId, setTheme, colorMode, setColorMode, toggleColorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   // Menu state
@@ -812,7 +813,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       const customIcon = L.divIcon({
         html: `
-          <div class="relative w-6 h-6 flex items-center justify-center select-none pointer-events-none map-pin-circle">
+          <div class="preserve-contrast relative w-6 h-6 flex items-center justify-center select-none pointer-events-none map-pin-circle">
             <div class="absolute -inset-1 rounded-full bg-amber-400/35 animate-ping"></div>
             <div class="relative w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-[0_0_12px_rgba(245,158,11,0.9)] flex items-center justify-center">
               <div class="w-1.5 h-1.5 rounded-full bg-black"></div>
@@ -1234,7 +1235,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           iconSize = [46, 56];
           iconAnchor = [23, 56];
           iconHtml = `
-            <div class="relative w-[46px] h-[56px] flex flex-col items-center select-none pointer-events-auto animate-marker-pop z-50">
+            <div class="preserve-contrast relative w-[46px] h-[56px] flex flex-col items-center select-none pointer-events-auto animate-marker-pop z-50">
               <!-- Spatial luminous ring -->
               <div class="absolute top-0 w-[46px] h-[46px] rounded-xl luminous-spatial-ring pointer-events-none" style="background-color: ${glowColor}35; box-shadow: 0 0 18px ${glowColor};"></div>
               
@@ -1263,7 +1264,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           iconSize = [36, 44];
           iconAnchor = [18, 44];
           iconHtml = `
-            <div class="relative w-[36px] h-[44px] flex flex-col items-center select-none pointer-events-auto cursor-pointer group transition-transform duration-200 hover:scale-125 hover:z-50 active:scale-95">
+            <div class="preserve-contrast relative w-[36px] h-[44px] flex flex-col items-center select-none pointer-events-auto cursor-pointer group transition-transform duration-200 hover:scale-125 hover:z-50 active:scale-95">
               <!-- Square Image Container -->
               <div class="relative w-[34px] h-[34px] rounded-lg overflow-hidden border-2 bg-black shadow-[0_4px_14px_rgba(0,0,0,0.85)] z-10 flex items-center justify-center transition-all" style="border-color: ${tagColor}; box-shadow: 0 4px 12px rgba(0,0,0,0.8), 0 0 8px ${glowColor}60;">
                 ${
@@ -1290,7 +1291,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           iconSize = [28, 28];
           iconAnchor = [14, 14];
           iconHtml = `
-            <div class="relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop map-pin-circle">
+            <div class="preserve-contrast relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop map-pin-circle">
               <!-- Circular luminous wave -->
               <div class="absolute -inset-2 rounded-full pointer-events-none opacity-40 animate-ping" style="background-color: ${glowColor};"></div>
               
@@ -1457,7 +1458,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       const badgeIcon = L.divIcon({
         className: 'knowledge-graph-midpoint-badge',
         html: `
-          <div class="px-2.5 py-0.5 text-[9px] font-black text-white border flex items-center gap-1 cursor-pointer select-none map-pin-circle"
+          <div class="preserve-contrast px-2.5 py-0.5 text-[9px] font-black text-white border flex items-center gap-1 cursor-pointer select-none map-pin-circle"
                style="background-color: #060a16; border-color: ${link.color};" dir="${dir}">
             <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${link.color}"></span>
             <span class="whitespace-nowrap font-bold">${link.label}</span>
@@ -1551,8 +1552,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       <div className="absolute top-16 sm:top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-1.5 max-w-[92vw]" dir={dir}>
         {/* A. Picking Location Prompt */}
         {isPickingLocation ? (
-          <div className="flex items-center gap-2 pointer-events-auto px-4 py-2 rounded-xl bg-amber-500/95 text-black font-bold text-xs shadow-[0_0_30px_rgba(245,158,11,0.5)] border border-amber-300 animate-bounce">
-            <Crosshair className="w-4 h-4 text-black animate-spin shrink-0" />
+          <div className="preserve-contrast flex items-center gap-2 pointer-events-auto px-4 py-2 rounded-xl bg-amber-500/95 text-slate-950 font-bold text-xs shadow-[0_0_30px_rgba(245,158,11,0.5)] border border-amber-300 animate-bounce">
+            <Crosshair className="w-4 h-4 text-slate-950 animate-spin shrink-0" />
             <span>
               {isEn
                 ? 'Click anywhere on the map to place coordinates'
@@ -1571,23 +1572,36 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* B. Active Filter Persistent Badge */}
         {activeTagFilter !== 'all' && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass-dock border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_30px_rgba(0,0,0,0.7)] animate-fade-in text-start">
+          <div className={`pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass-dock border shadow-lg animate-fade-in text-start ${
+            isDark ? 'border-white/20' : 'border-slate-300'
+          }`}>
             <span
               className="w-2 h-2 rounded-full animate-ping shrink-0"
-              style={{ backgroundColor: currentFilterObj.color }}
+              style={{ backgroundColor: getAccessibleCategoryColor(currentFilterObj.color, isDark) }}
             />
             <FilterIconComponent
-              className={`w-3.5 h-3.5 ${currentFilterObj.accentClass} shrink-0`}
+              className="w-3.5 h-3.5 shrink-0"
+              style={{ color: getAccessibleCategoryColor(currentFilterObj.color, isDark) }}
             />
-            <span className="text-xs font-bold text-white tracking-wide truncate max-w-[180px] sm:max-w-xs">
+            <span className={`text-xs font-bold tracking-wide truncate max-w-[180px] sm:max-w-xs ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}>
               {isEn ? currentFilterObj.labelEn : currentFilterObj.label}
             </span>
-            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full liquid-glass-subtle text-amber-300 border border-white/10 shrink-0">
+            <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full border shrink-0 ${
+              isDark
+                ? 'liquid-glass-subtle text-amber-300 border-white/10'
+                : 'bg-amber-100 text-amber-900 border-amber-300'
+            }`}>
               {formatDigits(visibleFacts.length, language)} {isEn ? 'sites' : 'شوێن'}
             </span>
             <button
               onClick={() => handleSelectTagFilter('all')}
-              className="p-1 -me-1 rounded-full text-amber-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className={`p-1 -me-1 rounded-full transition-colors cursor-pointer ${
+                isDark
+                  ? 'text-amber-400 hover:text-white hover:bg-white/10'
+                  : 'text-amber-800 hover:text-slate-950 hover:bg-amber-100'
+              }`}
               title={isEn ? 'Clear category filter' : 'لابردنی فلتەر و پیشاندانی هەمووی'}
             >
               <X className="w-3 h-3" />
@@ -1597,14 +1611,22 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* C. Principality / Authority Focus Isolation Indicator */}
         {isPrincipalityFocusActive && relatedFactIdsSet && selectedFact && isPrincipalityFact(selectedFact) && (
-          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass-dock border border-amber-400/50 shadow-[0_8px_30px_rgba(0,0,0,0.85)] animate-fade-in text-start">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
-            <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="text-xs font-bold text-white font-heading truncate max-w-[180px] sm:max-w-xs">
+          <div className={`pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass-dock border shadow-lg animate-fade-in text-start ${
+            isDark ? 'border-amber-400/50' : 'border-amber-500/50'
+          }`}>
+            <span className={`w-2 h-2 rounded-full animate-ping shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
+            <Crown className={`w-4 h-4 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+            <span className={`text-xs font-bold font-heading truncate max-w-[180px] sm:max-w-xs ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}>
               {isEn ? 'Focus: ' : 'فۆکەسی دەسەڵات: '}
-              <span className="text-amber-300 font-extrabold">{selectedFact.name}</span>
+              <span className={`font-extrabold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{selectedFact.name}</span>
             </span>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
+            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+              isDark
+                ? 'bg-amber-400/20 text-amber-300 border-amber-400/30'
+                : 'bg-amber-100 text-amber-900 border-amber-300'
+            }`}>
               {isEn
                 ? `${formatDigits(visibleFacts.length, language)} linked`
                 : `تەنها ${formatDigits(visibleFacts.length, language)} شوێنی پەیوەندیدار دیارە`}
@@ -1613,10 +1635,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               onClick={() => {
                 setIsPrincipalityFocusActive(false);
               }}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 hover:text-white text-[10px] font-bold transition-all cursor-pointer ms-1 border border-amber-400/30 shrink-0"
+              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ms-1 border shrink-0 ${
+                isDark
+                  ? 'bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 hover:text-white border-amber-400/30'
+                  : 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300'
+              }`}
               title={isEn ? 'Show all historical sites on map' : 'پیشاندانی هەموو شوێنەکانی تر لەسەر نەخشە'}
             >
-              <X className="w-3 h-3 text-amber-300" />
+              <X className={`w-3 h-3 ${isDark ? 'text-amber-300' : 'text-amber-800'}`} />
               <span>{isEn ? 'Show All' : 'پیشاندانی هەمووی'}</span>
             </button>
           </div>
@@ -1624,14 +1650,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
         {/* D. Empty English Dataset Helper Card */}
         {isEn && facts.length === 0 && (
-          <div className="pointer-events-auto mt-2 px-4 py-3 rounded-2xl glass-dock-2026 border border-amber-400/40 shadow-2xl flex flex-col sm:flex-row items-center gap-3 text-start max-w-lg animate-fade-in">
+          <div className={`pointer-events-auto mt-2 px-4 py-3 rounded-2xl glass-dock-2026 border shadow-2xl flex flex-col sm:flex-row items-center gap-3 text-start max-w-lg animate-fade-in ${
+            isDark ? 'border-amber-400/40' : 'border-amber-400/60'
+          }`}>
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0">
-                <Globe className="w-4 h-4 text-amber-300" />
+              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-amber-500/20 border-amber-400/40' : 'bg-amber-100 border-amber-300'
+              }`}>
+                <Globe className={`w-4 h-4 ${isDark ? 'text-amber-300' : 'text-amber-800'}`} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-extrabold text-white">English Historical Archive</p>
-                <p className="text-[11px] text-slate-300 leading-snug">
+                <p className={`text-xs font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>English Historical Archive</p>
+                <p className={`text-[11px] leading-snug ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   {isAdmin
                     ? 'This independent English archive is empty. Open Directory to AI-translate Kurdish entries or add English topics.'
                     : 'No English historical entries have been published yet. Switch to Kurdish Sorani or check back soon.'}
@@ -1643,7 +1673,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={onOpenMenu}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[11px] transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                  className="preserve-contrast px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-[11px] transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                 >
                   Open AI Translator
                 </button>
@@ -1668,23 +1698,29 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       {isAdmin && (
         <div
           dir={dir}
-          className="absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl liquid-glass-dock border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_32px_rgba(0,0,0,0.6)]"
+          className={`absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl liquid-glass-dock border shadow-lg ${
+            isDark ? 'border-white/20' : 'border-slate-300'
+          }`}
         >
-          <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
-          <span className="text-[11px] font-bold text-amber-300">
+          <div className={`w-2 h-2 rounded-full animate-ping shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
+          <span className={`text-[11px] font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
             {isEn ? 'Admin Active' : 'ئەدمین چالاکە'}
           </span>
           <div className="ms-1.5 flex items-center gap-1">
             {onOpenSubmittedPhotos && (
               <button
                 onClick={onOpenSubmittedPhotos}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/40 text-amber-200 text-[10px] font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[10px] font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                  isDark
+                    ? 'bg-amber-500/25 hover:bg-amber-500/40 border-amber-400/40 text-amber-200'
+                    : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-950'
+                }`}
                 title={isEn ? 'View submitted photos' : 'بینینی وێنە نێردراوەکان'}
               >
-                <Images className="w-3 h-3 text-amber-400" />
+                <Images className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                 <span>{isEn ? 'Submissions' : 'وێنە نێردراوەکان'}</span>
                 {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] flex items-center justify-center animate-pulse">
+                  <span className="preserve-contrast w-4 h-4 rounded-full bg-amber-600 text-white font-black text-[9px] flex items-center justify-center animate-pulse">
                     {formatDigits(pendingSubmissionsCount, language)}
                   </span>
                 )}
@@ -1694,18 +1730,22 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               <>
                 <button
                   onClick={() => onOpenAddFact('photo_only')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-[10px] font-semibold transition-colors cursor-pointer ${
+                    isDark ? 'text-slate-300 hover:text-white' : 'text-slate-800 hover:text-slate-950'
+                  }`}
                   title={isEn ? 'Quick photo entry form' : 'فۆڕمی وێنەی مێژوویی'}
                 >
-                  <ImageIcon className="w-3 h-3 text-amber-400" />
+                  <ImageIcon className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   <span>{isEn ? 'New Photo' : 'وێنەی نوێ'}</span>
                 </button>
                 <button
                   onClick={() => onOpenAddFact('standard')}
-                  className="flex items-center gap-1 px-2 py-1 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                  className={`flex items-center gap-1 px-2 py-1 rounded-xl liquid-glass-btn text-[10px] font-semibold transition-colors cursor-pointer ${
+                    isDark ? 'text-slate-300 hover:text-white' : 'text-slate-800 hover:text-slate-950'
+                  }`}
                   title={isEn ? 'Add new historical topic' : 'فۆڕمی گشتی بابەت'}
                 >
-                  <Plus className="w-3 h-3 text-emerald-400" />
+                  <Plus className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                   <span>{isEn ? 'Topic' : 'بابەت'}</span>
                 </button>
               </>
@@ -1714,7 +1754,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           {onLogoutAdmin && (
             <button
               onClick={onLogoutAdmin}
-              className="ms-1 flex items-center gap-1 px-2 py-1 rounded-xl bg-red-950/70 hover:bg-red-900/70 text-red-300 border border-red-800/60 text-[10px] transition-colors cursor-pointer"
+              className={`ms-1 flex items-center gap-1 px-2 py-1 rounded-xl border text-[10px] transition-colors cursor-pointer font-bold ${
+                isDark
+                  ? 'bg-red-950/70 hover:bg-red-900/70 text-red-300 border-red-800/60'
+                  : 'bg-rose-100 hover:bg-rose-200 text-rose-800 border-rose-300'
+              }`}
               title={isEn ? 'Exit Admin Mode' : 'داخستنی دۆخی ئەدمین'}
             >
               <X className="w-3 h-3" />
@@ -1750,19 +1794,21 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           )}
 
           {/* Category Filter Button on Map */}
-          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+          <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
           <button
             onClick={() => setIsCategoryModalOpen((prev) => !prev)}
             className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
               activeTagFilter !== 'all'
-                ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                ? isDark
+                  ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                  : 'bg-amber-100 text-amber-950 border border-amber-400 shadow-xs'
                 : colorMode === 'light'
                 ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
                 : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
             }`}
             title={isEn ? 'Categories (filter map by historical category)' : 'پۆلێنەکان (فلتەرکردن بەپێی یەک جۆر پۆلێن لەسەر نەخشە)'}
           >
-            <Layers className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+            <Layers className={`w-4 h-4 group-hover:scale-110 transition-transform shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
             <span className="font-heading font-extrabold text-xs whitespace-nowrap">
               {activeTagFilter === 'all'
                 ? (isEn ? 'Categories' : 'پۆلێنەکان')
@@ -1771,20 +1817,22 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             {activeTagFilter !== 'all' ? (
               <span
                 className="w-2 h-2 rounded-full shrink-0 shadow-xs"
-                style={{ backgroundColor: currentFilterObj.color }}
+                style={{ backgroundColor: getAccessibleCategoryColor(currentFilterObj.color, isDark) }}
               />
             ) : (
-              <ChevronDown className="w-3 h-3 text-amber-400/70 group-hover:translate-y-0.5 transition-transform" />
+              <ChevronDown className={`w-3 h-3 group-hover:translate-y-0.5 transition-transform ${isDark ? 'text-amber-400/70' : 'text-amber-700/80'}`} />
             )}
           </button>
 
           {/* Province Filter Button on Map */}
-          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+          <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
           <button
             onClick={() => setIsProvinceModalOpen((prev) => !prev)}
             className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
               activeProvince !== 'all'
-                ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                ? isDark
+                  ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                  : 'bg-amber-100 text-amber-950 border border-amber-400 shadow-xs'
                 : colorMode === 'light'
                 ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
                 : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
@@ -1795,7 +1843,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 : `پۆلێنی پارێزگاکان (فلتەرکردن بەپێی ${formatDigits(KURDISTAN_PROVINCES.length, language)} پارێزگای کوردستان)`
             }
           >
-            <MapPin className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+            <MapPin className={`w-4 h-4 group-hover:scale-110 transition-transform shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
             <span className="font-heading font-extrabold text-xs whitespace-nowrap">
               {activeProvince === 'all'
                 ? (isEn ? 'Provinces' : 'پارێزگاکان')
@@ -1804,14 +1852,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     : currentProvinceObj?.name || 'پارێزگا')}
             </span>
             {activeProvince !== 'all' ? (
-              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-xs" />
+              <span className={`w-2 h-2 rounded-full shrink-0 shadow-xs ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
             ) : (
-              <ChevronDown className="w-3 h-3 text-amber-400/70 group-hover:translate-y-0.5 transition-transform" />
+              <ChevronDown className={`w-3 h-3 group-hover:translate-y-0.5 transition-transform ${isDark ? 'text-amber-400/70' : 'text-amber-700/80'}`} />
             )}
           </button>
 
           {/* Compact Language Switcher */}
-          <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+          <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
           <button
             type="button"
             onClick={toggleLanguage}
@@ -1832,7 +1880,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           {/* Settings Icon */}
           {onOpenSettings && (
             <>
-              <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+              <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
               <button
                 onClick={onOpenSettings}
                 className={`relative p-2 rounded-xl transition-all cursor-pointer active:scale-95 group flex items-center justify-center ${
@@ -1843,7 +1891,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 title={isEn ? 'Settings' : 'ڕێکخستنەکان (Settings)'}
                 aria-label={isEn ? 'Settings' : 'ڕێکخستنەکان'}
               >
-                <SlidersHorizontal className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                <SlidersHorizontal className={`w-4 h-4 group-hover:scale-110 transition-transform shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
               </button>
             </>
           )}
@@ -1865,27 +1913,34 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-start justify-between pb-2.5 mb-2.5 border-b border-white/[0.08] gap-2">
+            <div className={`flex items-start justify-between pb-2.5 mb-2.5 border-b gap-2 ${
+              isDark ? 'border-white/[0.08]' : 'border-slate-200'
+            }`}>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-3.5 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs shrink-0 border border-amber-400/50">
                     <span className="text-[6px] text-amber-500 font-bold leading-none select-none">☀️</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                    <span className="text-amber-400 font-semibold">
+                  <div className={`flex items-center gap-1.5 text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span
+                      className="font-semibold"
+                      style={{ color: getAccessibleCategoryColor(getCategoryInfo(selectedFact, language).color, isDark) }}
+                    >
                       {getCategoryInfo(selectedFact, language).name || selectedFact.tag || (isEn ? 'Historical Power' : 'دەسەڵاتی مێژوویی')}
                     </span>
                     {(selectedFact.year || selectedFact.century) && (
                       <>
-                        <span aria-hidden="true" className="text-slate-600 font-mono">·</span>
-                        <span className="font-mono tabular-nums text-amber-300 font-bold">
+                        <span aria-hidden="true" className={`font-mono ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
+                        <span className={`font-mono tabular-nums font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                           {selectedFact.year || selectedFact.century}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <h3 className="text-sm sm:text-base font-extrabold font-heading text-white truncate drop-shadow-xs mt-1">
+                <h3 className={`text-sm sm:text-base font-extrabold font-heading truncate mt-1 ${
+                  isDark ? 'text-white drop-shadow-xs' : 'text-slate-900'
+                }`}>
                   {selectedFact.name}
                 </h3>
               </div>
@@ -1893,7 +1948,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setShowQuickSummary(false)}
-                  className="p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white transition-colors cursor-pointer border border-white/[0.08]"
+                  className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                    isDark
+                      ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border-white/[0.08]'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border-slate-300'
+                  }`}
                   title={isEn ? 'Close summary' : 'داخستنی کورتە'}
                 >
                   <X className="w-4 h-4" />
@@ -1906,8 +1965,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               const displayImg = getFactDisplayImage(selectedFact);
               if (!displayImg) {
                 return (
-                  <div className="relative mb-2.5 rounded-2xl p-3 sm:p-3.5 border border-dashed border-amber-500/35 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-center flex flex-col items-center justify-center gap-2">
-                    <p className="text-[11px] text-slate-300 font-medium">
+                  <div className="relative mb-2.5 rounded-2xl p-3 sm:p-3.5 border border-dashed border-amber-500/45 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-center flex flex-col items-center justify-center gap-2">
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {isEn
                         ? 'No archival photo has been added for this entry yet'
                         : 'ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە'}
@@ -1915,7 +1974,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => setFactToSubmitPhoto(selectedFact)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                      className="preserve-contrast flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
                     >
                       <ImagePlus className="w-3.5 h-3.5 stroke-[2.5]" />
                       <span>
@@ -1928,7 +1987,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 );
               }
               return (
-                <div className="relative mb-2.5 rounded-2xl overflow-hidden border border-white/[0.1] bg-black/90 group shadow-lg flex flex-col items-center justify-center p-1.5">
+                <div className="preserve-contrast relative mb-2.5 rounded-2xl overflow-hidden border border-white/[0.1] bg-black/90 group shadow-lg flex flex-col items-center justify-center p-1.5">
                   <img
                     src={displayImg}
                     alt={selectedFact.imageCaption || selectedFact.name}
@@ -1942,7 +2001,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     }
                   />
 
-                  <div className="w-full mt-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-amber-200 text-[11px] flex items-center justify-between gap-2 shadow-xs">
+                  <div className="w-full mt-2 px-3 py-1.5 rounded-xl bg-white/[0.08] border border-white/[0.1] text-amber-200 text-[11px] flex items-center justify-between gap-2 shadow-xs">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span className="truncate font-medium">{selectedFact.imageCaption || selectedFact.name}</span>
@@ -1958,7 +2017,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                             title: selectedFact.name,
                           });
                         }}
-                        className="p-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/[0.08]"
+                        className="p-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] text-slate-200 hover:text-white border border-white/[0.12] cursor-pointer"
                         title={isEn ? 'Enlarge image' : 'گەورەکردنی وێنە'}
                       >
                         <Maximize2 className="w-3 h-3" />
@@ -1971,14 +2030,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
             {/* Location Description */}
             {selectedFact.desc && (
-              <div className="flex items-center gap-1.5 mb-2 text-xs text-amber-300/80 font-medium">
-                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <div className={`flex items-center gap-1.5 mb-2 text-xs font-medium ${isDark ? 'text-amber-300/80' : 'text-amber-800'}`}>
+                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                 <span className="truncate">{selectedFact.desc}</span>
               </div>
             )}
 
             {/* Summary Text Content */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-slate-200 text-xs sm:text-[13px] leading-relaxed max-h-36 overflow-y-auto custom-scrollbar">
+            <div className={`p-3.5 rounded-2xl border text-xs sm:text-[13px] leading-relaxed max-h-36 overflow-y-auto custom-scrollbar ${
+              isDark
+                ? 'bg-white/[0.03] border-white/[0.06] text-slate-200'
+                : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}>
               <p className="line-clamp-5 whitespace-pre-line leading-relaxed">
                 {selectedFact.fullText || selectedFact.desc}
               </p>
@@ -1986,15 +2049,17 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
             {/* Linked Topics */}
             {((selectedKnowledgeGraph?.nodes.length || 0) > 0 || selectedLinked.allRelated.length > 0) && (
-              <div className="mt-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
+              <div className={`mt-2.5 p-2.5 rounded-2xl border space-y-2 ${
+                isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
                   <span className="flex items-center gap-1.5">
-                    <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                    <Link2 className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span>
                       {isEn ? 'Connected Sites & Historical Figures:' : 'بابەت و کەسایەتییە پەیوەندیدارەکان:'}
                     </span>
                   </span>
-                  <span className="font-mono tabular-nums text-slate-400 text-[11px]">
+                  <span className={`font-mono tabular-nums text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {formatDigits(selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length, language)}{' '}
                     {isEn ? 'links' : 'تۆمار'}
                   </span>
@@ -2005,6 +2070,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     : selectedLinked.allRelated
                   ).slice(0, 8).map((lf) => {
                     const c = getCategoryInfo(lf, language);
+                    const accColor = getAccessibleCategoryColor(c.color, isDark);
                     return (
                       <button
                         key={lf.id}
@@ -2012,11 +2078,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                         onClick={() => {
                           onSelectFact(lf);
                         }}
-                        className="px-2.5 py-1 rounded-xl text-xs shrink-0 flex items-center gap-1.5 border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-amber-400/50 transition-all cursor-pointer active:scale-95"
+                        className={`px-2.5 py-1 rounded-xl text-xs shrink-0 flex items-center gap-1.5 border hover:border-amber-400/50 transition-all cursor-pointer active:scale-95 ${
+                          isDark
+                            ? 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200'
+                            : 'border-slate-300 bg-white hover:bg-amber-50 text-slate-900'
+                        }`}
                         title={isEn ? `Select "${lf.name}"` : `کلیک بکە بۆ نیشاندانی «${lf.name}»`}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                        <span className="truncate max-w-[130px] font-semibold text-slate-200">{lf.name}</span>
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accColor }} />
+                        <span className="truncate max-w-[130px] font-semibold">{lf.name}</span>
                       </button>
                     );
                   })}
@@ -2025,7 +2095,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             )}
 
             {/* Action Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t border-white/[0.08]">
+            <div className={`flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t ${
+              isDark ? 'border-white/[0.08]' : 'border-slate-200'
+            }`}>
               <div className="flex items-center gap-2 flex-wrap">
                 {onOpenDetail && (
                   <button
@@ -2033,7 +2105,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       setShowQuickSummary(false);
                       onOpenDetail(selectedFact);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_16px_rgba(245,158,11,0.3)]"
+                    className="preserve-contrast flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-extrabold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_16px_rgba(245,158,11,0.3)]"
                   >
                     <BookOpen className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>{isEn ? 'Full Dossier & Sources' : 'زانیاری زیاتر و بەڵگەنامەکان'}</span>
@@ -2044,10 +2116,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setFactToSubmitPhoto(selectedFact)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/40 text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
+                      isDark
+                        ? 'bg-amber-500/20 hover:bg-amber-500/35 border-amber-400/40 text-amber-300 hover:text-white'
+                        : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-950'
+                    }`}
                     title={isEn ? 'Submit an archival photo link' : 'یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە'}
                   >
-                    <ImagePlus className="w-3.5 h-3.5 text-amber-400" />
+                    <ImagePlus className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span>{isEn ? 'Submit Photo' : 'ناردنی وێنە'}</span>
                   </button>
                 )}
@@ -2058,8 +2134,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     onClick={() => setIsPrincipalityFocusActive((prev) => !prev)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                       isPrincipalityFocusActive
-                        ? 'bg-amber-400 text-black border border-amber-300 shadow-md font-extrabold'
-                        : 'liquid-glass-btn text-amber-300 hover:text-white border border-white/10'
+                        ? 'liquid-glass-btn-active shadow-md font-extrabold'
+                        : `liquid-glass-btn border ${
+                            isDark ? 'text-amber-300 hover:text-white border-white/10' : 'text-amber-900 hover:text-slate-950 border-slate-300'
+                          }`
                     }`}
                     title={isEn ? 'Isolate this polity and its linked sites' : 'فۆکەس لەسەر تەنها ئەم دەسەڵاتە و شوێنە پەیوەندیدارەکانی'}
                   >
@@ -2087,13 +2165,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     setCopiedSummary(true);
                     setTimeout(() => setCopiedSummary(false), 2000);
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-[10px] transition-colors cursor-pointer"
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-[10px] font-semibold transition-colors cursor-pointer ${
+                    isDark ? 'text-amber-300 hover:text-white' : 'text-amber-900 hover:text-slate-950'
+                  }`}
                   title={isEn ? 'Copy text & direct share link' : 'لەبەرگرتنەوەی دەق و بەستەری ڕاستەوخۆ'}
                 >
                   {copiedSummary ? (
-                    <Check className="w-3 h-3 text-emerald-400" />
+                    <Check className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                   ) : (
-                    <Copy className="w-3 h-3 text-amber-400" />
+                    <Copy className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   )}
                   <span>
                     {copiedSummary
@@ -2109,17 +2189,27 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         {/* Bottom Photo Strip */}
         {markerViewMode === 'photo' && showBottomPhotoStrip && visibleFactsWithImages.length > 0 && !showQuickSummary && (
           <div
-            className="w-full max-w-md sm:max-w-2xl px-2.5 py-2 mb-1 rounded-2xl glass-dock-2026 border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.85)] animate-spatial-spring text-start select-none"
+            className={`w-full max-w-md sm:max-w-2xl px-2.5 py-2 mb-1 rounded-2xl glass-dock-2026 border animate-spatial-spring text-start select-none ${
+              isDark
+                ? 'border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.85)]'
+                : 'border-slate-300 shadow-[0_12px_32px_rgba(15,23,42,0.14)]'
+            }`}
             dir={dir}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-1.5 px-1 text-slate-300">
+            <div className={`flex items-center justify-between mb-1.5 px-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               <div className="flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="text-[11px] font-heading font-extrabold text-white">
+                <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                <span className={`text-[11px] font-heading font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {isEn ? 'Historical Site Photos on Map' : 'وێنەی شوێنە مێژووییەکان لەسەر نەخشە'}
                 </span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                <span
+                  className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
+                    isDark
+                      ? 'bg-amber-400/20 text-amber-300 border-amber-400/30'
+                      : 'bg-amber-100 text-amber-900 border-amber-300'
+                  }`}
+                >
                   {formatDigits(visibleFactsWithImages.length, language)} {isEn ? 'sites' : 'شوێن'}
                 </span>
               </div>
@@ -2128,7 +2218,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 onClick={() => {
                   setShowBottomPhotoStrip(false);
                 }}
-                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                  isDark
+                    ? 'hover:bg-white/10 text-slate-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-600 hover:text-slate-950'
+                }`}
                 title={isEn ? 'Collapse photo strip' : 'داخستنی شریتی وێنەکان'}
               >
                 <X className="w-3.5 h-3.5" />
@@ -2140,6 +2234,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 const img = getFactDisplayImage(f);
                 const isSelected = selectedFact?.id === f.id;
                 const cat = getCategoryInfo(f, language);
+                const accessibleColor = getAccessibleCategoryColor(cat.color, isDark);
                 return (
                   <button
                     key={f.id}
@@ -2156,12 +2251,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                         } catch {}
                       }
                     }}
-                    className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200 cursor-pointer snap-start group bg-black/90 ${
+                    className={`preserve-contrast relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200 cursor-pointer snap-start group bg-black/90 ${
                       isSelected
                         ? 'border-amber-400 ring-2 ring-amber-400/80 scale-105 shadow-[0_0_16px_rgba(245,158,11,0.6)] z-10'
-                        : 'border-white/20 hover:border-amber-400/70 hover:scale-105 shadow-md'
+                        : isDark
+                          ? 'border-white/20 hover:border-amber-400/70 hover:scale-105 shadow-md'
+                          : 'border-slate-300 hover:border-amber-500 hover:scale-105 shadow-md'
                     }`}
-                    style={!isSelected ? { borderColor: `${cat.color}99` } : undefined}
+                    style={!isSelected ? { borderColor: `${accessibleColor}99` } : undefined}
                     title={`${f.name} (${f.year || f.century || ''})`}
                   >
                     <img
@@ -2194,15 +2291,25 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             onClick={() => {
               setShowBottomPhotoStrip(true);
             }}
-            className="mb-1 flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-dock-2026 text-xs font-bold text-amber-300 hover:text-amber-200 border border-amber-400/40 shadow-[0_4px_20px_rgba(0,0,0,0.6)] cursor-pointer active:scale-95 transition-all animate-spatial-spring"
+            className={`mb-1 flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-dock-2026 text-xs font-bold border cursor-pointer active:scale-95 transition-all animate-spatial-spring ${
+              isDark
+                ? 'text-amber-300 hover:text-amber-200 border-amber-400/40 shadow-[0_4px_20px_rgba(0,0,0,0.6)]'
+                : 'text-amber-900 hover:text-amber-950 border-amber-400 shadow-[0_4px_20px_rgba(15,23,42,0.14)]'
+            }`}
             title={isEn ? 'Show photo strip below' : 'نیشاندانی وێنەکان لە خوارەوە'}
           >
-            <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
             <span>{isEn ? 'Map Photos' : 'وێنەکانی خوارەوە'}</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 font-mono text-[10px] border border-amber-400/30 font-bold">
+            <span
+              className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] border font-bold ${
+                isDark
+                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/30'
+                  : 'bg-amber-100 text-amber-900 border-amber-300'
+              }`}
+            >
               {formatDigits(visibleFactsWithImages.length, language)}
             </span>
-            <ChevronUp className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
+            <ChevronUp className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400/80' : 'text-amber-700'}`} />
           </button>
         )}
 
@@ -2224,7 +2331,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           <button
             dir={dir}
             onClick={() => setShowQuickSummary(true)}
-            className="group relative flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-2xl liquid-glass-btn shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_25px_rgba(0,0,0,0.6)] cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-start overflow-hidden"
+            className="group relative flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-2xl liquid-glass-btn shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_25px_rgba(0,0,0,0.35)] cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-start overflow-hidden"
             title={isEn ? 'Click to view topic summary' : 'کلیک بکە بۆ پیشاندانی کورتەی بابەت بە مۆنشن و گرافیک'}
           >
             <div className="glass-specular-ray" />
@@ -2232,21 +2339,39 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               <span className="text-[4px] sm:text-[5px] text-amber-500 font-bold leading-none select-none">☀️</span>
             </div>
 
-            <span className="text-[11px] sm:text-xs font-bold text-white tracking-wide group-hover:text-amber-300 transition-colors truncate max-w-[150px] sm:max-w-xs">
+            <span
+              className={`text-[11px] sm:text-xs font-bold tracking-wide transition-colors truncate max-w-[150px] sm:max-w-xs ${
+                isDark ? 'text-white group-hover:text-amber-300' : 'text-slate-900 group-hover:text-amber-800'
+              }`}
+            >
               {selectedFact.name}
             </span>
 
             {(selectedFact.year || selectedFact.century) && (
-              <span className="text-[8px] sm:text-[9px] font-mono text-amber-300 bg-white/10 px-1.5 py-0.2 rounded border border-white/15 shrink-0">
+              <span
+                className={`text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded border shrink-0 ${
+                  isDark
+                    ? 'text-amber-300 bg-white/10 border-white/15'
+                    : 'text-amber-900 bg-amber-100 border-amber-300 font-bold'
+                }`}
+              >
                 {selectedFact.year || selectedFact.century}
               </span>
             )}
 
-            <span className="text-[9px] sm:text-[10px] text-amber-400 font-medium flex items-center gap-0.5 ms-0.5 ps-1.5 border-s border-white/15 shrink-0">
+            <span
+              className={`text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 ms-0.5 ps-1.5 border-s shrink-0 ${
+                isDark ? 'text-amber-400 border-white/15' : 'text-amber-800 border-slate-300 font-bold'
+              }`}
+            >
               <span>{isEn ? 'Summary' : 'کورتە'}</span>
               <ChevronUp
                 className={`w-2.5 h-2.5 sm:w-3 sm:h-3 transition-transform duration-300 ${
-                  showQuickSummary ? 'rotate-180 text-amber-300' : 'text-amber-400 group-hover:-translate-y-0.5'
+                  showQuickSummary
+                    ? isDark
+                      ? 'rotate-180 text-amber-300'
+                      : 'rotate-180 text-amber-800'
+                    : `${isDark ? 'text-amber-400' : 'text-amber-700'} group-hover:-translate-y-0.5`
                 }`}
               />
             </span>
@@ -2258,7 +2383,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       {lightboxImage && (
         <div
           dir={dir}
-          className="fixed inset-0 z-[1500] flex items-center justify-center p-4 bg-black/85 backdrop-blur-2xl animate-fade-in text-start"
+          className="preserve-contrast fixed inset-0 z-[1500] flex items-center justify-center p-4 bg-black/85 backdrop-blur-2xl animate-fade-in text-start"
           onClick={() => setLightboxImage(null)}
         >
           <div
@@ -2314,30 +2439,40 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             dir={dir}
             className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-[95%] sm:w-[92%] md:max-w-3xl lg:max-w-4xl z-40 pointer-events-auto animate-fade-in text-start"
           >
-            <div className="relative liquid-glass-panel rounded-3xl p-4 sm:p-5 border border-amber-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.25)] overflow-hidden">
+            <div
+              className={`relative liquid-glass-panel rounded-3xl p-4 sm:p-5 border overflow-hidden ${
+                isDark
+                  ? 'border-amber-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.25)]'
+                  : 'border-amber-400/60 shadow-[0_25px_70px_rgba(15,23,42,0.22)]'
+              }`}
+            >
               <div className="glass-specular-ray" />
 
               {/* Card Header */}
-              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+              <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs border border-amber-400/30">
-                    <Film className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <div
+                    className={`w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs border ${
+                      isDark ? 'border-amber-400/30' : 'border-amber-400/60'
+                    }`}
+                  >
+                    <Film className={`w-4 h-4 animate-pulse ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs sm:text-sm font-black text-amber-300 font-heading tracking-wide truncate">
+                      <span className={`text-xs sm:text-sm font-black font-heading tracking-wide truncate ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                         {isEn ? 'Cinematic Historical Tour' : 'گەشتی بینراوی مێژوویی'}
                       </span>
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+                      <span className={`w-2 h-2 rounded-full animate-ping shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
                     </div>
-                    <span className="text-[10px] sm:text-[11px] font-mono text-slate-300">
+                    <span className={`text-[10px] sm:text-[11px] font-mono ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {isEn ? (
                         <>
-                          Stop <span className="text-amber-300 font-bold">{formatDigits(tourIndex + 1, language)}</span> of {formatDigits(tourList.length, language)}
+                          Stop <span className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{formatDigits(tourIndex + 1, language)}</span> of {formatDigits(tourList.length, language)}
                         </>
                       ) : (
                         <>
-                          شوێنی <span className="text-amber-300 font-bold">{formatDigits(tourIndex + 1, language)}</span> لە {formatDigits(tourList.length, language)}
+                          شوێنی <span className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{formatDigits(tourIndex + 1, language)}</span> لە {formatDigits(tourList.length, language)}
                         </>
                       )}
                     </span>
@@ -2354,8 +2489,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                         title={isEn ? `Step duration: ${sec}s` : `خێرایی پەڕینەوە: ${sec} چرکە`}
                         className={`px-1.5 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
                           tourSpeed === sec
-                            ? 'liquid-glass-btn-active text-black'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'liquid-glass-btn-active'
+                            : isDark
+                              ? 'text-slate-400 hover:text-white'
+                              : 'text-slate-700 hover:text-slate-950'
                         }`}
                       >
                         {sec}s
@@ -2365,7 +2502,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
                   <button
                     onClick={handleToggleTour}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer border border-white/15"
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center liquid-glass-btn transition-colors cursor-pointer border ${
+                      isDark ? 'text-slate-300 hover:text-white border-white/15' : 'text-slate-700 hover:text-slate-950 border-slate-300'
+                    }`}
                     title={isEn ? 'Exit tour' : 'داخستنی گەشت'}
                   >
                     <X className="w-4 h-4" />
@@ -2374,7 +2513,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
 
               {/* Animated Timeline Countdown Bar */}
-              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden my-2.5">
+              <div className={`w-full h-1.5 rounded-full overflow-hidden my-2.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}>
                 <div
                   className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all duration-100 ease-linear rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]"
                   style={{ width: `${tourProgress}%` }}
@@ -2387,7 +2526,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   const tourImg = getFactDisplayImage(currentTourFact);
                   return (
                     <div
-                      className="md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 rounded-2xl overflow-hidden border border-white/20 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
+                      className="preserve-contrast md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 rounded-2xl overflow-hidden border border-white/20 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
                       onClick={() => {
                         if (tourImg) {
                           setLightboxImage({
@@ -2446,33 +2585,62 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {(currentTourFact.year || currentTourFact.century) && (
-                        <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-xl liquid-glass-subtle text-amber-300 border border-amber-400/30 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-amber-400" />
+                        <span
+                          className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-xl border flex items-center gap-1 ${
+                            isDark
+                              ? 'liquid-glass-subtle text-amber-300 border-amber-400/30'
+                              : 'bg-amber-50 text-amber-900 border-amber-300'
+                          }`}
+                        >
+                          <Calendar className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                           <span>{currentTourFact.year || currentTourFact.century}</span>
                         </span>
                       )}
                       {currentTourFact.eraName && (
-                        <span className="text-[10px] text-slate-200 bg-white/10 px-2.5 py-0.5 rounded-lg border border-white/10">
+                        <span
+                          className={`text-[10px] px-2.5 py-0.5 rounded-lg border font-medium ${
+                            isDark
+                              ? 'text-slate-200 bg-white/10 border-white/10'
+                              : 'text-slate-800 bg-slate-100 border-slate-300'
+                          }`}
+                        >
                           {currentTourFact.eraName}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 ms-auto" dir="ltr">
-                        <Compass className="w-3 h-3 text-amber-400" />
+                      <span
+                        className={`text-[10px] font-mono flex items-center gap-1 ms-auto ${
+                          isDark ? 'text-slate-400' : 'text-slate-600'
+                        }`}
+                        dir="ltr"
+                      >
+                        <Compass className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                         <span>{currentTourFact.lat.toFixed(1)}°N, {currentTourFact.lng.toFixed(1)}°E</span>
                       </span>
                     </div>
 
-                    <h3 className="text-base sm:text-lg md:text-xl font-extrabold text-white font-heading tracking-wide leading-tight">
+                    <h3 className={`text-base sm:text-lg md:text-xl font-extrabold font-heading tracking-wide leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {currentTourFact.name}
                     </h3>
 
-                    <div className="text-xs sm:text-[13px] text-slate-100 leading-relaxed bg-black/40 p-3 sm:p-3.5 rounded-2xl border border-white/10 shadow-inner max-h-[130px] sm:max-h-[150px] overflow-y-auto">
+                    <div
+                      className={`text-xs sm:text-[13px] leading-relaxed p-3 sm:p-3.5 rounded-2xl border shadow-inner max-h-[130px] sm:max-h-[150px] overflow-y-auto ${
+                        isDark
+                          ? 'text-slate-100 bg-black/40 border-white/10'
+                          : 'text-slate-800 bg-slate-50 border-slate-200'
+                      }`}
+                    >
                       {currentTourFact.fullText || currentTourFact.desc}
                     </div>
 
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-400/20 text-[11px] text-amber-200/90">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span className="font-bold text-amber-300 shrink-0">
+                    <div
+                      className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] ${
+                        isDark
+                          ? 'bg-amber-500/10 border-amber-400/20 text-amber-200/90'
+                          : 'bg-amber-50 border-amber-300 text-amber-950'
+                      }`}
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                      <span className={`font-bold shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
                         {isEn ? 'Place & Period:' : 'شوێن و کات:'}
                       </span>
                       <span className="truncate">
@@ -2485,12 +2653,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   </div>
 
                   {/* Bottom Interactive Navigation */}
-                  <div className="flex items-center justify-between pt-2.5 border-t border-white/10 text-xs gap-2">
+                  <div className={`flex items-center justify-between pt-2.5 border-t text-xs gap-2 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={handlePrevTourFact}
                         title={isEn ? 'Previous site' : 'شوێنی پێشوو'}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-xs"
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-xl liquid-glass-btn transition-all cursor-pointer font-bold text-xs ${
+                          isDark ? 'text-slate-200 hover:text-amber-300' : 'text-slate-800 hover:text-amber-900'
+                        }`}
                       >
                         {isEn ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         <span className="hidden sm:inline">{isEn ? 'Prev' : 'پێشوو'}</span>
@@ -2505,8 +2675,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                         }
                         className={`flex items-center gap-1 px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer text-xs ${
                           isTourPaused
-                            ? 'liquid-glass-btn-active text-black shadow-md animate-pulse'
-                            : 'liquid-glass-btn text-amber-300 hover:text-white'
+                            ? 'liquid-glass-btn-active shadow-md animate-pulse'
+                            : `liquid-glass-btn ${isDark ? 'text-amber-300 hover:text-white' : 'text-amber-900 hover:text-slate-950'}`
                         }`}
                       >
                         {isTourPaused ? (
@@ -2525,7 +2695,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       <button
                         onClick={handleNextTourFact}
                         title={isEn ? 'Next site' : 'شوێنی دواتر'}
-                        className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-glass-btn text-slate-200 hover:text-amber-300 transition-all cursor-pointer font-bold text-xs"
+                        className={`flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-glass-btn transition-all cursor-pointer font-bold text-xs ${
+                          isDark ? 'text-slate-200 hover:text-amber-300' : 'text-slate-800 hover:text-amber-900'
+                        }`}
                       >
                         <span className="hidden sm:inline">{isEn ? 'Next' : 'دواتر'}</span>
                         {isEn ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
@@ -2535,7 +2707,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     {onOpenDetail && (
                       <button
                         onClick={() => onOpenDetail(currentTourFact)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-glass-btn-active text-slate-950 font-extrabold transition-all cursor-pointer text-xs shadow-sm"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-glass-btn-active font-extrabold transition-all cursor-pointer text-xs shadow-sm"
                         title={isEn ? 'View full dossier & sources' : 'بینینی تەواوی سەرچاوە و بەڵگەنامەکان'}
                       >
                         <BookOpen className="w-3.5 h-3.5" />
@@ -2561,27 +2733,37 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       {/* Category Selection Popover Modal */}
       {isCategoryModalOpen && (
         <div
-          className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in text-start"
+          className={`fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-4 backdrop-blur-md animate-fade-in text-start ${
+            isDark ? 'bg-black/75' : 'bg-slate-900/45'
+          }`}
           onClick={() => setIsCategoryModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-md liquid-glass-panel rounded-3xl p-4 sm:p-5 border border-white/20 shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.2)] max-h-[90dvh] flex flex-col overflow-hidden"
+            className={`relative w-full max-w-md liquid-glass-panel rounded-3xl p-4 sm:p-5 border max-h-[90dvh] flex flex-col overflow-hidden ${
+              isDark
+                ? 'border-white/20 shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.2)]'
+                : 'border-slate-300 shadow-[0_25px_70px_rgba(15,23,42,0.22)]'
+            }`}
             onClick={(e) => e.stopPropagation()}
             dir={dir}
           >
             <div className="glass-specular-ray" />
 
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 shrink-0">
+            <div className={`flex items-center justify-between pb-3 mb-3 border-b shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl liquid-glass-btn flex items-center justify-center text-amber-400 border border-amber-400/30">
+                <div
+                  className={`w-9 h-9 rounded-xl liquid-glass-btn flex items-center justify-center border ${
+                    isDark ? 'text-amber-400 border-amber-400/30' : 'text-amber-700 border-amber-400/60'
+                  }`}
+                >
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-white font-heading">
+                  <h3 className={`text-sm sm:text-base font-extrabold font-heading ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {isEn ? 'Map Historical Categories' : 'پۆلێنی شوێنەکان لەسەر نەخشە'}
                   </h3>
-                  <p className="text-[11px] text-slate-300 font-light">
+                  <p className={`text-[11px] font-light ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     {isEn
                       ? 'Select a category to filter sites displayed on the map'
                       : 'یەک جۆر پۆلێن دیاریبکە بۆ پیشاندانی تەنها ئەو بابەتانە'}
@@ -2590,7 +2772,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               </div>
               <button
                 onClick={() => setIsCategoryModalOpen(false)}
-                className="w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className={`w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center transition-colors cursor-pointer ${
+                  isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950'
+                }`}
                 title={isEn ? 'Close' : 'داخستن'}
               >
                 <X className="w-4 h-4" />
@@ -2603,6 +2787,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 const isSelected = activeTagFilter === opt.id;
                 const count = tagCounts[opt.id] ?? 0;
                 const IconComp = opt.icon;
+                const accessibleOptColor = getAccessibleCategoryColor(opt.color, isDark);
 
                 return (
                   <button
@@ -2612,29 +2797,51 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     }}
                     className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all cursor-pointer text-start group border ${
                       isSelected
-                        ? 'liquid-glass-btn-active text-black shadow-md border-amber-400/80 font-bold'
-                        : 'liquid-glass-btn hover:border-amber-400/40 text-slate-200 hover:text-white'
+                        ? 'liquid-glass-btn-active shadow-md border-amber-400/80 font-bold'
+                        : `liquid-glass-btn ${
+                            isDark
+                              ? 'hover:border-amber-400/40 text-slate-200 hover:text-white'
+                              : 'hover:border-amber-500/60 text-slate-800 hover:text-slate-950'
+                          }`
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
-                          isSelected ? 'bg-black/15 border-black/20 text-black' : 'bg-white/5 border-white/10'
+                          isSelected
+                            ? isDark
+                              ? 'bg-black/15 border-black/20'
+                              : 'bg-white/20 border-white/30'
+                            : isDark
+                              ? 'bg-white/5 border-white/10'
+                              : 'bg-slate-100 border-slate-200'
                         }`}
-                        style={!isSelected ? { color: opt.color, borderColor: `${opt.color}40` } : undefined}
+                        style={!isSelected ? { color: accessibleOptColor, borderColor: `${accessibleOptColor}40` } : undefined}
                       >
                         <IconComp className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <span className={`block text-xs sm:text-sm font-heading font-bold truncate ${
-                          isSelected ? 'text-black font-extrabold' : 'text-white group-hover:text-amber-300'
-                        }`}>
+                        <span
+                          className={`block text-xs sm:text-sm font-heading font-bold truncate ${
+                            isSelected
+                              ? 'font-extrabold'
+                              : isDark
+                                ? 'text-white group-hover:text-amber-300'
+                                : 'text-slate-900 group-hover:text-amber-800'
+                          }`}
+                        >
                           {isEn ? opt.labelEn : opt.label}
                         </span>
                         {opt.id !== 'all' && (
-                          <span className={`block text-[10px] truncate ${
-                            isSelected ? 'text-black/80 font-medium' : 'text-slate-400 font-light'
-                          }`}>
+                          <span
+                            className={`block text-[10px] truncate ${
+                              isSelected
+                                ? 'opacity-85 font-medium'
+                                : isDark
+                                  ? 'text-slate-400 font-light'
+                                  : 'text-slate-600 font-normal'
+                            }`}
+                          >
                             {isEn ? opt.shortLabelEn : opt.shortLabel}
                           </span>
                         )}
@@ -2642,14 +2849,20 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? 'bg-black/20 text-black border border-black/30'
-                          : 'bg-white/10 text-amber-300 border border-white/10'
-                      }`}>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-black/20 border-black/30'
+                              : 'bg-white/20 border-white/30'
+                            : isDark
+                              ? 'bg-white/10 text-amber-300 border-white/10'
+                              : 'bg-amber-100 text-amber-900 border-amber-300'
+                        }`}
+                      >
                         {formatDigits(count, language)} {isEn ? 'sites' : 'شوێن'}
                       </span>
-                      {isSelected && <Check className="w-4 h-4 text-black ms-1 stroke-[3]" />}
+                      {isSelected && <Check className="w-4 h-4 ms-1 stroke-[3]" />}
                     </div>
                   </button>
                 );
@@ -2658,12 +2871,16 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
             {/* Reset Footer */}
             {activeTagFilter !== 'all' && (
-              <div className="pt-3 mt-3 border-t border-white/10 flex justify-end shrink-0">
+              <div className={`pt-3 mt-3 border-t flex justify-end shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                 <button
                   onClick={() => {
                     handleSelectTagFilter('all');
                   }}
-                  className="px-3.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10"
+                  className={`px-3.5 py-1.5 rounded-xl liquid-glass-btn text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                    isDark
+                      ? 'text-amber-300 hover:text-white border-white/10'
+                      : 'text-amber-900 hover:text-slate-950 border-slate-300'
+                  }`}
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>

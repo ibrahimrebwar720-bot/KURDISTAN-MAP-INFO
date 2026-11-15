@@ -57,7 +57,7 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
   return (
     <div
       dir={dir}
-      className="preserve-contrast fixed inset-0 z-[1350] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[1350] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
       onClick={() => {
         if (!isSyncing) onDeclineNo();
       }}
@@ -186,7 +186,11 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
                   : 'bg-rose-50 border-rose-300 text-rose-800'
               }`}
             >
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+              <AlertCircle
+                className={`w-4 h-4 shrink-0 mt-0.5 ${
+                  isDark ? 'text-rose-400' : 'text-rose-700'
+                }`}
+              />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -218,16 +222,20 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
             type="button"
             onClick={handleYesClick}
             disabled={isSyncing}
-            className="px-5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 border border-amber-300/60 shadow-md transition-all cursor-pointer active:scale-95 disabled:opacity-75 disabled:cursor-wait flex items-center gap-1.5"
+            className={`px-5 py-2 rounded-xl text-xs font-extrabold border shadow-md transition-all cursor-pointer active:scale-95 disabled:opacity-75 disabled:cursor-wait flex items-center gap-1.5 ${
+              isDark
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 border-amber-300/60'
+                : 'preserve-contrast bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-800 hover:to-amber-700 text-white border-amber-800/40'
+            }`}
           >
             {isSyncing ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-950" />
+                <Loader2 className={`w-3.5 h-3.5 animate-spin ${isDark ? 'text-slate-950' : 'text-white'}`} />
                 <span>{isEn ? 'Translating & Syncing...' : 'وەرگێڕان و جێبەجێکردن...'}</span>
               </>
             ) : (
               <>
-                <Check className="w-3.5 h-3.5 stroke-[2.5] text-slate-950" />
+                <Check className={`w-3.5 h-3.5 stroke-[2.5] ${isDark ? 'text-slate-950' : 'text-white'}`} />
                 <span>{isEn ? 'Yes' : 'بەڵێ'}</span>
               </>
             )}

@@ -230,7 +230,10 @@
     font-weight: 400;
     direction: rtl;
     background-color: var(--theme-bg, #030712);
-    color: #f3f4f6;
+    color: var(--theme-text-primary, #f3f4f6);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   html[dir="ltr"] body {
@@ -301,29 +304,28 @@
   background: var(--theme-accent, rgba(245, 158, 11, 0.6));
 }
 
-/* Dynamic theme overrides for amber highlights */
-[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-400 {
+/* Dynamic theme overrides for amber highlights (respects Light Mode via CSS variables) */
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-400:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-500:not(.preserve-contrast):not(.preserve-contrast *) {
   color: var(--theme-accent) !important;
 }
-[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-300 {
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-200:not(.preserve-contrast):not(.preserve-contrast *) {
   color: var(--theme-accent-light) !important;
 }
-[data-theme]:not([data-theme="kurdish-gold"]) .text-amber-200 {
-  color: var(--theme-accent-light) !important;
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/50:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/40:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/30:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-500\/30:not(.preserve-contrast):not(.preserve-contrast *) {
+  border-color: var(--theme-border-accent, var(--theme-accent-soft)) !important;
 }
-[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400,
-[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/50,
-[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/40,
-[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-400\/30,
-[data-theme]:not([data-theme="kurdish-gold"]) .border-amber-500\/30 {
-  border-color: var(--theme-accent-soft) !important;
-}
-[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-400 {
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-400:not(.preserve-contrast):not(.preserve-contrast *) {
   background-color: var(--theme-accent) !important;
 }
-[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-500\/20,
-[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-400\/10,
-[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-500\/10 {
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-500\/20:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-400\/10:not(.preserve-contrast):not(.preserve-contrast *),
+[data-theme]:not([data-theme="kurdish-gold"]) .bg-amber-500\/10:not(.preserve-contrast):not(.preserve-contrast *) {
   background-color: var(--theme-accent-soft) !important;
 }
 
@@ -406,7 +408,7 @@ img,
 .glass-panel {
   background: #0a0e1a !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-top: 1px solid rgba(245, 158, 11, 0.35) !important;
+  border-top: 1px solid var(--theme-border-accent, rgba(245, 158, 11, 0.35)) !important;
   box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.05) !important;
   border-radius: 4px !important;
 }
@@ -416,7 +418,7 @@ img,
 .glass-dock-2026 {
   background: #0b0f1c !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.25) !important;
+  border-bottom: 1px solid var(--theme-border-accent, rgba(245, 158, 11, 0.25)) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
   border-radius: 4px !important;
 }
@@ -435,8 +437,8 @@ img,
 .card-editorial-2026:hover {
   background: #151d32 !important;
   border-color: var(--theme-accent, #f59e0b) !important;
-  border-top-color: #fbbf24 !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px rgba(245, 158, 11, 0.15) !important;
+  border-top-color: var(--theme-accent-light, #fbbf24) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
   transform: translateY(-2px) !important;
 }
 
@@ -481,11 +483,11 @@ img,
 
 .liquid-glass-btn-active,
 .glass-pill-active {
-  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%) !important;
-  border: 1px solid #b45309 !important;
-  color: #060913 !important;
+  background: var(--theme-btn-active-bg, linear-gradient(180deg, #fbbf24 0%, #d97706 100%)) !important;
+  border: 1px solid var(--theme-border-accent, #b45309) !important;
+  color: var(--theme-btn-active-text, #060913) !important;
   font-weight: 800 !important;
-  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 2px 10px var(--theme-accent-glow, rgba(245, 158, 11, 0.4)) !important;
   border-radius: 4px !important;
 }
 
@@ -754,7 +756,7 @@ html[dir="ltr"] .leaflet-popup-content {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.25) !important;
+  border-bottom: 1px solid var(--theme-border-accent, rgba(245, 158, 11, 0.25)) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
   border-radius: 4px !important;
 }
@@ -773,8 +775,8 @@ html[dir="ltr"] .leaflet-popup-content {
 .card-editorial-2026:hover {
   background: #151d32 !important;
   border-color: var(--theme-accent, #f59e0b) !important;
-  border-top-color: #fbbf24 !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px rgba(245, 158, 11, 0.15) !important;
+  border-top-color: var(--theme-accent-light, #fbbf24) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
   transform: translateY(-2px) !important;
 }
 
@@ -985,63 +987,105 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   color: #090d16 !important;
 }
 
-/* 1. All Amber / Gold Texts converted to Deep Bronze in Light Mode (Contrast 7.5:1+) */
+/* 1. Amber / Gold Texts converted to Theme-Synced High-Contrast Tone in Light Mode (Respects kurdish-gold & all 7 themes) */
+[data-color-mode="light"][data-theme="kurdish-gold"] .text-amber-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"][data-theme="kurdish-gold"] .text-amber-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"][data-theme="kurdish-gold"] .text-amber-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"][data-theme="kurdish-gold"] .text-amber-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"][data-theme="kurdish-gold"] .text-amber-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-yellow-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-yellow-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #92400e !important;
+}
+
 [data-color-mode="light"] .text-amber-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
 [data-color-mode="light"] .text-amber-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
 [data-color-mode="light"] .text-amber-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
 [data-color-mode="light"] .text-amber-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-amber-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-yellow-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
-[data-color-mode="light"] .text-yellow-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
-  color: #92400e !important;
-  font-weight: 600 !important;
+[data-color-mode="light"] .text-amber-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
+  color: var(--theme-accent, #92400e) !important;
 }
 
-/* 2. Primary / Heading Texts in Light Mode: Solid Deep Charcoal (Contrast 18:1) */
-[data-color-mode="light"] .text-white:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
+/* 1b. Bright Semantic Colors Darkened for WCAG AA Contrast on Light Surfaces */
+[data-color-mode="light"] .text-emerald-200:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-emerald-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-emerald-400:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-emerald-500:not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #047857 !important;
+}
+
+[data-color-mode="light"] .text-sky-200:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-sky-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-sky-400:not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #0369a1 !important;
+}
+
+[data-color-mode="light"] .text-cyan-200:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-cyan-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-cyan-400:not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #0e7490 !important;
+}
+
+[data-color-mode="light"] .text-indigo-200:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-indigo-300:not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #4338ca !important;
+}
+
+[data-color-mode="light"] .text-purple-200:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-purple-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-purple-400:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-violet-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-violet-400:not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #6d28d9 !important;
+}
+
+[data-color-mode="light"] .text-rose-200:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-rose-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-red-300:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .text-red-400:not(.preserve-contrast):not(.preserve-contrast *) {
+  color: #be123c !important;
+}
+
+/* 2. Primary / Heading Texts in Light Mode: Deep Charcoal (Excludes saturated buttons & dark media plates) */
+[data-color-mode="light"] .text-white:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *):not([class*="bg-indigo-"]):not([class*="bg-rose-"]):not([class*="bg-red-"]):not([class*="bg-emerald-6"]):not([class*="bg-emerald-7"]):not([class*="bg-cyan-6"]):not([class*="bg-purple-6"]):not([class*="bg-amber-6"]):not([class*="bg-amber-7"]):not([class*="bg-slate-8"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-[#0"]):not([class*="from-indigo-"]):not([class*="from-violet-"]):not([class*="from-emerald-"]):not([class*="from-rose-"]),
 [data-color-mode="light"] .text-slate-100:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #090d16 !important;
-  font-weight: 700 !important;
 }
 
 /* 3. Secondary & Body Texts in Light Mode: Deep Slate (Contrast 11:1) */
 [data-color-mode="light"] .text-slate-200:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
 [data-color-mode="light"] .text-slate-300:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #1e293b !important;
-  font-weight: 500 !important;
 }
 
 /* 4. Metadata, Years, Subtitles in Light Mode: High Contrast Charcoal-Slate */
 [data-color-mode="light"] .text-slate-400:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #334155 !important;
-  font-weight: 500 !important;
 }
 
 [data-color-mode="light"] .text-slate-500:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *),
 [data-color-mode="light"] .text-slate-600:not([data-preserve-contrast]):not(.preserve-contrast):not(.preserve-contrast *) {
   color: #475569 !important;
-  font-weight: 500 !important;
 }
 
-/* 5. Headings Font Weight in Light Mode */
-[data-color-mode="light"] h1,
-[data-color-mode="light"] h2,
-[data-color-mode="light"] h3,
-[data-color-mode="light"] h4,
-[data-color-mode="light"] .font-heading {
-  font-weight: 800 !important;
+/* 5. Headings Color in Light Mode (Keep custom Calibri weight hierarchy intact) */
+[data-color-mode="light"] h1:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] h2:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] h3:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] h4:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .font-heading:not(.preserve-contrast):not(.preserve-contrast *) {
   color: #090d16;
 }
 
 /* 6. Base Containers & Non-Glaring Backgrounds in Light Mode */
-[data-color-mode="light"] .bg-\[\#030611\],
-[data-color-mode="light"] .bg-\[\#05070e\],
-[data-color-mode="light"] .bg-\[\#050814\] {
+[data-color-mode="light"] .bg-\[\#030611\]:not(.preserve-contrast),
+[data-color-mode="light"] .bg-\[\#05070e\]:not(.preserve-contrast),
+[data-color-mode="light"] .bg-\[\#050814\]:not(.preserve-contrast) {
   background-color: #f4f3ef !important;
   color: #090d16 !important;
 }
 
-[data-color-mode="light"] .bg-\[\#070b16\]\/90 {
+[data-color-mode="light"] .bg-\[\#070b16\]\/90:not(.preserve-contrast) {
   background-color: #ffffff !important;
   border-bottom: 1px solid rgba(15, 23, 42, 0.12) !important;
 }
@@ -1059,10 +1103,10 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 [data-color-mode="light"] .card-editorial-2026:hover {
-  border-color: #d97706 !important;
-  border-top-color: #b45309 !important;
+  border-color: var(--theme-accent, #b45309) !important;
+  border-top-color: var(--theme-accent-dark, #92400e) !important;
   background: #fafaf9 !important;
-  box-shadow: 0 8px 20px -2px rgba(15, 23, 42, 0.12), 0 0 12px rgba(217, 119, 6, 0.1) !important;
+  box-shadow: 0 8px 20px -2px rgba(15, 23, 42, 0.12), 0 0 12px var(--theme-accent-glow, rgba(180, 83, 9, 0.12)) !important;
   transform: translateY(-2px) !important;
 }
 
@@ -1072,16 +1116,17 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 
 /* Selected Card in Light Mode */
 [data-color-mode="light"] .bg-amber-500\/\[0\.12\] {
-  background-color: #fef3c7 !important;
-  border-color: #d97706 !important;
-  box-shadow: 0 0 0 1px #d97706 !important;
+  background-color: var(--theme-accent-soft, #fef3c7) !important;
+  border-color: var(--theme-accent, #b45309) !important;
+  box-shadow: 0 0 0 1px var(--theme-accent, #b45309) !important;
 }
 
 /* 8. Warm Architectural Panels & Modals in Light Mode */
-[data-color-mode="light"] .liquid-glass-panel {
+[data-color-mode="light"] .liquid-glass-panel,
+[data-color-mode="light"] .glass-panel {
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
-  border-top: 1px solid rgba(217, 119, 6, 0.45) !important;
+  border-top: 1px solid var(--theme-border-accent, rgba(180, 83, 9, 0.45)) !important;
   box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.14) !important;
   border-radius: 4px !important;
   color: #090d16 !important;
@@ -1091,13 +1136,14 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 [data-color-mode="light"] .glass-dock-2026 {
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
-  border-bottom: 1px solid rgba(217, 119, 6, 0.3) !important;
+  border-bottom: 1px solid var(--theme-border-accent, rgba(180, 83, 9, 0.3)) !important;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
   border-radius: 4px !important;
   color: #090d16 !important;
 }
 
-[data-color-mode="light"] .liquid-glass-subtle {
+[data-color-mode="light"] .liquid-glass-subtle,
+[data-color-mode="light"] .glass-panel-subtle {
   background: #f1f5f9 !important;
   border: 1px solid #cbd5e1 !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
@@ -1106,7 +1152,8 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 /* 9. Warm Architectural Buttons in Light Mode */
-[data-color-mode="light"] .liquid-glass-btn {
+[data-color-mode="light"] .liquid-glass-btn,
+[data-color-mode="light"] .glass-pill {
   background: #f8fafc !important;
   border: 1px solid #cbd5e1 !important;
   border-top: 1px solid #94a3b8 !important;
@@ -1117,23 +1164,26 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   transition: all 0.15s ease !important;
 }
 
-[data-color-mode="light"] .liquid-glass-btn:hover {
+[data-color-mode="light"] .liquid-glass-btn:hover,
+[data-color-mode="light"] .glass-pill:hover {
   background: #f1f5f9 !important;
-  border-color: #d97706 !important;
+  border-color: var(--theme-accent, #b45309) !important;
   color: #0f172a !important;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1) !important;
   transform: translateY(-1px) !important;
 }
 
-[data-color-mode="light"] .liquid-glass-btn:active {
+[data-color-mode="light"] .liquid-glass-btn:active,
+[data-color-mode="light"] .glass-pill:active {
   transform: translateY(1px) scale(0.98) !important;
 }
 
-[data-color-mode="light"] .liquid-glass-btn-active {
-  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
-  color: #060913 !important;
-  border: 1px solid #b45309 !important;
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35) !important;
+[data-color-mode="light"] .liquid-glass-btn-active,
+[data-color-mode="light"] .glass-pill-active {
+  background: var(--theme-btn-active-bg, linear-gradient(180deg, #b45309 0%, #92400e 100%)) !important;
+  color: var(--theme-btn-active-text, #ffffff) !important;
+  border: 1px solid var(--theme-border-accent, #78350f) !important;
+  box-shadow: 0 2px 8px var(--theme-accent-glow, rgba(180, 83, 9, 0.35)) !important;
   border-radius: 4px !important;
   font-weight: 800 !important;
 }
@@ -1160,8 +1210,8 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 [data-color-mode="light"] select:focus,
 [data-color-mode="light"] textarea:focus,
 [data-color-mode="light"] .liquid-glass-input:focus {
-  border-color: #b45309 !important;
-  box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.2) !important;
+  border-color: var(--theme-accent, #b45309) !important;
+  box-shadow: 0 0 0 3px var(--theme-accent-glow, rgba(180, 83, 9, 0.2)) !important;
 }
 
 [data-color-mode="light"] select option {
@@ -1170,35 +1220,35 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 /* 11. Borders in Light Mode */
-[data-color-mode="light"] .border-white,
-[data-color-mode="light"] .border-white\/5,
-[data-color-mode="light"] .border-white\/10,
-[data-color-mode="light"] .border-white\/15,
-[data-color-mode="light"] .border-white\/20,
-[data-color-mode="light"] .border-white\/25,
-[data-color-mode="light"] .border-white\/30,
-[data-color-mode="light"] .border-white\/60,
-[data-color-mode="light"] .border-white\/\[0\.06\],
-[data-color-mode="light"] .border-white\/\[0\.07\],
-[data-color-mode="light"] .border-white\/\[0\.08\],
-[data-color-mode="light"] .border-white\/\[0\.09\],
-[data-color-mode="light"] .border-white\/\[0\.1\],
-[data-color-mode="light"] .border-white\/\[0\.12\] {
-  border-color: rgba(15, 23, 42, 0.12) !important;
+[data-color-mode="light"] .border-white:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/5:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/10:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/15:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/20:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/25:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/30:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/60:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/\[0\.06\]:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/\[0\.07\]:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/\[0\.08\]:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/\[0\.09\]:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/\[0\.1\]:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-white\/\[0\.12\]:not(.preserve-contrast):not(.preserve-contrast *) {
+  border-color: rgba(15, 23, 42, 0.14) !important;
 }
 
-[data-color-mode="light"] .border-amber-400,
-[data-color-mode="light"] .border-amber-400\/40,
-[data-color-mode="light"] .border-amber-400\/30,
-[data-color-mode="light"] .border-amber-500\/30,
-[data-color-mode="light"] .border-amber-500\/35 {
-  border-color: rgba(180, 83, 9, 0.35) !important;
+[data-color-mode="light"] .border-amber-400:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-amber-400\/40:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-amber-400\/30:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-amber-500\/30:not(.preserve-contrast):not(.preserve-contrast *),
+[data-color-mode="light"] .border-amber-500\/35:not(.preserve-contrast):not(.preserve-contrast *) {
+  border-color: var(--theme-border-accent, rgba(180, 83, 9, 0.38)) !important;
 }
 
 /* 12. Modal Backdrops */
-[data-color-mode="light"] .fixed.inset-0.bg-black\/85,
-[data-color-mode="light"] .fixed.inset-0.bg-black\/80,
-[data-color-mode="light"] .fixed.inset-0.bg-black\/75 {
+[data-color-mode="light"] .fixed.inset-0.bg-black\/85:not(.preserve-contrast),
+[data-color-mode="light"] .fixed.inset-0.bg-black\/80:not(.preserve-contrast),
+[data-color-mode="light"] .fixed.inset-0.bg-black\/75:not(.preserve-contrast) {
   background-color: rgba(15, 23, 42, 0.5) !important;
 }
 
@@ -1223,39 +1273,25 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 [data-color-mode="light"] #hero-section,
 [data-color-mode="light"] #hero-section .hero-title,
 [data-color-mode="light"] #hero-section .hero-subtitle,
-[data-color-mode="light"] #hero-section .hero-caption,
-[data-color-mode="light"] #journey-modal {
+[data-color-mode="light"] #hero-section .hero-caption {
   color: #ffffff !important;
-}
-
-[data-color-mode="light"] #journey-modal .journey-title {
-  color: #fde047 !important;
-}
-
-[data-color-mode="light"] #journey-modal .journey-summary {
-  color: #ffffff !important;
-}
-
-[data-color-mode="light"] #journey-modal .journey-year {
-  color: #fbbf24 !important;
-}
-
-[data-color-mode="light"] #journey-modal .journey-meta {
-  color: #cbd5e1 !important;
 }
 
 /* 15. Scrollbars in Light Mode */
-[data-color-mode="light"] ::-webkit-scrollbar-track {
-  background: #edeae2;
+[data-color-mode="light"] ::-webkit-scrollbar-track,
+[data-color-mode="light"] .custom-scrollbar::-webkit-scrollbar-track {
+  background: #e8e5dd;
 }
 
-[data-color-mode="light"] ::-webkit-scrollbar-thumb {
+[data-color-mode="light"] ::-webkit-scrollbar-thumb,
+[data-color-mode="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #94a3b8;
   border-radius: 9999px;
 }
 
-[data-color-mode="light"] ::-webkit-scrollbar-thumb:hover {
-  background: #b45309;
+[data-color-mode="light"] ::-webkit-scrollbar-thumb:hover,
+[data-color-mode="light"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-accent, #b45309);
 }
 
 /* 16. Knowledge Graph Spiderweb & Clean Static Connection Lines */

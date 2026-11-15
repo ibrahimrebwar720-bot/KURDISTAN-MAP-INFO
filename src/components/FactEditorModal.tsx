@@ -5,6 +5,7 @@ import {
   CategoryId,
   getUnifiedCategories,
   getCategoryInfo,
+  getAccessibleCategoryColor,
 } from '../types/history';
 import {
   X,
@@ -64,6 +65,7 @@ import {
   matchFactToProvince,
 } from '../data/kurdishProvincesData';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { translateFactToEnglishDetailed, formatTranslationError } from '../services/aiTranslationService';
 import { findDuplicateNotesOwnerForFact } from '../utils/factConsistency';
 
@@ -97,6 +99,8 @@ export const FactEditorModal: React.FC<Props> = ({
   translatedFactIds,
 }) => {
   const { language, isEn, dir } = useLanguage();
+  const { colorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const editableCategories = useMemo(
     () => getUnifiedCategories(language).filter((c) => c.id !== 'all'),
     [language]
@@ -1041,26 +1045,34 @@ export const FactEditorModal: React.FC<Props> = ({
   return (
     <div
       dir={dir}
-      className="fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xs animate-fade-in text-start fast-glass-modal"
+      className={`fixed inset-0 z-[1250] flex items-center justify-center p-3 sm:p-6 backdrop-blur-xs animate-fade-in text-start fast-glass-modal ${
+        isDark ? 'bg-black/90' : 'bg-slate-900/50'
+      }`}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl glass-dock-2026 rounded-3xl p-6 sm:p-8 shadow-[0_30px_90px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col text-slate-100 overflow-hidden animate-spatial-spring will-change-transform"
+        className={`relative w-full max-w-3xl rounded-3xl p-6 sm:p-8 max-h-[92vh] flex flex-col overflow-hidden animate-spatial-spring will-change-transform ${
+          isDark
+            ? 'glass-dock-2026 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.95)]'
+            : 'bg-white border border-slate-300 text-slate-900 shadow-2xl'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5 mb-3 shrink-0">
+        <div className={`flex items-center justify-between border-b pb-3.5 mb-3 shrink-0 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center shadow-md shrink-0">
+            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shadow-md shrink-0 ${
+              isDark ? 'bg-amber-500/15 border-amber-400/30 text-amber-400' : 'bg-amber-100 border-amber-300 text-amber-800'
+            }`}>
               {formMode === 'photo_only' ? (
-                <ImageIcon className="w-5 h-5 text-amber-400" />
+                <ImageIcon className="w-5 h-5" />
               ) : (
-                <Sparkles className="w-5 h-5 text-amber-400" />
+                <Sparkles className="w-5 h-5" />
               )}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide">
+                <h3 className={`text-sm sm:text-base font-extrabold font-heading tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {factToEdit
                     ? formMode === 'photo_only'
                       ? isEn
@@ -1078,7 +1090,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     : 'زیادکردنی بابەت و شوێنی نوێ'}
                 </h3>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 {formMode === 'photo_only'
                   ? isEn
                     ? 'Pin an archival photograph to the map with 4 quick fields: Image URL, Year, Location, and Caption'
@@ -1096,7 +1108,9 @@ export const FactEditorModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center liquid-glass-btn transition-colors cursor-pointer ${
+              isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+            }`}
             title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-5 h-5" />
@@ -1104,20 +1118,26 @@ export const FactEditorModal: React.FC<Props> = ({
         </div>
 
         {isEn && (
-          <div className="mb-3 px-3 py-2 rounded-xl bg-sky-500/10 border border-sky-400/25 text-sky-200 text-[11px] font-medium shrink-0">
+          <div className={`mb-3 px-3 py-2 rounded-xl border text-[11px] font-medium shrink-0 ${
+            isDark ? 'bg-sky-500/10 border-sky-400/25 text-sky-200' : 'bg-sky-50 border-sky-300 text-sky-900'
+          }`}>
             Central Kurdish (ckb) is the master knowledge base. Edits made here refine only the English edition without altering the Kurdish source.
           </div>
         )}
 
         {/* Form Mode Selector */}
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] mb-4 shrink-0">
+        <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border mb-4 shrink-0 ${
+          isDark ? 'bg-white/[0.04] border-white/[0.08]' : 'bg-slate-100 border-slate-200'
+        }`}>
           <button
             type="button"
             onClick={() => setFormMode('photo_only')}
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
               formMode === 'photo_only'
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/25'
-                : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                ? 'preserve-contrast bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-md'
+                : isDark
+                ? 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-white'
             }`}
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
@@ -1130,8 +1150,10 @@ export const FactEditorModal: React.FC<Props> = ({
             onClick={() => setFormMode('standard')}
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
               formMode === 'standard'
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/25'
-                : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                ? 'preserve-contrast bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-md'
+                : isDark
+                ? 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-white'
             }`}
           >
             <FileText className="w-4 h-4 shrink-0" />
@@ -1144,15 +1166,19 @@ export const FactEditorModal: React.FC<Props> = ({
           {formMode === 'photo_only' ? (
             <div className="space-y-4 animate-fade-in">
               {/* Guidance Banner */}
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/20 flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 mt-0.5">
+              <div className={`p-3 rounded-2xl border flex items-start gap-2.5 ${
+                isDark ? 'bg-amber-500/10 border-amber-400/20' : 'bg-amber-50 border-amber-300'
+              }`}>
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                  isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-200/70 text-amber-800'
+                }`}>
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div className="text-start">
-                  <h4 className="text-xs font-bold text-amber-300">
+                  <h4 className={`text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
                     {isEn ? 'Quick Historical Photograph Form' : 'فۆڕمی خێرا و سەربەخۆی وێنەی مێژوویی'}
                   </h4>
-                  <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                  <p className={`text-[11px] mt-0.5 leading-relaxed ${isDark ? 'text-slate-300' : 'text-amber-900/85'}`}>
                     {isEn
                       ? 'Fill in these 4 fields to display an archival photograph immediately on the map and photo strip.'
                       : 'تەنها بە پڕکردنەوەی ئەم ٤ خانەیە، وێنە مێژووییەکە لەسەر نەخشەی وێنەیی و شریتەکەی خوارەوە بە خێرایی پیشان دەدرێت.'}
@@ -1162,24 +1188,24 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* 1. Image Link / URL */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                    <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       01
                     </span>
-                    <ImageIcon className="w-4 h-4 text-amber-400" />
+                    <ImageIcon className="w-4 h-4" />
                     <span>{isEn ? 'Photo URL (Historical Image Link)' : 'لینکی وێنە (بەستەری وێنەی مێژوویی)'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">{isEn ? 'Primary URL' : 'بەستەری سەرەکی'}</span>
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{isEn ? 'Primary URL' : 'بەستەری سەرەکی'}</span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                    {isEn ? 'Image URL' : 'بەستەری وێنە (Image URL)'} <span className="text-amber-400">*</span>
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    {isEn ? 'Image URL' : 'بەستەری وێنە (Image URL)'} <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <LinkIcon className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <LinkIcon className={`w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                       <input
                         type="url"
                         value={imageUrl}
@@ -1190,13 +1216,17 @@ export const FactEditorModal: React.FC<Props> = ({
                             : 'https://... لینکی ڕاستەوخۆی وێنە لێرە دابنێ'
                         }
                         dir="ltr"
-                        className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs pr-10 pl-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-mono"
+                        className={`w-full text-xs pr-10 pl-9 py-2.5 rounded-xl border focus:border-amber-500 focus:outline-none transition-all font-mono ${
+                          isDark
+                            ? 'bg-black/40 text-slate-100 placeholder:text-slate-500 border-white/10'
+                            : 'bg-slate-50 text-slate-900 placeholder:text-slate-500 border-slate-300'
+                        }`}
                       />
                       {imageUrl && (
                         <button
                           type="button"
                           onClick={() => setImageUrl('')}
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer"
+                          className={`absolute left-2.5 top-1/2 -translate-y-1/2 p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                           title={isEn ? 'Clear' : 'سڕینەوە'}
                         >
                           <X className="w-3.5 h-3.5" />
@@ -1207,7 +1237,9 @@ export const FactEditorModal: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={handlePasteClipboard}
-                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl liquid-glass-btn hover:border-amber-400/50 text-slate-200 hover:text-amber-300 text-xs font-semibold shrink-0 cursor-pointer transition-all"
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl liquid-glass-btn text-xs font-semibold shrink-0 cursor-pointer transition-all ${
+                        isDark ? 'text-slate-200 hover:text-amber-300' : 'text-slate-800 hover:text-amber-800'
+                      }`}
                       title={isEn ? 'Paste from clipboard' : 'پەیستکردن لە کلیپبۆرد'}
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -1216,8 +1248,10 @@ export const FactEditorModal: React.FC<Props> = ({
                   </div>
 
                   {imageLoadError && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-rose-950/50 border border-rose-800/60 text-rose-200 text-xs flex items-center gap-2 animate-fade-in">
-                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <div className={`mt-2 p-2.5 rounded-xl border text-xs flex items-center gap-2 animate-fade-in ${
+                      isDark ? 'bg-rose-950/50 border-rose-800/60 text-rose-200' : 'bg-rose-50 border-rose-300 text-rose-800'
+                    }`}>
+                      <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
                       <span>{imageLoadError}</span>
                     </div>
                   )}
@@ -1225,7 +1259,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
                 {/* Real-time Image Preview Frame */}
                 {imageUrl ? (
-                  <div className="rounded-2xl overflow-hidden border border-white/15 bg-black/70 p-2.5 flex flex-col items-center justify-center gap-2">
+                  <div className="preserve-contrast rounded-2xl overflow-hidden border border-white/15 bg-black/85 p-2.5 flex flex-col items-center justify-center gap-2">
                     <div className="w-full max-h-72 overflow-hidden rounded-xl flex items-center justify-center bg-black/90">
                       <img
                         src={imageUrl}
@@ -1240,25 +1274,27 @@ export const FactEditorModal: React.FC<Props> = ({
                         }
                       />
                     </div>
-                    <div className="flex items-center justify-between w-full px-2 text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between w-full px-2 text-[11px] text-slate-300">
                       <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
                         <Check className="w-3.5 h-3.5" />
                         <span>{isEn ? 'Image preview ready' : 'پێشبینینی وێنە ئامادەیە'}</span>
                       </div>
                       {linkInfo && (
-                        <span className="font-mono text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                        <span className="font-mono text-[10px] text-slate-300 bg-white/10 px-2 py-0.5 rounded-md border border-white/10">
                           {linkInfo.label}
                         </span>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex flex-col items-center justify-center text-center gap-1.5 text-slate-400">
-                    <ImageIcon className="w-7 h-7 text-slate-500 mb-1" />
-                    <span className="text-xs font-medium text-slate-300">
+                  <div className={`p-4 rounded-xl border border-dashed flex flex-col items-center justify-center text-center gap-1.5 ${
+                    isDark ? 'border-white/15 bg-white/[0.02] text-slate-400' : 'border-slate-300 bg-slate-50 text-slate-600'
+                  }`}>
+                    <ImageIcon className={`w-7 h-7 mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                    <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {isEn ? 'No image URL entered yet' : 'هیچ بەستەرێکی وێنە دانەنراوە'}
                     </span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
                       {isEn
                         ? 'Paste any direct image link from Wikimedia Commons, ImgBB, or the web.'
                         : 'دەتوانیت هەر لینکێکی وێنە لە ویکیپیدیا، ئیمگەر یان وێب لێرە دابنێیت.'}
@@ -1269,23 +1305,23 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* 2. Year & Date */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                    <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       02
                     </span>
-                    <Calendar className="w-4 h-4 text-amber-400" />
+                    <Calendar className="w-4 h-4" />
                     <span>{isEn ? 'Year & Date' : 'ساڵ و ڕێکەوت'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {isEn ? 'Historical date of the photograph' : 'کاتی وێنە لە مێژوودا'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                   <div>
-                    <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                      {isEn ? 'Year' : 'ساڵ'} <span className="text-amber-400">*</span>
+                    <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      {isEn ? 'Year' : 'ساڵ'} <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                     </label>
                     <input
                       type="text"
@@ -1296,22 +1332,28 @@ export const FactEditorModal: React.FC<Props> = ({
                       }}
                       placeholder={isEn ? 'e.g., 1920 or 1187' : 'بۆ نموونە: 1920 یان 1187'}
                       dir="ltr"
-                      className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-mono font-bold"
+                      className={`w-full text-xs px-3.5 py-2.5 rounded-xl border focus:border-amber-500 focus:outline-none transition-all font-mono font-bold ${
+                        isDark
+                          ? 'bg-black/40 text-slate-100 placeholder:text-slate-500 border-white/10'
+                          : 'bg-slate-50 text-slate-900 placeholder:text-slate-500 border-slate-300'
+                      }`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                       {isEn ? 'Era (CE / BCE)' : 'سەردەم (زایینی / پێش زایین)'}
                     </label>
-                    <div className="grid grid-cols-2 gap-2 bg-black/40 p-1 rounded-xl border border-white/10">
+                    <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border ${
+                      isDark ? 'bg-black/40 border-white/10' : 'bg-slate-100 border-slate-200'
+                    }`}>
                       <button
                         type="button"
                         onClick={() => setStartEra('AD')}
                         className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           startEra === 'AD'
-                            ? 'bg-amber-500 text-black shadow-sm'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? 'preserve-contrast bg-amber-600 text-white shadow-sm'
+                            : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         {isEn ? 'CE (AD)' : 'زایینی (ز)'}
@@ -1321,8 +1363,8 @@ export const FactEditorModal: React.FC<Props> = ({
                         onClick={() => setStartEra('BC')}
                         className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           startEra === 'BC'
-                            ? 'bg-amber-500 text-black shadow-sm'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? 'preserve-contrast bg-amber-600 text-white shadow-sm'
+                            : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         {isEn ? 'BCE (BC)' : 'پێش زایین (پ.ز)'}
@@ -1332,17 +1374,21 @@ export const FactEditorModal: React.FC<Props> = ({
                 </div>
 
                 {previewTimeSpan && (
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-amber-300">
-                    <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <div className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs ${
+                    isDark ? 'bg-white/[0.03] border-white/10 text-amber-300' : 'bg-amber-50 border-amber-300 text-amber-900'
+                  }`}>
+                    <Clock className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span className="font-semibold">{previewTimeSpan.label}</span>
-                    <span className="text-slate-500">·</span>
-                    <span className="text-slate-300">{previewTimeSpan.subLabel}</span>
+                    <span className={isDark ? 'text-slate-500' : 'text-amber-700/60'}>·</span>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{previewTimeSpan.subLabel}</span>
                   </div>
                 )}
 
                 {yearError && (
-                  <div className="p-2.5 rounded-xl bg-rose-950/50 border border-rose-800/60 text-rose-200 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <div className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
+                    isDark ? 'bg-rose-950/50 border-rose-800/60 text-rose-200' : 'bg-rose-50 border-rose-300 text-rose-800'
+                  }`}>
+                    <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
                     <span>{yearError}</span>
                   </div>
                 )}
@@ -1350,26 +1396,26 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* 3. Location on Map */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                    <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       03
                     </span>
-                    <MapPin className="w-4 h-4 text-amber-400" />
+                    <MapPin className="w-4 h-4" />
                     <span>{isEn ? 'Location on Map' : 'شوێن لەسەر نەخشە'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {isEn ? 'Pinpoint coordinates' : 'دیاریکردنی خاڵ'}
                   </span>
                 </div>
 
                 {/* Place Search */}
                 <div className="relative">
-                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                     {isEn ? 'Search City or Place (Google Places)' : 'گەڕان بۆ شوێن یان شار (Google Places)'}
                   </label>
                   <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <Search className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                     <input
                       type="text"
                       value={placeSearchQuery}
@@ -1379,27 +1425,35 @@ export const FactEditorModal: React.FC<Props> = ({
                           ? 'e.g., Erbil Citadel, Sulaymaniyah, Amed, Mahabad, Zakho, Kermanshah...'
                           : 'بۆ نموونە: قەڵای هەولێر، سلێمانی، ئامەد، مەهاباد، زاخۆ، کرماشان...'
                       }
-                      className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs ps-10 pe-9 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all"
+                      className={`w-full text-xs ps-10 pe-9 py-2.5 rounded-xl border focus:border-amber-500 focus:outline-none transition-all ${
+                        isDark
+                          ? 'bg-black/40 text-slate-100 placeholder:text-slate-500 border-white/10'
+                          : 'bg-slate-50 text-slate-900 placeholder:text-slate-500 border-slate-300'
+                      }`}
                     />
                     {isSearchingPlaces && (
-                      <Loader2 className="w-4 h-4 text-amber-400 absolute end-3 top-1/2 -translate-y-1/2 animate-spin pointer-events-none" />
+                      <Loader2 className={`w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 animate-spin pointer-events-none ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     )}
                   </div>
 
                   {placeSearchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-30 max-h-48 overflow-y-auto rounded-xl bg-[#0b0f19] border border-white/15 shadow-2xl p-1 space-y-1">
+                    <div className={`absolute top-full left-0 right-0 mt-1 z-30 max-h-48 overflow-y-auto rounded-xl border shadow-2xl p-1 space-y-1 ${
+                      isDark ? 'bg-[#0b0f19] border-white/15' : 'bg-white border-slate-300'
+                    }`}>
                       {placeSearchResults.map((place, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => handleSelectSearchedPlace(place)}
-                          className="w-full text-start px-3 py-2 rounded-lg hover:bg-white/10 flex items-center justify-between text-xs text-slate-200 transition-colors cursor-pointer"
+                          className={`w-full text-start px-3 py-2 rounded-lg flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                            isDark ? 'hover:bg-white/10 text-slate-200' : 'hover:bg-slate-100 text-slate-800'
+                          }`}
                         >
                           <div>
-                            <div className="font-bold text-white">{place.name}</div>
-                            <div className="text-[10px] text-slate-400">{place.formattedAddress}</div>
+                            <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{place.name}</div>
+                            <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{place.formattedAddress}</div>
                           </div>
-                          <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <MapPin className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                         </button>
                       ))}
                     </div>
@@ -1407,13 +1461,19 @@ export const FactEditorModal: React.FC<Props> = ({
                 </div>
 
                 {/* Current Coords Display + Pick on Map Action */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-xl border ${
+                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
+                }`}>
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hasLocationPicked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-slate-400'}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      hasLocationPicked
+                        ? (isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                        : (isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-200 text-slate-600')
+                    }`}>
                       <MapPin className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">
+                      <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {selectedPlaceName
                           ? selectedPlaceName
                           : hasLocationPicked
@@ -1424,7 +1484,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           ? 'Location Not Selected'
                           : 'شوێن دیاری نەکراوە'}
                       </div>
-                      <div className="text-[10px] font-mono text-slate-400" dir="ltr">
+                      <div className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`} dir="ltr">
                         {isEn ? 'Coords:' : 'پۆوتانەکان:'} {lat.toFixed(4)}, {lng.toFixed(4)}
                       </div>
                     </div>
@@ -1433,7 +1493,11 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={onStartPickLocation}
-                    className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                    className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl border font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
+                      isDark
+                        ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-400/40 text-amber-300'
+                        : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
+                    }`}
                   >
                     <Crosshair className="w-3.5 h-3.5" />
                     <span>{isEn ? 'Pick on Map Manually' : 'دیاریکردن بە دەست لەسەر نەخشە'}</span>
@@ -1443,23 +1507,23 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* 4. Photo Information & Caption */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                    <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       04
                     </span>
-                    <Info className="w-4 h-4 text-amber-400" />
+                    <Info className="w-4 h-4" />
                     <span>{isEn ? 'Photograph Details' : 'زانیاری لەسەر وێنە'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {isEn ? 'Historical note & description' : 'تێبینی و وەسفی مێژوویی'}
                   </span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                     {isEn ? 'Photo Title (Short Heading)' : 'ناونیشانی وێنە (ناوی کورت یان سەردێڕ)'}{' '}
-                    <span className="text-amber-400">*</span>
+                    <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1470,14 +1534,18 @@ export const FactEditorModal: React.FC<Props> = ({
                         ? 'e.g., Sheikh Mahmud Barzanji, Dimdim Citadel, Old Sulaymaniyah...'
                         : 'بۆ نموونە: وێنەی شێخ مەحمودی حەفید، قەڵای دمدم، دیمەنی کۆنی سلێمانی...'
                     }
-                    className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all font-semibold"
+                    className={`w-full text-xs px-3.5 py-2.5 rounded-xl border focus:border-amber-500 focus:outline-none transition-all font-semibold ${
+                      isDark
+                        ? 'bg-black/40 text-slate-100 placeholder:text-slate-500 border-white/10'
+                        : 'bg-slate-50 text-slate-900 placeholder:text-slate-500 border-slate-300'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                     {isEn ? 'Full Description & Context' : 'زانیاری و وەسفی تەواوی وێنە'}{' '}
-                    <span className="text-amber-400">*</span>
+                    <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                   </label>
                   <textarea
                     rows={4}
@@ -1493,7 +1561,11 @@ export const FactEditorModal: React.FC<Props> = ({
                         ? 'Describe where this photograph was taken, who appears in it, its date, and historical significance...'
                         : 'زانیاری لەسەر ئەم وێنەیە، لە کوێ گیراوە، کێ تێیدایە، کات و سەردەم، و گرنگییە مێژوویییەکەی بنووسە...'
                     }
-                    className="w-full bg-black/40 text-slate-100 placeholder:text-slate-500 text-xs p-3.5 rounded-xl border border-white/10 focus:border-amber-400 focus:outline-none transition-all resize-y leading-relaxed"
+                    className={`w-full text-xs p-3.5 rounded-xl border focus:border-amber-500 focus:outline-none transition-all resize-y leading-relaxed ${
+                      isDark
+                        ? 'bg-black/40 text-slate-100 placeholder:text-slate-500 border-white/10'
+                        : 'bg-slate-50 text-slate-900 placeholder:text-slate-500 border-slate-300'
+                    }`}
                   />
                 </div>
               </div>
@@ -1502,23 +1574,23 @@ export const FactEditorModal: React.FC<Props> = ({
             <>
               {/* SECTION 1: Basic Information & Classification */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                    <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       01
                     </span>
                     <span>{isEn ? 'Entry Title & Classification' : 'ناونیشان و پۆلێنبەندی بابەت'}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {isEn ? 'Core Information' : 'زانیارییە سەرەکییەکان'}
                   </span>
                 </div>
 
                 {/* Name Field */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                     {isEn ? 'Polity / Figure / Site Name' : 'ناوی دەسەڵات / کەسایەتی / شوێن'}{' '}
-                    <span className="text-amber-400">*</span>
+                    <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                   </label>
                   <input
                     type="text"
@@ -1530,20 +1602,22 @@ export const FactEditorModal: React.FC<Props> = ({
                         ? 'e.g., Principality of Baban, Sharafkhan Bidlisi, Erbil Citadel...'
                         : 'بۆ نموونە: ئەتابەگ نەسرەدین ئەحمەد، قەڵای شێروانە، دەوڵەتی زەند، شەرەفخانی بەدلیسی...'
                     }
-                    className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold placeholder:text-slate-500"
+                    className={`w-full liquid-glass-input px-3.5 py-2.5 rounded-xl text-sm font-semibold ${
+                      isDark ? 'text-white placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-500'
+                    }`}
                   />
                 </div>
 
                 {/* Unified Category Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-200 mb-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-amber-300">
-                      <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  <label className={`block text-xs font-bold mb-2 flex items-center justify-between ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    <span className={`flex items-center gap-1.5 ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                      <Layers className="w-3.5 h-3.5" />
                       <span>
-                        {isEn ? 'Category' : 'پۆلێنی بابەت'} <span className="text-amber-400">*</span>
+                        {isEn ? 'Category' : 'پۆلێنی بابەت'} <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                       </span>
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       {isEn
                         ? `Select 1 of ${editableCategories.length} categories`
                         : `یەکێک لە ${formatDigits(editableCategories.length, language)} پۆلێنە سەرەکییەکە هەڵبژێرە`}
@@ -1553,6 +1627,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {editableCategories.map((cat) => {
                       const isSelected = selectedCategory === cat.id;
+                      const accessibleDot = getAccessibleCategoryColor(cat.color, isDark);
                       return (
                         <button
                           key={cat.id}
@@ -1561,12 +1636,14 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                             isSelected
                               ? 'liquid-glass-btn-active font-extrabold shadow-md scale-[1.02]'
-                              : 'liquid-glass-btn text-slate-300 hover:text-white'
+                              : isDark
+                              ? 'liquid-glass-btn text-slate-300 hover:text-white'
+                              : 'liquid-glass-btn text-slate-800 hover:text-slate-950'
                           }`}
                         >
                           <span
                             className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: isSelected ? '#000000' : cat.color }}
+                            style={{ backgroundColor: isSelected ? 'currentColor' : accessibleDot }}
                           />
                           <span className="truncate">{cat.name}</span>
                         </button>
@@ -1578,9 +1655,9 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* SECTION 2: Geographic Location & Google Maps */}
               <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                    <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       02
                     </span>
                     <span>
@@ -1590,7 +1667,9 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setShowManualCoords(!showManualCoords)}
-                    className="text-[11px] text-amber-400/90 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-medium"
+                    className={`text-[11px] flex items-center gap-1 cursor-pointer font-medium ${
+                      isDark ? 'text-amber-400/90 hover:text-amber-300' : 'text-amber-800 hover:text-amber-950'
+                    }`}
                   >
                     <Sliders className="w-3.5 h-3.5" />
                     <span>
@@ -1607,7 +1686,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
                 {/* Region / Geographic description */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                     {isEn ? 'Geographic Location / City, Region or Country' : 'پێگەی جوگرافی / شار، ناوچە یان وڵات'}
                   </label>
                   <input
@@ -1619,15 +1698,17 @@ export const FactEditorModal: React.FC<Props> = ({
                         ? 'e.g., Sulaymaniyah, Urmia, Amed (Diyarbakir), Cizre, Erbil...'
                         : 'بۆ نموونە: ئیزە و ئەسفەهان (لوڕی گەورە)، سلێمانی، ورمێ، ئامەد، جزیرە، هەولێر...'
                     }
-                    className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
+                    className={`w-full liquid-glass-input px-3.5 py-2.5 rounded-xl text-xs ${
+                      isDark ? 'text-white placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-500'
+                    }`}
                   />
                 </div>
 
                 {/* Google Maps Search Bar + Direct Map Picker */}
                 <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      <Search className="w-4 h-4 text-amber-400" />
+                    <span className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      <Search className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                       <span>
                         {isEn ? 'Search Google Maps for instant placement:' : 'گەڕان لە گۆگڵ ماپ بۆ دۆزینەوەی دەستبەجێ:'}
                       </span>
@@ -1636,9 +1717,11 @@ export const FactEditorModal: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={onStartPickLocation}
-                      className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                      className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl liquid-glass-btn font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 ${
+                        isDark ? 'text-amber-300' : 'text-amber-900'
+                      }`}
                     >
-                      <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                      <Crosshair className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                       <span>
                         {hasLocationPicked
                           ? isEn
@@ -1662,11 +1745,13 @@ export const FactEditorModal: React.FC<Props> = ({
                           ? 'Type any city, fortress, town, archaeological site, or village (e.g., Sulaymaniyah, Rawanduz, Bitlis...)'
                           : 'ناوی هەر شار، قەڵا، شارۆچکە، شوێنەوار یان گوند بنووسە (بۆ نموونە: سلێمانی، ڕواندز، قەڵای دمدم، بەدلیس، ئامێدی...)'
                       }
-                      className="w-full liquid-glass-input text-white pe-9 ps-3.5 py-2.5 rounded-xl text-xs placeholder:text-slate-500"
+                      className={`w-full liquid-glass-input pe-9 ps-3.5 py-2.5 rounded-xl text-xs ${
+                        isDark ? 'text-white placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-500'
+                      }`}
                     />
                     <div className="absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       {isSearchingPlaces ? (
-                        <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                        <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                       ) : placeSearchQuery ? (
                         <button
                           type="button"
@@ -1674,24 +1759,28 @@ export const FactEditorModal: React.FC<Props> = ({
                             setPlaceSearchQuery('');
                             setPlaceSearchResults([]);
                           }}
-                          className="text-slate-400 hover:text-white cursor-pointer"
+                          className={`cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                         >
                           <X className="w-4 h-4" />
                         </button>
                       ) : (
-                        <Search className="w-4 h-4 text-slate-500" />
+                        <Search className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                       )}
                     </div>
                   </div>
 
                   {/* Search Results Dropdown List */}
                   {placeSearchResults.length > 0 && (
-                    <div className="liquid-glass-card rounded-2xl overflow-hidden shadow-2xl divide-y divide-white/10 max-h-56 overflow-y-auto animate-fade-in">
-                      <div className="p-2 liquid-glass-subtle text-[10px] text-amber-300 font-bold flex items-center justify-between px-3">
+                    <div className={`rounded-2xl overflow-hidden shadow-2xl divide-y max-h-56 overflow-y-auto animate-fade-in border ${
+                      isDark ? 'liquid-glass-card divide-white/10 border-white/15' : 'bg-white divide-slate-200 border-slate-300'
+                    }`}>
+                      <div className={`p-2 text-[10px] font-bold flex items-center justify-between px-3 ${
+                        isDark ? 'liquid-glass-subtle text-amber-300' : 'bg-amber-50 text-amber-900'
+                      }`}>
                         <span>
                           {isEn ? 'Click a place to select it immediately:' : 'کلیک لە ناوی شوێنەکە بکە بۆ دیاریکردنی دەستبەجێ:'}
                         </span>
-                        <span className="font-mono text-slate-400">
+                        <span className={`font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                           {formatDigits(placeSearchResults.length, language)} {isEn ? 'results' : 'ئەنجام'}
                         </span>
                       </div>
@@ -1700,21 +1789,25 @@ export const FactEditorModal: React.FC<Props> = ({
                           key={place.id}
                           type="button"
                           onClick={() => handleSelectSearchedPlace(place)}
-                          className="w-full text-start p-3 hover:liquid-glass-btn transition-colors flex items-start gap-3 cursor-pointer group"
+                          className={`w-full text-start p-3 transition-colors flex items-start gap-3 cursor-pointer group ${
+                            isDark ? 'hover:bg-white/10' : 'hover:bg-slate-50'
+                          }`}
                         >
-                          <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:scale-125 transition-transform" />
+                          <MapPin className={`w-4 h-4 shrink-0 mt-0.5 group-hover:scale-125 transition-transform ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-white group-hover:text-amber-300 truncate">
+                            <div className={`text-xs font-bold truncate ${isDark ? 'text-white group-hover:text-amber-300' : 'text-slate-900 group-hover:text-amber-800'}`}>
                               {place.name}
                             </div>
-                            <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                            <div className={`text-[11px] truncate mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                               {place.formattedAddress}
                             </div>
-                            <div className="text-[10px] font-mono text-amber-400/80 mt-0.5" dir="ltr">
+                            <div className={`text-[10px] font-mono mt-0.5 ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`} dir="ltr">
                               {place.lat.toFixed(4)}° N, {place.lng.toFixed(4)}° E
                             </div>
                           </div>
-                          <span className="text-[10px] px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 shrink-0 font-bold group-hover:liquid-glass-btn-active group-hover:text-black transition-colors">
+                          <span className={`text-[10px] px-2.5 py-1 rounded-lg liquid-glass-btn shrink-0 font-bold group-hover:liquid-glass-btn-active transition-colors ${
+                            isDark ? 'text-amber-300' : 'text-amber-900'
+                          }`}>
                             {isEn ? 'Select' : 'دەستنیشانکردن'}
                           </span>
                         </button>
@@ -1725,12 +1818,14 @@ export const FactEditorModal: React.FC<Props> = ({
                   {/* Visual Confirmation Badge */}
                   <div className="flex items-center justify-between p-3 rounded-xl liquid-glass-subtle text-xs">
                     {hasLocationPicked ? (
-                      <div className="flex items-center gap-2.5 text-emerald-400 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <div className={`flex items-center gap-2.5 min-w-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
+                          isDark ? 'bg-emerald-500/15 border-emerald-500/40' : 'bg-emerald-100 border-emerald-300'
+                        }`}>
+                          <Check className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <span className="font-bold text-slate-100 truncate block">
+                          <span className={`font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                             {selectedPlaceName
                               ? isEn
                                 ? `Selected: ${selectedPlaceName}`
@@ -1739,15 +1834,17 @@ export const FactEditorModal: React.FC<Props> = ({
                               ? 'Location coordinates set.'
                               : 'شوێنی ئەم دەسەڵاتە دیاریکراوە.'}
                           </span>
-                          <span className="text-[11px] font-mono text-amber-300" dir="ltr">
+                          <span className={`text-[11px] font-mono ${isDark ? 'text-amber-300' : 'text-amber-800'}`} dir="ltr">
                             {isEn ? 'Coords:' : 'پۆوتان:'} {lat.toFixed(4)}° N, {lng.toFixed(4)}° E
                           </span>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-amber-300 text-xs">
-                        <div className="w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
-                          <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                      <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
+                          isDark ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' : 'bg-amber-100 border-amber-300 text-amber-800'
+                        }`}>
+                          <MapPin className="w-3.5 h-3.5" />
                         </div>
                         <span>
                           {isEn
@@ -1760,9 +1857,9 @@ export const FactEditorModal: React.FC<Props> = ({
 
                   {/* Optional Manual GPS Coordinates fields */}
                   {showManualCoords && (
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800 animate-fade-in">
+                    <div className={`grid grid-cols-2 gap-3 pt-2 border-t animate-fade-in ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                        <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                           {isEn ? 'Latitude' : 'هێڵی پانی (Latitude)'}
                         </label>
                         <input
@@ -1774,11 +1871,13 @@ export const FactEditorModal: React.FC<Props> = ({
                             setHasLocationPicked(true);
                           }}
                           dir="ltr"
-                          className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
+                          className={`w-full px-3 py-1.5 rounded-lg border font-mono text-xs focus:border-amber-500 focus:outline-none ${
+                            isDark ? 'bg-[#050812] text-white border-slate-700' : 'bg-white text-slate-900 border-slate-300'
+                          }`}
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                        <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                           {isEn ? 'Longitude' : 'هێڵی درێژی (Longitude)'}
                         </label>
                         <input
@@ -1790,17 +1889,19 @@ export const FactEditorModal: React.FC<Props> = ({
                             setHasLocationPicked(true);
                           }}
                           dir="ltr"
-                          className="w-full bg-[#050812] text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono text-xs focus:border-amber-400 focus:outline-none"
+                          className={`w-full px-3 py-1.5 rounded-lg border font-mono text-xs focus:border-amber-500 focus:outline-none ${
+                            isDark ? 'bg-[#050812] text-white border-slate-700' : 'bg-white text-slate-900 border-slate-300'
+                          }`}
                         />
                       </div>
                     </div>
                   )}
 
                   {/* Province Classification & Google Boundary Verification */}
-                  <div className="pt-2.5 border-t border-white/10 space-y-2">
+                  <div className={`pt-2.5 border-t space-y-2 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-                        <Compass className="w-3.5 h-3.5 text-amber-400" />
+                      <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                        <Compass className="w-3.5 h-3.5" />
                         <span>
                           {isEn
                             ? 'Province Classification (Boundaries & Google Data):'
@@ -1812,7 +1913,11 @@ export const FactEditorModal: React.FC<Props> = ({
                         type="button"
                         onClick={() => resolveProvinceFromCoords(lat, lng, true)}
                         disabled={isResolvingProvince}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-[11px] font-bold cursor-pointer transition-all disabled:opacity-50"
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all disabled:opacity-50 ${
+                          isDark
+                            ? 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-300'
+                            : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
+                        }`}
                       >
                         {isResolvingProvince ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -1832,7 +1937,9 @@ export const FactEditorModal: React.FC<Props> = ({
                           const found = KURDISTAN_PROVINCES.find((p) => p.id === val);
                           if (found) setRegionName(isEn ? found.nameEn || found.name : found.name);
                         }}
-                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0b101d] text-slate-100 text-xs font-bold focus:border-amber-400 focus:outline-none"
+                        className={`w-full px-3 py-2 rounded-lg border text-xs font-bold focus:border-amber-500 focus:outline-none ${
+                          isDark ? 'border-white/10 bg-[#0b101d] text-slate-100' : 'border-slate-300 bg-white text-slate-900'
+                        }`}
                       >
                         <option value="">
                           {isEn ? 'Auto-detect on Map' : 'دیاریکردنی خۆکار لەسەر نەخشە'}
@@ -1882,12 +1989,16 @@ export const FactEditorModal: React.FC<Props> = ({
                             ? 'Province or region name (e.g., Erbil, Baghdad)'
                             : 'ناوی پارێزگا یان هەرێم (بۆ نموونە: هەولێر، بەغدا)'
                         }
-                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0b101d] text-slate-100 text-xs placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                        className={`w-full px-3 py-2 rounded-lg border text-xs focus:border-amber-500 focus:outline-none ${
+                          isDark ? 'border-white/10 bg-[#0b101d] text-slate-100 placeholder:text-slate-500' : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-500'
+                        }`}
                       />
                     </div>
 
                     {googleAdminSummary && (
-                      <div className="text-[10px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg px-2.5 py-1.5 font-mono flex items-center gap-1.5">
+                      <div className={`text-[10px] border rounded-lg px-2.5 py-1.5 font-mono flex items-center gap-1.5 ${
+                        isDark ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25' : 'text-emerald-800 bg-emerald-50 border-emerald-300'
+                      }`}>
                         <Check className="w-3 h-3 shrink-0" />
                         <span className="truncate">{googleAdminSummary}</span>
                       </div>
@@ -1898,9 +2009,9 @@ export const FactEditorModal: React.FC<Props> = ({
 
           {/* SECTION 3: ساڵنامە و تایملاین (Timeline & Eras - ساڵ یان سەدە) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/10">
-              <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+            <div className={`flex flex-wrap items-center justify-between gap-2 pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                   03
                 </span>
                 <span>
@@ -1911,7 +2022,7 @@ export const FactEditorModal: React.FC<Props> = ({
               </span>
 
               {previewTimeSpan?.isCrossEra && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold liquid-glass-btn-active text-black shadow-sm animate-pulse">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold liquid-glass-btn-active shadow-sm animate-pulse">
                   {isEn ? 'Cross-Era (BCE ⟷ CE)' : 'نێوان پێش و دوای زایین (پ.ز ⟷ ز)'}
                 </span>
               )}
@@ -1919,7 +2030,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
             {/* Mode Selector Segmented Tabs: ٤ بژاردەی سەرەکی بە شێوازی Liquid Glass */}
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-amber-200/90">
+              <label className={`block text-[11px] font-bold ${isDark ? 'text-amber-200/90' : 'text-amber-900'}`}>
                 {isEn ? 'Select Date Format Mode:' : 'شێوازی دیاریکردنی کات هەڵبژێرە:'}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl liquid-glass-subtle">
@@ -1931,8 +2042,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   }}
                   className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     timeMode === 'single_year'
-                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
-                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                      ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                      : `liquid-glass-btn ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'}`
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -1947,8 +2058,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   }}
                   className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     timeMode === 'year_range'
-                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
-                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                      ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                      : `liquid-glass-btn ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'}`
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5 shrink-0" />
@@ -1963,8 +2074,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   }}
                   className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     timeMode === 'single_century'
-                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
-                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                      ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                      : `liquid-glass-btn ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'}`
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5 shrink-0" />
@@ -1979,8 +2090,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   }}
                   className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     timeMode === 'century_range'
-                      ? 'liquid-glass-btn-active text-black font-extrabold shadow-sm'
-                      : 'liquid-glass-btn text-slate-300 hover:text-white'
+                      ? 'liquid-glass-btn-active font-extrabold shadow-sm'
+                      : `liquid-glass-btn ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'}`
                   }`}
                 >
                   <Sliders className="w-3.5 h-3.5 shrink-0" />
@@ -1991,8 +2102,10 @@ export const FactEditorModal: React.FC<Props> = ({
 
             {/* Error Message */}
             {yearError && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/80 border border-rose-500/80 text-rose-200 text-xs font-medium">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-medium ${
+                isDark ? 'bg-rose-950/80 border-rose-500/80 text-rose-200' : 'bg-rose-50 border-rose-300 text-rose-900'
+              }`}>
+                <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-600'}`} />
                 <span>{yearError}</span>
               </div>
             )}
@@ -2001,8 +2114,8 @@ export const FactEditorModal: React.FC<Props> = ({
             {timeMode === 'single_year' && (
               <div className="liquid-glass-subtle rounded-xl p-3.5 space-y-2.5 animate-fade-in">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                  <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span>
                       {isPerson
                         ? isEn
@@ -2012,7 +2125,7 @@ export const FactEditorModal: React.FC<Props> = ({
                         ? 'Event or Founding Year'
                         : 'ساڵی ڕووداو یان دامەزراندن'}
                     </span>
-                    <span className="text-amber-400">*</span>
+                    <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                   </label>
 
                   {/* Segmented Era Switcher */}
@@ -2023,7 +2136,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startEra === 'BC'
                           ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                          : 'text-slate-400 hover:text-white'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       {isEn ? 'BCE' : 'پ.ز'}
@@ -2034,7 +2147,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startEra === 'AD'
                           ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                          : 'text-slate-400 hover:text-white'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       {isEn ? 'CE' : 'ز'}
@@ -2060,13 +2173,13 @@ export const FactEditorModal: React.FC<Props> = ({
                         ? 'بۆ نموونە: 612 (پێش زایین)'
                         : 'بۆ نموونە: 1514 (زایینی)'
                     }
-                    className="w-full liquid-glass-input text-white ps-3 pe-24 py-2.5 rounded-xl text-xs font-mono font-bold"
+                    className={`w-full liquid-glass-input ps-3 pe-24 py-2.5 rounded-xl text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
                   />
-                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/80 pointer-events-none">
+                  <span className={`absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-bold pointer-events-none ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`}>
                     {isEn ? (startEra === 'BC' ? 'BCE' : 'CE') : startEra === 'BC' ? 'پێش زایین' : 'زایینی'}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400">
+                <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {isEn
                     ? 'This entry will be pinned specifically to this year on the map and timeline.'
                     : 'ئەم بابەتە بەتەنیا بۆ ئەم ساڵە لەسەر نەخشە و تایملاین جێگیر دەبێت.'}
@@ -2081,8 +2194,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   {/* Field 1: Start Year */}
                   <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                      <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                        <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                         <span>
                           {isPerson
                             ? isEn
@@ -2092,7 +2205,7 @@ export const FactEditorModal: React.FC<Props> = ({
                             ? 'Start / Founding Year'
                             : 'ساڵی دەستپێک / دامەزراندن'}
                         </span>
-                        <span className="text-amber-400">*</span>
+                        <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                       </label>
 
                       <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
@@ -2102,7 +2215,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             startEra === 'BC'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'BCE' : 'پ.ز'}
@@ -2113,7 +2226,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             startEra === 'AD'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'CE' : 'ز'}
@@ -2139,9 +2252,9 @@ export const FactEditorModal: React.FC<Props> = ({
                             ? 'بۆ نموونە: 150 (پ.ز)'
                             : 'بۆ نموونە: 1514 (ز)'
                         }
-                        className="w-full liquid-glass-input text-white ps-3 pe-16 py-2 rounded-xl text-xs font-mono font-bold"
+                        className={`w-full liquid-glass-input ps-3 pe-16 py-2 rounded-xl text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
                       />
-                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                      <span className={`absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold pointer-events-none ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`}>
                         {isEn ? (startEra === 'BC' ? 'BCE' : 'CE') : startEra === 'BC' ? 'پ.ز' : 'ز'}
                       </span>
                     </div>
@@ -2150,8 +2263,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   {/* Field 2: End Year */}
                   <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                        <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                         <span>
                           {isPerson
                             ? isEn
@@ -2170,7 +2283,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             endEra === 'BC'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'BCE' : 'پ.ز'}
@@ -2181,7 +2294,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             endEra === 'AD'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'CE' : 'ز'}
@@ -2206,9 +2319,9 @@ export const FactEditorModal: React.FC<Props> = ({
                             ? 'بۆ نموونە: 40 (پ.ز)'
                             : 'بۆ نموونە: 1851 (ز)'
                         }
-                        className="w-full liquid-glass-input text-white ps-3 pe-16 py-2 rounded-xl text-xs font-mono font-bold"
+                        className={`w-full liquid-glass-input ps-3 pe-16 py-2 rounded-xl text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
                       />
-                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                      <span className={`absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold pointer-events-none ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`}>
                         {isEn ? (endEra === 'BC' ? 'BCE' : 'CE') : endEra === 'BC' ? 'پ.ز' : 'ز'}
                       </span>
                     </div>
@@ -2221,10 +2334,10 @@ export const FactEditorModal: React.FC<Props> = ({
             {timeMode === 'single_century' && (
               <div className="liquid-glass-subtle rounded-xl p-3.5 space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    <Layers className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span>{isEn ? 'Select Century (Single Century)' : 'سەدە دیاری بکە (بەتەنیا یەک سەدە)'}</span>
-                    <span className="text-amber-400">*</span>
+                    <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                   </label>
 
                   <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
@@ -2234,7 +2347,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startCenturyEra === 'BC'
                           ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                          : 'text-slate-400 hover:text-white'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       {isEn ? 'BCE' : 'پ.ز (پێش زایین)'}
@@ -2245,7 +2358,7 @@ export const FactEditorModal: React.FC<Props> = ({
                       className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
                         startCenturyEra === 'AD'
                           ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                          : 'text-slate-400 hover:text-white'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       {isEn ? 'CE' : 'ز (زایینی)'}
@@ -2263,9 +2376,9 @@ export const FactEditorModal: React.FC<Props> = ({
                       setYearError(null);
                     }}
                     placeholder={isEn ? 'Enter century number: e.g. 4 or 12' : 'ژمارەی سەدە بنووسە: بۆ نموونە 4 یان 12'}
-                    className="w-full liquid-glass-input text-white ps-3 pe-32 py-2.5 rounded-xl text-xs font-mono font-bold"
+                    className={`w-full liquid-glass-input ps-3 pe-32 py-2.5 rounded-xl text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
                   />
-                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-amber-400/90 pointer-events-none">
+                  <span className={`absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-bold pointer-events-none ${isDark ? 'text-amber-400/90' : 'text-amber-800'}`}>
                     {isEn
                       ? startCenturyEra === 'BC'
                         ? 'Century BCE'
@@ -2278,7 +2391,7 @@ export const FactEditorModal: React.FC<Props> = ({
 
                 {/* Quick preset century buttons */}
                 <div>
-                  <span className="block text-[10px] text-slate-400 mb-1.5 font-bold">
+                  <span className={`block text-[10px] mb-1.5 font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {isEn ? 'Quick Century Presets:' : 'هەڵبژاردنی خێرا بۆ سەدە:'}
                   </span>
                   <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar">
@@ -2292,8 +2405,8 @@ export const FactEditorModal: React.FC<Props> = ({
                         }}
                         className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                           startCenturyInput === num.toString()
-                            ? 'liquid-glass-btn-active text-black'
-                            : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
+                            ? 'liquid-glass-btn-active'
+                            : `liquid-glass-btn ${isDark ? 'text-slate-300 hover:text-amber-300' : 'text-slate-700 hover:text-amber-800'}`
                         }`}
                       >
                         {isEn ? `C. ${num}` : `سەدەی ${formatDigits(num, language)}`}
@@ -2311,10 +2424,10 @@ export const FactEditorModal: React.FC<Props> = ({
                   {/* Century 1: Start */}
                   <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-amber-400" />
+                      <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                        <Layers className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                         <span>{isEn ? 'Start Century' : 'سەدەی دەستپێک'}</span>
-                        <span className="text-amber-400">*</span>
+                        <span className={isDark ? 'text-amber-400' : 'text-amber-700'}>*</span>
                       </label>
 
                       <div className="flex items-center p-0.5 rounded-lg liquid-glass-card text-xs" dir="ltr">
@@ -2324,7 +2437,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             startCenturyEra === 'BC'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'BCE' : 'پ.ز'}
@@ -2335,7 +2448,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             startCenturyEra === 'AD'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'CE' : 'ز'}
@@ -2353,9 +2466,9 @@ export const FactEditorModal: React.FC<Props> = ({
                           setYearError(null);
                         }}
                         placeholder={isEn ? 'e.g. 4 or 10' : 'بۆ نموونە: 4 یان 10'}
-                        className="w-full liquid-glass-input text-white ps-3 pe-24 py-2 rounded-xl text-xs font-mono font-bold"
+                        className={`w-full liquid-glass-input ps-3 pe-24 py-2 rounded-xl text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
                       />
-                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                      <span className={`absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold pointer-events-none ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`}>
                         {isEn
                           ? `C. ${startCenturyEra === 'BC' ? 'BCE' : 'CE'}`
                           : `سەدەی ${startCenturyEra === 'BC' ? 'پ.ز' : 'ز'}`}
@@ -2369,10 +2482,10 @@ export const FactEditorModal: React.FC<Props> = ({
                           key={n}
                           type="button"
                           onClick={() => setStartCenturyInput(n.toString())}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer ${
                             startCenturyInput === n.toString()
-                              ? 'liquid-glass-btn-active text-black'
-                              : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                              ? 'liquid-glass-btn-active'
+                              : isDark ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-200/70 hover:bg-slate-300 text-slate-800'
                           }`}
                         >
                           {formatDigits(n, language)}
@@ -2384,8 +2497,8 @@ export const FactEditorModal: React.FC<Props> = ({
                   {/* Century 2: End */}
                   <div className="liquid-glass-subtle rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-slate-400" />
+                      <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                        <Layers className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                         <span>{isEn ? 'End Century' : 'سەدەی کۆتایی'}</span>
                       </label>
 
@@ -2396,7 +2509,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             endCenturyEra === 'BC'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'BCE' : 'پ.ز'}
@@ -2407,7 +2520,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer font-bold ${
                             endCenturyEra === 'AD'
                               ? 'liquid-glass-btn-active font-extrabold shadow-sm'
-                              : 'text-slate-400 hover:text-white'
+                              : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           {isEn ? 'CE' : 'ز'}
@@ -2424,9 +2537,9 @@ export const FactEditorModal: React.FC<Props> = ({
                           setYearError(null);
                         }}
                         placeholder={isEn ? 'e.g. 2 or 12' : 'بۆ نموونە: 2 یان 12'}
-                        className="w-full liquid-glass-input text-white ps-3 pe-24 py-2 rounded-xl text-xs font-mono font-bold"
+                        className={`w-full liquid-glass-input ps-3 pe-24 py-2 rounded-xl text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
                       />
-                      <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400/80 pointer-events-none">
+                      <span className={`absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold pointer-events-none ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`}>
                         {isEn
                           ? `C. ${endCenturyEra === 'BC' ? 'BCE' : 'CE'}`
                           : `سەدەی ${endCenturyEra === 'BC' ? 'پ.ز' : 'ز'}`}
@@ -2440,10 +2553,10 @@ export const FactEditorModal: React.FC<Props> = ({
                           key={n}
                           type="button"
                           onClick={() => setEndCenturyInput(n.toString())}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer ${
                             endCenturyInput === n.toString()
-                              ? 'liquid-glass-btn-active text-black'
-                              : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                              ? 'liquid-glass-btn-active'
+                              : isDark ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-200/70 hover:bg-slate-300 text-slate-800'
                           }`}
                         >
                           {formatDigits(n, language)}
@@ -2457,25 +2570,25 @@ export const FactEditorModal: React.FC<Props> = ({
 
             {/* Live Interactive Year / Century Preview Badge */}
             {previewTimeSpan && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl liquid-glass-subtle text-xs border border-amber-400/30">
+              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl liquid-glass-subtle text-xs border ${isDark ? 'border-amber-400/30' : 'border-amber-300'}`}>
                 <div className="space-y-0.5 min-w-0">
-                  <div className="text-slate-300 text-xs flex items-center gap-1.5 font-bold">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <div className={`text-xs flex items-center gap-1.5 font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <Clock className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span>{isEn ? 'Recorded Date Preview:' : 'پێشبینینی ڕێکەوتی تۆمارکراو:'}</span>
                   </div>
                   {previewTimeSpan.subLabel && (
-                    <p className="text-[11px] text-amber-200/85 truncate">
+                    <p className={`text-[11px] truncate ${isDark ? 'text-amber-200/85' : 'text-amber-900'}`}>
                       {previewTimeSpan.subLabel}
                     </p>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-extrabold text-amber-300 font-mono text-sm sm:text-base tracking-wider drop-shadow-sm">
+                  <span className={`font-extrabold font-mono text-sm sm:text-base tracking-wider ${isDark ? 'text-amber-300 drop-shadow-sm' : 'text-amber-800'}`}>
                     {previewTimeSpan.label}
                   </span>
                   {previewTimeSpan.isCrossEra && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold liquid-glass-btn-active text-black">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold liquid-glass-btn-active">
                       {isEn ? 'BCE ⟷ CE' : 'پ.ز ⟷ ز'}
                     </span>
                   )}
@@ -2486,9 +2599,9 @@ export const FactEditorModal: React.FC<Props> = ({
 
           {/* SECTION 4: دەقی مێژوویی و بەڵگەنامەکان (Narrative & Archives) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+            <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                   04
                 </span>
                 <span>
@@ -2497,15 +2610,15 @@ export const FactEditorModal: React.FC<Props> = ({
                     : 'پوختەی مێژوویی، شوێنەواری و بەڵگەنامەکان'}
                 </span>
               </span>
-              <span className="text-[11px] text-slate-400">
+              <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 {isEn ? 'Narrative & Sources' : 'دەق و سەرچاوەکان'}
               </span>
             </div>
 
             {/* Full historical overview text */}
             <div>
-              <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <label className={`block text-xs font-bold mb-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                <BookOpen className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                 <span>
                   {isEn
                     ? 'Historical & Archaeological Overview (Main Text)'
@@ -2521,14 +2634,14 @@ export const FactEditorModal: React.FC<Props> = ({
                     ? 'Write a historical description of this polity, figure, or site: key events, battles, monuments, and legacy...'
                     : 'وەسفی مێژوویی ئەم دەسەڵاتە یان کەسایەتییە بنووسە: ڕووداوە گرنگەکان، نەبەردییەکان، ئاسەوارەکان و بەسەرهاتەکانی فەرمانڕەوایی...'
                 }
-                className="w-full liquid-glass-input text-white px-3.5 py-2.5 rounded-xl leading-relaxed text-xs placeholder:text-slate-500"
+                className={`w-full liquid-glass-input px-3.5 py-2.5 rounded-xl leading-relaxed text-xs placeholder:text-slate-500 ${isDark ? 'text-white' : 'text-slate-900'}`}
               />
             </div>
 
             {/* Additional notes, manuscripts & references */}
             <div className="p-3.5 rounded-2xl liquid-glass-subtle space-y-2">
-              <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <label className={`block text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                <FileText className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                 <span>
                   {isEn
                     ? 'Additional Notes, Manuscripts, Historians & References'
@@ -2537,9 +2650,11 @@ export const FactEditorModal: React.FC<Props> = ({
               </label>
 
               {duplicateNotesOwner && (
-                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-amber-200 text-[11px] flex flex-wrap items-center justify-between gap-2 animate-fade-in">
+                <div className={`p-2.5 rounded-xl border text-[11px] flex flex-wrap items-center justify-between gap-2 animate-fade-in ${
+                  isDark ? 'bg-amber-500/15 border-amber-400/50 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-950'
+                }`}>
                   <div className="flex items-start gap-2 min-w-0 flex-1">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span className="leading-relaxed">
                       {isEn
                         ? `Warning: These additional notes match the entry "${duplicateNotesOwner.name}" and appear to be pasted from another topic.`
@@ -2549,7 +2664,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setAdditionalNotes('')}
-                    className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[11px] flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
+                    className="preserve-contrast px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
                     <span>{isEn ? 'Clear Mismatched Notes' : 'سڕینەوەی تێبینیی تێکەڵبوو'}</span>
@@ -2566,16 +2681,16 @@ export const FactEditorModal: React.FC<Props> = ({
                     ? 'Add extended details, manuscript excerpts, historians’ quotes, preserved artifacts, and bibliographic references...'
                     : 'لێرە زانیارییە زیاترەکان، دەقی دەستنووس و وتەی مێژوونووسان، شوێنەوارە پارێزراوەکان و سەرچاوەی کتێبەکان تۆمار بکە...'
                 }
-                className="w-full liquid-glass-input text-slate-200 placeholder:text-slate-500 px-3.5 py-2 rounded-xl text-xs leading-relaxed"
+                className={`w-full liquid-glass-input placeholder:text-slate-500 px-3.5 py-2 rounded-xl text-xs leading-relaxed ${isDark ? 'text-slate-200' : 'text-slate-900'}`}
               />
             </div>
           </div>
 
           {/* SECTION 5: وێنەکان (تا ١٠ وێنەی ڕاستەقینە • وێنەی سەرەکی و ٩ وێنەی تر) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+            <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                   05
                 </span>
                 <span>
@@ -2584,26 +2699,32 @@ export const FactEditorModal: React.FC<Props> = ({
                     : 'بەستەری وێنەکان (تا ١٠ وێنە • وێنەی سەرەکی و وێنە زیاترەکان)'}
                 </span>
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full liquid-glass-subtle text-amber-300 border border-amber-400/40">
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full liquid-glass-subtle border ${
+                isDark ? 'text-amber-300 border-amber-400/40' : 'text-amber-900 border-amber-300'
+              }`}>
                 {isEn ? 'Up to 10 Photos • Direct URLs' : 'تا ١٠ وێنە • بەستەری ڕاستەوخۆ'}
               </span>
             </div>
 
             {/* Image #1 - Primary */}
-            <div className="p-3.5 rounded-2xl liquid-glass-subtle border border-amber-400/25 space-y-3 shadow-xs">
+            <div className={`p-3.5 rounded-2xl liquid-glass-subtle border space-y-3 shadow-xs ${
+              isDark ? 'border-amber-400/25' : 'border-amber-300'
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-md bg-amber-400 text-black font-extrabold text-[10px] font-heading shadow-xs">
+                  <span className="preserve-contrast px-2 py-0.5 rounded-md bg-amber-600 text-white font-extrabold text-[10px] font-heading shadow-xs">
                     {isEn ? 'Primary Photo #1' : 'وێنەی سەرەکی #١'}
                   </span>
-                  <span className="text-xs font-bold text-white">
+                  <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {isEn
                       ? 'Featured on the map marker and entry header'
                       : 'پێشاندانی سەر نەخشە و بەرگی سەرەکی بابەت'}
                   </span>
                 </div>
                 {imageUrl && (
-                  <span className="text-[10px] text-amber-300 font-mono px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-400/20">
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md border ${
+                    isDark ? 'text-amber-300 bg-amber-500/10 border-amber-400/20' : 'text-amber-900 bg-amber-100 border-amber-300'
+                  }`}>
                     {linkInfo.label}
                   </span>
                 )}
@@ -2611,8 +2732,8 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* URL Input #1 */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                  <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
+                <label className={`block text-[11px] font-bold mb-1 flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <LinkIcon className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   <span>{isEn ? 'Primary Image URL (#1):' : 'بەستەری وێنەی سەرەکی (#١):'}</span>
                 </label>
                 <div className="relative flex items-center gap-1.5">
@@ -2626,7 +2747,9 @@ export const FactEditorModal: React.FC<Props> = ({
                           ? 'Paste primary image URL here (Wikipedia, ImgBB, Drive...)'
                           : 'لینکی وێنەی سەرەکی لێرە دابنێ (Wikipedia, ImgBB, Drive...)'
                       }
-                      className="w-full liquid-glass-input text-white px-3.5 py-2 rounded-xl text-xs font-mono placeholder:text-slate-600 pl-9"
+                      className={`w-full liquid-glass-input px-3.5 py-2 rounded-xl text-xs font-mono placeholder:text-slate-500 pl-9 ${
+                        isDark ? 'text-white' : 'text-slate-900'
+                      }`}
                       dir="ltr"
                     />
                     {imageUrl && (
@@ -2636,7 +2759,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           setImageUrl('');
                           setImageLoadError(null);
                         }}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-400 cursor-pointer"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-rose-500 cursor-pointer"
                         title={isEn ? 'Clear URL' : 'سڕینەوەی بەستەر'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -2646,7 +2769,9 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={handlePasteClipboard}
-                    className="shrink-0 px-3 py-2 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                    className={`shrink-0 px-3 py-2 rounded-xl liquid-glass-btn text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      isDark ? 'text-amber-300 hover:text-white' : 'text-amber-800 hover:text-slate-950'
+                    }`}
                     title={isEn ? 'Paste from clipboard' : 'پەیستکردن لە کلیپبۆرد'}
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -2657,8 +2782,8 @@ export const FactEditorModal: React.FC<Props> = ({
 
               {/* Caption Input #1 */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                <label className={`block text-[11px] font-bold mb-1 flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <ImageIcon className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   <span>
                     {isEn ? 'Caption & Description for Primary Photo (#1):' : 'تێبینی و وەسف لەسەر وێنەی سەرەکی (#١):'}
                   </span>
@@ -2672,13 +2797,15 @@ export const FactEditorModal: React.FC<Props> = ({
                       ? 'e.g. Portrait, the citadel in the early 20th century, or map of the capital...'
                       : 'بۆ نموونە: نیگاری کەسایەتی، قەڵاکە لە سەدەی بیستەم، یاخود نەخشەی پایتەخت...'
                   }
-                  className="w-full liquid-glass-input text-white px-3.5 py-2 rounded-xl text-xs placeholder:text-slate-500"
+                  className={`w-full liquid-glass-input px-3.5 py-2 rounded-xl text-xs placeholder:text-slate-500 ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}
                 />
               </div>
 
               {/* Preview of Image #1 */}
               {imageUrl && (
-                <div className="relative rounded-xl overflow-hidden border border-amber-400/40 bg-black/90 flex flex-col items-center justify-center p-2 min-h-[140px]">
+                <div className="preserve-contrast relative rounded-xl overflow-hidden border border-amber-400/40 bg-black/90 flex flex-col items-center justify-center p-2 min-h-[140px]">
                   <img
                     src={imageUrl}
                     alt={imageCaption || name || 'Primary Image Preview'}
@@ -2693,7 +2820,7 @@ export const FactEditorModal: React.FC<Props> = ({
                     onLoad={() => setImageLoadError(null)}
                   />
                   {imageCaption && (
-                    <div className="w-full mt-2 p-1.5 px-2.5 rounded-lg liquid-glass-subtle text-amber-200 text-xs flex items-center gap-1.5">
+                    <div className="w-full mt-2 p-1.5 px-2.5 rounded-lg bg-white/10 text-amber-200 text-xs flex items-center gap-1.5">
                       <ImageIcon className="w-3 h-3 text-amber-400 shrink-0" />
                       <span className="font-medium text-start text-[11px] truncate">{imageCaption}</span>
                     </div>
@@ -2702,8 +2829,10 @@ export const FactEditorModal: React.FC<Props> = ({
               )}
 
               {imageLoadError && (
-                <div className="p-2 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <div className={`p-2 rounded-xl border text-xs flex items-center gap-2 ${
+                  isDark ? 'bg-rose-950/70 border-rose-500/60 text-rose-200' : 'bg-rose-50 border-rose-300 text-rose-900'
+                }`}>
+                  <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-600'}`} />
                   <span>{imageLoadError}</span>
                 </div>
               )}
@@ -2716,23 +2845,27 @@ export const FactEditorModal: React.FC<Props> = ({
                 onClick={() => setShowExtraImages(!showExtraImages)}
                 className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
                   showExtraImages
-                    ? 'bg-amber-500/15 border-amber-400/60 shadow-[0_4px_20px_rgba(245,158,11,0.15)]'
-                    : 'liquid-glass-subtle hover:border-amber-400/40 border-white/10'
+                    ? isDark
+                      ? 'bg-amber-500/15 border-amber-400/60 shadow-[0_4px_20px_rgba(245,158,11,0.15)]'
+                      : 'bg-amber-50 border-amber-400 shadow-sm'
+                    : `liquid-glass-subtle hover:border-amber-400/40 ${isDark ? 'border-white/10' : 'border-slate-300'}`
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all ${
                       filledExtraCount > 0
-                        ? 'bg-amber-400 text-black font-extrabold shadow-sm'
-                        : 'bg-white/10 text-amber-300 border border-amber-400/30'
+                        ? 'preserve-contrast bg-amber-600 text-white font-extrabold shadow-sm'
+                        : isDark
+                        ? 'bg-white/10 text-amber-300 border border-amber-400/30'
+                        : 'bg-amber-100 text-amber-900 border border-amber-300'
                     }`}
                   >
                     +9
                   </div>
                   <div className="text-start">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white font-heading">
+                      <span className={`text-xs font-bold font-heading ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {showExtraImages
                           ? isEn
                             ? 'Hide Extra 9 Photo Slots'
@@ -2742,18 +2875,22 @@ export const FactEditorModal: React.FC<Props> = ({
                           : 'زیادکردنی وێنەی تر (کردنەوەی ٩ لینکی تر و ٩ تێبینی)'}
                       </span>
                       {filledExtraCount > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold">
+                        <span className={`px-2 py-0.5 rounded-full border text-[10px] font-mono font-bold ${
+                          isDark ? 'bg-amber-400/25 text-amber-300 border-amber-400/40' : 'bg-amber-100 text-amber-900 border-amber-300'
+                        }`}>
                           {isEn
                             ? `${filledExtraCount} of 9 filled`
                             : `${formatDigits(filledExtraCount, language)} لە ٩ وێنە پڕکراوەتەوە`}
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 text-[10px]">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                          isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-200/70 text-slate-700'
+                        }`}>
                           {isEn ? 'Up to 9 extra photos' : 'تا ٩ وێنەی زیاتر'}
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       {showExtraImages
                         ? isEn
                           ? 'Click to collapse extra slots'
@@ -2765,7 +2902,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs shrink-0">
+                <div className={`flex items-center gap-1.5 font-bold text-xs shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
                   <span className="hidden sm:inline">
                     {showExtraImages ? (isEn ? 'Collapse' : 'داخستن') : isEn ? 'Expand' : 'کردنەوە'}
                   </span>
@@ -2781,16 +2918,18 @@ export const FactEditorModal: React.FC<Props> = ({
             {/* 9 Extra Image Slots */}
             {showExtraImages && (
               <div className="space-y-3.5 pt-1 animate-fade-in">
-                <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-200 text-xs flex items-center justify-between">
+                <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                  isDark ? 'bg-amber-400/10 border-amber-400/30 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-950'
+                }`}>
                   <div className="flex items-center gap-2">
-                    <Images className="w-4 h-4 text-amber-400 shrink-0" />
+                    <Images className={`w-4 h-4 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <span className="font-bold text-[11px]">
                       {isEn
                         ? '9 Additional Photo & Caption Slots (Photo #2 to #10)'
                         : '٩ بۆشایی وێنەی زیاتر و ٩ بۆشایی تێبینی (وێنەی #٢ تا #١٠)'}
                     </span>
                   </div>
-                  <span className="text-[10px] text-amber-300 font-mono">
+                  <span className={`text-[10px] font-mono ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                     {isEn ? 'Total capacity: 10 photos' : 'کۆی گشتی بەردەست: ١٠ وێنە'}
                   </span>
                 </div>
@@ -2804,23 +2943,29 @@ export const FactEditorModal: React.FC<Props> = ({
                         key={idx}
                         className={`p-3 sm:p-3.5 rounded-2xl transition-all border ${
                           isFilled
-                            ? 'bg-amber-950/20 border-amber-400/35 shadow-xs'
-                            : 'liquid-glass-subtle border-white/[0.08]'
+                            ? isDark
+                              ? 'bg-amber-950/20 border-amber-400/35 shadow-xs'
+                              : 'bg-amber-50/70 border-amber-300 shadow-xs'
+                            : `liquid-glass-subtle ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`
                         }`}
                       >
                         {/* Slot Header */}
-                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08]">
+                        <div className={`flex items-center justify-between pb-2 mb-2 border-b ${
+                          isDark ? 'border-white/[0.08]' : 'border-slate-200'
+                        }`}>
                           <div className="flex items-center gap-2">
                             <span
                               className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
                                 isFilled
-                                  ? 'bg-amber-400 text-black shadow-xs'
-                                  : 'bg-white/10 text-slate-300'
+                                  ? 'preserve-contrast bg-amber-600 text-white shadow-xs'
+                                  : isDark
+                                  ? 'bg-white/10 text-slate-300'
+                                  : 'bg-slate-200 text-slate-800'
                               }`}
                             >
                               {isEn ? `Photo #${imgNumber}` : `وێنەی #${formatDigits(imgNumber, language)}`}
                             </span>
-                            <span className="text-[11px] font-medium text-slate-300">
+                            <span className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                               {isFilled
                                 ? isEn
                                   ? 'Image configured'
@@ -2835,7 +2980,9 @@ export const FactEditorModal: React.FC<Props> = ({
                             <button
                               type="button"
                               onClick={() => handleClearExtraImage(idx)}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-lg liquid-glass-btn text-rose-300 hover:text-rose-200 text-[10px] cursor-pointer"
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg liquid-glass-btn text-[10px] cursor-pointer ${
+                                isDark ? 'text-rose-300 hover:text-rose-200' : 'text-rose-700 hover:text-rose-900'
+                              }`}
                               title={isEn ? 'Remove this photo' : 'سڕینەوەی ئەم وێنەیە'}
                             >
                               <Trash2 className="w-3 h-3" />
@@ -2847,9 +2994,11 @@ export const FactEditorModal: React.FC<Props> = ({
                         {/* Fields: URL + Caption */}
                         <div className="space-y-2.5">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <label className={`block text-[10px] font-bold mb-1 flex items-center justify-between ${
+                              isDark ? 'text-slate-300' : 'text-slate-700'
+                            }`}>
                               <span className="flex items-center gap-1.5">
-                                <LinkIcon className="w-3 h-3 text-amber-400" />
+                                <LinkIcon className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                                 <span>
                                   {isEn
                                     ? `Image #${imgNumber} URL:`
@@ -2867,13 +3016,17 @@ export const FactEditorModal: React.FC<Props> = ({
                                     ? `Photo #${imgNumber} URL (Wikipedia, ImgBB, Drive...)`
                                     : `لینکی وێنەی #${formatDigits(imgNumber, language)} (Wikipedia, ImgBB, Drive...)`
                                 }
-                                className="w-full liquid-glass-input text-white px-3 py-1.5 rounded-xl text-xs font-mono placeholder:text-slate-600"
+                                className={`w-full liquid-glass-input px-3 py-1.5 rounded-xl text-xs font-mono placeholder:text-slate-500 ${
+                                  isDark ? 'text-white' : 'text-slate-900'
+                                }`}
                                 dir="ltr"
                               />
                               <button
                                 type="button"
                                 onClick={() => handlePasteExtraClipboard(idx)}
-                                className="shrink-0 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-amber-300 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                                className={`shrink-0 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                                  isDark ? 'text-amber-300 hover:text-white' : 'text-amber-800 hover:text-slate-950'
+                                }`}
                                 title={isEn ? 'Paste from clipboard' : 'پەیستکردن لە کلیپبۆرد'}
                               >
                                 <Copy className="w-3 h-3" />
@@ -2883,8 +3036,10 @@ export const FactEditorModal: React.FC<Props> = ({
                           </div>
 
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                              <FileText className="w-3 h-3 text-amber-400" />
+                            <label className={`block text-[10px] font-bold mb-1 flex items-center gap-1.5 ${
+                              isDark ? 'text-slate-300' : 'text-slate-700'
+                            }`}>
+                              <FileText className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                               <span>
                                 {isEn
                                   ? `Caption for Photo #${imgNumber}:`
@@ -2900,13 +3055,15 @@ export const FactEditorModal: React.FC<Props> = ({
                                   ? `Caption, location, or description for photo #${imgNumber}...`
                                   : `تێبینی، شوێن یان وەسفی وێنەی #${formatDigits(imgNumber, language)}...`
                               }
-                              className="w-full liquid-glass-input text-white px-3 py-1.5 rounded-xl text-xs placeholder:text-slate-500"
+                              className={`w-full liquid-glass-input px-3 py-1.5 rounded-xl text-xs placeholder:text-slate-500 ${
+                                isDark ? 'text-white' : 'text-slate-900'
+                              }`}
                             />
                           </div>
 
                           {/* Thumbnail preview if URL is set */}
                           {isFilled && (
-                            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-black/60 border border-white/10 mt-1">
+                            <div className="preserve-contrast flex items-center gap-2.5 p-2 rounded-xl bg-black/80 border border-white/15 mt-1">
                               <img
                                 src={extra.url}
                                 alt={extra.caption || `Photo #${imgNumber}`}
@@ -2918,7 +3075,7 @@ export const FactEditorModal: React.FC<Props> = ({
                                   {extra.caption ||
                                     (isEn ? `Photo #${imgNumber}` : `وێنەی #${formatDigits(imgNumber, language)}`)}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-mono truncate" dir="ltr">
+                                <p className="text-[10px] text-slate-300 font-mono truncate" dir="ltr">
                                   {extra.url}
                                 </p>
                               </div>
@@ -2935,9 +3092,9 @@ export const FactEditorModal: React.FC<Props> = ({
 
           {/* SECTION 6: بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان (Linking & Associations) */}
           <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 transition-all space-y-4 shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold text-amber-300">
+            <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                <span className={`w-6 h-6 rounded-lg liquid-glass-btn flex items-center justify-center text-[11px] font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                   06
                 </span>
                 <span>
@@ -2946,15 +3103,15 @@ export const FactEditorModal: React.FC<Props> = ({
                     : 'بەستنەوە بە دەسەڵات، میرنشین و بابەتە پەیوەندیدارەکان'}
                 </span>
               </span>
-              <span className="text-[11px] text-amber-300/80">
+              <span className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-800'}`}>
                 {isEn ? 'Emirate, Ruler, Scholar, Fortress, Battle' : 'میرنشین، میر، زانا، قەڵا، جەنگ'}
               </span>
             </div>
 
             {/* Parent Entity Selector */}
             <div>
-              <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
-                <Landmark className="w-3.5 h-3.5 text-amber-400" />
+              <label className={`block text-xs font-bold mb-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                <Landmark className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                 <span>
                   {isEn ? 'Parent Polity or Empire' : 'دەسەڵات یان میرنشینی سەرەکی (Parent Entity)'}
                 </span>
@@ -2964,15 +3121,17 @@ export const FactEditorModal: React.FC<Props> = ({
                 onChange={(e) =>
                   setParentFactId(e.target.value ? Number(e.target.value) : undefined)
                 }
-                className="w-full liquid-glass-input text-slate-100 p-2.5 rounded-xl text-xs cursor-pointer focus:outline-none"
+                className={`w-full liquid-glass-input p-2.5 rounded-xl text-xs cursor-pointer focus:outline-none ${
+                  isDark ? 'text-slate-100' : 'text-slate-900'
+                }`}
               >
-                <option value="" className="bg-slate-900 text-slate-300">
+                <option value="" className={isDark ? 'bg-slate-900 text-slate-300' : 'bg-white text-slate-700'}>
                   {isEn
                     ? '-- No parent polity (independent or top-level entity) --'
                     : '-- بەبێ دەسەڵاتی دایک (سەربەخۆ یان خۆی دەسەڵاتی سەرەکییە) --'}
                 </option>
                 {availableParentFacts.map((ent) => (
-                  <option key={ent.id} value={ent.id} className="bg-slate-900 text-slate-100">
+                  <option key={ent.id} value={ent.id} className={isDark ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'}>
                     {ent.name} ({ent.desc})
                   </option>
                 ))}
@@ -2982,8 +3141,8 @@ export const FactEditorModal: React.FC<Props> = ({
             {/* Linked Facts Selector / Chips */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                  <Link2 className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   <span>
                     {isEn
                       ? `Linked Entries & Figures (${relatedFactIds.length})`
@@ -2993,9 +3152,11 @@ export const FactEditorModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setIsLinkingModalOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-amber-300 hover:text-white text-[11px] font-bold cursor-pointer"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-glass-btn text-[11px] font-bold cursor-pointer ${
+                    isDark ? 'text-amber-300 hover:text-white' : 'text-amber-800 hover:text-slate-950'
+                  }`}
                 >
-                  <Plus className="w-3 h-3 text-amber-400" />
+                  <Plus className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   <span>{isEn ? 'Select & Link Entries' : 'دیاریکردن و گەڕان بۆ بەستنەوە'}</span>
                 </button>
               </div>
@@ -3006,19 +3167,21 @@ export const FactEditorModal: React.FC<Props> = ({
                     const found = factsByIdMap.get(rfId);
                     if (!found) return null;
                     const cat = getCategoryInfo(found, language);
+                    const accColor = getAccessibleCategoryColor(cat.color, isDark);
                     return (
                       <span
                         key={rfId}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border"
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                          isDark ? 'text-white' : 'text-slate-900'
+                        }`}
                         style={{
-                          backgroundColor: `${cat.color}15`,
-                          borderColor: `${cat.color}40`,
-                          color: '#fff',
+                          backgroundColor: `${accColor}18`,
+                          borderColor: `${accColor}55`,
                         }}
                       >
                         <span
                           className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: cat.color }}
+                          style={{ backgroundColor: accColor }}
                         />
                         <span>{found.name}</span>
                         <button
@@ -3026,7 +3189,9 @@ export const FactEditorModal: React.FC<Props> = ({
                           onClick={() =>
                             setRelatedFactIds((prev) => prev.filter((id) => id !== rfId))
                           }
-                          className="p-0.5 rounded-md hover:bg-white/20 text-slate-400 hover:text-white cursor-pointer"
+                          className={`p-0.5 rounded-md cursor-pointer ${
+                            isDark ? 'hover:bg-white/20 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-600 hover:text-slate-950'
+                          }`}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -3035,7 +3200,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   })}
                 </div>
               ) : (
-                <div className="py-2.5 px-3 rounded-xl liquid-glass-subtle text-slate-400 text-xs">
+                <div className={`py-2.5 px-3 rounded-xl liquid-glass-subtle text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {isEn
                     ? 'No related entries linked yet. Click the button above to link.'
                     : 'هێشتا هیچ بابەتی تر نەبەستراوەتەوە. کلیک لە دوگمەی سەرەوە بکە بۆ بەستنەوە.'}
@@ -3045,10 +3210,14 @@ export const FactEditorModal: React.FC<Props> = ({
 
             {/* Allies Section */}
             {selectedCategory === 'principality' && (
-              <div className="p-3.5 rounded-2xl bg-emerald-950/25 border border-emerald-500/25 space-y-2">
+              <div className={`p-3.5 rounded-2xl border space-y-2 ${
+                isDark ? 'bg-emerald-950/25 border-emerald-500/25' : 'bg-emerald-50/80 border-emerald-300'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                  <label className={`text-xs font-bold flex items-center gap-1.5 ${
+                    isDark ? 'text-emerald-300' : 'text-emerald-900'
+                  }`}>
+                    <Shield className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                     <span>
                       {isEn
                         ? `Allied Polities & Principalities (${allyFactIds.length})`
@@ -3058,36 +3227,48 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setIsLinkingModalOpen(true)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 hover:text-white text-[11px] font-bold cursor-pointer transition-all"
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
+                      isDark
+                        ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-200 hover:text-white'
+                        : 'bg-emerald-100 hover:bg-emerald-200 border-emerald-400 text-emerald-950'
+                    }`}
                   >
-                    <Plus className="w-3 h-3 text-emerald-400" />
+                    <Plus className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                     <span>{isEn ? 'Select Allies' : 'دیاریکردنی هاوپەیمان'}</span>
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-300">
+                <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   {isEn
                     ? 'Select allied principalities or states to connect them with glowing green alliance lines on the map and relations graph.'
                     : 'هاوپەیمانی لەگەڵ دەسەڵات، میرنشین، یان دەوڵەتەکانی تر دیاری بکە تا بە هێڵی سەوزی درەوشاوەی «هاوپەیمان» لەسەر نەخشە و تۆڕی کەسایەتییەکان ببەسترێنەوە.'}
                 </p>
 
                 {allyFactIds.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 p-2.5 rounded-xl bg-black/40 border border-emerald-500/20">
+                  <div className={`flex flex-wrap gap-1.5 p-2.5 rounded-xl border ${
+                    isDark ? 'bg-black/40 border-emerald-500/20' : 'bg-white border-emerald-200'
+                  }`}>
                     {allyFactIds.map((afId) => {
                       const found = factsByIdMap.get(afId);
                       if (!found) return null;
                       return (
                         <span
                           key={afId}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 border border-emerald-500/40 text-emerald-200"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                            isDark
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
+                              : 'bg-emerald-100 border-emerald-300 text-emerald-950'
+                          }`}
                         >
-                          <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <Shield className={`w-3 h-3 shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                           <span>{found.name}</span>
                           <button
                             type="button"
                             onClick={() =>
                               setAllyFactIds((prev) => prev.filter((id) => id !== afId))
                             }
-                            className="p-0.5 rounded-md hover:bg-white/20 text-slate-400 hover:text-white cursor-pointer"
+                            className={`p-0.5 rounded-md cursor-pointer ${
+                              isDark ? 'hover:bg-white/20 text-slate-400 hover:text-white' : 'hover:bg-emerald-200 text-emerald-800 hover:text-emerald-950'
+                            }`}
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -3096,7 +3277,9 @@ export const FactEditorModal: React.FC<Props> = ({
                     })}
                   </div>
                 ) : (
-                  <div className="py-2 px-3 rounded-xl bg-black/25 text-slate-400 text-xs border border-white/5">
+                  <div className={`py-2 px-3 rounded-xl text-xs border ${
+                    isDark ? 'bg-black/25 text-slate-400 border-white/5' : 'bg-white/80 text-slate-600 border-emerald-200'
+                  }`}>
                     {isEn
                       ? 'No allies selected. Click the button above to assign allied entities.'
                       : 'هیچ هاوپەیمانێک دیاری نەکراوە. کلیک لە دوگمەی سەرەوە بکە بۆ دەستنیشانکردنی هاوپەیمانەکان.'}
@@ -3110,14 +3293,18 @@ export const FactEditorModal: React.FC<Props> = ({
 
           {/* AI Translation Error Banner */}
           {aiError && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/80 border border-rose-500/70 text-rose-200 text-xs font-medium">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <div className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-medium ${
+              isDark ? 'bg-rose-950/80 border-rose-500/70 text-rose-200' : 'bg-rose-50 border-rose-300 text-rose-900'
+            }`}>
+              <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-600'}`} />
               <span>{aiError}</span>
             </div>
           )}
 
           {/* Action Buttons Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10 shrink-0">
+          <div className={`flex flex-wrap items-center justify-between gap-3 pt-3 border-t shrink-0 ${
+            isDark ? 'border-white/10' : 'border-slate-200'
+          }`}>
             {/* Delete button (when editing) */}
             {factToEdit && onDelete && (
               <div>
@@ -3131,7 +3318,7 @@ export const FactEditorModal: React.FC<Props> = ({
                             onDelete(factToEdit.id, { deleteFromEnglish: true });
                             onClose();
                           }}
-                          className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                          className="preserve-contrast px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>سڕینەوە لە هەردوو زمان</span>
@@ -3142,7 +3329,7 @@ export const FactEditorModal: React.FC<Props> = ({
                             onDelete(factToEdit.id, { deleteFromEnglish: false });
                             onClose();
                           }}
-                          className="px-3 py-2 rounded-xl bg-amber-600/80 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                          className="preserve-contrast px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                         >
                           <span>تەنها لە کوردی</span>
                         </button>
@@ -3154,7 +3341,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           onDelete(factToEdit.id);
                           onClose();
                         }}
-                        className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        className="preserve-contrast px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>{isEn ? 'Confirm Delete' : 'دڵنیام، بیسڕەوە'}</span>
@@ -3163,7 +3350,9 @@ export const FactEditorModal: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}
-                      className="px-3 py-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs cursor-pointer"
+                      className={`px-3 py-2 rounded-xl liquid-glass-btn text-xs cursor-pointer ${
+                        isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-950'
+                      }`}
                     >
                       {isEn ? 'Cancel' : 'پەشیمانبوونەوە'}
                     </button>
@@ -3172,7 +3361,11 @@ export const FactEditorModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setConfirmDelete(true)}
-                    className="p-2.5 rounded-xl text-red-400 hover:text-white hover:bg-red-950/70 border border-red-900/40 hover:border-red-700 transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                      isDark
+                        ? 'text-red-400 hover:text-white hover:bg-red-950/70 border-red-900/40 hover:border-red-700'
+                        : 'text-rose-700 hover:text-white hover:bg-rose-600 border-rose-300 hover:border-rose-700'
+                    }`}
                     title={isEn ? 'Delete this entry' : 'سڕینەوەی ئەم بابەتە'}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -3187,7 +3380,9 @@ export const FactEditorModal: React.FC<Props> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isSavingAndTranslating}
-                className="px-4 py-2.5 rounded-xl liquid-glass-btn text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                className={`px-4 py-2.5 rounded-xl liquid-glass-btn text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 ${
+                  isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-950'
+                }`}
               >
                 {isEn ? 'Close' : 'داخستن'}
               </button>
@@ -3197,17 +3392,21 @@ export const FactEditorModal: React.FC<Props> = ({
                   type="button"
                   onClick={handleSaveAndTranslateAi}
                   disabled={isSavingAndTranslating}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-200 hover:text-white font-bold text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-wait"
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-60 disabled:cursor-wait ${
+                    isDark
+                      ? 'bg-sky-500/20 hover:bg-sky-500/30 border-sky-400/50 text-sky-200 hover:text-white'
+                      : 'bg-sky-100 hover:bg-sky-200 border-sky-300 text-sky-900'
+                  }`}
                   title="پاشەکەوتکردن بە کوردی و وەرگێڕانی خۆکار بۆ بەشی ئینگلیزی (facts_en) بە هەمان وێنە و پۆتان"
                 >
                   {isSavingAndTranslating ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-sky-300" />
+                      <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-sky-300' : 'text-sky-700'}`} />
                       <span>وەرگێڕان بەردەوامە...</span>
                     </>
                   ) : (
                     <>
-                      <Languages className="w-4 h-4 text-sky-300" />
+                      <Languages className={`w-4 h-4 ${isDark ? 'text-sky-300' : 'text-sky-700'}`} />
                       <span>پاشەکەوت + وەرگێڕان بۆ ئینگلیزی (AI)</span>
                     </>
                   )}
@@ -3217,11 +3416,11 @@ export const FactEditorModal: React.FC<Props> = ({
               <button
                 type="submit"
                 disabled={isSavingAndTranslating}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-glass-btn-active text-black font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-glass-btn-active font-extrabold text-xs shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 {formMode === 'photo_only' ? (
                   <>
-                    <ImageIcon className="w-4 h-4 text-black" />
+                    <ImageIcon className="w-4 h-4" />
                     <span>
                       {isEn
                         ? 'Save & Pin Photo on Map'
@@ -3230,7 +3429,7 @@ export const FactEditorModal: React.FC<Props> = ({
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 text-black" />
+                    <Save className="w-4 h-4" />
                     <span>
                       {isEn ? 'Save Changes' : 'پاشەکەوتکردنی زانیارییەکان'}
                     </span>

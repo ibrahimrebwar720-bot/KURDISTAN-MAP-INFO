@@ -18,6 +18,7 @@ import {
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAllFactImages } from '../utils/historicalImages';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatDigits } from '../utils/yearUtils';
 
 export interface GalleryItem {
@@ -84,7 +85,7 @@ const ThumbnailButton: React.FC<{
       type="button"
       data-thumb-index={index}
       onClick={() => onSelect(index)}
-      className={`relative w-12 h-10 sm:w-16 sm:h-12 rounded-xl overflow-hidden shrink-0 border transition-all cursor-pointer bg-black/80 ${
+      className={`preserve-contrast relative w-12 h-10 sm:w-16 sm:h-12 rounded-xl overflow-hidden shrink-0 border transition-all cursor-pointer bg-black/80 ${
         isSelected
           ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-[0_0_12px_rgba(245,158,11,0.5)] z-10'
           : 'border-slate-800 opacity-60 hover:opacity-100 hover:border-amber-500/40'
@@ -101,7 +102,7 @@ const ThumbnailButton: React.FC<{
           className="w-full h-full object-cover"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-slate-900 text-amber-400/70">
+        <div className="preserve-contrast w-full h-full flex items-center justify-center bg-slate-900 text-amber-400">
           <Camera className="w-3.5 h-3.5" />
         </div>
       )}
@@ -123,6 +124,8 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   onOpenHero,
 }) => {
   const { language, isEn, dir } = useLanguage();
+  const { colorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const PrevIcon = isEn ? ChevronLeft : ChevronRight;
   const NextIcon = isEn ? ChevronRight : ChevronLeft;
 
@@ -290,9 +293,9 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-50 flex flex-col bg-[#04060c] text-slate-100 select-none overflow-hidden animate-page-enter ${
-        isFullscreen ? 'p-2 sm:p-4' : 'p-2 sm:p-6'
-      }`}
+      className={`fixed inset-0 z-50 flex flex-col select-none overflow-hidden animate-page-enter ${
+        isDark ? 'bg-[#04060c] text-slate-100' : 'bg-[#f4f3ef] text-slate-900'
+      } ${isFullscreen ? 'p-2 sm:p-4' : 'p-2 sm:p-6'}`}
       dir={dir}
     >
       {/* Top Header Bar */}
@@ -301,7 +304,11 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenHero}
-            className="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-amber-500/20 border border-white/[0.1] hover:border-amber-400/50 flex items-center justify-center p-1 shadow-md shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95"
+            className={`w-9 h-9 rounded-xl border flex items-center justify-center p-1 shadow-md shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+              isDark
+                ? 'bg-white/[0.06] hover:bg-amber-500/20 border-white/[0.1] hover:border-amber-400/50'
+                : 'bg-white hover:bg-amber-50 border-slate-300 hover:border-amber-500'
+            }`}
             title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
           >
             <img
@@ -312,15 +319,15 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
           </button>
           <div className="min-w-0 text-start">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base font-extrabold font-heading text-white tracking-wide truncate">
+              <h2 className={`text-sm sm:text-base font-extrabold font-heading tracking-wide truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {isEn ? 'Kurdistan Historical Gallery' : 'گەلەری مێژوویی کوردستان'}
               </h2>
-              <span className="text-slate-600 font-mono text-xs">·</span>
-              <span className="text-xs font-mono tabular-nums text-amber-300 font-bold">
+              <span className={`font-mono text-xs ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
+              <span className={`text-xs font-mono tabular-nums font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                 {formatDigits(total, language)} {isEn ? 'Photos' : 'وێنە'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 truncate mt-0.5 font-medium">
+            <p className={`text-[11px] truncate mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {isEn
                 ? 'Visual archive of Kurdistan dynasties, rulers, and landmarks'
                 : 'ئەرشیفی بینراوی دەسەڵات و شوێنەوارەکانی کوردستان'}
@@ -332,7 +339,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
         <div className="flex items-center gap-1.5 sm:gap-2">
           {total > 1 && (
             <div className="flex items-center gap-1 liquid-glass-subtle p-1 rounded-xl shadow-xs">
-              <span className="text-[10px] text-amber-300 font-bold px-1 hidden md:inline">
+              <span className={`text-[10px] font-bold px-1 hidden md:inline ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                 {isEn ? 'Timer:' : 'کات:'}
               </span>
               {([5, 7, 9] as const).map((sec) => (
@@ -342,8 +349,10 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                   onClick={() => setIntervalSeconds(sec)}
                   className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                     intervalSeconds === sec
-                      ? 'liquid-glass-btn-active text-black shadow-sm'
-                      : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
+                      ? 'liquid-glass-btn-active shadow-sm'
+                      : isDark
+                      ? 'liquid-glass-btn text-slate-300 hover:text-amber-300'
+                      : 'liquid-glass-btn text-slate-700 hover:text-amber-900'
                   }`}
                   title={isEn ? `Switch slide every ${sec}s` : `گۆڕینی وێنە لە ${sec} چرکەدا`}
                 >
@@ -354,10 +363,14 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setIntervalSeconds((prev) => (prev === 0 ? 7 : 0))}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
                   intervalSeconds === 0
-                    ? 'bg-rose-950/80 text-rose-300 border border-rose-700/80'
-                    : 'liquid-glass-btn text-slate-300 hover:text-white'
+                    ? isDark
+                      ? 'bg-rose-950/80 text-rose-300 border-rose-700/80'
+                      : 'bg-rose-100 text-rose-800 border-rose-300'
+                    : isDark
+                    ? 'liquid-glass-btn text-slate-300 hover:text-white border-transparent'
+                    : 'liquid-glass-btn text-slate-700 hover:text-slate-900 border-transparent'
                 }`}
                 title={
                   intervalSeconds === 0
@@ -371,7 +384,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
               >
                 {intervalSeconds === 0 ? (
                   <>
-                    <Pause className="w-3 h-3 fill-current text-rose-400" />
+                    <Pause className={`w-3 h-3 fill-current ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
                     <span>{isEn ? 'Paused' : 'کوژاوەتەوە'}</span>
                   </>
                 ) : (
@@ -383,7 +396,9 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
           <button
             onClick={handleToggleFullscreen}
-            className="p-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className={`p-2 rounded-xl liquid-glass-btn transition-colors cursor-pointer ${
+              isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+            }`}
             title={
               isFullscreen
                 ? isEn
@@ -399,7 +414,9 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl liquid-glass-btn text-slate-300 hover:text-red-300 transition-colors cursor-pointer"
+            className={`p-2 rounded-xl liquid-glass-btn transition-colors cursor-pointer ${
+              isDark ? 'text-slate-300 hover:text-red-300' : 'text-slate-700 hover:text-rose-700'
+            }`}
             title={isEn ? 'Close (Escape)' : 'داخستن (Escape)'}
           >
             <X className="w-4 h-4" />
@@ -421,7 +438,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-2 sm:p-4 min-h-0 overflow-y-auto custom-scrollbar">
         {currentItem ? (
           <div className="w-full max-w-4xl flex flex-col items-center my-auto">
-            <div className="relative w-full rounded-[4px] overflow-hidden border border-amber-500/35 bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] group">
+            <div className="preserve-contrast relative w-full rounded-[4px] overflow-hidden border border-amber-500/35 bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.45),0_0_35px_rgba(245,158,11,0.12)] group">
               <div className="relative w-full min-h-[240px] sm:min-h-[320px] max-h-[60vh] flex items-center justify-center bg-black/95 p-2 sm:p-3 overflow-hidden">
                 {isMainImgLoading && !mainImgHasError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 z-10 transition-opacity duration-200">
@@ -519,24 +536,36 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
             </div>
 
             {/* Information Panel Under Image */}
-            <div className="relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_15px_40px_rgba(0,0,0,0.85)] text-start transition-all overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-500/20">
+            <div className={`relative w-full mt-3 sm:mt-4 p-3.5 sm:p-5 rounded-[4px] border border-t-amber-500/60 text-start transition-all overflow-hidden ${
+              isDark
+                ? 'bg-[#0b0f1c] border-amber-500/30 shadow-[0_15px_40px_rgba(0,0,0,0.85)]'
+                : 'bg-white border-slate-300 shadow-lg'
+            }`}>
+              <div className={`flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b ${
+                isDark ? 'border-amber-500/20' : 'border-slate-200'
+              }`}>
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-2.5 h-2.5 rounded-[1px] bg-amber-400 animate-pulse shrink-0" />
-                  <h3 className="text-base sm:text-lg font-bold font-heading text-white truncate drop-shadow-xs">
+                  <div className={`w-2.5 h-2.5 rounded-[1px] animate-pulse shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
+                  <h3 className={`text-base sm:text-lg font-bold font-heading truncate drop-shadow-xs ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
                     {currentItem.title}
                   </h3>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {currentItem.year && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-[#101626] border border-amber-500/25 text-amber-300 font-mono text-xs font-bold shadow-xs">
-                      <Calendar className="w-3 h-3 text-amber-400" />
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] border font-mono text-xs font-bold shadow-xs ${
+                      isDark ? 'bg-[#101626] border-amber-500/25 text-amber-300' : 'bg-amber-100 border-amber-300 text-amber-900'
+                    }`}>
+                      <Calendar className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                       <span>{currentItem.year}</span>
                     </span>
                   )}
                   {currentItem.eraName && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-white/5 border border-white/10 text-slate-300 text-[11px]">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] border text-[11px] ${
+                      isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'
+                    }`}>
                       <span>{currentItem.eraName}</span>
                     </span>
                   )}
@@ -546,38 +575,46 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
                         onClose();
                         onFlyToFact(currentItem.fact!);
                       }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                      className="preserve-contrast inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm"
                       title={isEn ? 'Fly to this location on the map' : 'فڕین بۆ شوێنی ئەم بابەتە لەسەر نەخشە'}
                     >
-                      <MapPin className="w-3 h-3 text-slate-950" />
+                      <MapPin className="w-3 h-3" />
                       <span>{isEn ? 'Fly on Map' : 'فڕین لەسەر نەخشە'}</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 text-amber-100/90 text-xs sm:text-sm leading-relaxed">
-                <Camera className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className={`flex items-start gap-2.5 text-xs sm:text-sm leading-relaxed ${
+                isDark ? 'text-amber-100/90' : 'text-slate-700'
+              }`}>
+                <Camera className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                 <p className="font-medium whitespace-pre-line">{currentItem.caption}</p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-center p-8 max-w-md mx-auto my-auto bg-[#070b14]/70 border border-amber-500/25 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4 shadow-[0_0_25px_rgba(245,158,11,0.15)]">
+          <div className={`text-center max-w-md mx-auto my-auto border rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl ${
+            isDark ? 'bg-[#070b14]/70 border-amber-500/25' : 'bg-white border-slate-300'
+          }`}>
+            <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center mx-auto mb-4 ${
+              isDark
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.15)]'
+                : 'bg-amber-100 border-amber-300 text-amber-700'
+            }`}>
               <Camera className="w-8 h-8" />
             </div>
-            <h3 className="text-base sm:text-lg font-bold font-heading text-white mb-2">
+            <h3 className={`text-base sm:text-lg font-bold font-heading mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {isEn ? 'No Photos Available Yet' : 'هیچ وێنەیەک دانەنراوە'}
             </h3>
-            <p className="text-xs text-slate-300 leading-relaxed mb-5">
+            <p className={`text-xs leading-relaxed mb-5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               {isEn
                 ? 'Images added to entries via the Admin editor will appear automatically in this visual gallery.'
                 : 'تەنها ئەو وێنانە لێرە نیشان دەدرێن کە لە بەشی ئەدمین بۆ بابەتەکانت دایاندەنێیت. کاتێک بابەتێکی نوێ زیاد دەکەیت یان دەستکاری دەکەیت، وێنە و زانیاری ژێر وێنە دابنێ تا لەم گەلەرییەدا دەربکەوێت.'}
             </p>
             <button
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors cursor-pointer shadow-lg"
+              className="preserve-contrast px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-lg"
             >
               {isEn ? 'Close' : 'داخستن'}
             </button>
@@ -587,7 +624,9 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
 
       {/* Bottom Thumbnail Strip */}
       {total > 1 && (
-        <div className="relative z-20 pt-2.5 pb-2 border-t border-white/10 liquid-glass-dock border-x-0 border-b-0 rounded-none shrink-0 flex flex-col gap-2 shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
+        <div className={`relative z-20 pt-2.5 pb-2 border-t liquid-glass-dock border-x-0 border-b-0 rounded-none shrink-0 flex flex-col gap-2 ${
+          isDark ? 'border-white/10 shadow-[0_-4px_25px_rgba(0,0,0,0.6)]' : 'border-slate-300 shadow-md'
+        }`}>
           <div
             ref={thumbStripRef}
             className="flex items-center justify-start sm:justify-center gap-2 px-2 overflow-x-auto scrollbar-none max-w-full touch-pan-x"
@@ -603,7 +642,7 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
             ))}
           </div>
 
-          <div className="flex items-center justify-between px-3 text-[10px] sm:text-[11px] text-slate-400">
+          <div className={`flex items-center justify-between px-3 text-[10px] sm:text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             <div className="flex items-center gap-2">
               <span>
                 {isEn ? 'Controls: Arrow keys to navigate' : 'کۆنترۆڵ: تیرەکانی تەختەکلیل بۆ گۆڕین'}
@@ -617,7 +656,9 @@ export const HistoricalGalleryModal: React.FC<Props> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentIndex(0)}
-                className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1"
+                className={`transition-colors cursor-pointer flex items-center gap-1 ${
+                  isDark ? 'hover:text-amber-300' : 'hover:text-amber-800'
+                }`}
                 title={isEn ? 'Back to Start' : 'گەڕانەوە بۆ سەرەتا'}
               >
                 <RotateCcw className="w-3 h-3" />

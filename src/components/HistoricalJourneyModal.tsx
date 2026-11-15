@@ -21,7 +21,7 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { formatDigits } from '../utils/yearUtils';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage, AppLanguage } from '../context/LanguageContext';
-import { getCategoryInfo, getUnifiedCategories } from '../types/history';
+import { getCategoryInfo, getUnifiedCategories, getAccessibleCategoryColor } from '../types/history';
 
 interface Props {
   isOpen: boolean;
@@ -447,7 +447,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             isDark ? 'bg-[#0f1422] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          <BookOpen className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <BookOpen className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
           <h3 className="font-heading font-bold text-base mb-1">
             {selectedCategory !== 'all'
               ? isEn
@@ -457,7 +457,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
               ? 'No historical entries available'
               : 'هیچ بابەتێکی مێژوویی بەردەست نییە'}
           </h3>
-          <p className="text-xs text-slate-400 mb-4">
+          <p className={`text-xs mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             {selectedCategory !== 'all'
               ? isEn
                 ? `No records were found under "${currentCategoryObj.name}".`
@@ -471,7 +471,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleSelectCategory('all')}
-                className="px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs cursor-pointer hover:bg-amber-400 transition-colors shadow-md"
+                className="preserve-contrast px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs cursor-pointer hover:bg-amber-400 transition-colors shadow-md"
               >
                 {isEn ? 'All Categories' : 'هەموو پۆلێنەکان'}
               </button>
@@ -479,7 +479,11 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-xs cursor-pointer hover:bg-white/20 transition-colors"
+              className={`px-4 py-2 rounded-xl border font-bold text-xs cursor-pointer transition-colors ${
+                isDark
+                  ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                  : 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200'
+              }`}
             >
               {isEn ? 'Close' : 'داخستن'}
             </button>
@@ -630,13 +634,15 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                     : 'bg-white/98 border-slate-200 text-slate-900 shadow-slate-400/30'
                 }`}
               >
-                <div className="px-2.5 py-1.5 text-[11px] font-bold text-slate-400 border-b border-white/10 mb-1 flex items-center justify-between">
+                <div className={`px-2.5 py-1.5 text-[11px] font-bold border-b mb-1 flex items-center justify-between ${
+                  isDark ? 'text-slate-400 border-white/10' : 'text-slate-600 border-slate-200'
+                }`}>
                   <span>{isEn ? 'Categories:' : 'پۆلێنی بابەتەکان:'}</span>
                   {selectedCategory !== 'all' && (
                     <button
                       type="button"
                       onClick={() => handleSelectCategory('all')}
-                      className="text-amber-500 hover:underline cursor-pointer text-[10px] font-bold"
+                      className={`hover:underline cursor-pointer text-[10px] font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'}`}
                     >
                       {isEn ? 'All Categories' : 'هەموو پۆلێنەکان'}
                     </button>
@@ -698,7 +704,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 : 'bg-slate-100 border-slate-200 text-slate-700'
             }`}
           >
-            <span className="text-amber-500 font-extrabold">{formatDigits(currentIndex + 1, language)}</span>
+            <span className={`font-extrabold ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>{formatDigits(currentIndex + 1, language)}</span>
             <span className="opacity-40">/</span>
             <span>{formatDigits(totalFacts, language)}</span>
           </div>
@@ -779,7 +785,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
               >
                 {/* 1. TOP PART: AUTHENTIC IMAGE */}
                 {optimizedImg ? (
-                  <div className="relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center group">
+                  <div className="preserve-contrast relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center group">
                     <img
                       src={optimizedImg}
                       alt=""
@@ -858,10 +864,10 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       >
                         <Landmark
                           className="w-5 h-5"
-                          style={{ color: catInfo.color || '#f59e0b' }}
+                          style={{ color: getAccessibleCategoryColor(catInfo.color || '#f59e0b', isDark) }}
                         />
                       </div>
-                      <span className="text-[11px] text-slate-400 font-medium">
+                      <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                         {isEn
                           ? 'No official archival photo added for this entry yet'
                           : 'ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە'}
@@ -904,7 +910,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                     </h3>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 text-xs sm:text-sm font-semibold">
-                      <span className="flex items-center gap-1 text-amber-500 font-mono">
+                      <span className={`flex items-center gap-1 font-mono ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{getFactYearDisplay(factItem, language, isEn)}</span>
                       </span>
@@ -996,7 +1002,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                 const fallingImg = getAuthenticFactImage(fallingCard);
                 const optimizedFallingImg = fallingImg ? getOptimizedImageUrl(fallingImg, 'full') : '';
                 return optimizedFallingImg ? (
-                  <div className="relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center">
+                  <div className="preserve-contrast relative w-full h-48 sm:h-56 md:h-72 shrink-0 overflow-hidden bg-black/85 flex items-center justify-center">
                     <img
                       src={optimizedFallingImg}
                       alt=""
@@ -1044,7 +1050,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                   </h3>
 
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 text-xs sm:text-sm font-semibold">
-                    <span className="flex items-center gap-1 text-amber-500 font-mono">
+                    <span className={`flex items-center gap-1 font-mono ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{getFactYearDisplay(fallingCard, language, isEn)}</span>
                     </span>
@@ -1178,7 +1184,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
       {/* Full-Screen Image Lightbox Preview Modal */}
       {previewImage && (
         <div
-          className="fixed inset-0 z-[1300] flex flex-col items-center justify-between p-3 sm:p-5 bg-black/95 backdrop-blur-xl animate-fade-in text-white select-none"
+          className="preserve-contrast fixed inset-0 z-[1300] flex flex-col items-center justify-between p-3 sm:p-5 bg-black/95 backdrop-blur-xl animate-fade-in text-white select-none"
           onClick={() => setPreviewImage(null)}
           dir={dir}
         >

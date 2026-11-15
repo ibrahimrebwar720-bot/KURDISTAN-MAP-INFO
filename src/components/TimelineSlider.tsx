@@ -17,6 +17,7 @@ import {
   normalizeYearString,
 } from '../utils/yearUtils';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   facts: FactItem[];
@@ -45,6 +46,8 @@ export const TimelineSlider: React.FC<Props> = ({
   onToggleTour,
 }) => {
   const { language, isEn, dir } = useLanguage();
+  const { colorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const [directInputYear, setDirectInputYear] = useState('');
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [scrubYear, setScrubYear] = useState<number | null>(null);
@@ -417,12 +420,26 @@ export const TimelineSlider: React.FC<Props> = ({
         <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
           {/* Year Label & Fact Count */}
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center shrink-0 shadow-xs">
-              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+            <div
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-xs ${
+                isDark
+                  ? 'bg-white/[0.06] border-white/[0.1]'
+                  : 'bg-slate-100 border-slate-300'
+              }`}
+            >
+              <Calendar
+                className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${
+                  isDark ? 'text-amber-400' : 'text-amber-800'
+                }`}
+              />
             </div>
 
             <div className="flex items-center gap-1.5 truncate">
-              <span className="font-extrabold text-white text-xs sm:text-sm font-mono tracking-wide">
+              <span
+                className={`font-extrabold text-xs sm:text-sm font-mono tracking-wide ${
+                  isDark ? 'text-white' : 'text-slate-900'
+                }`}
+              >
                 {activeDisplayYear === 'all'
                   ? isEn
                     ? 'All Years'
@@ -430,8 +447,12 @@ export const TimelineSlider: React.FC<Props> = ({
                   : formatKurdishYear(activeDisplayYear, language)}
               </span>
 
-              <span className="text-slate-600 font-mono text-xs">·</span>
-              <span className="text-[11px] sm:text-xs font-mono font-semibold text-amber-300/90 tabular-nums">
+              <span className={`font-mono text-xs ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
+              <span
+                className={`text-[11px] sm:text-xs font-mono font-semibold tabular-nums ${
+                  isDark ? 'text-amber-300/90' : 'text-amber-800'
+                }`}
+              >
                 {formatDigits(filteredCount, language)} {isEn ? 'sites' : 'شوێن'}
               </span>
             </div>
@@ -443,7 +464,11 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => handleStepYear(-1)}
               title={isEn ? 'Step -1 year' : '١ ساڵ بۆ دواوە'}
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer border border-white/[0.08]"
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                isDark
+                  ? 'bg-white/[0.05] hover:bg-white/[0.12] text-slate-300 hover:text-amber-300 border-white/[0.08]'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 hover:text-amber-800 border-slate-300 shadow-xs'
+              }`}
             >
               {isEn ? (
                 <ChevronLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -467,8 +492,10 @@ export const TimelineSlider: React.FC<Props> = ({
                 }
                 className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
                   isTourActive
-                    ? 'liquid-glass-btn-active shadow-[0_0_12px_rgba(245,158,11,0.9)] animate-pulse text-black'
-                    : 'liquid-glass-btn text-amber-300 hover:text-white'
+                    ? 'liquid-glass-btn-active shadow-[0_0_12px_rgba(245,158,11,0.9)] animate-pulse'
+                    : isDark
+                    ? 'liquid-glass-btn text-amber-300 hover:text-white'
+                    : 'liquid-glass-btn text-amber-800 hover:text-slate-900'
                 }`}
               >
                 <Film className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
@@ -479,7 +506,11 @@ export const TimelineSlider: React.FC<Props> = ({
             <button
               onClick={() => handleStepYear(1)}
               title={isEn ? 'Step +1 year' : '١ ساڵ بۆ پێشەوە'}
-              className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn flex items-center justify-center transition-all cursor-pointer ${
+                isDark
+                  ? 'text-slate-300 hover:text-amber-300'
+                  : 'text-slate-700 hover:text-amber-800'
+              }`}
             >
               {isEn ? (
                 <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
@@ -495,7 +526,9 @@ export const TimelineSlider: React.FC<Props> = ({
               className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 showDirectInput
                   ? 'liquid-glass-btn-active font-bold'
-                  : 'liquid-glass-btn text-slate-300 hover:text-amber-300'
+                  : isDark
+                  ? 'liquid-glass-btn text-slate-300 hover:text-amber-300'
+                  : 'liquid-glass-btn text-slate-700 hover:text-amber-800'
               }`}
             >
               <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -516,7 +549,9 @@ export const TimelineSlider: React.FC<Props> = ({
               className={`flex items-center gap-1 px-2 sm:px-2.5 h-5 sm:h-6 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer ${
                 selectedYear === 'all'
                   ? 'liquid-glass-btn-active font-extrabold'
-                  : 'liquid-glass-btn text-slate-200 hover:text-amber-300'
+                  : isDark
+                  ? 'liquid-glass-btn text-slate-200 hover:text-amber-300'
+                  : 'liquid-glass-btn text-slate-800 hover:text-amber-800'
               }`}
             >
               <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -531,7 +566,11 @@ export const TimelineSlider: React.FC<Props> = ({
             onSubmit={handleDirectJumpSubmit}
             className="flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-xl liquid-glass-card animate-fade-in shadow-md"
           >
-            <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold shrink-0">
+            <span
+              className={`text-[9px] sm:text-[10px] font-bold shrink-0 ${
+                isDark ? 'text-amber-400' : 'text-amber-800'
+              }`}
+            >
               {isEn ? 'Enter year:' : 'ساڵ بنووسە:'}
             </span>
             <input
@@ -540,18 +579,22 @@ export const TimelineSlider: React.FC<Props> = ({
               value={directInputYear}
               onChange={(e) => setDirectInputYear(e.target.value)}
               placeholder={isEn ? '1940, 1890, 612 BCE...' : '1940، 1890، 612 پ.ز...'}
-              className="flex-1 liquid-glass-input text-white px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs focus:outline-none font-mono"
+              className={`flex-1 liquid-glass-input px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs focus:outline-none font-mono ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}
             />
             <button
               type="submit"
-              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg liquid-glass-btn-active text-black font-extrabold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
+              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg liquid-glass-btn-active font-extrabold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
             >
               {isEn ? 'Go' : 'بڕۆ'}
             </button>
             <button
               type="button"
               onClick={() => setShowDirectInput(false)}
-              className="p-0.5 sm:p-1 rounded-lg liquid-glass-btn text-slate-300 hover:text-white"
+              className={`p-0.5 sm:p-1 rounded-lg liquid-glass-btn ${
+                isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+              }`}
             >
               <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
@@ -559,12 +602,18 @@ export const TimelineSlider: React.FC<Props> = ({
         )}
 
         {/* Tier 2: Precision Ruler Controller */}
-        <div className="relative w-full flex items-center gap-1 sm:gap-1.5 border-t border-white/10 pt-1">
+        <div
+          className={`relative w-full flex items-center gap-1 sm:gap-1.5 border-t pt-1 ${
+            isDark ? 'border-white/10' : 'border-slate-200'
+          }`}
+        >
           <button
             type="button"
             onClick={() => handleScrollRuler(isEn ? 'left' : 'right')}
             title={isEn ? 'Scroll ruler earlier' : 'سکرۆڵکردنی ڕاستە بۆ پێشەوە'}
-            className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
+            className={`w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn flex items-center justify-center shrink-0 cursor-pointer ${
+              isDark ? 'text-slate-300 hover:text-amber-300' : 'text-slate-700 hover:text-amber-800'
+            }`}
           >
             {isEn ? (
               <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
@@ -575,11 +624,25 @@ export const TimelineSlider: React.FC<Props> = ({
 
           <div className="relative flex-1 liquid-glass-subtle rounded-xl overflow-hidden py-0.5 sm:py-1 px-0.5 sm:px-1 shadow-inner">
             <div
-              className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 bg-amber-400 z-20 pointer-events-none flex flex-col justify-between items-center"
+              className={`absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[1px] sm:w-0.5 z-20 pointer-events-none flex flex-col justify-between items-center ${
+                isDark ? 'bg-amber-400' : 'bg-amber-700'
+              }`}
               style={{ boxShadow: '0 0 10px var(--theme-accent)' }}
             >
-              <span className="text-[5px] sm:text-[7px] text-amber-400 -mt-0.5 leading-none select-none">▼</span>
-              <span className="text-[5px] sm:text-[7px] text-amber-400 -mb-0.5 leading-none select-none">▲</span>
+              <span
+                className={`text-[5px] sm:text-[7px] -mt-0.5 leading-none select-none ${
+                  isDark ? 'text-amber-400' : 'text-amber-700'
+                }`}
+              >
+                ▼
+              </span>
+              <span
+                className={`text-[5px] sm:text-[7px] -mb-0.5 leading-none select-none ${
+                  isDark ? 'text-amber-400' : 'text-amber-700'
+                }`}
+              >
+                ▲
+              </span>
             </div>
 
             <div
@@ -626,12 +689,20 @@ export const TimelineSlider: React.FC<Props> = ({
                     <div
                       className={`transition-all rounded-none ${
                         isSelected
-                          ? 'w-1 h-4 sm:h-5.5 bg-amber-400 shadow-[0_0_10px_#f59e0b]'
+                          ? isDark
+                            ? 'w-1 h-4 sm:h-5.5 bg-amber-400 shadow-[0_0_10px_#f59e0b]'
+                            : 'w-1 h-4 sm:h-5.5 bg-amber-700 shadow-[0_0_8px_rgba(180,83,9,0.5)]'
                           : mark.type === 'cm'
-                          ? 'w-[1.5px] h-3 sm:h-4 bg-amber-400/90 group-hover:bg-amber-300'
+                          ? isDark
+                            ? 'w-[1.5px] h-3 sm:h-4 bg-amber-400/90 group-hover:bg-amber-300'
+                            : 'w-[1.5px] h-3 sm:h-4 bg-amber-800/80 group-hover:bg-amber-900'
                           : mark.type === 'half'
-                          ? 'w-[1px] h-2 sm:h-2.5 bg-amber-400/50 group-hover:bg-amber-400'
-                          : 'w-[1px] h-1.5 bg-amber-400/25 group-hover:bg-amber-400/60'
+                          ? isDark
+                            ? 'w-[1px] h-2 sm:h-2.5 bg-amber-400/50 group-hover:bg-amber-400'
+                            : 'w-[1px] h-2 sm:h-2.5 bg-amber-800/50 group-hover:bg-amber-800'
+                          : isDark
+                          ? 'w-[1px] h-1.5 bg-amber-400/25 group-hover:bg-amber-400/60'
+                          : 'w-[1px] h-1.5 bg-amber-800/25 group-hover:bg-amber-800/60'
                       }`}
                     />
 
@@ -639,10 +710,16 @@ export const TimelineSlider: React.FC<Props> = ({
                       <span
                         className={`text-[7px] sm:text-[8px] font-mono leading-none mt-0.5 sm:mt-1 tracking-tighter whitespace-nowrap select-none transition-colors ${
                           isSelected
-                            ? 'text-amber-300 font-bold scale-105'
+                            ? isDark
+                              ? 'text-amber-300 font-bold scale-105'
+                              : 'text-amber-900 font-bold scale-105'
                             : mark.isFactYear
-                            ? 'text-amber-400/90 font-semibold'
-                            : 'text-slate-400/80 group-hover:text-amber-300'
+                            ? isDark
+                              ? 'text-amber-400/90 font-semibold'
+                              : 'text-amber-800 font-semibold'
+                            : isDark
+                            ? 'text-slate-400/80 group-hover:text-amber-300'
+                            : 'text-slate-600 group-hover:text-amber-900'
                         }`}
                       >
                         {mark.label || formatDigits(mark.year, language)}
@@ -658,7 +735,9 @@ export const TimelineSlider: React.FC<Props> = ({
             type="button"
             onClick={() => handleScrollRuler(isEn ? 'right' : 'left')}
             title={isEn ? 'Scroll ruler later' : 'سکرۆڵکردنی ڕاستە بۆ دواوە'}
-            className="w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn text-slate-300 hover:text-amber-300 flex items-center justify-center shrink-0 cursor-pointer"
+            className={`w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn flex items-center justify-center shrink-0 cursor-pointer ${
+              isDark ? 'text-slate-300 hover:text-amber-300' : 'text-slate-700 hover:text-amber-800'
+            }`}
           >
             {isEn ? (
               <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />

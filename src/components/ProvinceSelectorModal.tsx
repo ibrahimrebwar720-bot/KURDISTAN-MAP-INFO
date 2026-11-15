@@ -239,7 +239,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
             className={`w-full text-xs ps-9 pe-8 py-2 rounded-[4px] border focus:outline-none transition-all ${
               isDark
                 ? 'bg-white/[0.05] text-white placeholder:text-slate-500 border-white/10 focus:border-amber-400'
-                : 'bg-slate-50 text-slate-900 placeholder:text-slate-400 border-slate-300 focus:bg-white focus:border-amber-500 font-medium'
+                : 'bg-slate-50 text-slate-900 placeholder:text-slate-500 border-slate-300 focus:bg-white focus:border-amber-600 font-medium'
             }`}
           />
           {searchQuery && (
@@ -351,7 +351,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
             }`}
           >
             <div className="flex items-center gap-2">
-              <Compass className="w-4 h-4 text-amber-500" />
+              <Compass className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
               <span className="text-xs sm:text-sm font-bold font-heading">
                 {isEn ? 'All Provinces (Greater Kurdistan)' : 'هەموو پارێزگاکان (سەرجەم کوردستان)'}
               </span>
@@ -367,7 +367,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
         {/* Provinces List */}
         <div className="space-y-1.5 overflow-y-auto pe-1 custom-scrollbar flex-1">
           {filteredProvinces.length === 0 ? (
-            <div className={`py-8 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`py-8 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {isEn ? 'No province matching your search was found.' : 'هیچ پارێزگایەک بەم ناوەوە نەدۆزرایەوە.'}
             </div>
           ) : (
@@ -427,7 +427,7 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                           ? 'bg-slate-950/20 text-slate-950 border-slate-950/30'
                           : prov.count > 0
                           ? (isDark ? 'bg-amber-400/15 text-amber-300 border-amber-400/30' : 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold')
-                          : (isDark ? 'bg-white/5 text-slate-500 border-white/10' : 'bg-slate-100 text-slate-500 border-slate-200')
+                          : (isDark ? 'bg-white/5 text-slate-400 border-white/10' : 'bg-slate-100 text-slate-600 border-slate-300')
                       }`}
                     >
                       {formatDigits(prov.count, language)} {isEn ? 'sites' : 'شوێن'}

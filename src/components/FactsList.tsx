@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
-import { CollectionItem, getUnifiedCategories, getCategoryInfo } from '../types/history';
+import { CollectionItem, getUnifiedCategories, getCategoryInfo, getAccessibleCategoryColor } from '../types/history';
 import { getFactChronologicalYear, formatDigits } from '../utils/yearUtils';
 import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import { getFactDisplayImage } from '../utils/historicalImages';
@@ -661,7 +661,7 @@ export const FactsList: React.FC<Props> = ({
               {isAdmin && (
                 <button
                   onClick={openAiStudio}
-                  className="h-8 px-2 flex items-center gap-1 rounded-[4px] bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold text-[10px] transition-all cursor-pointer active:scale-95 shadow-sm"
+                  className="preserve-contrast h-8 px-2 flex items-center gap-1 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[10px] transition-all cursor-pointer active:scale-95 shadow-sm"
                   title={isEn ? 'AI Kurdish → English Translator Studio' : 'ستۆدیۆی وەرگێڕانی AI بۆ ئینگلیزی'}
                 >
                   <Languages className="w-3.5 h-3.5" />
@@ -941,7 +941,7 @@ export const FactsList: React.FC<Props> = ({
               {isAdmin && (
                 <button
                   onClick={openAiStudio}
-                  className="h-9.5 px-3 flex items-center gap-1.5 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95 border border-indigo-400/40"
+                  className="preserve-contrast h-9.5 px-3 flex items-center gap-1.5 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95 border border-indigo-400/40"
                   title={isEn ? 'Open AI Kurdish → English Translator Studio' : 'کردنەوەی ستۆدیۆی وەرگێڕانی AI (کوردی → ئینگلیزی)'}
                 >
                   <Languages className="w-4 h-4" />
@@ -1294,7 +1294,7 @@ export const FactsList: React.FC<Props> = ({
               {isEn && facts.length === 0 && isAdmin && (
                 <button
                   onClick={openAiStudio}
-                  className="px-4 py-2 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold text-xs cursor-pointer transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                  className="preserve-contrast px-4 py-2 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold text-xs cursor-pointer transition-all shadow-md active:scale-95 flex items-center gap-1.5"
                 >
                   <Languages className="w-4 h-4" />
                   <span>Open AI Translator Studio</span>
@@ -1387,7 +1387,7 @@ export const FactsList: React.FC<Props> = ({
                           className="w-full h-full flex items-center justify-center"
                           style={{ backgroundColor: `${catInfo.color}20` }}
                         >
-                          <CatIcon className="w-5 h-5" style={{ color: catInfo.color }} />
+                          <CatIcon className="w-5 h-5" style={{ color: getAccessibleCategoryColor(catInfo.color, isDark) }} />
                         </div>
                       )}
                     </div>
@@ -1401,16 +1401,21 @@ export const FactsList: React.FC<Props> = ({
                         }`}>
                           {fact.name}
                         </h3>
-                        <span
-                          className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] font-semibold shrink-0"
-                          style={{
-                            backgroundColor: isDark ? `${catInfo.color}20` : `${catInfo.color}15`,
-                            color: isDark ? catInfo.color : (catInfo.color === '#f59e0b' ? '#92400e' : catInfo.color),
-                            border: `1px solid ${catInfo.color}40`,
-                          }}
-                        >
-                          {catInfo.name}
-                        </span>
+                        {(() => {
+                          const catColor = getAccessibleCategoryColor(catInfo.color, isDark);
+                          return (
+                            <span
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] font-semibold shrink-0"
+                              style={{
+                                backgroundColor: isDark ? `${catInfo.color}20` : `${catColor}14`,
+                                color: catColor,
+                                border: `1px solid ${catColor}45`,
+                              }}
+                            >
+                              {catInfo.name}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[11px] mt-0.5 truncate">
@@ -1450,10 +1455,10 @@ export const FactsList: React.FC<Props> = ({
                         title="وەرگێڕان بۆ ئینگلیزی لە ڕێگەی AI (بە هەمان وێنە و پۆینتی نەخشە)"
                         className={`px-2 py-1 rounded-[3px] text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
                           trFeedback === 'ok'
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                            ? (isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40' : 'bg-emerald-100 text-emerald-800 border-emerald-300')
                             : trFeedback === 'err'
-                            ? 'bg-rose-500/20 text-rose-300 border-rose-400/40'
-                            : 'bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-300 border-indigo-400/40'
+                            ? (isDark ? 'bg-rose-500/20 text-rose-300 border-rose-400/40' : 'bg-rose-100 text-rose-800 border-rose-300')
+                            : (isDark ? 'bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-300 border-indigo-400/40' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-300')
                         }`}
                       >
                         {isTranslating ? (
@@ -1549,7 +1554,7 @@ export const FactsList: React.FC<Props> = ({
                             className="w-full h-full flex items-center justify-center"
                             style={{ backgroundColor: `${catInfo.color}18` }}
                           >
-                            <CatIcon className="w-5 h-5" style={{ color: catInfo.color }} />
+                            <CatIcon className="w-5 h-5" style={{ color: getAccessibleCategoryColor(catInfo.color, isDark) }} />
                           </div>
                         )}
                       </div>
@@ -1566,7 +1571,7 @@ export const FactsList: React.FC<Props> = ({
                         </h3>
 
                         <div className="flex items-center gap-1.5 text-[11px] mt-0.5">
-                          <span className="font-semibold truncate" style={{ color: isDark ? catInfo.color : (catInfo.color === '#f59e0b' ? '#92400e' : catInfo.color) }}>
+                          <span className="font-semibold truncate" style={{ color: getAccessibleCategoryColor(catInfo.color, isDark) }}>
                             {catInfo.name}
                           </span>
                           <span aria-hidden="true" className={isDark ? 'text-slate-600 font-mono' : 'text-slate-400 font-mono'}>·</span>
@@ -1621,10 +1626,10 @@ export const FactsList: React.FC<Props> = ({
                           title="وەرگێڕان بۆ ئینگلیزی لە ڕێگەی AI"
                           className={`px-2 py-1 rounded-[3px] text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
                             trFeedback === 'ok'
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                              ? (isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40' : 'bg-emerald-100 text-emerald-800 border-emerald-300')
                               : trFeedback === 'err'
-                              ? 'bg-rose-500/20 text-rose-300 border-rose-400/40'
-                              : 'bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-300 border-indigo-400/40'
+                              ? (isDark ? 'bg-rose-500/20 text-rose-300 border-rose-400/40' : 'bg-rose-100 text-rose-800 border-rose-300')
+                              : (isDark ? 'bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-300 border-indigo-400/40' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-300')
                           }`}
                         >
                           {isTranslating ? (
@@ -1711,27 +1716,43 @@ export const FactsList: React.FC<Props> = ({
       {/* ================= ADMIN AI KURDISH → ENGLISH TRANSLATOR STUDIO ================= */}
       {isAdmin && isAiStudioOpen && (
         <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-lg animate-fade-in"
+          className="fixed inset-0 z-[2000] flex items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-lg animate-fade-in"
           onClick={() => !isBatchRunning && setIsAiStudioOpen(false)}
         >
           <div
             dir={dir}
-            className="relative w-full max-w-4xl max-h-[90dvh] flex flex-col rounded-3xl bg-[#070b16] border border-indigo-500/40 shadow-[0_25px_80px_rgba(0,0,0,0.95)] overflow-hidden text-start text-slate-100"
+            className={`relative w-full max-w-4xl max-h-[90dvh] flex flex-col rounded-3xl border overflow-hidden text-start ${
+              isDark
+                ? 'bg-[#070b16] border-indigo-500/40 text-slate-100 shadow-[0_25px_80px_rgba(0,0,0,0.95)]'
+                : 'bg-white border-indigo-300 text-slate-900 shadow-2xl'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between gap-3 bg-gradient-to-r from-indigo-950/60 via-[#0b1022] to-[#070b16]">
+            <div
+              className={`p-4 sm:p-5 border-b flex items-center justify-between gap-3 ${
+                isDark
+                  ? 'border-white/10 bg-gradient-to-r from-indigo-950/60 via-[#0b1022] to-[#070b16]'
+                  : 'border-slate-200 bg-gradient-to-r from-indigo-50 via-white to-slate-50'
+              }`}
+            >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center shrink-0">
-                  <Languages className="w-5 h-5 text-indigo-300" />
+                <div
+                  className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${
+                    isDark
+                      ? 'bg-indigo-500/20 border-indigo-400/40 text-indigo-300'
+                      : 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                  }`}
+                >
+                  <Languages className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base font-black text-white font-heading truncate">
+                  <h3 className={`text-sm sm:text-base font-black font-heading truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {isEn
                       ? 'AI Kurdish → English Translator Studio'
                       : 'ستۆدیۆی وەرگێڕانی زیرەکی (کوردی → ئینگلیزی)'}
                   </h3>
-                  <p className="text-[11px] text-slate-300 leading-snug">
+                  <p className={`text-[11px] leading-snug ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     {isEn
                       ? 'Translates Kurdish historical topics into the independent English dataset (`facts_en`) while keeping exact map coordinates, boundaries, and image URLs.'
                       : 'هەموو دەقەکانی بابەتە کوردییەکان بە زیرەکی دەستکرد دەکاتە ئینگلیزی و بە هەمان وێنە و پۆینتی نەخشە لە داتابەیسی سەربەخۆی ئینگلیزی تۆماری دەکات.'}
@@ -1742,24 +1763,36 @@ export const FactsList: React.FC<Props> = ({
                 type="button"
                 disabled={isBatchRunning}
                 onClick={() => setIsAiStudioOpen(false)}
-                className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 flex items-center justify-center text-slate-300 hover:text-white border border-white/10 cursor-pointer disabled:opacity-40"
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer disabled:opacity-40 transition-colors ${
+                  isDark
+                    ? 'bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white border-white/10'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-300'
+                }`}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Toolbar: Coverage + Priority Sort + Export + Batch Action */}
-            <div className="p-3 sm:p-4 border-b border-white/10 space-y-3 bg-[#0a0f1d]">
+            <div
+              className={`p-3 sm:p-4 border-b space-y-3 ${
+                isDark ? 'border-white/10 bg-[#0a0f1d]' : 'border-slate-200 bg-slate-50'
+              }`}
+            >
               {/* Master Knowledge Base Translation Coverage Bar */}
               {kurdishSourceFacts.length > 0 && (
-                <div className="p-2.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                <div
+                  className={`p-2.5 rounded-2xl border space-y-1.5 ${
+                    isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-slate-200'
+                  }`}
+                >
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-slate-200">
+                    <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                       {isEn
                         ? 'Knowledge Base Coverage (ckb → en)'
                         : 'ڕێژەی وەرگێڕان لە بنکەی کوردییەوە (ckb → en)'}
                     </span>
-                    <span className="font-mono font-bold text-emerald-300">
+                    <span className={`font-mono font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
                       {formatDigits(translatedCount, language)} / {formatDigits(kurdishSourceFacts.length, language)} (
                       {formatDigits(
                         Math.round((translatedCount / kurdishSourceFacts.length) * 100),
@@ -1768,9 +1801,9 @@ export const FactsList: React.FC<Props> = ({
                       %)
                     </span>
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-sky-400 transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-300"
                       style={{
                         width: `${Math.round((translatedCount / kurdishSourceFacts.length) * 100)}%`,
                       }}
@@ -1781,7 +1814,13 @@ export const FactsList: React.FC<Props> = ({
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/35">
+                  <span
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${
+                      isDark
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-400/35'
+                        : 'bg-amber-100 text-amber-900 border-amber-300'
+                    }`}
+                  >
                     {isEn ? 'Untranslated Topics' : 'بابەتە وەرگێڕان نەکراوەکان'} ({formatDigits(untranslatedCount, language)})
                   </span>
                   <button
@@ -1791,8 +1830,12 @@ export const FactsList: React.FC<Props> = ({
                     }
                     className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border cursor-pointer transition-colors ${
                       studioSortMode === 'priority'
-                        ? 'bg-sky-500/20 text-sky-300 border-sky-400/40'
-                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                        ? isDark
+                          ? 'bg-sky-500/20 text-sky-300 border-sky-400/40'
+                          : 'bg-sky-100 text-sky-800 border-sky-300'
+                        : isDark
+                        ? 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                     }`}
                   >
                     {studioSortMode === 'priority'
@@ -1811,10 +1854,14 @@ export const FactsList: React.FC<Props> = ({
                     type="button"
                     disabled={studioLoading || translatedCount === 0}
                     onClick={handleExportEnglishSnapshot}
-                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-40 text-slate-200 border border-white/15 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    className={`px-3 py-2 rounded-xl border font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 transition-colors ${
+                      isDark
+                        ? 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/15'
+                        : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                    }`}
                     title={isEn ? 'Download translated English entries as JSON snapshot' : 'داگرتنی داتای ئینگلیزی وەک فایلی JSON'}
                   >
-                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    <Download className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                     <span>{isEn ? 'Export EN JSON' : 'داگرتنی EN JSON'}</span>
                   </button>
 
@@ -1824,7 +1871,7 @@ export const FactsList: React.FC<Props> = ({
                       onClick={() => {
                         stopBatchRef.current = true;
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+                      className="preserve-contrast px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                       <span>{isEn ? 'Stop Batch' : 'وەستاندنی پرۆسە'}</span>
@@ -1834,7 +1881,7 @@ export const FactsList: React.FC<Props> = ({
                       type="button"
                       disabled={studioLoading || untranslatedCount === 0}
                       onClick={handleBatchTranslateUntranslated}
-                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 disabled:opacity-40 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+                      className="preserve-contrast px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>
@@ -1849,19 +1896,25 @@ export const FactsList: React.FC<Props> = ({
 
               {/* Search inside Studio */}
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className={`w-3.5 h-3.5 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                 <input
                   type="text"
                   value={studioSearch}
                   onChange={(e) => setStudioSearch(e.target.value)}
                   placeholder={isEn ? 'Filter Kurdish topics by title or place...' : 'گەڕان لە ناوی بابەتە کوردییەکاندا...'}
-                  className="w-full ps-9 pe-8 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400"
+                  className={`w-full ps-9 pe-8 py-2 rounded-xl border text-xs focus:outline-none focus:border-indigo-500 ${
+                    isDark
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500'
+                      : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'
+                  }`}
                 />
                 {studioSearch && (
                   <button
                     type="button"
                     onClick={() => setStudioSearch('')}
-                    className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                    className={`absolute end-2.5 top-1/2 -translate-y-1/2 cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                    }`}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -1870,31 +1923,35 @@ export const FactsList: React.FC<Props> = ({
 
               {/* Batch Progress Bar */}
               {batchProgress && (
-                <div className="p-3 rounded-2xl bg-indigo-950/50 border border-indigo-400/30 space-y-2">
+                <div
+                  className={`p-3 rounded-2xl border space-y-2 ${
+                    isDark ? 'bg-indigo-950/50 border-indigo-400/30' : 'bg-indigo-50 border-indigo-200'
+                  }`}
+                >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-indigo-200 truncate">
+                    <span className={`font-bold truncate ${isDark ? 'text-indigo-200' : 'text-indigo-900'}`}>
                       {isBatchRunning
                         ? `${isEn ? 'Translating:' : 'خەریکی وەرگێڕان:'} ${batchProgress.currentName}`
                         : (isEn ? 'Batch translation finished' : 'پرۆسەی وەرگێڕانی بەکۆمەڵ تەواوبوو')}
                     </span>
-                    <span className="font-mono font-bold text-amber-300 shrink-0">
+                    <span className={`font-mono font-bold shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                       {formatDigits(batchProgress.completed, language)} / {formatDigits(batchProgress.total, language)}
                     </span>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-indigo-200/70'}`}>
                     <div
-                      className="h-full bg-gradient-to-r from-indigo-400 via-violet-400 to-amber-400 transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-amber-500 transition-all duration-300"
                       style={{
                         width: `${batchProgress.total > 0 ? Math.round((batchProgress.completed / batchProgress.total) * 100) : 0}%`,
                       }}
                     />
                   </div>
-                  <div className="flex items-center gap-4 text-[11px] font-mono">
-                    <span className="text-emerald-400">
+                  <div className="flex items-center gap-4 text-[11px] font-mono font-bold">
+                    <span className={isDark ? 'text-emerald-400' : 'text-emerald-700'}>
                       ✓ {formatDigits(batchProgress.succeeded.length, language)} {isEn ? 'succeeded' : 'سەرکەوتوو'}
                     </span>
                     {batchProgress.failed.length > 0 && (
-                      <span className="text-rose-400">
+                      <span className={isDark ? 'text-rose-400' : 'text-rose-700'}>
                         ✕ {formatDigits(batchProgress.failed.length, language)} {isEn ? 'failed' : 'هەڵە'}
                       </span>
                     )}
@@ -1904,11 +1961,17 @@ export const FactsList: React.FC<Props> = ({
 
               {/* Mismatched Duplicate Notes Warning & 1-Click Cleaner */}
               {mismatchedNotesList.length > 0 && (
-                <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-400/45 text-amber-100 text-xs flex flex-wrap items-center justify-between gap-3">
+                <div
+                  className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-3 ${
+                    isDark
+                      ? 'bg-amber-500/15 border-amber-400/45 text-amber-100'
+                      : 'bg-amber-50 border-amber-300 text-amber-950'
+                  }`}
+                >
                   <div className="flex items-start gap-2 min-w-0 flex-1">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                     <div className="space-y-0.5 min-w-0">
-                      <p className="font-bold text-amber-200">
+                      <p className={`font-bold ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
                         {isEn
                           ? `${mismatchedNotesList.length} Kurdish entries have mismatched duplicate additional notes from other topics`
                           : `${formatDigits(mismatchedNotesList.length, language)} بابەتی کوردی تێبینیی زیادەی بابەتێکی تریان پێوە لکاوە (لەوانە: ${mismatchedNotesList
@@ -1916,7 +1979,7 @@ export const FactsList: React.FC<Props> = ({
                               .map((m) => `«${m.fact.name}»`)
                               .join('، ')})`}
                       </p>
-                      <p className="text-[11px] text-amber-200/80">
+                      <p className={`text-[11px] ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
                         {isEn
                           ? 'AI translation now excludes them automatically, or click to clean them from the Kurdish entries.'
                           : 'وەرگێڕانی AI بە خۆکاری لایاندەبات، یان دەتوانیت لێرەوە لە ئەرشیفە کوردییەکەشدا پاکیان بکەیتەوە.'}
@@ -1927,7 +1990,7 @@ export const FactsList: React.FC<Props> = ({
                     type="button"
                     disabled={isCleaningMismatches || isBatchRunning}
                     onClick={handleCleanMismatchedNotes}
-                    className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+                    className="preserve-contrast px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
                   >
                     {isCleaningMismatches ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1952,14 +2015,18 @@ export const FactsList: React.FC<Props> = ({
                 <div
                   className={`p-2.5 px-3 rounded-xl text-xs font-medium flex items-center gap-2 border ${
                     studioNotice.type === 'ok'
-                      ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-200'
-                      : 'bg-rose-500/15 border-rose-400/30 text-rose-200'
+                      ? isDark
+                        ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-200'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                      : isDark
+                      ? 'bg-rose-500/15 border-rose-400/30 text-rose-200'
+                      : 'bg-rose-50 border-rose-300 text-rose-900'
                   }`}
                 >
                   {studioNotice.type === 'ok' ? (
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <Check className={`w-4 h-4 shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                   ) : (
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
                   )}
                   <span>{studioNotice.text}</span>
                 </div>
@@ -1969,12 +2036,12 @@ export const FactsList: React.FC<Props> = ({
             {/* Studio Items List */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 custom-scrollbar">
               {studioLoading ? (
-                <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-400 text-xs">
-                  <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
+                <div className={`py-16 flex flex-col items-center justify-center gap-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <Loader2 className={`w-7 h-7 animate-spin ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
                   <span>{isEn ? 'Loading Kurdish & English archives...' : 'بارکردنی بابەتە کوردی و ئینگلیزییەکان...'}</span>
                 </div>
               ) : studioFilteredList.length === 0 ? (
-                <div className="py-16 text-center text-slate-400 text-xs">
+                <div className={`py-16 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {untranslatedCount === 0
                     ? (isEn ? 'All historical topics have already been translated.' : 'هەموو بابەتەکان پێشتر وەرگێڕانیان بۆ کراوە.')
                     : (isEn ? 'No matching untranslated topics.' : 'هیچ بابەتێکی وەرگێڕان نەکراو لەم گەڕانەدا نییە.')}
@@ -1987,10 +2054,18 @@ export const FactsList: React.FC<Props> = ({
                   return (
                     <div
                       key={src.id}
-                      className="p-2.5 sm:p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 flex items-center justify-between gap-3 transition-colors"
+                      className={`p-2.5 sm:p-3 rounded-2xl border flex items-center justify-between gap-3 transition-colors ${
+                        isDark
+                          ? 'bg-white/[0.03] hover:bg-white/[0.06] border-white/10'
+                          : 'bg-slate-50 hover:bg-white border-slate-200'
+                      }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-11 h-11 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shrink-0 flex items-center justify-center">
+                        <div
+                          className={`w-11 h-11 rounded-xl overflow-hidden border shrink-0 flex items-center justify-center ${
+                            isDark ? 'bg-slate-900 border-white/10' : 'bg-slate-200 border-slate-300'
+                          }`}
+                        >
                           {thumb ? (
                             <img
                               src={getOptimizedImageUrl(thumb, 'thumb')}
@@ -1999,42 +2074,66 @@ export const FactsList: React.FC<Props> = ({
                               loading="lazy"
                             />
                           ) : (
-                            <MapPin className="w-4 h-4 text-amber-400" />
+                            <MapPin className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs sm:text-sm font-bold text-white truncate" dir="rtl">
+                            <span className={`text-xs sm:text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`} dir="rtl">
                               {src.name}
                             </span>
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold">
+                            <span
+                              className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+                                isDark
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+                                  : 'bg-amber-100 text-amber-900 border-amber-300'
+                              }`}
+                            >
                               {isEn ? 'Pending' : 'وەرگێڕان نەکراوە'}
                             </span>
                             {linkedByEnFactIds.has(src.id) && (
-                              <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40 text-[10px] font-bold">
+                              <span
+                                className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+                                  isDark
+                                    ? 'bg-sky-500/20 text-sky-300 border-sky-400/40'
+                                    : 'bg-sky-100 text-sky-800 border-sky-300'
+                                }`}
+                              >
                                 {isEn ? 'Linked in EN' : 'لینکراوە لە ئینگلیزیدا'}
                               </span>
                             )}
                             {featuredDocumentaryFactIds.has(src.id) && (
-                              <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/40 text-[10px] font-bold">
+                              <span
+                                className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+                                  isDark
+                                    ? 'bg-violet-500/20 text-violet-300 border-violet-400/40'
+                                    : 'bg-violet-100 text-violet-800 border-violet-300'
+                                }`}
+                              >
                                 {isEn ? 'Documentary Tour' : 'دۆکیومێنتاری'}
                               </span>
                             )}
                             {mismatchOwnerById.get(src.id) && (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/40 text-[10px] font-bold">
+                              <span
+                                className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+                                  isDark
+                                    ? 'bg-amber-500/20 text-amber-200 border-amber-400/40'
+                                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                                }`}
+                              >
                                 {isEn
                                   ? `Mismatched notes (${mismatchOwnerById.get(src.id)?.name})`
                                   : `تێبینیی «${mismatchOwnerById.get(src.id)?.name}» تێکەڵبووە`}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 truncate">
-                            {src.year && <span className="font-mono text-amber-300">{src.year}</span>}
+                          <div className={`flex items-center gap-2 text-[10px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {src.year && <span className={`font-mono font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{src.year}</span>}
                             <span className="font-mono" dir="ltr">
                               ({src.lat.toFixed(2)}, {src.lng.toFixed(2)})
                             </span>
                             {thumb && (
-                              <span className="text-emerald-400/90 flex items-center gap-0.5">
+                              <span className={`flex items-center gap-0.5 font-medium ${isDark ? 'text-emerald-400/90' : 'text-emerald-700'}`}>
                                 <ImageIcon className="w-2.5 h-2.5" />
                                 <span>{isEn ? 'Image kept' : 'وێنە پارێزراو'}</span>
                               </span>
@@ -2047,7 +2146,7 @@ export const FactsList: React.FC<Props> = ({
                         type="button"
                         disabled={isBusy || isBatchRunning}
                         onClick={() => handleStudioTranslateOne(src)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-all disabled:opacity-50 bg-indigo-500 hover:bg-indigo-400 text-white shadow-sm"
+                        className="preserve-contrast px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-all disabled:opacity-50 bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
                       >
                         {isBusy ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />

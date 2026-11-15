@@ -132,7 +132,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               <h2 className="font-heading font-extrabold text-sm sm:text-base">
                 {isEn ? 'Settings & Tools' : 'ڕێکخستنەکان و ئامرازەکان'}
               </h2>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-[10px] text-slate-600 dark:text-slate-400">
                 {isEn
                   ? 'Language, map style, appearance & preferences'
                   : 'ڕێکخستنی زمان، شێوازی نەخشە، دیمەن و ڕووکار'}
@@ -141,7 +141,7 @@ export const AppSettingsModal: React.FC<Props> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title={isEn ? 'Close' : 'داخستن'}
           >
             <X className="w-4 h-4" />
@@ -152,10 +152,10 @@ export const AppSettingsModal: React.FC<Props> = ({
         <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
-              <Globe className="w-4 h-4 text-amber-500" />
+              <Globe className="w-4 h-4 text-amber-700 dark:text-amber-400" />
               <span>{isEn ? 'Language' : 'زمان'}</span>
             </span>
-            <span className="text-[11px] font-bold text-amber-500">
+            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
               {isEn ? 'English' : 'کوردی'}
             </span>
           </div>
@@ -186,17 +186,17 @@ export const AppSettingsModal: React.FC<Props> = ({
         </div>
 
         {/* 1. Color Mode */}
-        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
+        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
               {colorMode === 'light' ? (
-                <Sun className="w-4 h-4 text-amber-500" />
+                <Sun className="w-4 h-4 text-amber-700" />
               ) : (
                 <Moon className="w-4 h-4 text-amber-400" />
               )}
               <span>{isEn ? 'Color Mode (Light / Dark)' : 'دۆخی دیمەن (ڕووناک / تاریک)'}</span>
             </span>
-            <span className="text-[11px] font-bold text-amber-500">
+            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
               {isEn ? (colorMode === 'light' ? 'Light' : 'Dark') : colorMode === 'light' ? 'ڕووناک' : 'تاریک'}
             </span>
           </div>
@@ -204,10 +204,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setColorMode('light')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
                 colorMode === 'light'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                  : 'bg-black/5 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
               }`}
             >
               <Sun className="w-3.5 h-3.5" />
@@ -216,10 +216,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setColorMode('dark')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
                 colorMode === 'dark'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                  : 'bg-black/5 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
               }`}
             >
               <Moon className="w-3.5 h-3.5" />
@@ -229,13 +229,13 @@ export const AppSettingsModal: React.FC<Props> = ({
         </div>
 
         {/* 2. Marker View Mode */}
-        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
+        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
-              <ImageIcon className="w-4 h-4 text-amber-500" />
+              <ImageIcon className="w-4 h-4 text-amber-700 dark:text-amber-400" />
               <span>{isEn ? 'Map Marker Style' : 'شێوازی نیشاندانی شوێنەکان'}</span>
             </span>
-            <span className="text-[11px] font-bold text-amber-500">
+            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
               {isEn
                 ? markerViewMode === 'photo'
                   ? 'Photo Cards'
@@ -249,10 +249,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setMarkerViewMode('photo')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
                 markerViewMode === 'photo'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                  : 'bg-black/5 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
@@ -264,10 +264,10 @@ export const AppSettingsModal: React.FC<Props> = ({
                 setMarkerViewMode('points');
                 setShowBottomPhotoStrip(false);
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
                 markerViewMode === 'points'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                  : 'bg-black/5 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
               }`}
             >
               <MapPin className="w-3.5 h-3.5" />
@@ -279,10 +279,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setShowBottomPhotoStrip((prev) => !prev)}
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 transition-all cursor-pointer mt-1"
+              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-600/25 dark:border-amber-500/25 transition-all cursor-pointer mt-1"
             >
               <span>{isEn ? 'Bottom Photo Strip' : 'شریتی وێنەیی خوارەوە'}</span>
-              <span className={`text-[11px] font-extrabold ${showBottomPhotoStrip ? 'text-emerald-500' : 'text-slate-400'}`}>
+              <span className={`text-[11px] font-extrabold ${showBottomPhotoStrip ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400'}`}>
                 {isEn ? (showBottomPhotoStrip ? 'Shown' : 'Hidden') : showBottomPhotoStrip ? 'کراوەیە' : 'داخراوە'}
               </span>
             </button>
@@ -290,13 +290,13 @@ export const AppSettingsModal: React.FC<Props> = ({
         </div>
 
         {/* 3. Base Map Layer */}
-        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
+        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
-              <Satellite className="w-4 h-4 text-amber-500" />
+              <Satellite className="w-4 h-4 text-amber-700 dark:text-amber-400" />
               <span>{isEn ? 'Base Map Tiles' : 'تایلی نەخشەی بنەڕەت'}</span>
             </span>
-            <span className="text-[11px] font-bold text-amber-500">
+            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
               {isEn ? (mapMode === 'satellite' ? 'Satellite' : 'Standard') : mapMode === 'satellite' ? 'مانگی دەستکرد' : 'نەخشەی ئەسڵی'}
             </span>
           </div>
@@ -304,10 +304,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setMapMode('dark')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
                 mapMode === 'dark'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                  : 'bg-black/5 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
               }`}
             >
               <Compass className="w-3.5 h-3.5" />
@@ -316,10 +316,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setMapMode('satellite')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
                 mapMode === 'satellite'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                  : 'bg-black/5 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
+                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
               }`}
             >
               <Satellite className="w-3.5 h-3.5" />
@@ -329,10 +329,10 @@ export const AppSettingsModal: React.FC<Props> = ({
         </div>
 
         {/* 4. Theme & Colors */}
-        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-black/5 dark:border-white/10 space-y-2">
+        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">
-              <Palette className="w-4 h-4 text-amber-500" />
+              <Palette className="w-4 h-4 text-amber-700 dark:text-amber-400" />
               <span>{isEn ? 'Accent Theme & Palette' : 'ڕەنگی سەرەکی و ڕووکار'}</span>
             </span>
             {onOpenTheme && (
@@ -342,7 +342,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                   onClose();
                   onOpenTheme();
                 }}
-                className="text-[11px] text-amber-500 hover:underline font-bold cursor-pointer"
+                className="text-[11px] text-amber-800 dark:text-amber-400 hover:underline font-bold cursor-pointer"
               >
                 {isEn ? 'All Themes' : 'هەموو ستایلەکان'}
               </button>
@@ -382,10 +382,10 @@ export const AppSettingsModal: React.FC<Props> = ({
             className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs bg-black/5 dark:bg-white/[0.04] hover:bg-black/10 dark:hover:bg-white/[0.08] transition-colors cursor-pointer border border-black/5 dark:border-white/10"
           >
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-amber-500" />
+              <Layers className="w-4 h-4 text-amber-700 dark:text-amber-400" />
               <span className="font-bold">{isEn ? 'Markers Visibility' : 'نیشاندانی مارکەرەکان'}</span>
             </div>
-            <span className="text-[11px] px-2 py-0.5 rounded-lg bg-black/10 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-bold">
+            <span className="text-[11px] px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 font-bold">
               {showAllMarkers
                 ? isEn
                   ? `All (${formatDigits(factsCount, language)})`
@@ -406,10 +406,10 @@ export const AppSettingsModal: React.FC<Props> = ({
                 onClose();
                 onOpenSubmittedPhotos();
               }}
-              className="w-full mb-2 py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 dark:text-amber-400 border border-amber-500/40 flex items-center justify-between transition-all cursor-pointer shadow-xs active:scale-98"
+              className="w-full mb-2 py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-400 border border-amber-600/35 dark:border-amber-500/40 flex items-center justify-between transition-all cursor-pointer shadow-xs active:scale-98"
             >
               <div className="flex items-center gap-2">
-                <Images className="w-4 h-4 text-amber-500" />
+                <Images className="w-4 h-4 text-amber-700 dark:text-amber-400" />
                 <span>{isEn ? 'Submitted Photos Review' : 'وێنە نێردراوەکان (Submitted Photos)'}</span>
               </div>
               {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 ? (
@@ -417,7 +417,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                   {formatDigits(pendingSubmissionsCount, language)} {isEn ? 'New' : 'نوێ'}
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-400">{isEn ? 'View' : 'بینین'}</span>
+                <span className="text-[10px] text-slate-600 dark:text-slate-400">{isEn ? 'View' : 'بینین'}</span>
               )}
             </button>
           )}
@@ -430,7 +430,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                   onClose();
                   onOpenAddFact('photo_only');
                 }}
-                className="py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 border border-amber-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-400 border border-amber-600/35 dark:border-amber-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <ImageIcon className="w-3.5 h-3.5" />
                 <span>{isEn ? 'Photo Entry' : 'فۆڕمی وێنە'}</span>
@@ -441,7 +441,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                   onClose();
                   onOpenAddFact('standard');
                 }}
-                className="py-2 px-3 rounded-xl text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 border border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-2 px-3 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-emerald-400 border border-emerald-600/35 dark:border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{isEn ? 'New Entry' : 'بابەتی نوێ'}</span>
@@ -454,15 +454,15 @@ export const AppSettingsModal: React.FC<Props> = ({
             onClick={handleAdminTap}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
               isAdmin
-                ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 font-bold'
-                : 'bg-black/5 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 hover:text-amber-500 border border-black/5 dark:border-white/10'
+                ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-600/35 dark:border-emerald-500/40 font-bold'
+                : 'bg-black/5 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:text-amber-800 dark:hover:text-amber-400 border border-slate-200 dark:border-white/10'
             }`}
           >
             <div className="flex items-center gap-2">
               {isAdmin ? (
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               ) : (
-                <Shield className="w-4 h-4 text-amber-500/70" />
+                <Shield className="w-4 h-4 text-amber-700 dark:text-amber-400" />
               )}
               <span>
                 {isAdmin
@@ -479,7 +479,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               </span>
             </div>
             {isAdmin && (
-              <span className="text-[10px] text-emerald-500 font-bold">
+              <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-bold">
                 {isEn ? 'Sign Out' : 'دەرچوون'}
               </span>
             )}

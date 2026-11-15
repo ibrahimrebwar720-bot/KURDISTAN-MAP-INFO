@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { X, Sparkles, MapPin, ZoomIn, ZoomOut, RotateCcw, Compass, ExternalLink } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { getKnowledgeGraphNetwork } from '../utils/factRelations';
-import { getCategoryInfo } from '../types/history';
+import { getCategoryInfo, getAccessibleCategoryColor } from '../types/history';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDigits } from '../utils/yearUtils';
@@ -38,7 +38,8 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
   onSelectFact,
   onOpenFactDetail,
 }) => {
-  const { theme } = useTheme();
+  const { theme, colorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const { language, isEn, dir } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -200,11 +201,12 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
       if (centerNode) {
         for (let i = 1; i < nodes.length; i++) {
           const node = nodes[i];
+          const nodeColor = getAccessibleCategoryColor(node.color, isDark);
 
           ctx.beginPath();
           ctx.moveTo(centerNode.x, centerNode.y);
           ctx.lineTo(node.x, node.y);
-          ctx.strokeStyle = node.color;
+          ctx.strokeStyle = nodeColor;
           ctx.lineWidth = 2.2;
           ctx.globalAlpha = 0.85;
           ctx.stroke();
@@ -218,18 +220,18 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             const textWidth = ctx.measureText(node.relationLabel).width;
             const padding = 6;
 
-            ctx.fillStyle = 'rgba(10, 15, 30, 0.85)';
+            ctx.fillStyle = isDark ? 'rgba(10, 15, 30, 0.85)' : 'rgba(255, 255, 255, 0.94)';
             ctx.beginPath();
             ctx.roundRect(mx - textWidth / 2 - padding, my - 10, textWidth + padding * 2, 20, 10);
             ctx.fill();
 
-            ctx.strokeStyle = node.color;
+            ctx.strokeStyle = nodeColor;
             ctx.lineWidth = 1;
-            ctx.globalAlpha = 0.6;
+            ctx.globalAlpha = 0.7;
             ctx.stroke();
             ctx.globalAlpha = 1.0;
 
-            ctx.fillStyle = '#f8fafc';
+            ctx.fillStyle = isDark ? '#f8fafc' : '#0f172a';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(node.relationLabel, mx, my);
@@ -241,56 +243,59 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
       for (let i = 1; i < nodes.length; i++) {
         const node = nodes[i];
         const isHovered = hoveredNode === node;
+        const nodeColor = getAccessibleCategoryColor(node.color, isDark);
 
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius + (isHovered ? 8 : 4), 0, Math.PI * 2);
-        ctx.fillStyle = node.color;
-        ctx.globalAlpha = isHovered ? 0.35 : 0.15;
+        ctx.fillStyle = nodeColor;
+        ctx.globalAlpha = isHovered ? 0.35 : 0.16;
         ctx.fill();
         ctx.globalAlpha = 1.0;
 
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(12, 17, 34, 0.95)';
+        ctx.fillStyle = isDark ? 'rgba(12, 17, 34, 0.95)' : '#ffffff';
         ctx.fill();
-        ctx.lineWidth = isHovered ? 2.5 : 1.5;
-        ctx.strokeStyle = node.color;
+        ctx.lineWidth = isHovered ? 2.5 : 1.75;
+        ctx.strokeStyle = nodeColor;
         ctx.stroke();
 
         ctx.font = 'bold 11px sans-serif';
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const displayLabel = node.label.length > 12 ? node.label.slice(0, 10) + '..' : node.label;
         ctx.fillText(displayLabel, node.x, node.y);
 
-        ctx.font = '9px sans-serif';
-        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
         ctx.fillText(node.categoryName, node.x, node.y + node.radius + 12);
       }
 
       // Draw Center Node
       if (centerNode) {
+        const centerColor = getAccessibleCategoryColor(centerNode.color, isDark);
+
         ctx.beginPath();
         ctx.arc(centerNode.x, centerNode.y, centerNode.radius + 6, 0, Math.PI * 2);
-        ctx.fillStyle = centerNode.color;
-        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = centerColor;
+        ctx.globalAlpha = 0.22;
         ctx.fill();
         ctx.globalAlpha = 1.0;
 
         ctx.beginPath();
         ctx.arc(centerNode.x, centerNode.y, centerNode.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#050814';
+        ctx.fillStyle = isDark ? '#050814' : '#ffffff';
         ctx.fill();
         ctx.lineWidth = 3;
-        ctx.strokeStyle = centerNode.color;
-        ctx.shadowColor = centerNode.color;
-        ctx.shadowBlur = 20;
+        ctx.strokeStyle = centerColor;
+        ctx.shadowColor = centerColor;
+        ctx.shadowBlur = isDark ? 20 : 12;
         ctx.stroke();
         ctx.shadowBlur = 0;
 
         ctx.font = 'bold 13px sans-serif';
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const words = centerNode.label.split(' ');
@@ -313,7 +318,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isOpen, hoveredNode]);
+  }, [isOpen, hoveredNode, isDark]);
 
   // Handle Resize of Canvas
   useEffect(() => {
@@ -416,42 +421,58 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
   const nodeCount = graphNetwork?.nodes.length || 0;
 
+  const accessibleThemePrimary = getAccessibleCategoryColor(theme.primaryColor, isDark);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 animate-fade-in select-none"
+      className={`fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 animate-fade-in select-none ${
+        isDark ? 'bg-black/85' : 'bg-slate-900/50 backdrop-blur-sm'
+      }`}
       dir={dir}
     >
       <div
         ref={containerRef}
-        className="relative w-full h-full max-w-7xl max-h-[100dvh] sm:max-h-[92vh] flex flex-col rounded-none sm:rounded-[4px] overflow-hidden bg-[#070b14] border border-amber-500/30 border-t-amber-400/50 shadow-[0_25px_70px_rgba(0,0,0,0.95)]"
+        className={`relative w-full h-full max-w-7xl max-h-[100dvh] sm:max-h-[92vh] flex flex-col rounded-none sm:rounded-[4px] overflow-hidden border ${
+          isDark
+            ? 'bg-[#070b14] border-amber-500/30 border-t-amber-400/50 shadow-[0_25px_70px_rgba(0,0,0,0.95)]'
+            : 'bg-[#f4f3ef] border-slate-300 shadow-2xl'
+        }`}
       >
         {/* Ambient Top Glow */}
         <div
           className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-40 blur-3xl pointer-events-none opacity-20"
-          style={{ backgroundColor: theme.primaryColor }}
+          style={{ backgroundColor: accessibleThemePrimary }}
         />
 
         {/* 1. Top Header Bar */}
-        <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-amber-500/20 bg-[#0b0f1c]">
+        <header className={`relative z-10 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b ${
+          isDark ? 'border-amber-500/20 bg-[#0b0f1c]' : 'border-slate-300 bg-white'
+        }`}>
           <div className="flex items-center gap-2.5 text-start">
             <div
               className="w-8 h-8 rounded-[4px] flex items-center justify-center border shadow-sm"
               style={{
-                backgroundColor: `${theme.primaryColor}20`,
-                borderColor: `${theme.primaryColor}60`,
-                color: theme.primaryColor,
+                backgroundColor: `${accessibleThemePrimary}1f`,
+                borderColor: `${accessibleThemePrimary}60`,
+                color: accessibleThemePrimary,
               }}
             >
               <Compass className="w-4 h-4 animate-spin-slow" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
+              <h2 className={`text-sm sm:text-base font-black flex items-center gap-1.5 ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>
                 <span>{isEn ? 'Historical Knowledge Graph' : 'تۆڕی پەیوەندییە مێژووییەکان'}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-300 border border-amber-500/30 tabular-nums">
+                <span className={`text-[10px] px-2 py-0.5 rounded-[3px] border tabular-nums font-bold ${
+                  isDark
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}>
                   {formatDigits(nodeCount, language)} {isEn ? (nodeCount === 1 ? 'node' : 'nodes') : 'گرێ'}
                 </span>
               </h2>
-              <p className="text-[10px] sm:text-xs text-slate-400">
+              <p className={`text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 {isEn
                   ? 'Interactive constellation view: drag nodes to explore historical connections'
                   : 'سیستەمی گرافی تیشکدەر: گرێکان ڕابکێشە بۆ بینینی پەیوەندییەکان'}
@@ -461,11 +482,15 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
 
           <div className="flex items-center gap-2">
             {/* Zoom Controls */}
-            <div className="hidden sm:flex items-center gap-1 px-1.5 py-1 rounded-[4px] bg-[#101626] border border-amber-500/25">
+            <div className={`hidden sm:flex items-center gap-1 px-1.5 py-1 rounded-[4px] border ${
+              isDark ? 'bg-[#101626] border-amber-500/25' : 'bg-slate-100 border-slate-300'
+            }`}>
               <button
                 type="button"
                 onClick={() => handleZoom(0.15)}
-                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                className={`p-1 rounded-[3px] transition-colors cursor-pointer ${
+                  isDark ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-white text-slate-700 hover:text-slate-950'
+                }`}
                 title={isEn ? 'Zoom in' : 'نزیککردنەوە'}
               >
                 <ZoomIn className="w-3.5 h-3.5" />
@@ -473,7 +498,9 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => handleZoom(-0.15)}
-                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                className={`p-1 rounded-[3px] transition-colors cursor-pointer ${
+                  isDark ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-white text-slate-700 hover:text-slate-950'
+                }`}
                 title={isEn ? 'Zoom out' : 'دوورخستنەوە'}
               >
                 <ZoomOut className="w-3.5 h-3.5" />
@@ -481,7 +508,9 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleResetView}
-                className="p-1 rounded-[3px] hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                className={`p-1 rounded-[3px] transition-colors cursor-pointer ${
+                  isDark ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-white text-slate-700 hover:text-slate-950'
+                }`}
                 title={isEn ? 'Reset view' : 'ڕێکخستنەوە'}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -493,7 +522,11 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
               type="button"
               onClick={onClose}
               title={isEn ? 'Close' : 'داخستن'}
-              className="p-2 rounded-[4px] bg-[#101626] hover:bg-[#182033] text-slate-300 hover:text-white border border-amber-500/25 hover:border-amber-400/50 transition-colors cursor-pointer"
+              className={`p-2 rounded-[4px] border transition-colors cursor-pointer ${
+                isDark
+                  ? 'bg-[#101626] hover:bg-[#182033] text-slate-300 hover:text-white border-amber-500/25 hover:border-amber-400/50'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border-slate-300'
+              }`}
             >
               <X className="w-4 h-4" />
             </button>
@@ -512,8 +545,12 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
           />
 
           {/* Quick Guidance Hint */}
-          <div className="absolute top-3 start-3 pointer-events-none px-2.5 py-1 rounded-[3px] bg-black/80 border border-amber-500/20 text-[10px] text-slate-300 flex items-center gap-1.5">
-            <Sparkles className="w-3 h-3 text-amber-400" />
+          <div className={`absolute top-3 start-3 pointer-events-none px-2.5 py-1 rounded-[3px] border text-[10px] flex items-center gap-1.5 ${
+            isDark
+              ? 'bg-black/80 border-amber-500/20 text-slate-300'
+              : 'bg-white/95 border-slate-300 text-slate-700 shadow-sm font-medium'
+          }`}>
+            <Sparkles className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
             <span>
               {isEn
                 ? 'Drag any node to reposition and click to inspect'
@@ -522,72 +559,94 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
           </div>
 
           {/* Selected Node Drawer / Floating Card (Bottom) */}
-          {selectedNodeInfo && (
-            <div className="absolute bottom-3 start-3 end-3 sm:end-auto sm:w-96 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-3.5 shadow-2xl animate-fade-in flex flex-col gap-2.5 text-start">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span
-                      className="w-2 h-2 rounded-[2px]"
-                      style={{ backgroundColor: getCategoryInfo(selectedNodeInfo, language).color }}
-                    />
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {getCategoryInfo(selectedNodeInfo, language).name}
-                    </span>
-                    {selectedNodeInfo.id === activeCenterFact?.id && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-[2px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        {isEn ? 'Current Center' : 'ناوەندی ئێستا'}
+          {selectedNodeInfo && (() => {
+            const selectedCat = getCategoryInfo(selectedNodeInfo, language);
+            const selectedCatColor = getAccessibleCategoryColor(selectedCat.color, isDark);
+            return (
+              <div className={`absolute bottom-3 start-3 end-3 sm:end-auto sm:w-96 rounded-[4px] border p-3.5 animate-fade-in flex flex-col gap-2.5 text-start ${
+                isDark
+                  ? 'bg-[#0b0f1c] border-amber-500/30 border-t-amber-400/50 shadow-2xl'
+                  : 'bg-white border-slate-300 border-t-amber-500 shadow-xl'
+              }`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span
+                        className="w-2 h-2 rounded-[2px]"
+                        style={{ backgroundColor: selectedCatColor }}
+                      />
+                      <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {selectedCat.name}
                       </span>
-                    )}
+                      {selectedNodeInfo.id === activeCenterFact?.id && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-[2px] border font-bold ${
+                          isDark
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                            : 'bg-amber-100 text-amber-900 border-amber-300'
+                        }`}>
+                          {isEn ? 'Current Center' : 'ناوەندی ئێستا'}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className={`text-sm font-black leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {selectedNodeInfo.name}
+                    </h3>
                   </div>
-                  <h3 className="text-sm font-black text-white leading-tight">
-                    {selectedNodeInfo.name}
-                  </h3>
+
+                  {selectedNodeInfo.id !== activeCenterFact?.id && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveCenterFact(selectedNodeInfo)}
+                      className={`px-2 py-1 rounded-[3px] text-[10px] font-bold border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                          : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300'
+                      }`}
+                    >
+                      {isEn ? 'Set as Center' : 'کردن بە ناوەند'}
+                    </button>
+                  )}
                 </div>
 
-                {selectedNodeInfo.id !== activeCenterFact?.id && (
+                <p className={`text-[11px] line-clamp-2 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {selectedNodeInfo.desc ||
+                    selectedNodeInfo.fullText ||
+                    (isEn ? 'Historical record for this entry.' : 'زانیاری مێژوویی لەسەر ئەم شوێنە.')}
+                </p>
+
+                <div className={`flex items-center gap-2 pt-1 border-t ${
+                  isDark ? 'border-amber-500/15' : 'border-slate-200'
+                }`}>
                   <button
                     type="button"
-                    onClick={() => setActiveCenterFact(selectedNodeInfo)}
-                    className="px-2 py-1 rounded-[3px] text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors cursor-pointer"
+                    onClick={() => {
+                      onClose();
+                      onSelectFact(selectedNodeInfo);
+                    }}
+                    className="preserve-contrast flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-[4px] bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-[11px] transition-colors shadow-sm cursor-pointer"
                   >
-                    {isEn ? 'Set as Center' : 'کردن بە ناوەند'}
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>{isEn ? 'Show on Map' : 'پیشاندان لەسەر نەخشە'}</span>
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenFactDetail(selectedNodeInfo);
+                    }}
+                    className={`p-1.5 rounded-[4px] border transition-colors cursor-pointer ${
+                      isDark
+                        ? 'bg-[#101626] hover:bg-[#182033] border-amber-500/25 text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                    }`}
+                    title={isEn ? 'Full Details' : 'تەواوی وردەکارییەکان'}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-
-              <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
-                {selectedNodeInfo.desc ||
-                  selectedNodeInfo.fullText ||
-                  (isEn ? 'Historical record for this entry.' : 'زانیاری مێژوویی لەسەر ئەم شوێنە.')}
-              </p>
-
-              <div className="flex items-center gap-2 pt-1 border-t border-amber-500/15">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onSelectFact(selectedNodeInfo);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-bold text-[11px] transition-colors shadow-sm cursor-pointer"
-                >
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>{isEn ? 'Show on Map' : 'پیشاندان لەسەر نەخشە'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenFactDetail(selectedNodeInfo);
-                  }}
-                  className="p-1.5 rounded-[4px] bg-[#101626] hover:bg-[#182033] border border-amber-500/25 text-white transition-colors cursor-pointer"
-                  title={isEn ? 'Full Details' : 'تەواوی وردەکارییەکان'}
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>

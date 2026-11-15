@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { GREAT_KURDISTAN_POLYGON } from '../data/kurdishHistoryData';
 import { FastForward } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   map: L.Map | null;
@@ -45,6 +46,8 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
   durationMs = 4000,
 }) => {
   const { isEn } = useLanguage();
+  const { colorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameIdRef = useRef<number | null>(null);
@@ -329,10 +332,18 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
             e.stopPropagation();
             handleSkip();
           }}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#070b14]/75 hover:bg-[#0c1220]/90 border border-amber-500/25 hover:border-amber-400/50 backdrop-blur-md text-[10px] sm:text-xs text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] transition-all cursor-pointer group"
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md text-[10px] sm:text-xs font-bold transition-all cursor-pointer group ${
+            isDark
+              ? 'bg-[#070b14]/75 hover:bg-[#0c1220]/90 border-amber-500/25 hover:border-amber-400/50 text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)]'
+              : 'bg-white/95 hover:bg-amber-50 border-slate-300 hover:border-amber-600/50 text-amber-900 shadow-md'
+          }`}
         >
           <span>{isEn ? 'Skip' : 'تێپەڕاندن'}</span>
-          <FastForward className="w-3 h-3 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+          <FastForward
+            className={`w-3 h-3 group-hover:translate-x-0.5 transition-transform ${
+              isDark ? 'text-amber-400' : 'text-amber-700'
+            }`}
+          />
         </button>
       </div>
     </div>

@@ -16,6 +16,7 @@ import {
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatDigits } from '../utils/yearUtils';
 
 export interface MilestoneStory {
@@ -391,6 +392,8 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
   onOpenHero,
 }) => {
   const { language, isEn, dir } = useLanguage();
+  const { colorMode } = useTheme();
+  const isDark = colorMode === 'dark';
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -500,11 +503,19 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
       {/* Top Floating Header */}
       <div className="pointer-events-auto p-3 sm:p-5 flex items-center justify-between gap-3 animate-fade-in">
         {/* Brand / Mode Indicator */}
-        <div className="flex items-center gap-2.5 px-4 py-2 rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_10px_35px_rgba(0,0,0,0.85)]">
+        <div className={`flex items-center gap-2.5 px-4 py-2 rounded-[4px] border border-t-amber-500/50 ${
+          isDark
+            ? 'bg-[#0b0f1c] border-amber-500/30 shadow-[0_10px_35px_rgba(0,0,0,0.85)]'
+            : 'bg-white/95 border-slate-300 shadow-lg backdrop-blur-md'
+        }`}>
           <button
             type="button"
             onClick={onOpenHero}
-            className="w-8 h-8 rounded-[4px] bg-white/[0.06] hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/50 p-1 flex items-center justify-center shadow-md cursor-pointer hover:scale-105 active:scale-95 transition-all shrink-0"
+            className={`w-8 h-8 rounded-[4px] border p-1 flex items-center justify-center shadow-md cursor-pointer hover:scale-105 active:scale-95 transition-all shrink-0 ${
+              isDark
+                ? 'bg-white/[0.06] hover:bg-amber-500/20 border-white/10 hover:border-amber-400/50'
+                : 'bg-slate-100 hover:bg-amber-50 border-slate-300 hover:border-amber-500'
+            }`}
             title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
           >
             <img
@@ -515,22 +526,24 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
           </button>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-amber-300 font-heading">
+              <span className={`text-[11px] font-bold font-heading ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
                 {isEn ? 'Documentary Historical Tour' : 'گەشت بەناو ڕووداوە گەورەکاندا'}
               </span>
-              <span className="text-[9px] px-2 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-300 border border-amber-400/30 font-mono">
+              <span className={`text-[9px] px-2 py-0.5 rounded-[3px] border font-mono ${
+                isDark ? 'bg-amber-500/20 text-amber-300 border-amber-400/30' : 'bg-amber-100 text-amber-900 border-amber-300'
+              }`}>
                 {isEn ? '12 Epochs' : 'Documentary Tour'}
               </span>
             </div>
-            <div className="text-[10px] text-slate-300 font-mono">
+            <div className={`text-[10px] font-mono ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               {isEn ? (
                 <>
-                  Chapter <span className="text-white font-bold">{formatDigits(currentIndex + 1, language)}</span> of{' '}
+                  Chapter <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDigits(currentIndex + 1, language)}</span> of{' '}
                   <span>{formatDigits(DOCUMENTARY_MILESTONES.length, language)}</span>
                 </>
               ) : (
                 <>
-                  وێستگەی <span className="text-white font-bold">{formatDigits(currentIndex + 1, language)}</span> لە{' '}
+                  وێستگەی <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDigits(currentIndex + 1, language)}</span> لە{' '}
                   <span>{formatDigits(DOCUMENTARY_MILESTONES.length, language)}</span>
                 </>
               )}
@@ -545,8 +558,10 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
             onClick={() => setIsPlaying(!isPlaying)}
             className={`px-3.5 py-2 rounded-[4px] flex items-center gap-2 text-xs font-bold transition-all cursor-pointer shadow-lg ${
               isPlaying
-                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.6)]'
-                : 'bg-[#0b0f1c] hover:bg-[#101626] text-slate-200 hover:text-white border border-amber-500/25 hover:border-amber-400/50'
+                ? 'preserve-contrast bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.5)]'
+                : isDark
+                ? 'bg-[#0b0f1c] hover:bg-[#101626] text-slate-200 hover:text-white border border-amber-500/25 hover:border-amber-400/50'
+                : 'bg-white/95 hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-300 hover:border-amber-500'
             }`}
             title={
               isPlaying
@@ -560,12 +575,12 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
           >
             {isPlaying ? (
               <>
-                <Pause className="w-3.5 h-3.5 fill-black" />
+                <Pause className="w-3.5 h-3.5 fill-current" />
                 <span className="hidden sm:inline">{isEn ? 'Pause' : 'وەستاندن'}</span>
               </>
             ) : (
               <>
-                <Play className="w-3.5 h-3.5 fill-amber-400" />
+                <Play className={`w-3.5 h-3.5 ${isDark ? 'fill-amber-400 text-amber-400' : 'fill-amber-700 text-amber-700'}`} />
                 <span className="hidden sm:inline">{isEn ? 'Auto-Play' : 'پەخشی خودکار'}</span>
               </>
             )}
@@ -574,7 +589,11 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
           {/* Close Tour Button */}
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-[4px] bg-[#0b0f1c] hover:bg-[#101626] text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-lg border border-amber-500/30 hover:border-amber-400/60"
+            className={`w-10 h-10 rounded-[4px] flex items-center justify-center transition-all cursor-pointer shadow-lg border ${
+              isDark
+                ? 'bg-[#0b0f1c] hover:bg-[#101626] text-slate-300 hover:text-white border-amber-500/30 hover:border-amber-400/60'
+                : 'bg-white/95 hover:bg-slate-100 text-slate-700 hover:text-slate-950 border-slate-300 hover:border-amber-500'
+            }`}
             title={isEn ? 'Close Tour & Return to Map' : 'داخستنی گەشت و گەڕانەوە بۆ نەخشە'}
           >
             <X className="w-5 h-5" />
@@ -585,9 +604,15 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
       {/* Center Cinematic Scrollytelling Story Card - Large Organized Visual Presentation */}
       <div className="pointer-events-auto max-w-4xl lg:max-w-5xl w-full mx-auto p-3 sm:p-5 mb-2 sm:mb-4 animate-spatial-spring">
         <div
-          className="relative rounded-[4px] bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 p-4 sm:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.96)] overflow-hidden text-start"
+          className={`relative rounded-[4px] border p-4 sm:p-6 overflow-hidden text-start ${
+            isDark
+              ? 'bg-[#0b0f1c] border-amber-500/30 border-t-amber-400/50'
+              : 'bg-white/95 border-slate-300 border-t-amber-500 backdrop-blur-md'
+          }`}
           style={{
-            boxShadow: `0 25px 70px rgba(0,0,0,0.96), 0 0 35px ${activeMilestone.accentColor}25`,
+            boxShadow: isDark
+              ? `0 25px 70px rgba(0,0,0,0.96), 0 0 35px ${activeMilestone.accentColor}25`
+              : `0 20px 55px rgba(15,23,42,0.18), 0 0 25px ${activeMilestone.accentColor}18`,
           }}
         >
           {/* Accent Glow Ring */}
@@ -606,7 +631,7 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
               const milestoneImg = linkedImg || activeMilestone.imageUrl || '';
               return (
                 <div
-                  className="md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 lg:h-80 rounded-[4px] overflow-hidden border border-amber-500/25 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
+                  className="preserve-contrast md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 lg:h-80 rounded-[4px] overflow-hidden border border-amber-500/25 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
                   onClick={() => {
                     if (milestoneImg) setShowLightbox(true);
                   }}
@@ -672,19 +697,25 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
                 {/* Meta Row: Period, Coordinates, Counter */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-amber-300 font-mono font-bold flex items-center gap-1.5 bg-[#101626] px-2.5 py-1 rounded-[3px] border border-amber-500/25">
-                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                    <span className={`text-xs font-mono font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] border ${
+                      isDark
+                        ? 'text-amber-300 bg-[#101626] border-amber-500/25'
+                        : 'text-amber-900 bg-amber-100 border-amber-300'
+                    }`}>
+                      <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                       <span>{mPeriod}</span>
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-[3px] bg-white/5 border border-white/10 text-slate-300 font-mono">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-[3px] border font-mono ${
+                      isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'
+                    }`}>
                       {isEn
                         ? `Stop ${formatDigits(currentIndex + 1, language)} of ${formatDigits(DOCUMENTARY_MILESTONES.length, language)}`
                         : `وێستگەی ${formatDigits(currentIndex + 1, language)} لە ${formatDigits(DOCUMENTARY_MILESTONES.length, language)}`}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono" dir="ltr">
-                    <Compass className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '10s' }} />
+                  <div className={`flex items-center gap-1 text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`} dir="ltr">
+                    <Compass className={`w-3.5 h-3.5 animate-spin ${isDark ? 'text-amber-400' : 'text-amber-700'}`} style={{ animationDuration: '10s' }} />
                     <span>
                       {activeMilestone.lat.toFixed(1)}°N, {activeMilestone.lng.toFixed(1)}°E
                     </span>
@@ -693,24 +724,34 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
 
                 {/* Main Title & Headline */}
                 <div className="space-y-1">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-black font-heading text-white tracking-wide leading-tight">
+                  <h2 className={`text-lg sm:text-xl md:text-2xl font-black font-heading tracking-wide leading-tight ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
                     {mTitle}
                   </h2>
-                  <p className="text-xs sm:text-sm font-bold text-amber-300/95 leading-snug">
+                  <p className={`text-xs sm:text-sm font-bold leading-snug ${
+                    isDark ? 'text-amber-300/95' : 'text-amber-800'
+                  }`}>
                     {mHeadline}
                   </p>
                 </div>
 
                 {/* Narrative Story Body */}
-                <p className="text-xs sm:text-[13px] text-slate-100 leading-relaxed sm:leading-loose bg-black/50 p-3 sm:p-3.5 rounded-[4px] border border-amber-500/20 shadow-inner max-h-[130px] sm:max-h-[140px] overflow-y-auto">
+                <p className={`text-xs sm:text-[13px] leading-relaxed sm:leading-loose p-3 sm:p-3.5 rounded-[4px] border shadow-inner max-h-[130px] sm:max-h-[140px] overflow-y-auto ${
+                  isDark
+                    ? 'text-slate-100 bg-black/50 border-amber-500/20'
+                    : 'text-slate-800 bg-slate-50 border-slate-200'
+                }`}>
                   {mStory}
                 </p>
 
                 {/* Historical Significance Box */}
-                <div className="p-2.5 sm:p-3 rounded-[4px] bg-amber-500/10 border border-amber-400/25 flex items-start gap-2.5">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div className="text-[11px] sm:text-xs text-amber-200/95 leading-relaxed">
-                    <span className="font-bold text-amber-300">
+                <div className={`p-2.5 sm:p-3 rounded-[4px] border flex items-start gap-2.5 ${
+                  isDark ? 'bg-amber-500/10 border-amber-400/25' : 'bg-amber-50 border-amber-300'
+                }`}>
+                  <Sparkles className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                  <div className={`text-[11px] sm:text-xs leading-relaxed ${isDark ? 'text-amber-200/95' : 'text-amber-950'}`}>
+                    <span className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
                       {isEn ? 'Historical Significance: ' : 'گرنگیی مێژوویی: '}
                     </span>
                     {mSignificance}
@@ -719,7 +760,7 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
               </div>
 
               {/* Bottom Bar: Navigation Controls & Progress Dots */}
-              <div className="flex items-center justify-between gap-3 pt-2 border-t border-amber-500/20">
+              <div className={`flex items-center justify-between gap-3 pt-2 border-t ${isDark ? 'border-amber-500/20' : 'border-slate-200'}`}>
                 {/* Step Prev & Next */}
                 <div className="flex items-center gap-2">
                   <button
@@ -727,8 +768,12 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
                     onClick={() => navigateToMilestone(currentIndex - 1)}
                     className={`p-2 rounded-[3px] border flex items-center justify-center transition-all cursor-pointer ${
                       currentIndex === 0
-                        ? 'opacity-30 border-white/5 cursor-not-allowed bg-black/30'
-                        : 'bg-[#101626] border-amber-500/25 hover:border-amber-400/60 text-slate-200 hover:text-white active:scale-95'
+                        ? isDark
+                          ? 'opacity-30 border-white/5 cursor-not-allowed bg-black/30'
+                          : 'opacity-40 border-slate-200 cursor-not-allowed bg-slate-100 text-slate-400'
+                        : isDark
+                        ? 'bg-[#101626] border-amber-500/25 hover:border-amber-400/60 text-slate-200 hover:text-white active:scale-95'
+                        : 'bg-slate-100 border-slate-300 hover:border-amber-500 text-slate-800 hover:text-slate-950 active:scale-95'
                     }`}
                     title={isEn ? 'Previous Chapter' : 'وێستگەی پێشوو'}
                   >
@@ -740,8 +785,12 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
                     onClick={() => navigateToMilestone(currentIndex + 1)}
                     className={`p-2 rounded-[3px] border flex items-center justify-center transition-all cursor-pointer ${
                       currentIndex === DOCUMENTARY_MILESTONES.length - 1
-                        ? 'opacity-30 border-white/5 cursor-not-allowed bg-black/30'
-                        : 'bg-[#101626] border-amber-500/25 hover:border-amber-400/60 text-amber-300 hover:text-white active:scale-95'
+                        ? isDark
+                          ? 'opacity-30 border-white/5 cursor-not-allowed bg-black/30'
+                          : 'opacity-40 border-slate-200 cursor-not-allowed bg-slate-100 text-slate-400'
+                        : isDark
+                        ? 'bg-[#101626] border-amber-500/25 hover:border-amber-400/60 text-amber-300 hover:text-white active:scale-95'
+                        : 'bg-slate-100 border-slate-300 hover:border-amber-500 text-amber-800 hover:text-amber-950 active:scale-95'
                     }`}
                     title={isEn ? 'Next Chapter' : 'وێستگەی دواتر'}
                   >
@@ -757,8 +806,8 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
                       onClick={() => navigateToMilestone(idx)}
                       className={`transition-all rounded-[1px] cursor-pointer shrink-0 ${
                         currentIndex === idx
-                          ? 'w-5 h-2 bg-amber-400 shadow-[0_0_8px_#f59e0b]'
-                          : 'w-2 h-2 bg-white/20 hover:bg-white/40'
+                          ? (isDark ? 'w-5 h-2 bg-amber-400 shadow-[0_0_8px_#f59e0b]' : 'w-5 h-2 bg-amber-600 shadow-xs')
+                          : (isDark ? 'w-2 h-2 bg-white/20 hover:bg-white/40' : 'w-2 h-2 bg-slate-300 hover:bg-slate-400')
                       }`}
                       title={
                         isEn
@@ -773,7 +822,7 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
                 {linkedFact && onOpenFactDetail && (
                   <button
                     onClick={() => onOpenFactDetail(linkedFact)}
-                    className="px-3.5 py-1.5 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    className="preserve-contrast px-3.5 py-1.5 rounded-[4px] bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                     title={
                       isEn
                         ? 'Open full historical article and archive records on the map'
@@ -797,7 +846,7 @@ export const DocumentaryScrollytellingModal: React.FC<Props> = ({
         return (
           <div
             dir={dir}
-            className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 pointer-events-auto animate-fade-in"
+            className="preserve-contrast fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 pointer-events-auto animate-fade-in"
             onClick={() => setShowLightbox(false)}
           >
             <button

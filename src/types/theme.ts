@@ -202,14 +202,88 @@ export function saveStoredTheme(themeId: ThemeId): void {
   }
 }
 
-const LIGHT_MODE_ACCENTS: Record<ThemeId, { primary: string; secondary: string; glow: string }> = {
-  'kurdish-gold': { primary: '#b45309', secondary: '#92400e', glow: 'rgba(180, 83, 9, 0.25)' },
-  'neon-orange-porcelain': { primary: '#c2410c', secondary: '#9a3412', glow: 'rgba(194, 65, 12, 0.25)' },
-  'forest-graphite-acid-mint': { primary: '#047857', secondary: '#065f46', glow: 'rgba(4, 120, 87, 0.25)' },
-  'signal-violet-mist-gray': { primary: '#7e22ce', secondary: '#6b21a8', glow: 'rgba(126, 34, 206, 0.25)' },
-  'prompt-blue-ai-green': { primary: '#0284c7', secondary: '#0369a1', glow: 'rgba(2, 132, 199, 0.25)' },
-  'inkberry-peach': { primary: '#c2410c', secondary: '#831843', glow: 'rgba(194, 65, 12, 0.25)' },
-  'clay-brown-soft-butter': { primary: '#b45309', secondary: '#78350f', glow: 'rgba(180, 83, 9, 0.25)' },
+interface LightAccentTokens {
+  primary: string;
+  secondary: string;
+  dark: string;
+  glow: string;
+  soft: string;
+  borderAccent: string;
+  activeBtnBg: string;
+  activeBtnText: string;
+}
+
+const LIGHT_MODE_ACCENTS: Record<ThemeId, LightAccentTokens> = {
+  'kurdish-gold': {
+    primary: '#b45309',
+    secondary: '#92400e',
+    dark: '#78350f',
+    glow: 'rgba(180, 83, 9, 0.25)',
+    soft: 'rgba(180, 83, 9, 0.12)',
+    borderAccent: 'rgba(180, 83, 9, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #b45309 0%, #92400e 100%)',
+    activeBtnText: '#ffffff',
+  },
+  'neon-orange-porcelain': {
+    primary: '#c2410c',
+    secondary: '#9a3412',
+    dark: '#7c2d12',
+    glow: 'rgba(194, 65, 12, 0.25)',
+    soft: 'rgba(194, 65, 12, 0.12)',
+    borderAccent: 'rgba(194, 65, 12, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #c2410c 0%, #9a3412 100%)',
+    activeBtnText: '#ffffff',
+  },
+  'forest-graphite-acid-mint': {
+    primary: '#047857',
+    secondary: '#065f46',
+    dark: '#064e3b',
+    glow: 'rgba(4, 120, 87, 0.25)',
+    soft: 'rgba(4, 120, 87, 0.12)',
+    borderAccent: 'rgba(4, 120, 87, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #047857 0%, #065f46 100%)',
+    activeBtnText: '#ffffff',
+  },
+  'signal-violet-mist-gray': {
+    primary: '#7e22ce',
+    secondary: '#6b21a8',
+    dark: '#581c87',
+    glow: 'rgba(126, 34, 206, 0.25)',
+    soft: 'rgba(126, 34, 206, 0.12)',
+    borderAccent: 'rgba(126, 34, 206, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #7e22ce 0%, #6b21a8 100%)',
+    activeBtnText: '#ffffff',
+  },
+  'prompt-blue-ai-green': {
+    primary: '#0369a1',
+    secondary: '#075985',
+    dark: '#0c4a6e',
+    glow: 'rgba(3, 105, 161, 0.25)',
+    soft: 'rgba(3, 105, 161, 0.12)',
+    borderAccent: 'rgba(3, 105, 161, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #0369a1 0%, #075985 100%)',
+    activeBtnText: '#ffffff',
+  },
+  'inkberry-peach': {
+    primary: '#be185d',
+    secondary: '#9d174d',
+    dark: '#831843',
+    glow: 'rgba(190, 24, 93, 0.25)',
+    soft: 'rgba(190, 24, 93, 0.12)',
+    borderAccent: 'rgba(190, 24, 93, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #be185d 0%, #9d174d 100%)',
+    activeBtnText: '#ffffff',
+  },
+  'clay-brown-soft-butter': {
+    primary: '#9a3412',
+    secondary: '#78350f',
+    dark: '#451a03',
+    glow: 'rgba(154, 52, 18, 0.25)',
+    soft: 'rgba(154, 52, 18, 0.12)',
+    borderAccent: 'rgba(154, 52, 18, 0.45)',
+    activeBtnBg: 'linear-gradient(180deg, #b45309 0%, #78350f 100%)',
+    activeBtnText: '#ffffff',
+  },
 };
 
 /**
@@ -273,30 +347,35 @@ export function applyThemeToDom(themeId: ThemeId, colorMode: ColorMode = 'dark',
     const lightAccent = LIGHT_MODE_ACCENTS[themeId] || LIGHT_MODE_ACCENTS['kurdish-gold'];
     root.style.setProperty('--theme-accent', lightAccent.primary);
     root.style.setProperty('--theme-accent-light', lightAccent.secondary);
-    root.style.setProperty('--theme-accent-dark', '#78350f');
+    root.style.setProperty('--theme-accent-dark', lightAccent.dark);
     root.style.setProperty('--theme-secondary', lightAccent.secondary);
     root.style.setProperty('--theme-accent-glow', lightAccent.glow);
-    root.style.setProperty('--theme-accent-soft', 'rgba(180, 83, 9, 0.14)');
-    root.style.setProperty('--theme-border-accent', 'rgba(180, 83, 9, 0.45)');
+    root.style.setProperty('--theme-accent-soft', lightAccent.soft);
+    root.style.setProperty('--theme-border-accent', lightAccent.borderAccent);
+    root.style.setProperty('--theme-btn-hover-bg', lightAccent.soft);
 
     // Soothing, elegant Nordic parchment tone (not harsh blinding glare)
     root.style.setProperty('--theme-bg', '#f4f3ef');
     root.style.setProperty('--theme-surface', '#ffffff');
     root.style.setProperty('--theme-text-primary', '#090d16');
     root.style.setProperty('--theme-text-secondary', '#1e293b');
-    root.style.setProperty('--theme-text-muted', '#334155');
-    root.style.setProperty('--theme-border', 'rgba(15, 23, 42, 0.12)');
+    root.style.setProperty('--theme-text-muted', '#475569');
+    root.style.setProperty('--theme-border', 'rgba(15, 23, 42, 0.14)');
     root.style.setProperty(
       '--theme-panel-gradient',
       'linear-gradient(135deg, #ffffff 0%, #faf8f5 100%)'
     );
-    root.style.setProperty('--theme-btn-active-bg', 'linear-gradient(180deg, #d97706 0%, #b45309 100%)');
-    root.style.setProperty('--theme-btn-active-text', '#ffffff');
+    root.style.setProperty('--theme-btn-active-bg', lightAccent.activeBtnBg);
+    root.style.setProperty('--theme-btn-active-text', lightAccent.activeBtnText);
   } else {
     root.style.setProperty('--theme-accent', theme.primaryColor);
     root.style.setProperty('--theme-accent-light', theme.secondaryColor);
+    root.style.setProperty('--theme-accent-dark', theme.primaryColor);
     root.style.setProperty('--theme-secondary', theme.secondaryColor);
     root.style.setProperty('--theme-accent-glow', theme.glowColor);
+    root.style.setProperty('--theme-accent-soft', 'rgba(245, 158, 11, 0.18)');
+    root.style.setProperty('--theme-border-accent', `${theme.primaryColor}88`);
+    root.style.setProperty('--theme-btn-hover-bg', 'rgba(255, 255, 255, 0.08)');
 
     root.style.setProperty('--theme-bg', theme.darkBg);
     root.style.setProperty('--theme-surface', 'rgba(6, 11, 24, 0.78)');

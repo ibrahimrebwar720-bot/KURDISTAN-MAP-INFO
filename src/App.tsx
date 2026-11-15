@@ -1201,30 +1201,52 @@ export default function App() {
       {untranslatedTopicNotice && (
         <div
           dir={isEn ? 'ltr' : 'rtl'}
-          className="fixed bottom-5 start-1/2 -translate-x-1/2 z-[1400] w-[92vw] max-w-md rounded-2xl bg-[#0b1020]/95 border border-amber-400/50 text-slate-100 p-4 shadow-2xl backdrop-blur-md space-y-2.5 animate-fade-in"
+          className={`fixed bottom-5 start-1/2 -translate-x-1/2 z-[1400] w-[92vw] max-w-md rounded-2xl border p-4 shadow-2xl backdrop-blur-md space-y-2.5 animate-fade-in ${
+            colorMode === 'light'
+              ? 'bg-white/95 border-amber-500/60 text-slate-900'
+              : 'bg-[#0b1020]/95 border-amber-400/50 text-slate-100'
+          }`}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1 min-w-0">
-              <p className="text-xs font-extrabold text-amber-300">
+              <p
+                className={`text-xs font-extrabold ${
+                  colorMode === 'light' ? 'text-amber-800' : 'text-amber-300'
+                }`}
+              >
                 {untranslatedTopicNotice.name
                   ? `"${untranslatedTopicNotice.name}" is not yet translated into English`
                   : 'This entry is not yet translated into English'}
               </p>
-              <p className="text-[11px] text-slate-300 leading-snug">
+              <p
+                className={`text-[11px] leading-snug ${
+                  colorMode === 'light' ? 'text-slate-600' : 'text-slate-300'
+                }`}
+              >
                 This topic exists in the Central Kurdish (ckb) knowledge base and has not been translated into English yet.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setUntranslatedTopicNotice(null)}
-              className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 cursor-pointer"
+              className={`text-xs px-1.5 py-0.5 cursor-pointer rounded-md ${
+                colorMode === 'light'
+                  ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-white hover:bg-white/10'
+              }`}
               aria-label="Close"
             >
               ✕
             </button>
           </div>
           {untranslatedTopicNotice.error && (
-            <p className="text-[11px] text-rose-300 bg-rose-950/60 border border-rose-500/40 rounded-lg px-2.5 py-1.5">
+            <p
+              className={`text-[11px] border rounded-lg px-2.5 py-1.5 ${
+                colorMode === 'light'
+                  ? 'text-rose-800 bg-rose-50 border-rose-300'
+                  : 'text-rose-300 bg-rose-950/60 border-rose-500/40'
+              }`}
+            >
               {untranslatedTopicNotice.error}
             </p>
           )}
@@ -1239,7 +1261,11 @@ export default function App() {
                 setUntranslatedTopicNotice(null);
                 setLanguage('ckb');
               }}
-              className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs cursor-pointer transition-colors"
+              className={`px-3 py-1.5 rounded-xl font-extrabold text-xs cursor-pointer transition-colors ${
+                colorMode === 'light'
+                  ? 'preserve-contrast bg-amber-700 hover:bg-amber-800 text-white'
+                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+              }`}
             >
               Read in کوردی
             </button>
@@ -1273,7 +1299,7 @@ export default function App() {
                     );
                   }
                 }}
-                className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-colors"
+                className="preserve-contrast px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-colors"
               >
                 {untranslatedTopicNotice.translating ? 'Translating...' : 'Translate Now (AI)'}
               </button>
@@ -1286,7 +1312,11 @@ export default function App() {
       {syncToast && (
         <div
           dir="rtl"
-          className="fixed top-4 start-1/2 -translate-x-1/2 z-[1450] px-4 py-2 rounded-xl bg-emerald-950/95 border border-emerald-400/50 text-emerald-200 text-xs font-bold shadow-xl backdrop-blur-md animate-fade-in"
+          className={`fixed top-4 start-1/2 -translate-x-1/2 z-[1450] px-4 py-2 rounded-xl border text-xs font-bold shadow-xl backdrop-blur-md animate-fade-in ${
+            colorMode === 'light'
+              ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
+              : 'bg-emerald-950/95 border-emerald-400/50 text-emerald-200'
+          }`}
         >
           {syncToast}
         </div>
