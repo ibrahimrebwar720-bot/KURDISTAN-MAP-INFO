@@ -94,9 +94,19 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
   };
 
   // Compute provinces with dynamic counts based on facts and active language
-  const { allProvinces, outsideProvinces, totalFacts } = useMemo(() => {
+  const { allProvinces, kurdistanProvinces, outsideProvinces, totalFacts } = useMemo(() => {
     return getProvincesWithCounts(facts, language);
   }, [facts, cacheTick, language]);
+
+  const partCounts = useMemo(() => {
+    const counts = { south: 0, north: 0, east: 0, west: 0 };
+    kurdistanProvinces.forEach((p) => {
+      if (p.part === 'south' || p.part === 'north' || p.part === 'east' || p.part === 'west') {
+        counts[p.part] += 1;
+      }
+    });
+    return counts;
+  }, [kurdistanProvinces]);
 
   // Filtered list based on search and part tab
   const filteredProvinces = useMemo(() => {
@@ -254,7 +264,9 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.05] text-slate-300 hover:text-white border-white/10' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300')
             }`}
           >
-            {isEn ? `All (${allProvinces.length})` : `هەموو پارێزگاکان (${allProvinces.length})`}
+            {isEn
+              ? `All (${formatDigits(allProvinces.length, language)})`
+              : `هەموو پارێزگاکان (${formatDigits(allProvinces.length, language)})`}
           </button>
 
           <button
@@ -265,7 +277,9 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-emerald-400 border-white/10' : 'bg-emerald-50 text-emerald-800 border-emerald-200')
             }`}
           >
-            {isEn ? 'South (9)' : 'باشوور (٩)'}
+            {isEn
+              ? `South (${formatDigits(partCounts.south, language)})`
+              : `باشوور (${formatDigits(partCounts.south, language)})`}
           </button>
 
           <button
@@ -276,7 +290,9 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-amber-400 border-white/10' : 'bg-amber-50 text-amber-900 border-amber-200')
             }`}
           >
-            {isEn ? 'North (24)' : 'باکوور (٢٤)'}
+            {isEn
+              ? `North (${formatDigits(partCounts.north, language)})`
+              : `باکوور (${formatDigits(partCounts.north, language)})`}
           </button>
 
           <button
@@ -287,7 +303,9 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-cyan-400 border-white/10' : 'bg-cyan-50 text-cyan-900 border-cyan-200')
             }`}
           >
-            {isEn ? 'East (9)' : 'ڕۆژهەڵات (٩)'}
+            {isEn
+              ? `East (${formatDigits(partCounts.east, language)})`
+              : `ڕۆژهەڵات (${formatDigits(partCounts.east, language)})`}
           </button>
 
           <button
@@ -298,7 +316,9 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
                 : (isDark ? 'bg-white/[0.04] text-purple-400 border-white/10' : 'bg-purple-50 text-purple-900 border-purple-200')
             }`}
           >
-            {isEn ? 'West (5)' : 'ڕۆژئاوا (٥)'}
+            {isEn
+              ? `West (${formatDigits(partCounts.west, language)})`
+              : `ڕۆژئاوا (${formatDigits(partCounts.west, language)})`}
           </button>
 
           {outsideProvinces.length > 0 && (

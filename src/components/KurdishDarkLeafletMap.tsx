@@ -307,6 +307,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const currentTileUrlRef = useRef<string>('');
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
+  const allProvincesLayerRef = useRef<L.LayerGroup | null>(null);
+  const provinceLabelsLayerRef = useRef<L.LayerGroup | null>(null);
   const provincePolygonLayerRef = useRef<L.Polygon | null>(null);
   const pickedMarkerRef = useRef<L.Marker | null>(null);
   const knowledgeGraphLayerRef = useRef<L.LayerGroup | null>(null);
@@ -675,6 +677,21 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     tileLayerRef.current = initialTileLayer;
     currentTileUrlRef.current = initialTileUrl;
 
+    // Non-interactive panes for 38 province patchwork & labels under markers
+    const provincesPane = map.createPane('kurdistan-provinces-pane');
+    provincesPane.style.zIndex = '340';
+    provincesPane.style.pointerEvents = 'none';
+
+    const provinceLabelsPane = map.createPane('kurdistan-province-labels-pane');
+    provinceLabelsPane.style.zIndex = '355';
+    provinceLabelsPane.style.pointerEvents = 'none';
+
+    const allProvincesLayer = L.layerGroup().addTo(map);
+    allProvincesLayerRef.current = allProvincesLayer;
+
+    const provinceLabelsLayer = L.layerGroup().addTo(map);
+    provinceLabelsLayerRef.current = provinceLabelsLayer;
+
     // Layer Group for markers
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
@@ -730,6 +747,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
+      allProvincesLayerRef.current = null;
+      provinceLabelsLayerRef.current = null;
       knowledgeGraphLayerRef.current = null;
       map.remove();
       mapInstanceRef.current = null;
@@ -859,7 +878,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     }
   }, [mapMode, colorMode]);
 
-  // Update Kurdistan Territory Polygon
+  // Update Kurdistan Territory Polygon & 38-Province Inner Patchwork
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -868,14 +887,77 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       map.removeLayer(polygonLayerRef.current);
       polygonLayerRef.current = null;
     }
+    if (allProvincesLayerRef.current) {
+      allProvincesLayerRef.current.clearLayers();
+    }
+    if (provinceLabelsLayerRef.current) {
+      provinceLabelsLayerRef.current.clearLayers();
+    }
 
     if (showPolygon) {
+      const shadePalette = ['#d97706', '#92400e', '#ea580c', '#b45309', '#f59e0b'];
+      const isLight = colorMode === 'light';
+      const borderColor = isLight ? '#b45309' : theme.primaryColor || '#f59e0b';
+
+      if (allProvincesLayerRef.current && provinceLabelsLayerRef.current) {
+        KURDISTAN_PROVINCES.forEach((prov, idx) => {
+          const rings =
+            prov.polygons && prov.polygons.length > 0
+              ? prov.polygons
+              : prov.polygon && prov.polygon.length >= 3
+              ? [prov.polygon]
+              : null;
+
+          const isSelectedProv = activeProvince === prov.id;
+          const fillTint = shadePalette[idx % shadePalette.length];
+
+          if (rings) {
+            const innerPoly = L.polygon(rings as L.LatLngExpression[][], {
+              pane: 'kurdistan-provinces-pane',
+              color: borderColor,
+              weight: isSelectedProv ? 1.5 : 0.9,
+              opacity: isSelectedProv ? 0.8 : isLight ? 0.55 : 0.42,
+              fillColor: fillTint,
+              fillOpacity: isSelectedProv ? 0 : isLight ? 0.08 : 0.055,
+              interactive: false,
+            });
+            allProvincesLayerRef.current?.addLayer(innerPoly);
+          }
+
+          const labelText =
+            language === 'en'
+              ? prov.shortNameEn || prov.nameEn || prov.name
+              : prov.shortName || prov.name;
+
+          if (labelText && prov.center) {
+            const labelIcon = L.divIcon({
+              className: 'kurdistan-province-map-label',
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+              html: `<div style="transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;font-size:10px;font-weight:700;letter-spacing:0.01em;color:${
+                isLight ? 'rgba(69,26,3,0.78)' : 'rgba(253,230,138,0.72)'
+              };text-shadow:${
+                isLight
+                  ? '0 1px 2px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.9)'
+                  : '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9)'
+              };">${labelText}</div>`,
+            });
+            const labelMarker = L.marker(prov.center, {
+              icon: labelIcon,
+              pane: 'kurdistan-province-labels-pane',
+              interactive: false,
+            });
+            provinceLabelsLayerRef.current?.addLayer(labelMarker);
+          }
+        });
+      }
+
       const polygon = L.polygon(GREAT_KURDISTAN_POLYGON, {
         color: theme.primaryColor || '#f59e0b',
-        weight: 2,
-        opacity: 0.9,
+        weight: 2.2,
+        opacity: 0.92,
         fillColor: theme.primaryColor || '#f59e0b',
-        fillOpacity: 0.07,
+        fillOpacity: 0.03,
         dashArray: '8, 8',
         className: 'luminous-polygon-border',
         interactive: false,
@@ -883,7 +965,30 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
       polygonLayerRef.current = polygon;
     }
-  }, [showPolygon, theme.primaryColor]);
+  }, [showPolygon, activeProvince, theme.primaryColor, colorMode, language]);
+
+  // Show 38 province labels only at overview-to-regional zooms so detail views remain uncluttered
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const labelsLayer = provinceLabelsLayerRef.current;
+    if (!map || !labelsLayer) return;
+
+    const syncLabelVisibility = () => {
+      const z = map.getZoom();
+      const shouldShow = showPolygon && z >= 5.2 && z <= 11.5;
+      if (shouldShow && !map.hasLayer(labelsLayer)) {
+        labelsLayer.addTo(map);
+      } else if (!shouldShow && map.hasLayer(labelsLayer)) {
+        map.removeLayer(labelsLayer);
+      }
+    };
+
+    syncLabelVisibility();
+    map.on('zoomend', syncLabelVisibility);
+    return () => {
+      map.off('zoomend', syncLabelVisibility);
+    };
+  }, [leafletMap, showPolygon]);
 
   // Highlight Selected Province Administrative Boundary on Map
   useEffect(() => {
@@ -1684,7 +1789,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
                 : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
             }`}
-            title={isEn ? 'Provinces (filter by 47 provinces of Kurdistan)' : 'پۆلێنی پارێزگاکان (فلتەرکردن بەپێی ٤٧ پارێزگای کوردستان)'}
+            title={
+              isEn
+                ? `Provinces (filter by ${KURDISTAN_PROVINCES.length} provinces of Kurdistan)`
+                : `پۆلێنی پارێزگاکان (فلتەرکردن بەپێی ${formatDigits(KURDISTAN_PROVINCES.length, language)} پارێزگای کوردستان)`
+            }
           >
             <MapPin className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
             <span className="font-heading font-extrabold text-xs whitespace-nowrap">
