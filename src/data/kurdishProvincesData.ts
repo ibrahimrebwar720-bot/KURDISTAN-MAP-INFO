@@ -60,7 +60,7 @@ export function kurdishWordMatch(haystack: string | null | undefined, word: stri
 }
 
 /**
- * ٣٨ پارێزگا و ناوچەی سەرەکی کوردستانی مەزن (باشوور، باکوور، ڕۆژهەڵات، ڕۆژئاوا)
+ * ٤٠ پارێزگا و ناوچەی سەرەکی کوردستانی مەزن (باشوور، باکوور، ڕۆژهەڵات، ڕۆژئاوا)
  * لەسەر شێوازی نەخشەی کوردستانی مەزن (دەریای ناوەڕاست تا کەنداوی فارسی)
  */
 const KURDISTAN_PROVINCES_BASE: ProvinceItem[] = [
@@ -156,7 +156,35 @@ const KURDISTAN_PROVINCES_BASE: ProvinceItem[] = [
     aliases: ['مووسڵ', 'موسڵ', 'الموصل', 'شنگال', 'سنجار', 'Musill', 'Mosul', 'Sinjar', 'دەشتی نەینەوا', 'بەعشیقە', 'تەلکێف', 'حەمدانیە', 'قەرەقۆش', 'ئەلقۆش', 'تەلعەفەر', 'زومار', 'ئێزیدخان'],
   },
 
-  // ================= باکووری کوردستان (٢١ پارێزگا) =================
+  // ================= باکووری کوردستان (٢٣ پارێزگا) =================
+  {
+    id: 'kars',
+    name: 'قارس',
+    shortName: 'قارس',
+    shortNameEn: 'Kars',
+    part: 'north',
+    partName: 'باکووری کوردستان',
+    inKurdistan: true,
+    countryCode: 'TR',
+    center: [40.39, 42.98],
+    zoom: 9,
+    googleAdmin1: ['kars', 'kars province', 'kars ili'],
+    aliases: ['قارس', 'کارس', 'قەرس', 'Kars', 'Qers', 'ساریکامیش', 'قاقزمان', 'دیگۆر', 'سوسوز', 'ئارپاچای', 'ئاکیەکا', 'سەلیم'],
+  },
+  {
+    id: 'sivas',
+    name: 'سیواس',
+    shortName: 'سیواس',
+    shortNameEn: 'Sivas',
+    part: 'north',
+    partName: 'باکووری کوردستان',
+    inKurdistan: true,
+    countryCode: 'TR',
+    center: [39.55, 37.18],
+    zoom: 8,
+    googleAdmin1: ['sivas', 'sivas province', 'sivas ili'],
+    aliases: ['سیواس', 'سێواس', 'Sivas', 'Sêwas', 'Sewas', 'کۆچگری', 'دیڤریگی', 'زارا', 'ئیمرانلی', 'کانگال', 'گورون', 'حەفیك'],
+  },
   {
     id: 'erzincan',
     name: 'ئەرزنگان',
@@ -640,7 +668,9 @@ export const PROVINCE_ENGLISH_NAMES: Record<string, string> = {
   kirkuk: 'Kirkuk',
   garmian_diyala: 'Khanaqin & Garmian (Xanaqeen)',
   sinjar_nineveh: 'Mosul, Sinjar & Nineveh (Musill)',
-  // North Kurdistan (21)
+  // North Kurdistan (23)
+  kars: 'Kars (Qers)',
+  sivas: 'Sivas (Sewas)',
   erzincan: 'Erzincan (Azerinjan)',
   erzurum: 'Erzurum (Arzerrom)',
   igdir: 'Igdir (Egdir)',
@@ -1517,7 +1547,7 @@ function normalizeAdminString(str: string): string {
 
 /**
  * گۆڕینی زانیاری فەرمی گۆگڵ (Admin Level 1, Admin Level 2, Locality, Country)
- * بۆ یەکێک لە ٣٨ پارێزگای کوردستان یان ناوچەی دەرەوەی کوردستان
+ * بۆ یەکێک لە ٤٠ پارێزگای کوردستان یان ناوچەی دەرەوەی کوردستان
  */
 export function mapGoogleAddressToProvince(info: {
   countryCode?: string;
@@ -1723,7 +1753,7 @@ export function mapGoogleAddressToProvince(info: {
     return { provinceId: 'outside_khuzestan', provinceName: 'خووزستان (ئەهواز)', inKurdistan: false };
   }
 
-  // 2. Direct 1-to-1 match against googleAdmin1 across all 38 Kurdistan provinces
+  // 2. Direct 1-to-1 match against googleAdmin1 across all 40 Kurdistan provinces
   if (a1) {
     for (const prov of KURDISTAN_PROVINCES) {
       if (prov.countryCode && cc && prov.countryCode !== cc) continue;
@@ -2282,7 +2312,7 @@ export function matchFactToProvince(
 
 /**
  * ژماردن و ئامادەکردنی سەرجەم پارێزگاکان:
- * - ٣٨ پارێزگا و ناوچەی کوردستان هەموویان نیشاندەدرێن تەنانەت ئەگەر ٠ داتایشیان هەبێت.
+ * - ٤٠ پارێزگا و ناوچەی کوردستان هەموویان نیشاندەدرێن تەنانەت ئەگەر ٠ داتایشیان هەبێت.
  * - پارێزگا یان شوێنەکانی دەرەوەی هێڵی کوردستان تەنها کاتێک دەردەکەون کە خاوەنی لانیکەم ١ داتا بن (count >= 1).
  */
 export function getProvincesWithCounts(

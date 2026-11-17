@@ -394,8 +394,8 @@ export function updateDynamicSeo(ctx: DynamicSeoContext): void {
       ? `Directory of Kurdish Principalities & Cities | ${brandShort}`
       : `پێڕستی میرنشین و شارەکانی کوردستان | ${brandShort}`;
     description = isEn
-      ? 'Complete encyclopedia directory of Kurdish cities, citadels, principalities, civilizations, and all 38 provinces across South, North, East, and West Kurdistan.'
-      : 'پێڕستی تەواوی شار، قەڵا، میرنشین، شارستانیەت و ٣٨ پارێزگای کوردستان لە باشوور، باکوور، ڕۆژهەڵات و ڕۆژئاوا.';
+      ? 'Complete encyclopedia directory of Kurdish cities, citadels, principalities, civilizations, and all 40 provinces across South, North, East, and West Kurdistan.'
+      : 'پێڕستی تەواوی شار، قەڵا، میرنشین، شارستانیەت و ٤٠ پارێزگای کوردستان لە باشوور، باکوور، ڕۆژهەڵات و ڕۆژئاوا.';
     canonicalUrl = `${baseUrl}?view=menu${langSuffix}`;
     extraGraph = [
       {
@@ -411,8 +411,8 @@ export function updateDynamicSeo(ctx: DynamicSeoContext): void {
       ? `Interactive Historical Map of Kurdistan | ${brandShort}`
       : `نەخشەی کارلێککاری کوردستان | ${brandShort}`;
     description = isEn
-      ? 'Explore Kurdish principalities, citadels, ancient civilizations, and all 38 Kurdistan province boundaries on an interactive historical map.'
-      : 'بینینی سەرجەم میرنشینەکان، قەڵا مێژووییەکان، شارەکان و سنووری ٣٨ پارێزگای کوردستان بە کوردی لەسەر نەخشەی کارلێککار.';
+      ? 'Explore Kurdish principalities, citadels, ancient civilizations, and all 40 Kurdistan province boundaries on an interactive historical map.'
+      : 'بینینی سەرجەم میرنشینەکان، قەڵا مێژووییەکان، شارەکان و سنووری ٤٠ پارێزگای کوردستان بە کوردی لەسەر نەخشەی کارلێککار.';
     canonicalUrl = `${baseUrl}?view=map${langSuffix}`;
   }
 
