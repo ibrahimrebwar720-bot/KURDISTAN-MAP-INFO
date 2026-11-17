@@ -23,38 +23,44 @@ function createGeminiClient(): GoogleGenAI {
 
 interface ParsedGeminiError {
   statusCode: number;
-  code: 'QUOTA_EXHAUSTED' | 'AUTH_ERROR' | 'API_ERROR';
+  code: 'QUOTA_EXHAUSTED' | 'MODEL_UNAVAILABLE' | 'AUTH_ERROR' | 'API_ERROR';
   message: string;
   retryAfterSeconds?: number;
 }
 
+function extractReadableGeminiMessage(rawMessage: string): string {
+  const trimmed = (rawMessage || '').trim();
+  const jsonStart = trimmed.indexOf('{');
+  if (jsonStart !== -1) {
+    try {
+      const parsed = JSON.parse(trimmed.slice(jsonStart)) as {
+        error?: { message?: string };
+        message?: string;
+      };
+      if (parsed?.error?.message) return String(parsed.error.message);
+      if (parsed?.message) return String(parsed.message);
+    } catch {
+      // ignore invalid JSON wrapper
+    }
+  }
+  return trimmed || 'Translation failed';
+}
+
 function parseGeminiApiError(err: unknown): ParsedGeminiError {
   const rawMessage = err instanceof Error ? err.message : String(err || 'Translation failed');
+  const readableMessage = extractReadableGeminiMessage(rawMessage);
+  const lowerMsg = `${rawMessage} ${readableMessage}`.toLowerCase();
   const statusProp =
     typeof err === 'object' && err !== null && 'status' in err
       ? Number((err as { status?: unknown }).status)
       : NaN;
 
   let retryAfterSeconds: number | undefined;
-  const retryMatch = rawMessage.match(/retryDelay["']?\s*:\s*["']?(\d+)s/i) || rawMessage.match(/retry in\s+(\d+)s/i);
+  const retryMatch =
+    rawMessage.match(/retryDelay["']?\s*:\s*["']?(\d+)s/i) ||
+    rawMessage.match(/retry in\s+(\d+)s/i);
   if (retryMatch) {
     retryAfterSeconds = Number(retryMatch[1]);
-  }
-
-  const isQuota =
-    statusProp === 429 ||
-    rawMessage.includes('"code":429') ||
-    rawMessage.includes('RESOURCE_EXHAUSTED') ||
-    rawMessage.toLowerCase().includes('quota');
-
-  if (isQuota) {
-    return {
-      statusCode: 429,
-      code: 'QUOTA_EXHAUSTED',
-      message:
-        'Free tier AI translation quota has been exceeded. Please select a billing-enabled Gemini API key in Settings > Secrets or try again later.',
-      retryAfterSeconds,
-    };
   }
 
   const isAuth =
@@ -71,46 +77,119 @@ function parseGeminiApiError(err: unknown): ParsedGeminiError {
     };
   }
 
+  const isQuota =
+    statusProp === 429 ||
+    rawMessage.includes('"code":429') ||
+    rawMessage.includes('RESOURCE_EXHAUSTED') ||
+    lowerMsg.includes('quota');
+
+  if (isQuota) {
+    return {
+      statusCode: 429,
+      code: 'QUOTA_EXHAUSTED',
+      message:
+        'Free tier AI translation quota has been exceeded. Please select a billing-enabled Gemini API key in Settings > Secrets or try again later.',
+      retryAfterSeconds,
+    };
+  }
+
+  const isUnavailable =
+    statusProp === 503 ||
+    statusProp === 502 ||
+    statusProp === 504 ||
+    statusProp === 500 ||
+    rawMessage.includes('"code":503') ||
+    rawMessage.includes('UNAVAILABLE') ||
+    lowerMsg.includes('high demand') ||
+    lowerMsg.includes('overloaded') ||
+    lowerMsg.includes('temporarily unavailable') ||
+    lowerMsg.includes('service unavailable') ||
+    lowerMsg.includes('try again later') ||
+    lowerMsg.includes('econnreset') ||
+    lowerMsg.includes('etimedout') ||
+    lowerMsg.includes('fetch failed');
+
+  if (isUnavailable) {
+    return {
+      statusCode: 503,
+      code: 'MODEL_UNAVAILABLE',
+      message:
+        'The AI translation model is currently experiencing high demand. Please try again in a few moments.',
+      retryAfterSeconds: retryAfterSeconds ?? 3,
+    };
+  }
+
   return {
-    statusCode: 500,
+    statusCode: Number.isFinite(statusProp) && statusProp >= 400 && statusProp < 600 ? statusProp : 500,
     code: 'API_ERROR',
-    message: rawMessage,
+    message: readableMessage,
   };
 }
 
-const TRANSLATION_MODELS: Array<{ model: string; thinkingLevel: ThinkingLevel }> = [
-  { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW },
-  { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
+const TRANSLATION_MODELS: Array<{ model: string; thinkingLevel: ThinkingLevel; maxAttempts: number }> = [
+  { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, maxAttempts: 2 },
+  { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL, maxAttempts: 3 },
 ];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function generateTranslationWithFallback(
   ai: GoogleGenAI,
   buildRequest: (model: string, thinkingLevel: ThinkingLevel) => Parameters<GoogleGenAI['models']['generateContent']>[0]
 ) {
   let lastError: unknown;
+
   for (let i = 0; i < TRANSLATION_MODELS.length; i++) {
-    const { model, thinkingLevel } = TRANSLATION_MODELS[i];
-    try {
-      return await ai.models.generateContent(buildRequest(model, thinkingLevel));
-    } catch (err) {
-      lastError = err;
-      const parsed = parseGeminiApiError(err);
-      if (parsed.code === 'QUOTA_EXHAUSTED') {
-        // Short transient RPM backoff only if retryDelay is small (<= 10s), then retry same model once
-        if (parsed.retryAfterSeconds && parsed.retryAfterSeconds > 0 && parsed.retryAfterSeconds <= 10) {
-          await new Promise((r) => setTimeout(r, parsed.retryAfterSeconds! * 1000 + 250));
-          try {
-            return await ai.models.generateContent(buildRequest(model, thinkingLevel));
-          } catch (retryErr) {
-            lastError = retryErr;
-          }
+    const { model, thinkingLevel, maxAttempts } = TRANSLATION_MODELS[i];
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await ai.models.generateContent(buildRequest(model, thinkingLevel));
+      } catch (err) {
+        lastError = err;
+        const parsed = parseGeminiApiError(err);
+
+        if (parsed.code === 'AUTH_ERROR') {
+          throw err;
         }
-        // Otherwise immediately move to next model in TRANSLATION_MODELS
-        continue;
+
+        if (parsed.code === 'MODEL_UNAVAILABLE') {
+          if (attempt < maxAttempts) {
+            const backoffMs = Math.min(4000, 900 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 350));
+            console.warn(
+              `Gemini model "${model}" temporarily unavailable (503). Retrying attempt ${attempt + 1}/${maxAttempts} in ${backoffMs}ms...`
+            );
+            await sleep(backoffMs);
+            continue;
+          }
+          // Exhausted retries for this model; move to next fallback model if available
+          if (i < TRANSLATION_MODELS.length - 1) {
+            console.warn(
+              `Gemini model "${model}" stayed busy (503). Falling back to "${TRANSLATION_MODELS[i + 1].model}"...`
+            );
+          }
+          break;
+        }
+
+        if (parsed.code === 'QUOTA_EXHAUSTED') {
+          if (
+            attempt === 1 &&
+            parsed.retryAfterSeconds &&
+            parsed.retryAfterSeconds > 0 &&
+            parsed.retryAfterSeconds <= 10
+          ) {
+            await sleep(parsed.retryAfterSeconds * 1000 + 250);
+            continue;
+          }
+          // Move immediately to next model in TRANSLATION_MODELS
+          break;
+        }
+
+        throw err;
       }
-      throw err;
     }
   }
+
   throw lastError;
 }
 
@@ -279,6 +358,8 @@ async function startServer() {
       const parsedErr = parseGeminiApiError(err);
       if (parsedErr.code === 'QUOTA_EXHAUSTED') {
         console.warn('Gemini /api/translate-fact quota exhausted (429).');
+      } else if (parsedErr.code === 'MODEL_UNAVAILABLE') {
+        console.warn('Gemini /api/translate-fact temporarily unavailable (503) across fallback models.');
       } else {
         console.error('Gemini /api/translate-fact error:', parsedErr.message);
       }
@@ -324,6 +405,8 @@ async function startServer() {
       const parsedErr = parseGeminiApiError(err);
       if (parsedErr.code === 'QUOTA_EXHAUSTED') {
         console.warn('Gemini /api/translate-collection quota exhausted (429).');
+      } else if (parsedErr.code === 'MODEL_UNAVAILABLE') {
+        console.warn('Gemini /api/translate-collection temporarily unavailable (503) across fallback models.');
       } else {
         console.error('Gemini /api/translate-collection error:', parsedErr.message);
       }

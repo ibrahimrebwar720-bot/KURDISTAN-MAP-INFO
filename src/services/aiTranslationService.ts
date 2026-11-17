@@ -46,6 +46,33 @@ export class TranslationApiError extends Error {
   get isQuotaExceeded(): boolean {
     return this.statusCode === 429 || this.code === 'QUOTA_EXHAUSTED';
   }
+
+  get isTemporarilyUnavailable(): boolean {
+    return (
+      this.statusCode === 503 ||
+      this.statusCode === 502 ||
+      this.statusCode === 504 ||
+      this.code === 'MODEL_UNAVAILABLE'
+    );
+  }
+}
+
+function cleanRawErrorString(msg: string): string {
+  const trimmed = (msg || '').trim();
+  const jsonStart = trimmed.indexOf('{');
+  if (jsonStart !== -1) {
+    try {
+      const parsed = JSON.parse(trimmed.slice(jsonStart)) as {
+        error?: { message?: string };
+        message?: string;
+      };
+      if (parsed?.error?.message) return String(parsed.error.message);
+      if (parsed?.message) return String(parsed.message);
+    } catch {
+      // ignore invalid JSON
+    }
+  }
+  return trimmed;
 }
 
 export function formatTranslationError(err: unknown, language: AppLanguage): string {
@@ -55,8 +82,22 @@ export function formatTranslationError(err: unknown, language: AppLanguage): str
       ? 'Daily Free Tier AI translation limit reached. To translate more items now, select a billing-enabled Gemini API key in Settings > Secrets, or try again tomorrow.'
       : 'سنووری ڕۆژانەی وەرگێڕانی AI لە پلانی خۆڕایی (Free Tier) پڕبووەتەوە. بۆ بەردەوامبوون، کلیلی Gemini API ی خاوەن Billing لە Settings > Secrets هەڵبژێرە یان سبەینێ هەوڵ بدەرەوە.';
   }
-  if (err instanceof Error && err.message) {
-    return err.message;
+  const rawMsg = err instanceof Error ? err.message : String(err || '');
+  const lower = rawMsg.toLowerCase();
+  if (
+    (err instanceof TranslationApiError && err.isTemporarilyUnavailable) ||
+    lower.includes('"code":503') ||
+    lower.includes('unavailable') ||
+    lower.includes('high demand') ||
+    lower.includes('overloaded')
+  ) {
+    return isEn
+      ? 'The AI translation server is temporarily busy due to high demand. Please wait a few seconds and try again.'
+      : 'سێرڤەری وەرگێڕانی AI لەم ساتەدا فشاری زۆری لەسەرە (503). تکایە چەند چرکەیەک چاوەڕوان بە و دووبارە هەوڵ بدەرەوە.';
+  }
+  const cleaned = cleanRawErrorString(rawMsg);
+  if (cleaned) {
+    return cleaned;
   }
   return isEn ? 'AI translation failed' : 'وەرگێڕانی AI سەرکەوتوو نەبوو';
 }
@@ -70,21 +111,32 @@ export async function translateFactToLanguageDetailed(
   sourceFact: FactItem,
   targetLanguage: AppLanguage
 ): Promise<TranslateFactOutcome> {
-  const response = await fetch('/api/translate-fact', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ fact: sourceFact, targetLanguage }),
-  });
+  let response: Response | null = null;
+  for (let clientAttempt = 1; clientAttempt <= 2; clientAttempt++) {
+    response = await fetch('/api/translate-fact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fact: sourceFact, targetLanguage }),
+    });
 
-  if (!response.ok) {
+    if (response.ok) break;
+
+    if (
+      clientAttempt === 1 &&
+      (response.status === 503 || response.status === 502 || response.status === 504)
+    ) {
+      await new Promise((r) => setTimeout(r, 1800));
+      continue;
+    }
+
     let errorMessage = `HTTP ${response.status}`;
     let errorCode: string | undefined;
     let retryAfterSeconds: number | undefined;
     try {
       const errJson = await response.json();
-      if (errJson?.error) errorMessage = String(errJson.error);
+      if (errJson?.error) errorMessage = cleanRawErrorString(String(errJson.error));
       if (errJson?.code) errorCode = String(errJson.code);
       if (typeof errJson?.retryAfterSeconds === 'number') {
         retryAfterSeconds = errJson.retryAfterSeconds;
@@ -93,6 +145,10 @@ export async function translateFactToLanguageDetailed(
       // ignore json parse error
     }
     throw new TranslationApiError(errorMessage, response.status, errorCode, retryAfterSeconds);
+  }
+
+  if (!response || !response.ok) {
+    throw new TranslationApiError('Translation service unavailable', 503, 'MODEL_UNAVAILABLE');
   }
 
   const data = (await response.json()) as {
@@ -279,7 +335,7 @@ export async function translateFactsBatchToEnglish(
         notesExcludedCount += 1;
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = formatTranslationError(err, 'en');
       failed.push({
         id: fact.id,
         name: fact.name,
@@ -289,6 +345,9 @@ export async function translateFactsBatchToEnglish(
         quotaExceeded = true;
         retryAfterSeconds = err.retryAfterSeconds;
         break;
+      }
+      if (err instanceof TranslationApiError && err.isTemporarilyUnavailable) {
+        await new Promise((r) => setTimeout(r, 2200));
       }
     }
   }
