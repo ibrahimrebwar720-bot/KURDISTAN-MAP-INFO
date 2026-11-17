@@ -76,7 +76,7 @@ function truncateText(text: string, maxLen: number): string {
 export interface DynamicSeoContext {
   detailFact?: FactItem | null;
   selectedProvinceId?: string;
-  activeView: 'hero' | 'map' | 'journey' | 'gallery' | 'menu' | 'tour';
+  activeView: 'hero' | 'map' | 'journey' | 'menu';
   facts: FactItem[];
   language?: AppLanguage;
 }
@@ -358,7 +358,7 @@ export function updateDynamicSeo(ctx: DynamicSeoContext): void {
     return;
   }
 
-  // 3. View-level SEO (Journey / Gallery / Menu / Map / Hero)
+  // 3. View-level SEO (Journey / Menu / Map / Hero)
   let title = isEn ? DEFAULT_TITLE_EN : DEFAULT_TITLE_CKB;
   let description = isEn ? DEFAULT_DESCRIPTION_EN : DEFAULT_DESCRIPTION_CKB;
   let canonicalUrl = homeCanonical;
@@ -366,8 +366,8 @@ export function updateDynamicSeo(ctx: DynamicSeoContext): void {
 
   if (ctx.activeView === 'journey') {
     title = isEn
-      ? `Historical Journey & Eras of Kurdistan | ${brandShort}`
-      : `گەشتی مێژوویی و سەردەمەکانی کوردستان | ${brandShort}`;
+      ? `Info & Historical Eras of Kurdistan | ${brandShort}`
+      : `زانیاری و سەردەمە مێژووییەکانی کوردستان | ${brandShort}`;
     description = isEn
       ? 'Travel through the 5 historical eras of Kurdistan from ancient Zagros civilizations and the Median Empire to Kurdish emirates and modern republics.'
       : 'گەشت بەناو ٥ سەردەمی مێژوویی کوردستاندا لە شارستانیەتی دێرینی زاگرۆس و ئیمپراتۆریەتی مادەوە تا میرنشینەکان و کۆمارە مۆدێرنەکان.';
@@ -389,22 +389,6 @@ export function updateDynamicSeo(ctx: DynamicSeoContext): void {
         })),
       },
     ];
-  } else if (ctx.activeView === 'gallery') {
-    title = isEn
-      ? `Historical Photo & Map Archive | ${brandShort}`
-      : `گەلەری وێنە و نەخشە مێژووییەکان | ${brandShort}`;
-    description = isEn
-      ? 'Curated archive of historic citadels, archaeological landmarks, leaders, poets, and Kurdish principalities across all four parts of Kurdistan.'
-      : 'ئەرشیف و گەلەری وێنەی قەڵا، شوێنەوار، سەرکردە، شاعیر و میرنشینە مێژووییەکانی هەر چوار پارچەی کوردستان.';
-    canonicalUrl = `${baseUrl}?view=gallery${langSuffix}`;
-    extraGraph = [
-      {
-        '@type': 'ImageGallery',
-        name: isEn ? 'Kurdistan Historical Gallery' : 'گەلەری مێژوویی کوردستان',
-        description,
-        url: canonicalUrl,
-      },
-    ];
   } else if (ctx.activeView === 'menu') {
     title = isEn
       ? `Directory of Kurdish Principalities & Cities | ${brandShort}`
@@ -422,7 +406,7 @@ export function updateDynamicSeo(ctx: DynamicSeoContext): void {
         numberOfItems: ctx.facts.length,
       },
     ];
-  } else if (ctx.activeView === 'map' || ctx.activeView === 'tour') {
+  } else if (ctx.activeView === 'map') {
     title = isEn
       ? `Interactive Historical Map of Kurdistan | ${brandShort}`
       : `نەخشەی کارلێککاری کوردستان | ${brandShort}`;

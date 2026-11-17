@@ -22,6 +22,7 @@ import { formatDigits } from '../utils/yearUtils';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage, AppLanguage } from '../context/LanguageContext';
 import { getCategoryInfo, getUnifiedCategories, getAccessibleCategoryColor } from '../types/history';
+import { matchFactToProvince } from '../data/kurdishProvincesData';
 
 interface Props {
   isOpen: boolean;
@@ -177,27 +178,46 @@ function getFactYearDisplay(fact: FactItem, language: AppLanguage, isEn: boolean
   return isEn ? 'Historical Era' : 'سەردەمی مێژوویی';
 }
 
-function getFactLocationDisplay(fact: FactItem, isEn: boolean): string {
+function getFactLocationDisplay(
+  fact: FactItem,
+  language: AppLanguage,
+  isEn: boolean
+): string {
   if (!fact) return isEn ? 'Kurdistan' : 'کوردستان';
-  if (
-    fact.desc &&
-    fact.desc.length <= 45 &&
-    (isEn ||
-      fact.desc.includes('پایتەخت') ||
-      fact.desc.includes('کەرکووک') ||
-      fact.desc.includes('ئاراپخا') ||
-      fact.desc.includes('هەولێر') ||
-      fact.desc.includes('سلێمانی') ||
-      fact.desc.includes('زاگرۆس') ||
-      fact.desc.includes('بابل') ||
-      fact.desc.includes('وان'))
-  ) {
-    return fact.desc;
+
+  const matchedProv = matchFactToProvince(fact, language);
+  const rawRegion = (fact.region || '').trim();
+  const isGenericZagrosPlaceholder =
+    rawRegion === 'کوردستان · چیاکانی زاگرۆس' ||
+    rawRegion.toLowerCase() === 'kurdistan · zagros mountains' ||
+    rawRegion === 'چیاکانی زاگرۆس' ||
+    rawRegion.toLowerCase() === 'zagros mountains';
+
+  if (rawRegion && !isGenericZagrosPlaceholder) {
+    if (matchedProv && matchedProv.id !== 'outside_global') {
+      const provName = matchedProv.name;
+      if (rawRegion === provName || rawRegion.includes(provName)) {
+        return matchedProv.inKurdistan && matchedProv.partName
+          ? `${rawRegion} · ${matchedProv.partName}`
+          : rawRegion;
+      }
+      return `${rawRegion} · ${provName}`;
+    }
+    return rawRegion;
   }
-  if (fact.region && fact.region.trim()) {
-    return fact.region.trim();
+
+  if (matchedProv && matchedProv.id !== 'outside_global') {
+    if (matchedProv.inKurdistan && matchedProv.partName) {
+      return `${matchedProv.name} · ${matchedProv.partName}`;
+    }
+    return matchedProv.name;
   }
-  return isEn ? 'Kurdistan · Zagros Mountains' : 'کوردستان · چیاکانی زاگرۆس';
+
+  if (isGenericZagrosPlaceholder) {
+    return rawRegion;
+  }
+
+  return isEn ? 'Kurdistan' : 'کوردستان';
 }
 
 export const HistoricalJourneyModal: React.FC<Props> = ({
@@ -438,8 +458,8 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
     return (
       <div
         dir={dir}
-        className={`fixed inset-0 z-[1200] flex items-center justify-center p-4 backdrop-blur-xl animate-fade-in ${
-          isDark ? 'bg-black/95 text-white' : 'bg-white/95 text-slate-900'
+        className={`absolute inset-0 z-20 flex items-center justify-center p-4 backdrop-blur-xl animate-fade-in ${
+          isDark ? 'bg-[#06080e]/95 text-white' : 'bg-[#f8fafc]/95 text-slate-900'
         }`}
       >
         <div
@@ -496,8 +516,8 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
   return (
     <div
       id="historical-journey-modal"
-      className={`fixed inset-0 z-[1200] flex flex-col justify-between p-2 sm:p-3 md:p-5 select-none overflow-hidden animate-fade-in ${
-        isDark ? 'bg-[#06080e]/98 text-white' : 'bg-[#f8fafc]/98 text-slate-900'
+      className={`absolute inset-0 z-30 flex flex-col justify-between p-2 sm:p-3 md:p-5 select-none overflow-hidden animate-fade-in ${
+        isDark ? 'bg-[#06080e] text-white' : 'bg-[#f8fafc] text-slate-900'
       }`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -580,21 +600,18 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
         }`}
       >
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            onClick={onOpenHero}
-            className="rounded-xl p-0.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform shrink-0"
-            title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+          <div
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+              isDark
+                ? 'bg-amber-500/15 border-amber-400/30 text-amber-300'
+                : 'bg-amber-100 border-amber-300 text-amber-800'
+            }`}
           >
-            <img
-              src="/kimlogo.png"
-              alt="KURDISTAN INFO MAP Logo"
-              className="w-8 h-8 rounded-xl object-contain drop-shadow-sm select-none"
-            />
-          </button>
+            <BookOpen className="w-4 h-4" />
+          </div>
           <div>
             <h2 className="font-heading font-black text-sm sm:text-lg flex items-center gap-2">
-              <span>{isEn ? 'Historical Journey' : 'گەشتی مێژوویی'}</span>
+              <span>{isEn ? 'Info' : 'زانیاری'}</span>
             </h2>
           </div>
         </div>
@@ -731,7 +748,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
           CENTER 3D STAGE
           ========================================================================= */}
       <main className="relative flex-1 w-full max-w-4xl mx-auto flex items-center justify-center my-1 sm:my-2 min-h-0 journey-3d-stage">
-        <div className="relative w-full h-[560px] sm:h-[620px] max-h-[76dvh] flex items-center justify-center touch-pan-y">
+        <div className="relative w-full h-full max-h-[620px] flex items-center justify-center touch-pan-y">
           {/* Floating Prev Button */}
           <button
             type="button"
@@ -923,7 +940,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         }`}
                       >
                         <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span className="truncate">{getFactLocationDisplay(factItem, isEn)}</span>
+                        <span className="truncate">{getFactLocationDisplay(factItem, language, isEn)}</span>
                       </span>
                     </div>
                   </div>
@@ -941,7 +958,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
                   {/* Actions on Active Card */}
                   <div
-                    className={`pt-3 mt-2 border-t flex items-center gap-2.5 shrink-0 ${
+                    className={`pt-2 mt-1.5 border-t flex items-center justify-end gap-2 shrink-0 ${
                       isDark ? 'border-white/10' : 'border-slate-200'
                     }`}
                   >
@@ -951,14 +968,14 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         e.stopPropagation();
                         if (onFlyToFact) onFlyToFact(factItem);
                       }}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs sm:text-sm font-bold border transition-all cursor-pointer active:scale-95 shadow-xs ${
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[11px] sm:text-xs font-bold border transition-all cursor-pointer active:scale-95 shadow-xs ${
                         isDark
                           ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/25 text-amber-300 hover:text-amber-200 hover:border-amber-500/40'
                           : 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200/80 text-amber-900 shadow-xs'
                       }`}
                       title={isEn ? 'Locate this entry on the Kurdistan map' : 'بینینی ئەم خاڵە لەسەر نەخشەی کوردستان'}
                     >
-                      <Compass className="w-4 h-4 text-amber-500 shrink-0" />
+                      <Compass className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                       <span>{isEn ? 'On Map' : 'لەسەر نەخشە'}</span>
                     </button>
 
@@ -968,14 +985,14 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                         e.stopPropagation();
                         if (onOpenDetail) onOpenDetail(factItem);
                       }}
-                      className="flex-[1.2] flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-[0_4px_16px_rgba(245,158,11,0.3)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.45)]"
+                      className="flex items-center justify-center gap-1.5 py-1.5 px-3.5 rounded-lg text-[11px] sm:text-xs font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-[0_3px_12px_rgba(245,158,11,0.28)]"
                       title={
                         isEn
                           ? 'Open full historical article, archives, and connections'
                           : 'کردنەوەی تەواوی سەرچاوە، بەستراوەکان و وردەکاریی مێژوویی'
                       }
                     >
-                      <BookOpen className="w-4 h-4 text-slate-950 shrink-0" />
+                      <BookOpen className="w-3.5 h-3.5 text-slate-950 shrink-0" />
                       <span>{isEn ? 'More Details' : 'وردەکاریی زیاتر'}</span>
                     </button>
                   </div>
@@ -1063,7 +1080,7 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
                       }`}
                     >
                       <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span className="truncate">{getFactLocationDisplay(fallingCard, isEn)}</span>
+                      <span className="truncate">{getFactLocationDisplay(fallingCard, language, isEn)}</span>
                     </span>
                   </div>
                 </div>
@@ -1080,23 +1097,23 @@ export const HistoricalJourneyModal: React.FC<Props> = ({
 
                 {/* Symmetrical Action Placeholders */}
                 <div
-                  className={`pt-3 mt-2 border-t flex items-center gap-2.5 shrink-0 ${
+                  className={`pt-2 mt-1.5 border-t flex items-center justify-end gap-2 shrink-0 ${
                     isDark ? 'border-white/10' : 'border-slate-200'
                   }`}
                 >
                   <div
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs sm:text-sm font-bold border ${
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[11px] sm:text-xs font-bold border ${
                       isDark
                         ? 'bg-amber-500/10 border-amber-500/25 text-amber-300'
                         : 'bg-amber-50/80 border-amber-200/80 text-amber-900'
                     }`}
                   >
-                    <Compass className="w-4 h-4 text-amber-500 shrink-0" />
+                    <Compass className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span>{isEn ? 'On Map' : 'لەسەر نەخشە'}</span>
                   </div>
 
-                  <div className="flex-[1.2] flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-[0_4px_16px_rgba(245,158,11,0.3)]">
-                    <BookOpen className="w-4 h-4 text-slate-950 shrink-0" />
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3.5 rounded-lg text-[11px] sm:text-xs font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-[0_3px_12px_rgba(245,158,11,0.28)]">
+                    <BookOpen className="w-3.5 h-3.5 text-slate-950 shrink-0" />
                     <span>{isEn ? 'More Details' : 'وردەکاریی زیاتر'}</span>
                   </div>
                 </div>

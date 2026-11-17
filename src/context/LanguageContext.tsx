@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 export type AppLanguage = 'ckb' | 'en';
 
@@ -95,20 +95,19 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [language]
   );
 
-  return (
-    <LanguageContext.Provider
-      value={{
-        language,
-        isEn: language === 'en',
-        dir: language === 'en' ? 'ltr' : 'rtl',
-        setLanguage,
-        toggleLanguage,
-        pick,
-      }}
-    >
-      {children}
-    </LanguageContext.Provider>
+  const value = useMemo<LanguageContextType>(
+    () => ({
+      language,
+      isEn: language === 'en',
+      dir: language === 'en' ? 'ltr' : 'rtl',
+      setLanguage,
+      toggleLanguage,
+      pick,
+    }),
+    [language, setLanguage, toggleLanguage, pick]
   );
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 };
 
 export const useLanguage = () => useContext(LanguageContext);

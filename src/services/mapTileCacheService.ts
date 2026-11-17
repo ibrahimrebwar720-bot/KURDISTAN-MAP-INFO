@@ -29,28 +29,29 @@ export function lat2tile(lat: number, zoom: number): number {
 }
 
 /**
- * Custom Leaflet TileLayer that serves tiles with immediate fallback to native browser pipeline.
+ * Custom Leaflet TileLayer that preserves native browser caching while
+ * decoding tiles asynchronously off the main thread.
  */
 export const CachedTileLayer = L.TileLayer.extend({
-  createTile(coords: L.Coords, done: (err: any, tile: HTMLElement) => void): HTMLElement {
-    const tile = document.createElement('img');
-    tile.alt = '';
-    tile.setAttribute('role', 'presentation');
-    tile.style.backgroundColor = 'transparent';
-
-    const url = (this as any).getTileUrl(coords);
-
-    // Assign src synchronously so there is zero delay in rendering
-    tile.onload = () => done(null, tile);
-    tile.onerror = () => done(null, tile);
-    tile.src = url;
-
+  createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
+    const tile = (L.TileLayer.prototype as any).createTile.call(
+      this,
+      coords,
+      done
+    ) as HTMLImageElement;
+    if (tile) {
+      tile.decoding = 'async';
+      tile.loading = 'eager';
+    }
     return tile;
   },
 });
 
 /**
- * Factory for creating a robust TileLayer
+ * Factory for creating a zero-lag TileLayer:
+ * - keepBuffer: 2 prevents hundreds of offscreen tile DOM nodes
+ * - updateWhenIdle: true & updateWhenZooming: false prevents network/decode
+ *   stutters while panning or zooming
  */
 export function createCachedTileLayer(
   urlTemplate: string,
@@ -58,13 +59,18 @@ export function createCachedTileLayer(
 ): L.TileLayer {
   const mergedOptions: L.TileLayerOptions = {
     maxZoom: 16,
-    keepBuffer: 10,
-    updateWhenIdle: false,
-    updateWhenZooming: true,
+    keepBuffer: 2,
+    updateWhenIdle: true,
+    updateWhenZooming: false,
+    updateInterval: 200,
+    detectRetina: false,
     ...options,
   };
 
-  return L.tileLayer(urlTemplate, mergedOptions);
+  return new (CachedTileLayer as unknown as new (
+    url: string,
+    opts?: L.TileLayerOptions
+  ) => L.TileLayer)(urlTemplate, mergedOptions);
 }
 
 /**

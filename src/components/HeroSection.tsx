@@ -1,601 +1,306 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Map,
   BookOpen,
   SlidersHorizontal,
-  Compass,
   History,
-  Globe,
+  ArrowRight,
+  ArrowLeft,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
-// Local 3 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
-import bg1 from '../assets/images/hero/bg1.jpg';
-import bg2 from '../assets/images/hero/bg2.jpg';
-import bg3 from '../assets/images/hero/bg3.jpg';
+// Automatically pick up local user-provided hero background images if present in src/assets/images/hero/
+const localHeroImageModules = import.meta.glob('../assets/images/hero/*.{jpg,jpeg,png,webp,avif}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>;
 
-interface HeroWallpaperItem {
-  url: string;
-  title: string;
-  caption?: string;
-  eraName?: string;
-  region?: string;
-}
+const LOCAL_HERO_IMAGES: string[] = Object.keys(localHeroImageModules)
+  .sort()
+  .map((key) => localHeroImageModules[key])
+  .filter(Boolean);
 
-const HERO_WALLPAPERS: HeroWallpaperItem[] = [
-  {
-    url: bg1,
-    title: 'مێژووی کوردستان',
-    caption: 'سەردەم و دەسەڵاتە دێرینەکانی خاکی کوردستان',
-    region: 'کوردستان',
-  },
-  {
-    url: bg2,
-    title: 'شارستانییەت و کەلەپووری دێرین',
-    caption: 'ئاسەوار و شوێنەوارە دێرینەکانی کورد لە مێژوودا',
-    region: 'کوردستان',
-  },
-  {
-    url: bg3,
-    title: 'میرنشین و دەسەڵاتە کوردییەکان',
-    caption: 'سەردەمی فەرمانڕەوایی میرنشینە ئیسلامییەکان و قەڵا مێژووییەکان',
-    region: 'کوردستان',
-  },
-];
+const HERO_MOTION_CLASSES = [
+  'hero-move-rtl',
+  'hero-move-ltr',
+  'hero-move-ttb',
+  'hero-move-btt',
+] as const;
 
 interface Props {
   facts: FactItem[];
   onEnterMap: () => void;
   onOpenMenu: () => void;
   onOpenSettings: () => void;
-  onOpenGallery?: () => void;
   onOpenJourney?: () => void;
+  onSelectFactFromHero?: (fact: FactItem) => void;
+  onSearchToDirectory?: (query: string) => void;
 }
-
-interface HeroSlideProps {
-  wallpaper: HeroWallpaperItem;
-  index: number;
-  opacity: number;
-  zIndex: number;
-  aspectCache: React.MutableRefObject<Record<string, number>>;
-  onLoaded?: () => void;
-}
-
-const HeroSlide: React.FC<HeroSlideProps> = ({
-  wallpaper,
-  index,
-  opacity,
-  zIndex,
-  aspectCache,
-  onLoaded,
-}) => {
-  const [aspect, setAspect] = useState<number>(() => {
-    return aspectCache.current[wallpaper.url] || 1.5;
-  });
-
-  const imgUrl = wallpaper.url;
-  const isLandscape = aspect >= 1.0;
-  const panClass = isLandscape
-    ? index % 2 === 0
-      ? 'hero-pan-rtl'
-      : 'hero-pan-ltr'
-    : index % 2 === 0
-    ? 'hero-pan-up'
-    : 'hero-pan-down';
-
-  return (
-    <div
-      className="absolute inset-0 w-full h-full pointer-events-none select-none transition-opacity duration-1500 ease-in-out"
-      style={{ opacity, zIndex, willChange: 'opacity' }}
-    >
-      {/* Sharp Wallpaper Image with Smooth Cinematic Motion */}
-      <img
-        src={imgUrl}
-        alt={wallpaper.title || 'Kurdistan Info Map'}
-        onLoad={(e) => {
-          const { naturalWidth, naturalHeight } = e.currentTarget;
-          if (naturalWidth && naturalHeight) {
-            const asp = naturalWidth / naturalHeight;
-            aspectCache.current[wallpaper.url] = asp;
-            setAspect(asp);
-          }
-          if (onLoaded) {
-            onLoaded();
-          }
-        }}
-        className={`w-full h-full object-cover object-center ${panClass}`}
-        style={{ transformOrigin: 'center center' }}
-      />
-    </div>
-  );
-};
 
 export const HeroSection: React.FC<Props> = ({
-  facts,
   onEnterMap,
   onOpenMenu,
   onOpenSettings,
   onOpenJourney,
 }) => {
-  const { theme } = useTheme();
+  const { colorMode, toggleColorMode } = useTheme();
   const { language, isEn, dir, setLanguage } = useLanguage();
+  const isDark = colorMode === 'dark';
 
-  // 1. Responsive Screen Orientation Tracking
-  const [isPortrait, setIsPortrait] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerHeight > window.innerWidth;
-    }
-    return false;
-  });
+  const [slideState, setSlideState] = useState<{
+    activeIndex: number;
+    step: number;
+    motions: number[];
+  }>(() => ({
+    activeIndex: 0,
+    step: 0,
+    motions: LOCAL_HERO_IMAGES.map((_, idx) => idx % HERO_MOTION_CLASSES.length),
+  }));
 
-  useEffect(() => {
-    const handleResize = () => {
-      const portrait = window.innerHeight > window.innerWidth;
-      setIsPortrait(portrait);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, []);
-
-  // 2. Local 5 Stable BG Images added by user (Instant load, zero network lag, 100% stable)
-  const wallpapers: HeroWallpaperItem[] = HERO_WALLPAPERS;
-
-  // 3. Persistent Dual-Slot crossfading mechanism (Zero unmount / Zero animation reset)
-  interface SlotData {
-    wallpaper: HeroWallpaperItem;
-    index: number;
-    id: string;
-  }
-
-  const [slotA, setSlotA] = useState<SlotData | null>(() => {
-    return {
-      wallpaper: HERO_WALLPAPERS[0],
-      index: 0,
-      id: `slot-0-${HERO_WALLPAPERS[0].url}`,
-    };
-  });
-  const [slotB, setSlotB] = useState<SlotData | null>(null);
-  const [activeSlot, setActiveSlot] = useState<'A' | 'B'>('A');
-
-  const currentIndexRef = useRef(0);
-  const activeSlotRef = useRef<'A' | 'B'>('A');
-  const aspectCache = useRef<Record<string, number>>({});
+  const hasLocalPhotos = LOCAL_HERO_IMAGES.length > 0;
 
   useEffect(() => {
-    activeSlotRef.current = activeSlot;
-  }, [activeSlot]);
-
-  // Pre-probe & cache images and aspect ratios
-  useEffect(() => {
-    if (!wallpapers || wallpapers.length === 0) return;
-    wallpapers.forEach((wp) => {
-      if (!wp.url) return;
-      const img = new Image();
-      img.src = wp.url;
-      img.onload = () => {
-        if (img.naturalWidth && img.naturalHeight) {
-          aspectCache.current[wp.url] = img.naturalWidth / img.naturalHeight;
-        }
-      };
-    });
-  }, [wallpapers]);
-
-  // Advance to next wallpaper
-  const advanceToNext = useCallback(() => {
-    if (wallpapers.length <= 1) return;
-
-    const nextIndex = (currentIndexRef.current + 1) % wallpapers.length;
-    currentIndexRef.current = nextIndex;
-    const nextWallpaper = wallpapers[nextIndex];
-
-    if (activeSlotRef.current === 'A') {
-      // Put next wallpaper into Slot B
-      setSlotB({
-        wallpaper: nextWallpaper,
-        index: nextIndex,
-        id: `slotB-${nextIndex}-${nextWallpaper.url}`,
+    if (LOCAL_HERO_IMAGES.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setSlideState((prev) => {
+        const nextIndex = (prev.activeIndex + 1) % LOCAL_HERO_IMAGES.length;
+        const nextStep = prev.step + 1;
+        const nextMotions = [...prev.motions];
+        nextMotions[nextIndex] = nextStep % HERO_MOTION_CLASSES.length;
+        return {
+          activeIndex: nextIndex,
+          step: nextStep,
+          motions: nextMotions,
+        };
       });
-    } else {
-      // Put next wallpaper into Slot A
-      setSlotA({
-        wallpaper: nextWallpaper,
-        index: nextIndex,
-        id: `slotA-${nextIndex}-${nextWallpaper.url}`,
-      });
-    }
-  }, [wallpapers]);
-
-  // When Slot A finishes loading, make it active
-  const handleSlotALoaded = useCallback(() => {
-    if (activeSlotRef.current === 'B') {
-      setActiveSlot('A');
-    }
+    }, 7000);
+    return () => window.clearInterval(timer);
   }, []);
 
-  // When Slot B finishes loading, make it active
-  const handleSlotBLoaded = useCallback(() => {
-    if (activeSlotRef.current === 'A') {
-      setActiveSlot('B');
-    }
-  }, []);
-
-  // 4. Automatically cycle background image every 20 seconds (هەر وێنەیەک ٢٠ چرکە جارێک بگۆڕێت)
-  useEffect(() => {
-    if (wallpapers.length <= 1) return;
-    const timer = setInterval(() => {
-      advanceToNext();
-    }, 20000);
-
-    return () => clearInterval(timer);
-  }, [wallpapers.length, advanceToNext]);
-
+  const ForwardArrow = isEn ? ArrowRight : ArrowLeft;
+  // Use dark editorial contrast whenever local photographs are shown OR dark mode is active
+  const useDarkSurface = hasLocalPhotos || isDark;
 
   return (
     <section
       id="hero-section"
-      className="preserve-contrast fixed inset-0 z-40 w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans animate-fade-in"
+      dir={dir}
+      className={`fixed inset-0 z-40 w-full h-full overflow-y-auto overflow-x-hidden flex flex-col font-sans animate-fade-in transition-colors duration-300 ${
+        useDarkSurface
+          ? 'preserve-contrast bg-[#070a12] text-white'
+          : 'bg-[#f6f3ec] text-slate-900'
+      }`}
     >
-      {/* Scoped CSS guaranteeing 100% luminous contrast in both Light and Dark modes */}
-      <style>{`
-        #hero-section {
-          color: #ffffff !important;
-        }
-        #hero-section .hero-title {
-          color: #ffffff !important;
-          -webkit-text-stroke: 0 !important;
-          text-stroke: 0 !important;
-          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 8px 30px rgba(0, 0, 0, 0.75), 0 0 45px rgba(0, 0, 0, 0.6) !important;
-        }
-        #hero-section .hero-subtitle {
-          color: #f8fafc !important;
-          -webkit-text-stroke: 0 !important;
-          text-stroke: 0 !important;
-          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85), 0 4px 16px rgba(0, 0, 0, 0.7) !important;
-        }
-        #hero-section .hero-caption {
-          color: #e2e8f0 !important;
-          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95) !important;
-        }
-        #hero-section .hero-theme-btn {
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-          background-color: rgba(12, 16, 28, 0.75) !important;
-          backdrop-filter: blur(20px) saturate(180%) !important;
-          -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-          border-color: ${theme.primaryColor}70 !important;
-          color: ${theme.primaryColor} !important;
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
-        }
-        #hero-section .hero-theme-btn span,
-        #hero-section .hero-theme-btn svg {
-          color: ${theme.primaryColor} !important;
-          transition: color 0.2s ease;
-        }
-        #hero-section .hero-theme-btn:active,
-        #hero-section .hero-theme-btn.is-active {
-          background-color: ${theme.primaryColor} !important;
-          border-color: ${theme.primaryColor} !important;
-          color: #000000 !important;
-          box-shadow: 0 0 32px ${theme.primaryColor} !important;
-          transform: scale(0.96) translateY(1px);
-        }
-        #hero-section .hero-theme-btn:active span,
-        #hero-section .hero-theme-btn:active svg,
-        #hero-section .hero-theme-btn.is-active span,
-        #hero-section .hero-theme-btn.is-active svg {
-          color: #000000 !important;
-        }
-
-        /* 5. Ultra-Smooth Cinematic Pan / Ken Burns Animations */
-        @keyframes heroPanRightToLeft {
-          0% {
-            transform: scale(1.18) translate3d(5%, 0, 0);
-          }
-          100% {
-            transform: scale(1.18) translate3d(-5%, 0, 0);
-          }
-        }
-
-        @keyframes heroPanLeftToRight {
-          0% {
-            transform: scale(1.18) translate3d(-5%, 0, 0);
-          }
-          100% {
-            transform: scale(1.18) translate3d(5%, 0, 0);
-          }
-        }
-
-        @keyframes heroPanBottomToTop {
-          0% {
-            transform: scale(1.18) translate3d(0, 5%, 0);
-          }
-          100% {
-            transform: scale(1.18) translate3d(0, -5%, 0);
-          }
-        }
-
-        @keyframes heroPanTopToBottom {
-          0% {
-            transform: scale(1.18) translate3d(0, -5%, 0);
-          }
-          100% {
-            transform: scale(1.18) translate3d(0, 5%, 0);
-          }
-        }
-
-        .hero-pan-rtl {
-          animation: heroPanRightToLeft 24s cubic-bezier(0.25, 1, 0.5, 1) infinite alternate;
-          will-change: transform;
-        }
-
-        .hero-pan-ltr {
-          animation: heroPanLeftToRight 24s cubic-bezier(0.25, 1, 0.5, 1) infinite alternate;
-          will-change: transform;
-        }
-
-        .hero-pan-up {
-          animation: heroPanBottomToTop 24s cubic-bezier(0.25, 1, 0.5, 1) infinite alternate;
-          will-change: transform;
-        }
-
-        .hero-pan-down {
-          animation: heroPanTopToBottom 24s cubic-bezier(0.25, 1, 0.5, 1) infinite alternate;
-          will-change: transform;
-        }
-
-        /* 6. Rotating Light Beam around Map Button */
-        @keyframes rotateBeam {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-
-        .animate-beam-spin {
-          animation: rotateBeam 3.2s linear infinite;
-          will-change: transform;
-        }
-      `}</style>
-
-      {/* A. Background Image: Persistent Dual-Slot Seamless Crossfade (No Restart / No Glitch) */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
-        {/* Slot A */}
-        {slotA && (
-          <HeroSlide
-            key={slotA.id}
-            wallpaper={slotA.wallpaper}
-            index={slotA.index}
-            opacity={activeSlot === 'A' ? 1 : 0}
-            zIndex={activeSlot === 'A' ? 2 : 1}
-            aspectCache={aspectCache}
-            onLoaded={handleSlotALoaded}
-          />
-        )}
-
-        {/* Slot B */}
-        {slotB && (
-          <HeroSlide
-            key={slotB.id}
-            wallpaper={slotB.wallpaper}
-            index={slotB.index}
-            opacity={activeSlot === 'B' ? 1 : 0}
-            zIndex={activeSlot === 'B' ? 2 : 1}
-            aspectCache={aspectCache}
-            onLoaded={handleSlotBLoaded}
-          />
-        )}
-
-        {/* Fallback pattern when no wallpapers exist */}
-        {wallpapers.length === 0 && (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#070b14] via-[#0d1424] to-[#04060c]" />
-        )}
-
-        {/* Sophisticated Cinematic Vignette Scrim (ڕەشێنەی سینەمایی نەرم و دەوڵەمەند) */}
-        <div
-          className="absolute inset-0 pointer-events-none z-[1]"
-          style={{
-            background:
-              'linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.25) 30%, rgba(0, 0, 0, 0.35) 60%, rgba(0, 0, 0, 0.92) 100%)',
-          }}
-        />
-        <div
-          className="absolute inset-0 pointer-events-none z-[1]"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.5) 75%, rgba(0, 0, 0, 0.88) 100%)',
-          }}
-        />
-      </div>
-
-      {/* B. Top Section: Language Toggle + English Brand Title in New York Times Editorial Serif Font */}
-      <header className="relative z-10 w-full pt-6 sm:pt-10 px-4 sm:px-12 flex flex-col items-center text-center">
-        {/* Independent Language Switcher (Kurdish Sorani / English) */}
-        <div
-          className="preserve-contrast absolute top-3.5 right-3.5 sm:top-6 sm:right-6 z-20 flex items-center gap-1 p-1 rounded-[4px] bg-[#0b0f1c]/95 border border-amber-500/45 shadow-[0_6px_20px_rgba(0,0,0,0.75)] backdrop-blur-md"
-          dir="ltr"
-        >
-          <Globe className="w-3.5 h-3.5 text-amber-400 mx-1.5 hidden sm:block shrink-0" />
-          <button
-            type="button"
-            onClick={() => setLanguage('ckb')}
-            className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-all cursor-pointer ${
-              language === 'ckb'
-                ? 'bg-amber-400 text-slate-950 shadow-sm'
-                : 'bg-white/10 text-slate-100 hover:text-white hover:bg-white/20'
-            }`}
-            title="زمانی کوردی سۆرانی"
-          >
-            کوردی
-          </button>
-          <button
-            type="button"
-            onClick={() => setLanguage('en')}
-            className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-all cursor-pointer ${
-              language === 'en'
-                ? 'bg-amber-400 text-slate-950 shadow-sm'
-                : 'bg-white/10 text-slate-100 hover:text-white hover:bg-white/20'
-            }`}
-            title="English Edition"
-          >
-            EN
-          </button>
-        </div>
-
-        {/* Soft, natural dark shadow behind the title for sharp text contrast without hard borders */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-36 sm:h-44 pointer-events-none z-0 opacity-85"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.35) 55%, transparent 80%)',
-          }}
-          aria-hidden="true"
-        />
-
-        {/* Official Website Logo (kimlogo) */}
-        <div className="relative z-10 mb-2 sm:mb-3">
-          <img
-            src="/kimlogo.png"
-            alt="KURDISTAN INFO MAP Logo"
-            className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain drop-shadow-[0_4px_24px_rgba(245,158,11,0.45)] select-none pointer-events-none transition-transform hover:scale-105"
-          />
-        </div>
-
-        {/* English Title: KURDISTAN INFO MAP in New York Times Editorial Serif Typeface */}
-        <h1
-          className="hero-title relative font-['Playfair_Display',Georgia,Cambria,'Times_New_Roman',Times,serif] font-black uppercase text-xl xs:text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-white max-w-full leading-tight transition-all"
-          style={{
-            letterSpacing: '0.14em',
-            textShadow: '0 2px 10px rgba(0,0,0,0.9), 0 8px 30px rgba(0,0,0,0.75), 0 0 45px rgba(0,0,0,0.6)',
-          }}
-        >
-          KURDISTAN INFO MAP
-        </h1>
-
-        {/* Subtitle: kurdistan, history, culture in the same New York Times Serif Font */}
-        <div className="mt-2.5 sm:mt-3 flex items-center justify-center gap-2 px-2 relative z-10">
-          <span
-            className="hero-subtitle font-['Playfair_Display',Georgia,Cambria,'Times_New_Roman',Times,serif] text-xs sm:text-base tracking-[0.18em] sm:tracking-[0.24em] font-normal lowercase transition-colors"
-            style={{
-              color: '#f8fafc',
-              textShadow: '0 2px 8px rgba(0,0,0,0.85), 0 4px 16px rgba(0,0,0,0.7)',
-            }}
-          >
-            kurdistan, history, culture
-          </span>
-          <span
-            className="w-1.5 h-1.5 rounded-full shadow-sm shrink-0"
-            style={{
-              backgroundColor: theme.primaryColor,
-              boxShadow: `0 0 10px ${theme.primaryColor}`,
-            }}
-          />
-        </div>
-      </header>
-
-      {/* C. Center Visual Accent: Rotating Kurdish Compass / Sun Emblem */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pointer-events-none">
-        <div className="relative flex items-center justify-center preserve-circle">
+      {/* Background: Local user-provided hero photos BG(1), BG(2), BG(3) with 4-directional motion */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none">
+        {hasLocalPhotos ? (
+          <>
+            {LOCAL_HERO_IMAGES.map((src, idx) => {
+              const motionIndex = slideState.motions[idx] ?? 0;
+              const motionClass = HERO_MOTION_CLASSES[motionIndex];
+              const isActive = idx === slideState.activeIndex;
+              return (
+                <div
+                  key={src}
+                  className={`absolute inset-0 overflow-hidden transition-opacity duration-[1400ms] ease-in-out ${
+                    isActive ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <img
+                    key={`${src}-${motionIndex}`}
+                    src={src}
+                    alt={`Kurdistan Info Map ${idx + 1}`}
+                    loading="eager"
+                    decoding="async"
+                    className={`w-full h-full object-cover object-center ${motionClass}`}
+                  />
+                </div>
+              );
+            })}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(180deg, rgba(6,9,18,0.72) 0%, rgba(6,9,18,0.36) 46%, rgba(6,9,18,0.82) 100%)',
+              }}
+            />
+          </>
+        ) : (
           <div
-            className="w-20 h-20 sm:w-32 sm:h-32 rounded-full border border-dashed animate-spin-slow flex items-center justify-center transition-colors"
-            style={{ borderColor: `${theme.primaryColor}55` }}
-          >
-            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border border-white/20 flex items-center justify-center">
-              <Compass
-                className="w-7 h-7 sm:w-10 sm:h-10 stroke-[1.5] transition-colors"
-                style={{ color: theme.primaryColor }}
-              />
-            </div>
-          </div>
-        </div>
+            className="absolute inset-0"
+            style={{
+              background: isDark
+                ? 'radial-gradient(ellipse 75% 55% at 50% 34%, rgba(245, 158, 11, 0.10) 0%, rgba(15, 23, 42, 0.45) 52%, rgba(7, 10, 18, 1) 100%)'
+                : 'radial-gradient(ellipse 75% 55% at 50% 34%, rgba(180, 83, 9, 0.08) 0%, rgba(246, 243, 236, 0.6) 55%, rgba(246, 243, 236, 1) 100%)',
+            }}
+          />
+        )}
       </div>
 
-      {/* D. Bottom Section: The 4 Action Buttons - Flat Architectural Layout */}
-      <footer className="relative z-10 w-full pb-6 sm:pb-12 px-2 sm:px-6 flex flex-col items-center gap-4">
-        {/* The 4 Main Buttons Cluster - Warm Architectural Craftsmanship */}
-        <div
-          className="w-full max-w-2xl grid grid-cols-4 gap-1.5 sm:gap-2.5 p-2 sm:p-2.5 bg-[#0b0f1c] border border-amber-500/30 border-t-amber-400/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.9),0_0_20px_rgba(245,158,11,0.08)] rounded-[4px]"
-          dir={dir}
-        >
-          {/* Button 1: Map (Featured Action) */}
+      {/* Minimal Top Utility Bar (no duplicate logo/brand text) */}
+      <header className="relative z-20 w-full max-w-6xl mx-auto px-4 sm:px-8 pt-4 sm:pt-5 flex items-center justify-end shrink-0">
+        <div className="flex items-center gap-2" dir="ltr">
           <button
             type="button"
-            onClick={onEnterMap}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-3 sm:py-3.5 px-1.5 sm:px-2.5 rounded-[3px] border-2 border-amber-400 hover:border-amber-300 bg-gradient-to-b from-amber-500/25 via-amber-600/20 to-amber-950/40 transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-[0_4px_16px_rgba(245,158,11,0.25)]"
+            onClick={toggleColorMode}
+            className={`h-9 w-9 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+              useDarkSurface
+                ? 'bg-white/10 hover:bg-white/20 border-white/15 text-amber-300'
+                : 'bg-white/80 hover:bg-white border-slate-300/80 text-amber-700 shadow-xs'
+            }`}
+            title={isDark ? (isEn ? 'Light Mode' : 'دۆخی ڕووناک') : isEn ? 'Dark Mode' : 'دۆخی تاریک'}
+            aria-label={isDark ? (isEn ? 'Light Mode' : 'دۆخی ڕووناک') : isEn ? 'Dark Mode' : 'دۆخی تاریک'}
           >
-            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <Map className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 group-hover:scale-110 transition-transform" />
-              <span className="text-xs sm:text-base font-black tracking-tight text-white drop-shadow-sm">
-                {isEn ? 'Map' : 'نەخشە'}
-              </span>
-            </div>
-            <span className="text-[9px] sm:text-xs font-bold hidden xs:inline text-amber-300/90 truncate max-w-full">
-              {isEn ? 'Explore Map' : 'گەڕانی نەخشە'}
-            </span>
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          {/* Button 2: Historical Journey */}
-          <button
-            type="button"
-            onClick={onOpenJourney}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-[3px] border border-white/12 border-t-white/25 hover:border-amber-400/50 bg-[#12192a] hover:bg-[#18223a] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-sm"
+          <div
+            className={`flex items-center p-0.5 rounded-lg border ${
+              useDarkSurface
+                ? 'bg-black/45 border-white/15'
+                : 'bg-white/80 border-slate-300/80 shadow-xs'
+            }`}
           >
-            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
-              <span className="text-[11px] sm:text-sm font-extrabold tracking-tight text-slate-100 group-hover:text-white truncate">
-                {isEn ? 'Journey' : 'گەشتی مێژوویی'}
-              </span>
-            </div>
-            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
-              {isEn ? 'History Cards' : 'کارتەکانی مێژوو'}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('ckb')}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                language === 'ckb'
+                  ? useDarkSurface
+                    ? 'bg-amber-400 text-slate-950'
+                    : 'bg-amber-700 text-white'
+                  : useDarkSurface
+                  ? 'text-slate-200 hover:text-white'
+                  : 'text-slate-700 hover:text-slate-950'
+              }`}
+            >
+              کوردی
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('en')}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                language === 'en'
+                  ? useDarkSurface
+                    ? 'bg-amber-400 text-slate-950'
+                    : 'bg-amber-700 text-white'
+                  : useDarkSurface
+                  ? 'text-slate-200 hover:text-white'
+                  : 'text-slate-700 hover:text-slate-950'
+              }`}
+            >
+              EN
+            </button>
+          </div>
 
-          {/* Button 3: Historical Directory */}
-          <button
-            type="button"
-            onClick={onOpenMenu}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-[3px] border border-white/12 border-t-white/25 hover:border-amber-400/50 bg-[#12192a] hover:bg-[#18223a] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-sm"
-          >
-            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
-              <span className="text-[11px] sm:text-sm font-bold tracking-tight text-slate-100 group-hover:text-white">
-                {isEn ? 'Directory' : 'پێڕست'}
-              </span>
-            </div>
-            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
-              {isEn ? `${facts.length} Entries` : 'بابەتەکان'}
-            </span>
-          </button>
-
-          {/* Button 4: Settings */}
           <button
             type="button"
             onClick={onOpenSettings}
-            className="hero-theme-btn group relative flex flex-col items-center justify-center py-2.5 sm:py-3.5 px-1 sm:px-2 rounded-[3px] border border-white/12 border-t-white/25 hover:border-amber-400/50 bg-[#12192a] hover:bg-[#18223a] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none shadow-sm"
+            className={`h-9 px-3 rounded-lg border flex items-center gap-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              useDarkSurface
+                ? 'bg-white/10 hover:bg-white/20 border-white/15 text-slate-100'
+                : 'bg-white/80 hover:bg-white border-slate-300/80 text-slate-800 shadow-xs'
+            }`}
+            title={isEn ? 'Settings' : 'ڕێکخستنەکان'}
           >
-            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:scale-110 transition-transform" />
-              <span className="text-[11px] sm:text-sm font-bold tracking-tight text-slate-100 group-hover:text-white">
-                {isEn ? 'Settings' : 'ڕێکخستنەکان'}
-              </span>
-            </div>
-            <span className="text-[8px] sm:text-[11px] font-semibold hidden xs:inline text-slate-400 group-hover:text-amber-200/80 truncate max-w-full">
-              {isEn ? 'Lang & Theme' : 'دیمەن و شێواز'}
-            </span>
+            <SlidersHorizontal
+              className={`w-3.5 h-3.5 ${useDarkSurface ? 'text-amber-300' : 'text-amber-700'}`}
+            />
+            <span className="hidden sm:inline">{isEn ? 'Settings' : 'ڕێکخستن'}</span>
           </button>
         </div>
-      </footer>
+      </header>
+
+      {/* Main Hero Area: Upper Emblem & Masthead + Bottom Navigation Actions */}
+      <div className="relative z-20 flex-1 flex flex-col items-center justify-between px-4 sm:px-6 pt-6 sm:pt-10 pb-8 sm:pb-12 text-center max-w-3xl mx-auto w-full">
+        {/* Top Focal Masthead */}
+        <div className="flex flex-col items-center">
+          <img
+            src="/kimlogo.png"
+            alt="Kurdistan Info Map"
+            className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-2xl sm:rounded-3xl object-contain mb-4 drop-shadow-[0_8px_28px_rgba(245,158,11,0.38)]"
+          />
+          <h1
+            dir="ltr"
+            style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Noto Serif', Georgia, serif" }}
+            className={`font-bold text-3xl sm:text-5xl md:text-6xl tracking-wide leading-tight ${
+              useDarkSurface
+                ? 'text-white drop-shadow-[0_6px_24px_rgba(0,0,0,0.85)]'
+                : 'text-slate-950'
+            }`}
+          >
+            Kurdistan{' '}
+            <span className={useDarkSurface ? 'text-amber-400' : 'text-amber-700'}>Info Map</span>
+          </h1>
+          <p
+            dir={isEn ? 'ltr' : 'rtl'}
+            className={`mt-2.5 text-xs sm:text-sm md:text-base font-medium ${
+              isEn ? 'tracking-[0.22em] uppercase' : 'tracking-normal'
+            } ${
+              useDarkSurface
+                ? 'text-amber-100/90 drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]'
+                : 'text-slate-700'
+            }`}
+          >
+            {isEn ? 'KURDISTAN . CULTURE . HISTORY' : 'کوردستان . کلتوور . مێژوو'}
+          </p>
+        </div>
+
+        {/* Bottom Primary CTA + Secondary Actions */}
+        <div className="flex flex-col items-center gap-3.5 w-full pt-8">
+          <button
+            type="button"
+            onClick={onEnterMap}
+            className={`inline-flex items-center justify-center gap-2.5 px-10 py-3.5 rounded-xl font-black text-sm sm:text-base transition-all cursor-pointer active:scale-[0.98] ${
+              useDarkSurface
+                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-[0_10px_28px_rgba(245,158,11,0.30)]'
+                : 'bg-amber-700 hover:bg-amber-800 text-white shadow-[0_10px_24px_rgba(180,83,9,0.22)]'
+            }`}
+          >
+            <Map className="w-5 h-5 shrink-0" />
+            <span>{isEn ? 'Map' : 'نــەخشـە'}</span>
+            <ForwardArrow className="w-4 h-4 shrink-0" />
+          </button>
+
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              type="button"
+              onClick={onOpenMenu}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+                useDarkSurface
+                  ? 'bg-white/[0.06] hover:bg-white/[0.12] border-white/15 text-slate-200 hover:text-white'
+                  : 'bg-white/80 hover:bg-white border-slate-300/80 text-slate-800 hover:text-slate-950 shadow-xs'
+              }`}
+            >
+              <BookOpen
+                className={`w-4 h-4 shrink-0 ${useDarkSurface ? 'text-amber-400' : 'text-amber-700'}`}
+              />
+              <span>{isEn ? 'Archive Directory' : 'ئەرشیف و پێڕست'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => (onOpenJourney ? onOpenJourney() : onEnterMap())}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+                useDarkSurface
+                  ? 'bg-white/[0.06] hover:bg-white/[0.12] border-white/15 text-slate-200 hover:text-white'
+                  : 'bg-white/80 hover:bg-white border-slate-300/80 text-slate-800 hover:text-slate-950 shadow-xs'
+              }`}
+            >
+              <History
+                className={`w-4 h-4 shrink-0 ${useDarkSurface ? 'text-amber-400' : 'text-amber-700'}`}
+              />
+              <span>{isEn ? 'Info' : 'زانیاری'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
   );
 };
+
+

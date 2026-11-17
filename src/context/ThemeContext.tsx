@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ThemeId,
   ThemeDefinition,
@@ -62,15 +62,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyThemeToDom(themeId, colorMode);
   }, [themeId, colorMode]);
 
-  const value = {
-    themeId,
-    theme: THEMES[themeId] || THEMES['kurdish-gold'],
-    setTheme,
-    resetTheme,
-    colorMode,
-    setColorMode,
-    toggleColorMode,
-  };
+  const value = useMemo(
+    () => ({
+      themeId,
+      theme: THEMES[themeId] || THEMES['kurdish-gold'],
+      setTheme,
+      resetTheme,
+      colorMode,
+      setColorMode,
+      toggleColorMode,
+    }),
+    [themeId, setTheme, resetTheme, colorMode, setColorMode, toggleColorMode]
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };

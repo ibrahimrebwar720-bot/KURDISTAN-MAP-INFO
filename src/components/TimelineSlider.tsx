@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   ChevronRight,
   ChevronLeft,
+  ChevronUp,
+  ChevronDown,
   Calendar,
   Layers,
-  Search,
+  Hash,
   X,
-  Film,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
@@ -25,8 +26,6 @@ interface Props {
   onYearChange: (year: number | 'all') => void;
   filteredCount: number;
   totalCount: number;
-  isTourActive?: boolean;
-  onToggleTour?: () => void;
 }
 
 interface RulerMark {
@@ -41,16 +40,15 @@ export const TimelineSlider: React.FC<Props> = ({
   selectedYear,
   onYearChange,
   filteredCount,
-  totalCount,
-  isTourActive = false,
-  onToggleTour,
 }) => {
   const { language, isEn, dir } = useLanguage();
   const { colorMode } = useTheme();
   const isDark = colorMode === 'dark';
   const [directInputYear, setDirectInputYear] = useState('');
+  const [directInputEra, setDirectInputEra] = useState<'AD' | 'BC'>('AD');
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [scrubYear, setScrubYear] = useState<number | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const selectedYearRef = useRef(selectedYear);
   selectedYearRef.current = selectedYear;
@@ -262,7 +260,7 @@ export const TimelineSlider: React.FC<Props> = ({
     }, 450);
   };
 
-  // Direct Jump Submit
+  // Direct Numeric Year Jump Submit
   const handleDirectJumpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!directInputYear.trim()) return;
@@ -271,8 +269,16 @@ export const TimelineSlider: React.FC<Props> = ({
     if (match) {
       let num = parseInt(match[0], 10);
       const lower = directInputYear.toLowerCase();
-      if (directInputYear.includes('پ.ز') || directInputYear.includes('پێش') || lower.includes('bc')) {
+      if (
+        directInputEra === 'BC' ||
+        directInputYear.includes('پ.ز') ||
+        directInputYear.includes('پێش') ||
+        lower.includes('bc') ||
+        num < 0
+      ) {
         num = -Math.abs(num);
+      } else {
+        num = Math.abs(num);
       }
       if (num >= MIN_HISTORICAL_YEAR && num <= MAX_HISTORICAL_YEAR) {
         if (scrollDebounceTimerRef.current) {
@@ -407,28 +413,51 @@ export const TimelineSlider: React.FC<Props> = ({
     }, 550);
   };
 
+  // 1-Click Quick Jump to a historical era / year
+  const handleJumpToYearDirect = (year: number | 'all') => {
+    if (scrollDebounceTimerRef.current) {
+      clearTimeout(scrollDebounceTimerRef.current);
+    }
+    isProgrammaticScrollRef.current = true;
+    isPhysicallyInteractingRef.current = false;
+    isUserInteractingRef.current = false;
+    setScrubYear(null);
+    onYearChange(year);
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 500);
+  };
+
   const activeDisplayYear = scrubYear !== null ? scrubYear : selectedYear;
 
   return (
     <div
-      className="w-full max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1 text-start select-none transition-all"
+      className="w-full max-w-xl flex flex-col items-center gap-0.5 text-start select-none transition-all"
       dir={dir}
     >
       {/* 2026 Spatial Chronological Dock */}
-      <div className="relative w-full glass-dock-2026 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 flex flex-col gap-1.5 sm:gap-2.5 transition-all overflow-hidden shadow-2xl">
-        {/* Tier 1: Top Status Header */}
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+      <div className="relative w-full glass-dock-2026 rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-3 sm:py-1.5 flex flex-col gap-1 sm:gap-1.5 transition-all overflow-hidden shadow-2xl">
+        {/* Tier 1: Slim Top Status Header */}
+        <div className="flex items-center justify-between gap-1.5 w-full min-h-[28px]">
           {/* Year Label & Fact Count */}
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (isCollapsed) setIsCollapsed(false);
+              setShowDirectInput((prev) => !prev);
+            }}
+            title={isEn ? 'Click to enter a year by number' : 'کلیک بکە بۆ دیاریکردنی ساڵ بە ژمارە'}
+            className="flex items-center gap-1.5 sm:gap-2 min-w-0 cursor-pointer group text-start"
+          >
             <div
-              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-xs ${
+              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg border flex items-center justify-center shrink-0 shadow-xs ${
                 isDark
-                  ? 'bg-white/[0.06] border-white/[0.1]'
-                  : 'bg-slate-100 border-slate-300'
+                  ? 'bg-white/[0.06] border-white/[0.1] group-hover:border-amber-400/50'
+                  : 'bg-slate-100 border-slate-300 group-hover:border-amber-500'
               }`}
             >
               <Calendar
-                className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${
+                className={`w-3 h-3 ${
                   isDark ? 'text-amber-400' : 'text-amber-800'
                 }`}
               />
@@ -436,8 +465,8 @@ export const TimelineSlider: React.FC<Props> = ({
 
             <div className="flex items-center gap-1.5 truncate">
               <span
-                className={`font-extrabold text-xs sm:text-sm font-mono tracking-wide ${
-                  isDark ? 'text-white' : 'text-slate-900'
+                className={`font-extrabold text-[11px] sm:text-xs font-mono tracking-wide transition-colors ${
+                  isDark ? 'text-white group-hover:text-amber-300' : 'text-slate-900 group-hover:text-amber-800'
                 }`}
               >
                 {activeDisplayYear === 'all'
@@ -447,95 +476,82 @@ export const TimelineSlider: React.FC<Props> = ({
                   : formatKurdishYear(activeDisplayYear, language)}
               </span>
 
-              <span className={`font-mono text-xs ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
+              <span className={`font-mono text-[10px] ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
               <span
-                className={`text-[11px] sm:text-xs font-mono font-semibold tabular-nums ${
+                className={`text-[10px] sm:text-[11px] font-mono font-semibold tabular-nums ${
                   isDark ? 'text-amber-300/90' : 'text-amber-800'
                 }`}
               >
                 {formatDigits(filteredCount, language)} {isEn ? 'sites' : 'شوێن'}
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Quick Actions Cluster */}
           <div className="flex items-center gap-1 shrink-0">
             {/* Step -1 Year */}
             <button
+              type="button"
               onClick={() => handleStepYear(-1)}
               title={isEn ? 'Step -1 year' : '١ ساڵ بۆ دواوە'}
-              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+              className={`h-7 min-w-[28px] px-1 rounded-lg flex items-center justify-center transition-all cursor-pointer border active:scale-95 ${
                 isDark
-                  ? 'bg-white/[0.05] hover:bg-white/[0.12] text-slate-300 hover:text-amber-300 border-white/[0.08]'
-                  : 'bg-white hover:bg-slate-100 text-slate-700 hover:text-amber-800 border-slate-300 shadow-xs'
+                  ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-200 hover:text-amber-300 border-white/[0.1]'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-amber-800 border-slate-300 shadow-xs'
               }`}
             >
               {isEn ? (
-                <ChevronLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               ) : (
-                <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <ChevronRight className="w-3.5 h-3.5" />
               )}
             </button>
-
-            {/* Cinematic Guided Tour / Story Mode */}
-            {onToggleTour && (
-              <button
-                onClick={onToggleTour}
-                title={
-                  isTourActive
-                    ? isEn
-                      ? 'Stop Visual History Tour'
-                      : 'وەستاندنی گەشتی بینراوی مێژوویی (Story Mode)'
-                    : isEn
-                    ? 'Start Visual History Tour (Story Mode)'
-                    : 'گەشتی بینراوی مێژوویی (Cinematic Guided Tour / Story Mode)'
-                }
-                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                  isTourActive
-                    ? 'liquid-glass-btn-active shadow-[0_0_12px_rgba(245,158,11,0.9)] animate-pulse'
-                    : isDark
-                    ? 'liquid-glass-btn text-amber-300 hover:text-white'
-                    : 'liquid-glass-btn text-amber-800 hover:text-slate-900'
-                }`}
-              >
-                <Film className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              </button>
-            )}
 
             {/* Step +1 Year */}
             <button
+              type="button"
               onClick={() => handleStepYear(1)}
               title={isEn ? 'Step +1 year' : '١ ساڵ بۆ پێشەوە'}
-              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg liquid-glass-btn flex items-center justify-center transition-all cursor-pointer ${
+              className={`h-7 min-w-[28px] px-1 rounded-lg flex items-center justify-center transition-all cursor-pointer border active:scale-95 ${
                 isDark
-                  ? 'text-slate-300 hover:text-amber-300'
-                  : 'text-slate-700 hover:text-amber-800'
+                  ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-200 hover:text-amber-300 border-white/[0.1]'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-amber-800 border-slate-300 shadow-xs'
               }`}
             >
               {isEn ? (
-                <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                <ChevronRight className="w-3.5 h-3.5" />
               ) : (
-                <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               )}
             </button>
 
-            {/* Search Toggle */}
+            {/* Numeric Year Selection Toggle */}
             <button
-              onClick={() => setShowDirectInput(!showDirectInput)}
-              title={isEn ? 'Jump to specific year' : 'دیاریکردنی ساڵ بە ژمارە'}
-              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+              type="button"
+              onClick={() => {
+                if (isCollapsed) setIsCollapsed(false);
+                if (!showDirectInput && typeof selectedYear === 'number') {
+                  setDirectInputYear(Math.abs(selectedYear).toString());
+                  setDirectInputEra(selectedYear < 0 ? 'BC' : 'AD');
+                }
+                setShowDirectInput((prev) => !prev);
+              }}
+              title={isEn ? 'Select year by number' : 'دیاریکردنی ساڵ بە ژمارە'}
+              className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer active:scale-95 border ${
                 showDirectInput
                   ? 'liquid-glass-btn-active font-bold'
                   : isDark
-                  ? 'liquid-glass-btn text-slate-300 hover:text-amber-300'
-                  : 'liquid-glass-btn text-slate-700 hover:text-amber-800'
+                  ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-200 hover:text-amber-300 border-white/[0.1]'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-amber-800 border-slate-300 shadow-xs'
               }`}
             >
-              <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <Hash className="w-3 h-3 shrink-0" />
+              <span>{isEn ? 'Year' : 'ساڵ'}</span>
             </button>
 
             {/* Toggle All Years Button */}
             <button
+              type="button"
               onClick={handleToggleAllYears}
               title={
                 selectedYear === 'all'
@@ -546,64 +562,94 @@ export const TimelineSlider: React.FC<Props> = ({
                   ? 'Show all historical years'
                   : 'پیشاندانی هەموو ساڵەکان'
               }
-              className={`flex items-center gap-1 px-2 sm:px-2.5 h-5 sm:h-6 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1 px-2 h-7 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer border active:scale-95 ${
                 selectedYear === 'all'
                   ? 'liquid-glass-btn-active font-extrabold'
                   : isDark
-                  ? 'liquid-glass-btn text-slate-200 hover:text-amber-300'
-                  : 'liquid-glass-btn text-slate-800 hover:text-amber-800'
+                  ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-200 hover:text-amber-300 border-white/[0.1]'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-amber-800 border-slate-300 shadow-xs'
               }`}
             >
-              <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <Layers className="w-3 h-3 shrink-0" />
               <span>{isEn ? 'All' : 'هەمووی'}</span>
+            </button>
+
+            {/* Collapse / Expand Timeline Ruler */}
+            <button
+              type="button"
+              onClick={() => setIsCollapsed((prev) => !prev)}
+              title={isCollapsed ? (isEn ? 'Expand timeline' : 'کردنەوەی هێڵی کات') : (isEn ? 'Minimize timeline' : 'بچووککردنەوەی هێڵی کات')}
+              className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all cursor-pointer border active:scale-95 ${
+                isDark
+                  ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-300 hover:text-white border-white/[0.1]'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 border-slate-300 shadow-xs'
+              }`}
+            >
+              {isCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
 
-        {/* Optional Direct Year Jump Form */}
-        {showDirectInput && (
+        {/* Numeric Year Entry Form */}
+        {!isCollapsed && showDirectInput && (
           <form
             onSubmit={handleDirectJumpSubmit}
-            className="flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-xl liquid-glass-card animate-fade-in shadow-md"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl liquid-glass-card animate-fade-in shadow-md"
           >
             <span
-              className={`text-[9px] sm:text-[10px] font-bold shrink-0 ${
+              className={`text-[11px] font-bold shrink-0 ${
                 isDark ? 'text-amber-400' : 'text-amber-800'
               }`}
             >
-              {isEn ? 'Enter year:' : 'ساڵ بنووسە:'}
+              {isEn ? 'Year #:' : 'ژمارەی ساڵ:'}
             </span>
             <input
               type="text"
+              inputMode="numeric"
               autoFocus
               value={directInputYear}
               onChange={(e) => setDirectInputYear(e.target.value)}
-              placeholder={isEn ? '1940, 1890, 612 BCE...' : '1940، 1890، 612 پ.ز...'}
-              className={`flex-1 liquid-glass-input px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs focus:outline-none font-mono ${
+              placeholder={isEn ? 'e.g. 1946 or 612' : 'نموونە: 1946 یان 612'}
+              className={`flex-1 min-w-0 liquid-glass-input px-2.5 py-1 rounded-lg text-xs focus:outline-none font-mono ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}
             />
             <button
+              type="button"
+              onClick={() => setDirectInputEra((prev) => (prev === 'AD' ? 'BC' : 'AD'))}
+              title={isEn ? 'Toggle CE / BCE' : 'گۆڕینی زایینی / پ.ز'}
+              className={`px-2 py-1 rounded-lg text-[10px] font-extrabold border cursor-pointer shrink-0 transition-colors ${
+                directInputEra === 'BC'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                  : isDark
+                  ? 'bg-white/[0.08] text-slate-200 border-white/15 hover:bg-white/[0.15]'
+                  : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              {directInputEra === 'BC' ? (isEn ? 'BCE' : 'پ.ز') : isEn ? 'CE' : 'ز'}
+            </button>
+            <button
               type="submit"
-              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg liquid-glass-btn-active font-extrabold text-[10px] sm:text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
+              className="px-2.5 py-1 rounded-lg liquid-glass-btn-active font-extrabold text-[11px] cursor-pointer shadow-xs active:scale-95 transition-all shrink-0"
             >
               {isEn ? 'Go' : 'بڕۆ'}
             </button>
             <button
               type="button"
               onClick={() => setShowDirectInput(false)}
-              className={`p-0.5 sm:p-1 rounded-lg liquid-glass-btn ${
+              className={`p-1 rounded-lg liquid-glass-btn shrink-0 ${
                 isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
               }`}
             >
-              <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </form>
         )}
 
         {/* Tier 2: Precision Ruler Controller */}
+        {!isCollapsed && (
         <div
-          className={`relative w-full flex items-center gap-1 sm:gap-1.5 border-t pt-1 ${
+          className={`relative w-full flex items-center gap-1.5 border-t pt-1.5 ${
             isDark ? 'border-white/10' : 'border-slate-200'
           }`}
         >
@@ -611,14 +657,14 @@ export const TimelineSlider: React.FC<Props> = ({
             type="button"
             onClick={() => handleScrollRuler(isEn ? 'left' : 'right')}
             title={isEn ? 'Scroll ruler earlier' : 'سکرۆڵکردنی ڕاستە بۆ پێشەوە'}
-            className={`w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn flex items-center justify-center shrink-0 cursor-pointer ${
+            className={`w-8 h-9 sm:w-9 sm:h-10 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 cursor-pointer ${
               isDark ? 'text-slate-300 hover:text-amber-300' : 'text-slate-700 hover:text-amber-800'
             }`}
           >
             {isEn ? (
-              <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <ChevronLeft className="w-4 h-4" />
             ) : (
-              <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <ChevronRight className="w-4 h-4" />
             )}
           </button>
 
@@ -735,17 +781,18 @@ export const TimelineSlider: React.FC<Props> = ({
             type="button"
             onClick={() => handleScrollRuler(isEn ? 'right' : 'left')}
             title={isEn ? 'Scroll ruler later' : 'سکرۆڵکردنی ڕاستە بۆ دواوە'}
-            className={`w-4 h-7 sm:w-6 sm:h-9 rounded-lg liquid-glass-btn flex items-center justify-center shrink-0 cursor-pointer ${
+            className={`w-8 h-9 sm:w-9 sm:h-10 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 cursor-pointer ${
               isDark ? 'text-slate-300 hover:text-amber-300' : 'text-slate-700 hover:text-amber-800'
             }`}
           >
             {isEn ? (
-              <ChevronRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <ChevronRight className="w-4 h-4" />
             ) : (
-              <ChevronLeft className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <ChevronLeft className="w-4 h-4" />
             )}
           </button>
         </div>
+        )}
       </div>
     </div>
   );

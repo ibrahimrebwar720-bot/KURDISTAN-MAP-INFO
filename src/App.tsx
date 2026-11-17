@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FactItem } from './data/kurdishHistoryData';
 import { CollectionItem, PhotoSubmission } from './types/history';
 import {
@@ -23,6 +23,7 @@ import {
 } from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
+import { Navbar, MobileBottomNav, AppWorkspaceView } from './components/Navbar';
 
 // Resilient dynamic import helper with automatic retry for network or dev-server transient hiccups
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -55,9 +56,7 @@ const FactDetailModal = lazyWithRetry(() => import('./components/FactDetailModal
 const AdminPinModal = lazyWithRetry(() => import('./components/AdminPinModal'), 'AdminPinModal');
 const FactEditorModal = lazyWithRetry(() => import('./components/FactEditorModal'), 'FactEditorModal');
 const CollectionManagerModal = lazyWithRetry(() => import('./components/CollectionManagerModal'), 'CollectionManagerModal');
-const HistoricalGalleryModal = lazyWithRetry(() => import('./components/HistoricalGalleryModal'), 'HistoricalGalleryModal');
 const ThemeSelectorModal = lazyWithRetry(() => import('./components/ThemeSelectorModal'), 'ThemeSelectorModal');
-const DocumentaryScrollytellingModal = lazyWithRetry(() => import('./components/DocumentaryScrollytellingModal'), 'DocumentaryScrollytellingModal');
 const HeroSection = lazyWithRetry(() => import('./components/HeroSection'), 'HeroSection');
 const HistoricalJourneyModal = lazyWithRetry(() => import('./components/HistoricalJourneyModal'), 'HistoricalJourneyModal');
 const AppSettingsModal = lazyWithRetry(() => import('./components/AppSettingsModal'), 'AppSettingsModal');
@@ -134,9 +133,9 @@ export default function App() {
   const [selectedFact, setSelectedFact] = useState<FactItem | null>(() => initialTopicFact.current);
   const [detailFact, setDetailFact] = useState<FactItem | null>(() => initialTopicFact.current);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(() => initialUrlRef.current.view === 'menu');
+  const [directorySearchTerm, setDirectorySearchTerm] = useState<string>('');
 
-  // Documentary Tour state & Map FlyTo bridge
-  const [isDocumentaryTourOpen, setIsDocumentaryTourOpen] = useState(false);
+  // Map FlyTo bridge
   const [externalFlyTo, setExternalFlyTo] = useState<{
     lat: number;
     lng: number;
@@ -169,7 +168,6 @@ export default function App() {
     if (
       initialUrlRef.current.view === 'map' ||
       initialUrlRef.current.view === 'journey' ||
-      initialUrlRef.current.view === 'gallery' ||
       initialUrlRef.current.view === 'menu'
     ) {
       return false;
@@ -180,15 +178,10 @@ export default function App() {
   const [isJourneyOpen, setIsJourneyOpen] = useState<boolean>(
     () => initialUrlRef.current.view === 'journey'
   );
-  const [isGalleryOpen, setIsGalleryOpen] = useState<boolean>(
-    () => initialUrlRef.current.view === 'gallery'
-  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Map modes shared between Leaflet map and Settings Modal
+  // Map mode shared between Leaflet map and Settings Modal
   const [mapMode, setMapMode] = useState<'dark' | 'satellite'>('dark');
-  const [markerViewMode, setMarkerViewMode] = useState<'photo' | 'points'>('points');
-  const [showBottomPhotoStrip, setShowBottomPhotoStrip] = useState<boolean>(false);
 
   // Admin Modals state
   const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
@@ -217,12 +210,8 @@ export default function App() {
   useEffect(() => {
     const activeView = isJourneyOpen
       ? 'journey'
-      : isGalleryOpen
-      ? 'gallery'
       : isMenuOpen
       ? 'menu'
-      : isDocumentaryTourOpen
-      ? 'tour'
       : isHeroOpen
       ? 'hero'
       : 'map';
@@ -234,7 +223,7 @@ export default function App() {
       facts,
       language,
     });
-  }, [detailFact, selectedProvince, isHeroOpen, isJourneyOpen, isGalleryOpen, isMenuOpen, isDocumentaryTourOpen, facts, language]);
+  }, [detailFact, selectedProvince, isHeroOpen, isJourneyOpen, isMenuOpen, facts, language]);
 
   const handleProvinceChange = (provId: string) => {
     setSelectedProvince(provId);
@@ -418,35 +407,25 @@ export default function App() {
           setSelectedFact(found);
           setIsHeroOpen(false);
           setIsJourneyOpen(false);
-          setIsGalleryOpen(false);
           setIsMenuOpen(false);
         }
       } else {
         setDetailFact(null);
         if (urlState.view === 'journey') {
           setIsJourneyOpen(true);
-          setIsGalleryOpen(false);
-          setIsMenuOpen(false);
-          setIsHeroOpen(false);
-        } else if (urlState.view === 'gallery') {
-          setIsGalleryOpen(true);
-          setIsJourneyOpen(false);
           setIsMenuOpen(false);
           setIsHeroOpen(false);
         } else if (urlState.view === 'menu') {
           setIsMenuOpen(true);
           setIsJourneyOpen(false);
-          setIsGalleryOpen(false);
           setIsHeroOpen(false);
         } else if (urlState.view === 'map') {
           setIsHeroOpen(false);
           setIsJourneyOpen(false);
-          setIsGalleryOpen(false);
           setIsMenuOpen(false);
         } else if (urlState.view === 'hero' || !urlState.view) {
           setIsHeroOpen(true);
           setIsJourneyOpen(false);
-          setIsGalleryOpen(false);
           setIsMenuOpen(false);
         }
       }
@@ -470,8 +449,6 @@ export default function App() {
           setIsFactEditorOpen(false);
         } else if (isCollectionManagerOpen) {
           setIsCollectionManagerOpen(false);
-        } else if (isGalleryOpen) {
-          handleCloseGallery();
         } else if (detailFact) {
           handleCloseDetail();
         } else if (isMenuOpen) {
@@ -488,13 +465,12 @@ export default function App() {
     isAdminPinModalOpen,
     isFactEditorOpen,
     isCollectionManagerOpen,
-    isGalleryOpen,
     isPickingLocation,
     isHeroOpen,
   ]);
 
   // Fact Selection & Smooth Map FlyTo Bridge
-  const handleSelectFact = (fact: FactItem) => {
+  const handleSelectFact = useCallback((fact: FactItem) => {
     setSelectedFact(fact);
     setExternalFlyTo({
       lat: fact.lat,
@@ -502,17 +478,11 @@ export default function App() {
       zoom: 8.5,
       id: `fact-${fact.id}-${Date.now()}`,
     });
-  };
+  }, []);
 
-  // Documentary Tour Map FlyTo Bridge
-  const handleDocumentaryFlyTo = (lat: number, lng: number, zoom: number, storyTitle: string) => {
-    setExternalFlyTo({
-      lat,
-      lng,
-      zoom,
-      id: `doc-${storyTitle}-${Date.now()}`,
-    });
-  };
+  const handleDeselectFact = useCallback(() => {
+    setSelectedFact(null);
+  }, []);
 
   // URL-synchronized View & Detail Navigation Handlers
   const handleOpenDetail = (fact: FactItem) => {
@@ -531,7 +501,7 @@ export default function App() {
     setDetailFact(null);
     updateBrowserUrl({
       topicId: null,
-      view: isHeroOpen ? 'hero' : 'map',
+      view: isHeroOpen ? 'hero' : isJourneyOpen ? 'journey' : isMenuOpen ? 'menu' : 'map',
       lang: language,
       replace: false,
     });
@@ -539,6 +509,8 @@ export default function App() {
 
   const handleEnterMap = () => {
     setIsHeroOpen(false);
+    setIsMenuOpen(false);
+    setIsJourneyOpen(false);
     updateBrowserUrl({
       topicId: detailFact?.id || null,
       view: 'map',
@@ -551,10 +523,8 @@ export default function App() {
     setIsHeroOpen(true);
     setDetailFact(null);
     setIsJourneyOpen(false);
-    setIsGalleryOpen(false);
     setIsMenuOpen(false);
     setIsSettingsOpen(false);
-    setIsDocumentaryTourOpen(false);
     setIsFactEditorOpen(false);
     setIsCollectionManagerOpen(false);
     setIsThemeModalOpen(false);
@@ -567,6 +537,8 @@ export default function App() {
   };
 
   const handleOpenJourney = () => {
+    setIsHeroOpen(false);
+    setIsMenuOpen(false);
     setIsJourneyOpen(true);
     updateBrowserUrl({
       view: 'journey',
@@ -577,28 +549,14 @@ export default function App() {
   const handleCloseJourney = () => {
     setIsJourneyOpen(false);
     updateBrowserUrl({
-      view: isHeroOpen ? 'hero' : 'map',
-      lang: language,
-    });
-  };
-
-  const handleOpenGallery = () => {
-    setIsGalleryOpen(true);
-    updateBrowserUrl({
-      view: 'gallery',
-      lang: language,
-    });
-  };
-
-  const handleCloseGallery = () => {
-    setIsGalleryOpen(false);
-    updateBrowserUrl({
-      view: isHeroOpen ? 'hero' : 'map',
+      view: isHeroOpen ? 'hero' : isMenuOpen ? 'menu' : 'map',
       lang: language,
     });
   };
 
   const handleOpenMenu = () => {
+    setIsHeroOpen(false);
+    setIsJourneyOpen(false);
     setIsMenuOpen(true);
     updateBrowserUrl({
       view: 'menu',
@@ -609,7 +567,38 @@ export default function App() {
   const handleCloseMenu = () => {
     setIsMenuOpen(false);
     updateBrowserUrl({
-      view: isHeroOpen ? 'hero' : 'map',
+      view: isHeroOpen ? 'hero' : isJourneyOpen ? 'journey' : 'map',
+      lang: language,
+    });
+  };
+
+  const handleSelectWorkspaceView = (view: AppWorkspaceView) => {
+    if (view === 'hero') {
+      handleReturnToHero();
+    } else if (view === 'map') {
+      handleEnterMap();
+    } else if (view === 'menu') {
+      handleOpenMenu();
+    } else if (view === 'journey') {
+      handleOpenJourney();
+    }
+  };
+
+  const handleSelectFactFromHero = (fact: FactItem) => {
+    setIsHeroOpen(false);
+    setIsMenuOpen(false);
+    setIsJourneyOpen(false);
+    handleSelectFact(fact);
+    handleOpenDetail(fact);
+  };
+
+  const handleSearchToDirectory = (query: string) => {
+    setDirectorySearchTerm(query);
+    setIsHeroOpen(false);
+    setIsJourneyOpen(false);
+    setIsMenuOpen(true);
+    updateBrowserUrl({
+      view: 'menu',
       lang: language,
     });
   };
@@ -844,16 +833,19 @@ export default function App() {
     setIsPickingLocation(true);
   };
 
-  const handlePickLocationOnMap = (lat: number, lng: number) => {
+  const handlePickLocationOnMap = useCallback((lat: number, lng: number) => {
     setPickedCoords({ lat, lng });
     setIsPickingLocation(false);
     setIsFactEditorOpen(true);
-  };
+  }, []);
 
-  const handleCancelPickLocation = () => {
+  const handleCancelPickLocation = useCallback(() => {
     setIsPickingLocation(false);
     setIsFactEditorOpen(true);
-  };
+  }, []);
+
+  const handleReplayIntro = useCallback(() => setShowIntro(true), []);
+  const handleMapIntroComplete = useCallback(() => setShowIntro(false), []);
 
   // Collections handlers (Synced to Firestore cloud; ckb -> en cascade)
   const handleAddCollection = (newCol: CollectionItem) => {
@@ -901,6 +893,13 @@ export default function App() {
   };
 
   const pendingSubmissionsCount = photoSubmissions.filter((s) => s.status === 'pending').length;
+  const activeWorkspaceView: AppWorkspaceView = isHeroOpen
+    ? 'hero'
+    : isJourneyOpen
+    ? 'journey'
+    : isMenuOpen
+    ? 'menu'
+    : 'map';
 
   return (
     <div
@@ -908,14 +907,25 @@ export default function App() {
         colorMode === 'light' ? 'bg-[#f7f6f2] text-slate-900' : 'bg-[#05070e] text-slate-100'
       }`}
     >
-      {/* Main Screen: Leaflet CartoDB Dark Matter */}
-      <main className="relative flex-1 w-full h-full overflow-hidden">
+      {/* Persistent Top Navigation Tabs when outside Hero (includes Home button) */}
+      {!isHeroOpen && (
+        <Navbar
+          activeView={activeWorkspaceView}
+          onSelectView={handleSelectWorkspaceView}
+          onOpenHero={handleReturnToHero}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          factsCount={facts.length}
+        />
+      )}
+
+      {/* Main Screen Workspace */}
+      <main className="relative flex-1 min-h-0 w-full h-full overflow-hidden">
         {/* Full Viewport Interactive Kurdish Clean Dark Map */}
         <KurdishDarkLeafletMap
           facts={facts}
           selectedFact={selectedFact}
           onSelectFact={handleSelectFact}
-          onDeselectFact={() => setSelectedFact(null)}
+          onDeselectFact={handleDeselectFact}
           onOpenDetail={handleOpenDetail}
           showAllMarkers={showAllMarkers}
           setShowAllMarkers={setShowAllMarkers}
@@ -925,12 +935,8 @@ export default function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           mapMode={mapMode}
           setMapMode={setMapMode}
-          markerViewMode={markerViewMode}
-          setMarkerViewMode={setMarkerViewMode}
-          showBottomPhotoStrip={showBottomPhotoStrip}
-          setShowBottomPhotoStrip={setShowBottomPhotoStrip}
           onOpenMenu={handleOpenMenu}
-          onOpenGallery={handleOpenGallery}
+          onOpenJourney={handleOpenJourney}
           onOpenTheme={() => {
             setIsThemeModalOpen(true);
           }}
@@ -952,19 +958,16 @@ export default function App() {
           onPickLocation={handlePickLocationOnMap}
           onCancelPickLocation={handleCancelPickLocation}
           pickedCoords={pickedCoords}
-          onReplayIntro={() => setShowIntro(true)}
+          onReplayIntro={handleReplayIntro}
           playMapIntro={showIntro}
-          onMapIntroComplete={() => setShowIntro(false)}
-          onOpenDocumentaryTour={() => {
-            setIsDocumentaryTourOpen(true);
-          }}
+          onMapIntroComplete={handleMapIntroComplete}
           externalFlyTo={externalFlyTo}
         />
 
-        {/* Fullscreen View for پێڕست with 2026 Spatial Page Transition */}
+        {/* Workspace View for Archive Directory (پێڕست) */}
         {isMenuOpen && (
           <div
-            className={`fixed inset-0 z-50 flex flex-col overflow-hidden animate-page-enter ${
+            className={`absolute inset-0 z-30 flex flex-col overflow-hidden animate-page-enter ${
               colorMode === 'light' ? 'bg-[#f7f6f2] text-slate-900' : 'bg-[#030611] text-slate-100'
             }`}
           >
@@ -991,180 +994,156 @@ export default function App() {
               pendingSubmissionsCount={pendingSubmissionsCount}
               onOpenEditFact={handleOpenEditFact}
               onOpenCollectionManager={() => setIsCollectionManagerOpen(true)}
-              onOpenGallery={handleOpenGallery}
               onOpenTheme={() => setIsThemeModalOpen(true)}
               onOpenHero={handleReturnToHero}
               onClose={handleCloseMenu}
               onLogoutAdmin={handleAdminLogout}
+              initialSearchTerm={directorySearchTerm}
             />
           </div>
         )}
+
+        {/* Workspace View for History Cards (گەشتی مێژوویی) inside <main> so tabs & Home button remain visible */}
+        <React.Suspense fallback={null}>
+          <HistoricalJourneyModal
+            isOpen={isJourneyOpen}
+            onClose={handleCloseJourney}
+            onOpenHero={handleReturnToHero}
+            facts={facts}
+            onOpenDetail={(fact: FactItem) => {
+              setIsJourneyOpen(false);
+              handleOpenDetail(fact);
+            }}
+            onFlyToFact={(fact: FactItem) => {
+              setIsJourneyOpen(false);
+              handleEnterMap();
+              handleSelectFact(fact);
+            }}
+          />
+        </React.Suspense>
       </main>
 
-      {/* Lazy loaded modals suspended seamlessly without blocking initial page render */}
-      <React.Suspense fallback={null}>
-        {/* Documentary Scrollytelling Modal (گەشت بەناو ڕووداوە گەورەکاندا) */}
-        <DocumentaryScrollytellingModal
-        isOpen={isDocumentaryTourOpen}
-        onClose={() => setIsDocumentaryTourOpen(false)}
-        onOpenHero={handleReturnToHero}
-        onFlyToCoords={handleDocumentaryFlyTo}
-        facts={facts}
-        onOpenFactDetail={(fact: FactItem) => {
-          setIsDocumentaryTourOpen(false);
-          handleOpenDetail(fact);
-        }}
-      />
-
-      {/* Fact Detail Modal (With Related Topics & Documents) */}
-      <FactDetailModal
-        fact={detailFact}
-        onClose={handleCloseDetail}
-        onNavigate={handleModalNavigate}
-        onFlyToMap={(fact: FactItem) => handleSelectFact(fact)}
-        isAdmin={isAdmin}
-        translatedFactIds={translatedFactIds}
-        onEditFact={(fact: FactItem) => {
-          handleCloseDetail();
-          handleOpenEditFact(fact);
-        }}
-        onSaveNotes={handleSaveNotes}
-        onOpenGallery={handleOpenGallery}
-        totalFactsCount={facts.length}
-        allFacts={facts}
-        onSelectFact={(fact: FactItem) => {
-          handleOpenDetail(fact);
-        }}
-        onSaveLinks={handleSaveLinks}
-      />
-
-      {/* Kurdish Historical Gallery Modal with 6-second auto slideshow */}
-      <HistoricalGalleryModal
-        isOpen={isGalleryOpen}
-        onClose={handleCloseGallery}
-        onOpenHero={handleReturnToHero}
-        facts={facts}
-        onFlyToFact={(fact: FactItem) => {
-          handleSelectFact(fact);
-          handleCloseGallery();
-        }}
-      />
-
-      {/* Admin Secret PIN Verification Modal */}
-      <AdminPinModal
-        isOpen={isAdminPinModalOpen}
-        onClose={() => setIsAdminPinModalOpen(false)}
-        onSuccess={handleAdminSuccess}
-      />
-
-      {/* Fact Editor Modal (Add/Edit Fact, Relations Linking, Coordinates, Notes) */}
-      <FactEditorModal
-        isOpen={isFactEditorOpen}
-        onClose={() => setIsFactEditorOpen(false)}
-        factToEdit={factToEdit}
-        initialMode={factEditorMode}
-        collections={collections}
-        allFacts={facts}
-        onSave={handleSaveFact}
-        onDelete={handleDeleteFact}
-        onStartPickLocation={handleStartPickLocation}
-        pickedCoords={pickedCoords}
-        totalFactsCount={facts.length}
-        translatedFactIds={translatedFactIds}
-      />
-
-      {/* Collection Manager Modal (Manage collections for Menu) */}
-      <CollectionManagerModal
-        isOpen={isCollectionManagerOpen}
-        onClose={() => setIsCollectionManagerOpen(false)}
-        collections={collections}
-        onAddCollection={handleAddCollection}
-        onUpdateCollection={handleUpdateCollection}
-        onDeleteCollection={handleDeleteCollection}
-      />
-
-      {/* App Theme & Color Customizer Modal (بەشی ڕووکار) */}
-      <ThemeSelectorModal
-        isOpen={isThemeModalOpen}
-        onClose={() => setIsThemeModalOpen(false)}
-      />
-
-      {/* App Settings Modal (ڕێکخستنەکان - former زیاتر) */}
-      <AppSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onOpenHero={handleReturnToHero}
-        mapMode={mapMode}
-        setMapMode={setMapMode}
-        markerViewMode={markerViewMode}
-        setMarkerViewMode={setMarkerViewMode}
-        showBottomPhotoStrip={showBottomPhotoStrip}
-        setShowBottomPhotoStrip={setShowBottomPhotoStrip}
-        showAllMarkers={showAllMarkers}
-        setShowAllMarkers={setShowAllMarkers}
-        showPolygon={showPolygon}
-        setShowPolygon={setShowPolygon}
-        onReplayIntro={() => {
-          setIsSettingsOpen(false);
-          setIsHeroOpen(false);
-          setShowIntro(true);
-        }}
-        onOpenDocumentaryTour={() => {
-          setIsSettingsOpen(false);
-          setIsHeroOpen(false);
-          setIsDocumentaryTourOpen(true);
-        }}
-        onOpenGallery={() => {
-          setIsSettingsOpen(false);
-          setIsGalleryOpen(true);
-        }}
-        onOpenTheme={() => {
-          setIsSettingsOpen(false);
-          setIsThemeModalOpen(true);
-        }}
-        isAdmin={isAdmin}
-        onTriggerAdminPin={() => {
-          setIsSettingsOpen(false);
-          setIsAdminPinModalOpen(true);
-        }}
-        onLogoutAdmin={handleAdminLogout}
-        onOpenAddFact={handleOpenAddFact}
-        onOpenSubmittedPhotos={() => {
-          setIsSettingsOpen(false);
-          setIsSubmittedPhotosOpen(true);
-        }}
-        pendingSubmissionsCount={pendingSubmissionsCount}
-        factsCount={facts.length}
-      />
-
-      {/* Iconic Entrance Hero Section (مەدخەل و سێکشنی سەرەکی) */}
-      {isHeroOpen && (
-        <HeroSection
-          facts={facts}
-          onEnterMap={handleEnterMap}
-          onOpenJourney={handleOpenJourney}
-          onOpenMenu={handleOpenMenu}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenGallery={handleOpenGallery}
+      {/* Mobile Bottom Navigation Tabs when outside Hero (includes Home button) */}
+      {!isHeroOpen && (
+        <MobileBottomNav
+          activeView={activeWorkspaceView}
+          onSelectView={handleSelectWorkspaceView}
+          onOpenHero={handleReturnToHero}
         />
       )}
 
-      {/* Historical Journey 3-Fact Poster Modal (گەشتی مێژوویی - لاپەڕەی کتێب) */}
-      <HistoricalJourneyModal
-        isOpen={isJourneyOpen}
-        onClose={handleCloseJourney}
-        onOpenHero={handleReturnToHero}
-        facts={facts}
-        onOpenDetail={(fact: FactItem) => {
-          setIsJourneyOpen(false);
-          handleOpenDetail(fact);
-        }}
-        onFlyToFact={(fact: FactItem) => {
-          setIsJourneyOpen(false);
-          handleEnterMap();
-          handleSelectFact(fact);
-        }}
-      />
+      {/* Lazy loaded modals suspended seamlessly without blocking initial page render */}
+      <React.Suspense fallback={null}>
+        {/* Fact Detail Modal (With Related Topics & Documents) */}
+        <FactDetailModal
+          fact={detailFact}
+          onClose={handleCloseDetail}
+          onNavigate={handleModalNavigate}
+          onFlyToMap={(fact: FactItem) => {
+            handleEnterMap();
+            handleSelectFact(fact);
+          }}
+          isAdmin={isAdmin}
+          translatedFactIds={translatedFactIds}
+          onEditFact={(fact: FactItem) => {
+            handleCloseDetail();
+            handleOpenEditFact(fact);
+          }}
+          onSaveNotes={handleSaveNotes}
+          totalFactsCount={facts.length}
+          allFacts={facts}
+          onSelectFact={(fact: FactItem) => {
+            handleOpenDetail(fact);
+          }}
+          onSaveLinks={handleSaveLinks}
+        />
+
+        {/* Admin Secret PIN Verification Modal */}
+        <AdminPinModal
+          isOpen={isAdminPinModalOpen}
+          onClose={() => setIsAdminPinModalOpen(false)}
+          onSuccess={handleAdminSuccess}
+        />
+
+        {/* Fact Editor Modal (Add/Edit Fact, Relations Linking, Coordinates, Notes) */}
+        <FactEditorModal
+          isOpen={isFactEditorOpen}
+          onClose={() => setIsFactEditorOpen(false)}
+          factToEdit={factToEdit}
+          initialMode={factEditorMode}
+          collections={collections}
+          allFacts={facts}
+          onSave={handleSaveFact}
+          onDelete={handleDeleteFact}
+          onStartPickLocation={handleStartPickLocation}
+          pickedCoords={pickedCoords}
+          totalFactsCount={facts.length}
+          translatedFactIds={translatedFactIds}
+        />
+
+        {/* Collection Manager Modal (Manage collections for Menu) */}
+        <CollectionManagerModal
+          isOpen={isCollectionManagerOpen}
+          onClose={() => setIsCollectionManagerOpen(false)}
+          collections={collections}
+          onAddCollection={handleAddCollection}
+          onUpdateCollection={handleUpdateCollection}
+          onDeleteCollection={handleDeleteCollection}
+        />
+
+        {/* App Theme & Color Customizer Modal (بەشی ڕووکار) */}
+        <ThemeSelectorModal
+          isOpen={isThemeModalOpen}
+          onClose={() => setIsThemeModalOpen(false)}
+        />
+
+        {/* App Settings Modal (ڕێکخستنەکان) */}
+        <AppSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          onOpenHero={handleReturnToHero}
+          mapMode={mapMode}
+          setMapMode={setMapMode}
+          showAllMarkers={showAllMarkers}
+          setShowAllMarkers={setShowAllMarkers}
+          showPolygon={showPolygon}
+          setShowPolygon={setShowPolygon}
+          onReplayIntro={() => {
+            setIsSettingsOpen(false);
+            setIsHeroOpen(false);
+            setShowIntro(true);
+          }}
+          onOpenTheme={() => {
+            setIsSettingsOpen(false);
+            setIsThemeModalOpen(true);
+          }}
+          isAdmin={isAdmin}
+          onTriggerAdminPin={() => {
+            setIsSettingsOpen(false);
+            setIsAdminPinModalOpen(true);
+          }}
+          onLogoutAdmin={handleAdminLogout}
+          onOpenAddFact={handleOpenAddFact}
+          onOpenSubmittedPhotos={() => {
+            setIsSettingsOpen(false);
+            setIsSubmittedPhotosOpen(true);
+          }}
+          pendingSubmissionsCount={pendingSubmissionsCount}
+          factsCount={facts.length}
+        />
+
+        {/* Entrance Hero Section (مەدخەل و سێکشنی سەرەکی) */}
+        {isHeroOpen && (
+          <HeroSection
+            facts={facts}
+            onEnterMap={handleEnterMap}
+            onOpenJourney={handleOpenJourney}
+            onOpenMenu={handleOpenMenu}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onSelectFactFromHero={handleSelectFactFromHero}
+            onSearchToDirectory={handleSearchToDirectory}
+          />
+        )}
 
       {/* Admin Submitted Photos Moderation Modal (وێنە نێردراوەکان) */}
       {isAdmin && isSubmittedPhotosOpen && (

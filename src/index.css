@@ -2,105 +2,58 @@
 @custom-variant dark (&:where(.dark, .dark *, [data-color-mode="dark"], [data-color-mode="dark"] *));
 
 /* ==========================================================================
-   Custom Calibri Typography System
-   Calibri Bold: Headings, titles, badges, and prominent labels
-   Calibri Regular: Standard body text, descriptions, details, buttons
-   Calibri Light: Subtle captions, timestamps, dates, secondary notes
+   Unified Formal Typography System (Kurdish Sorani & English)
+   Kurdish: Rabar (Rabar_022 Regular for reading 400, Rabar_021 Bold for headings 700)
+   English: Noto Serif (400 Regular for reading, 700 Bold for headings)
+   Same font family across the entire site; weight 400 (non-bold) for reading.
    ========================================================================== */
 @font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-regular.ttf') format('truetype');
+  font-family: 'Rabar';
+  src: url('/fonts/rabar-regular.woff') format('woff'),
+       url('/fonts/rabar-regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F;
 }
 
 @font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-regular.ttf') format('truetype');
+  font-family: 'Rabar';
+  src: url('/fonts/rabar-regular.woff') format('woff'),
+       url('/fonts/rabar-regular.ttf') format('truetype');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F;
 }
 
 @font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-bold.ttf') format('truetype');
-  font-weight: 600;
+  font-family: 'Rabar';
+  src: url('/fonts/rabar-bold.woff') format('woff'),
+       url('/fonts/rabar-bold.ttf') format('truetype');
+  font-weight: 600 900;
   font-style: normal;
   font-display: swap;
-}
-
-@font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-bold.ttf') format('truetype');
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Calibri';
-  src: url('/fonts/calibri-bold.ttf') format('truetype');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Explicit Named Font-Family Aliases */
-@font-face {
-  font-family: 'Calibri Light';
-  src: url('/fonts/calibri-light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Calibri Regular';
-  src: url('/fonts/calibri-regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Calibri Bold';
-  src: url('/fonts/calibri-bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F;
 }
 
 @theme {
-  --font-sans: 'Calibri', 'Calibri Regular', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: 'Calibri Bold', 'Calibri', 'Noto Kufi Arabic', sans-serif;
-  --font-body: 'Calibri Regular', 'Calibri', 'Vazirmatn', sans-serif;
-  --font-light: 'Calibri Light', 'Calibri', sans-serif;
+  --font-sans: 'Rabar', 'Noto Serif', Georgia, serif;
+  --font-serif: 'Rabar', 'Noto Serif', Georgia, serif;
+  --font-heading: 'Rabar', 'Noto Serif', Georgia, serif;
+  --font-body: 'Rabar', 'Noto Serif', Georgia, serif;
+  --font-light: 'Rabar', 'Noto Serif', Georgia, serif;
+  --font-mono: 'Rabar', 'Noto Serif', Georgia, serif;
 }
 
 @layer base {
   :root {
-    --font-sans: 'Calibri', 'Calibri Regular', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-heading: 'Calibri Bold', 'Calibri', 'Noto Kufi Arabic', sans-serif;
-    --font-body: 'Calibri Regular', 'Calibri', sans-serif;
-    --font-light: 'Calibri Light', 'Calibri', sans-serif;
+    --font-sans: 'Rabar', 'Noto Serif', Georgia, serif;
+    --font-serif: 'Rabar', 'Noto Serif', Georgia, serif;
+    --font-heading: 'Rabar', 'Noto Serif', Georgia, serif;
+    --font-body: 'Rabar', 'Noto Serif', Georgia, serif;
+    --font-light: 'Rabar', 'Noto Serif', Georgia, serif;
+    --font-mono: 'Rabar', 'Noto Serif', Georgia, serif;
 
     /* Global Theme Variables (Default: Kurdish Gold & Obsidian) */
     --theme-accent: #f59e0b;
@@ -249,21 +202,25 @@
     font-family: var(--font-sans);
   }
 
-  /* Headings & Titles: Calibri Bold */
+  /* Headings & Titles: Same formal font, bold weight */
   h1, h2, h3, h4, h5, h6, .font-heading, .font-bold-calibri {
     font-family: var(--font-heading);
     font-weight: 700;
   }
 
-  /* Regular content & inputs: Calibri Regular */
+  /* Reading text & body content: Same formal font, non-bold regular weight */
   p, input, textarea, select, button {
     font-family: var(--font-body);
   }
 
-  /* Subtle captions, dates & metadata: Calibri Light */
+  p, .reading-text {
+    font-weight: 400;
+  }
+
+  /* Captions, dates & metadata: Same formal font at crisp regular weight */
   .font-light, .font-calibri-light, .font-caption, .text-caption, time {
-    font-family: var(--font-light);
-    font-weight: 300;
+    font-family: var(--font-body);
+    font-weight: 400;
   }
 }
 
@@ -566,7 +523,7 @@ html.light select:focus,
 /* Custom leaflet styling for dark theme and thin frosted glass popups */
 .leaflet-container {
   background: #090d16 !important;
-  font-family: 'Vazirmatn', sans-serif !important;
+  font-family: var(--font-sans) !important;
   direction: ltr !important; /* CRITICAL: Leaflet map engine requires LTR for map math and marker positioning. Popups and controls have RTL applied */
 }
 
@@ -675,13 +632,23 @@ html[dir="ltr"] .leaflet-popup-content {
   direction: ltr !important;
 }
 
+#kurdish-leaflet-map-host {
+  contain: layout style paint;
+}
+
 /* Zero-offset transparent wrapper for Leaflet divIcon to guarantee 100% anchor accuracy */
 .kurdish-map-marker-container {
   background: transparent !important;
   border: none !important;
   pointer-events: auto !important;
   direction: ltr !important;
-  will-change: transform;
+}
+
+.kurdish-province-map-label {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none !important;
+  contain: layout style;
 }
 
 .custom-picked-marker {
@@ -689,26 +656,16 @@ html[dir="ltr"] .leaflet-popup-content {
   border: none !important;
   pointer-events: auto !important;
   direction: ltr !important;
-  will-change: transform;
 }
 
-/* 60 FPS - 120 FPS High Refresh Rate & Hardware GPU Acceleration (Without 3D perspective distortion on mobile) */
+/* Smooth zoom compositing without exhausting GPU layers on individual tiles/markers */
 @media screen {
-  .leaflet-pane,
-  .leaflet-tile-pane,
-  .leaflet-marker-pane,
   .leaflet-zoom-animated {
     will-change: transform;
-    transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
   }
 
   .leaflet-tile-container img {
     image-rendering: auto;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    transform: translate3d(0, 0, 0);
   }
 
   /* Ultra-smooth 60Hz - 120Hz scrolling for Timeline ruler */
@@ -821,20 +778,9 @@ html[dir="ltr"] .leaflet-popup-content {
   animation: luminousEnergyWave 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
-/* Living Flowing Luminous Dash on Kurdistan Historical Border */
+/* Kurdistan Historical Border - Zero continuous repaint overhead */
 .luminous-polygon-border {
-  animation: borderDashPulse 6s linear infinite;
-  filter: drop-shadow(0 0 8px var(--theme-accent-glow, rgba(245, 158, 11, 0.65)));
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes borderDashPulse {
-  0% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: 48;
-  }
+  transition: none;
 }
 
 /* Tactile Spring Press on Interactive Elements */
@@ -1269,11 +1215,11 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   border: 1px solid rgba(15, 23, 42, 0.15) !important;
 }
 
-/* 14. Preserve Contrast for Photographic / Scrim Sections */
-[data-color-mode="light"] #hero-section,
-[data-color-mode="light"] #hero-section .hero-title,
-[data-color-mode="light"] #hero-section .hero-subtitle,
-[data-color-mode="light"] #hero-section .hero-caption {
+/* 14. Preserve Contrast for Photographic / Scrim Hero Sections */
+[data-color-mode="light"] #hero-section.preserve-contrast,
+[data-color-mode="light"] #hero-section.preserve-contrast .hero-title,
+[data-color-mode="light"] #hero-section.preserve-contrast .hero-subtitle,
+[data-color-mode="light"] #hero-section.preserve-contrast .hero-caption {
   color: #ffffff !important;
 }
 
@@ -1308,21 +1254,70 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   transition: transform 0.15s ease-out;
 }
 
-/* 17. Calibri Typography Utility Classes */
+/* 17. Legacy Utility Aliases Mapped to Unified Formal Typography */
 .font-calibri-bold, .calibri-bold {
-  font-family: 'Calibri Bold', 'Calibri', sans-serif !important;
+  font-family: var(--font-sans) !important;
   font-weight: 700 !important;
 }
 
-.font-calibri-regular, .calibri-regular {
-  font-family: 'Calibri Regular', 'Calibri', sans-serif !important;
+.font-calibri-regular, .calibri-regular, .font-calibri-light, .calibri-light {
+  font-family: var(--font-sans) !important;
   font-weight: 400 !important;
 }
 
-.font-calibri-light, .calibri-light {
-  font-family: 'Calibri Light', 'Calibri', sans-serif !important;
-  font-weight: 300 !important;
+/* 18. Continuous 4-Directional Hero Background Motion */
+@keyframes heroMoveRtl {
+  0% {
+    transform: scale(1.18) translate3d(4%, 0, 0);
+  }
+  100% {
+    transform: scale(1.18) translate3d(-4%, 0, 0);
+  }
 }
 
+@keyframes heroMoveLtr {
+  0% {
+    transform: scale(1.18) translate3d(-4%, 0, 0);
+  }
+  100% {
+    transform: scale(1.18) translate3d(4%, 0, 0);
+  }
+}
 
+@keyframes heroMoveTtb {
+  0% {
+    transform: scale(1.18) translate3d(0, -4%, 0);
+  }
+  100% {
+    transform: scale(1.18) translate3d(0, 4%, 0);
+  }
+}
 
+@keyframes heroMoveBtt {
+  0% {
+    transform: scale(1.18) translate3d(0, 4%, 0);
+  }
+  100% {
+    transform: scale(1.18) translate3d(0, -4%, 0);
+  }
+}
+
+.hero-move-rtl {
+  animation: heroMoveRtl 11s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hero-move-ltr {
+  animation: heroMoveLtr 11s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hero-move-ttb {
+  animation: heroMoveTtb 11s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hero-move-btt {
+  animation: heroMoveBtt 11s ease-in-out infinite alternate;
+  will-change: transform;
+}

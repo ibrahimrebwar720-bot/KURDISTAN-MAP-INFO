@@ -52,7 +52,6 @@ interface Props {
   translatedFactIds?: Set<number>;
   onEditFact?: (fact: FactItem) => void;
   onSaveNotes?: (factId: number, notes: string) => void;
-  onOpenGallery?: () => void;
   totalFactsCount?: number;
   allFacts?: FactItem[];
   onSelectFact?: (fact: FactItem) => void;
@@ -73,7 +72,6 @@ export const FactDetailModal: React.FC<Props> = ({
   translatedFactIds,
   onEditFact,
   onSaveNotes,
-  onOpenGallery,
   allFacts = [],
   onSelectFact,
   onSaveLinks,
@@ -536,7 +534,7 @@ export const FactDetailModal: React.FC<Props> = ({
                   <div className="w-full flex items-center justify-between px-2 pt-0.5 text-xs">
                     <span className="flex items-center gap-1.5 text-amber-300 font-bold font-heading text-[11px]">
                       <Images className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{isEn ? 'Photo Gallery' : 'ئەلبوومی وێنەکان'}</span>
+                      <span>{isEn ? 'Photos' : 'وێنەکان'}</span>
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/35 font-mono text-[10px] font-bold">
                       {isEn
@@ -625,7 +623,7 @@ export const FactDetailModal: React.FC<Props> = ({
                   </div>
                 )}
 
-                {/* Bottom Caption & Gallery Launch Bar */}
+                {/* Bottom Caption Bar */}
                 <div className="w-full p-2 px-3 rounded-xl bg-white/10 border border-white/10 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -633,21 +631,6 @@ export const FactDetailModal: React.FC<Props> = ({
                       {currentImg.caption || (activeImageIndex === 0 ? fact.imageCaption : '') || fact.name}
                     </span>
                   </div>
-                  {onOpenGallery && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onClose();
-                        onOpenGallery();
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 text-amber-300 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                      title={isEn ? 'Open in Photo Gallery' : 'کردنەوە لە بەشی گەلەری'}
-                    >
-                      <Images className="w-3 h-3" />
-                      <span>{isEn ? 'Gallery' : 'گەلەری'}</span>
-                    </button>
-                  )}
                 </div>
               </div>
             );
@@ -721,7 +704,7 @@ export const FactDetailModal: React.FC<Props> = ({
                 {isEn ? 'Historical & Archaeological Overview:' : 'پوختەی مێژوویی و شوێنەواری:'}
               </span>
             </h4>
-            <p className="whitespace-pre-line leading-relaxed">{fact.fullText}</p>
+            <p className="whitespace-pre-line leading-relaxed font-normal">{fact.fullText}</p>
           </div>
 
           {/* Related Topics & Figures Section */}
@@ -1187,7 +1170,7 @@ export const FactDetailModal: React.FC<Props> = ({
 
                 {fact.additionalNotes && fact.additionalNotes.trim() ? (
                   <div
-                    className={`p-3 rounded-xl border text-xs leading-relaxed whitespace-pre-line font-sans ${
+                    className={`p-3 rounded-xl border text-xs leading-relaxed whitespace-pre-line font-sans font-normal ${
                       isDark
                         ? 'liquid-glass-subtle text-slate-200 border-white/10'
                         : 'bg-white text-slate-800 border-slate-200'

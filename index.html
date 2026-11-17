@@ -88,10 +88,15 @@
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <!-- Custom Calibri Fonts Preload for instant, zero-delay typography -->
-    <link rel="preload" href="/fonts/calibri-bold.ttf" as="font" type="font/ttf" crossorigin />
-    <link rel="preload" href="/fonts/calibri-regular.ttf" as="font" type="font/ttf" crossorigin />
-    <link rel="preload" href="/fonts/calibri-light.ttf" as="font" type="font/ttf" crossorigin />
+    <!-- Global Formal Typography: Local Kurdish Rabar Fonts + Noto Serif (English) + Cinzel Historical Serif Masthead -->
+    <link rel="preload" href="/fonts/rabar-regular.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="/fonts/rabar-bold.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Noto+Serif:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body class="antialiased font-sans selection:bg-amber-500 selection:text-slate-950">
     <div id="root"></div>

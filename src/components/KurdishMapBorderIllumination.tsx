@@ -53,6 +53,8 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
   const animFrameIdRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const isTerminatedRef = useRef<boolean>(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   // Projected screen coordinates of the perimeter
   const projectedPointsRef = useRef<{ x: number; y: number }[]>([]);
@@ -277,7 +279,7 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
         isTerminatedRef.current = true;
         ctx.clearRect(0, 0, width, height);
         setTimeout(() => {
-          onComplete();
+          onCompleteRef.current();
         }, 0);
       }
     };
@@ -290,7 +292,7 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [isActive, map, durationMs, onComplete, projectCoordinates]);
+  }, [isActive, map, durationMs, projectCoordinates]);
 
   // Skip immediately on tap or click
   const handleSkip = useCallback(() => {
@@ -305,9 +307,9 @@ export const KurdishMapBorderIllumination: React.FC<Props> = ({
       }
     }
     setTimeout(() => {
-      onComplete();
+      onCompleteRef.current();
     }, 0);
-  }, [onComplete]);
+  }, []);
 
   if (!isActive) return null;
 

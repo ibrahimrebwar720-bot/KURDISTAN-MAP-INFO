@@ -10,7 +10,7 @@ import type { AppLanguage } from '../context/LanguageContext';
 
 export interface UrlState {
   topicId: number | null;
-  view: 'hero' | 'map' | 'journey' | 'gallery' | 'menu' | 'settings' | 'tour' | null;
+  view: 'hero' | 'map' | 'journey' | 'menu' | 'settings' | null;
   category: string | null;
   province: string | null;
   year: number | 'all' | null;
@@ -49,7 +49,7 @@ export function parseCurrentUrl(): UrlState {
 
   const rawView = searchParams.get('view');
   let view: UrlState['view'] = null;
-  if (rawView === 'map' || rawView === 'journey' || rawView === 'gallery' || rawView === 'menu' || rawView === 'settings' || rawView === 'tour') {
+  if (rawView === 'map' || rawView === 'journey' || rawView === 'menu' || rawView === 'settings') {
     view = rawView;
   } else if (rawView === 'hero' || rawView === 'home') {
     view = 'hero';
@@ -97,7 +97,7 @@ export function getShareableTopicUrl(topicId: number, lang: AppLanguage = 'ckb')
  * Build a canonical URL for a specific view
  */
 export function getShareableViewUrl(
-  view: 'hero' | 'map' | 'journey' | 'gallery' | 'menu',
+  view: 'hero' | 'map' | 'journey' | 'menu',
   lang: AppLanguage = 'ckb'
 ): string {
   if (typeof window === 'undefined') return '';
@@ -117,7 +117,7 @@ export function getShareableViewUrl(
 export function updateBrowserUrl(
   options: {
     topicId?: number | null;
-    view?: 'hero' | 'map' | 'journey' | 'gallery' | 'menu' | 'settings' | 'tour' | null;
+    view?: 'hero' | 'map' | 'journey' | 'menu' | 'settings' | null;
     province?: string | null;
     factName?: string;
     lang?: AppLanguage;
@@ -180,22 +180,18 @@ export function updateBrowserUrl(
       document.title = `${options.factName} | Kurdistan Historical Map`;
     } else if (options.view === 'journey') {
       document.title = `Historical Journey & Eras of Kurdistan | Kurdistan Historical Map`;
-    } else if (options.view === 'gallery') {
-      document.title = `Historical Photo Archive | Kurdistan Historical Map`;
     } else if (options.view === 'menu') {
       document.title = `Directory of Kurdish Principalities & Cities | Kurdistan Historical Map`;
     } else if (options.view === 'map') {
-      document.title = `Interactive Historical Map of Kurdistan | kurdistan info map`;
+      document.title = `Interactive Historical Map of Kurdistan | Kurdistan Info Map`;
     } else {
-      document.title = `Kurdistan Historical Map & Encyclopedia | kurdistan info map`;
+      document.title = `Kurdistan Historical Map & Encyclopedia | Kurdistan Info Map`;
     }
   } else {
     if (options.factName) {
       document.title = `${options.factName} | نەخشەی مێژوویی کوردستان`;
     } else if (options.view === 'journey') {
-      document.title = `گەشتی مێژوویی و سەردەمەکانی کوردستان | نەخشەی مێژوویی کوردستان`;
-    } else if (options.view === 'gallery') {
-      document.title = `گەلەری وێنە مێژووییەکان | نەخشەی مێژوویی کوردستان`;
+      document.title = `زانیاری و سەردەمەکانی کوردستان | نەخشەی مێژوویی کوردستان`;
     } else if (options.view === 'menu') {
       document.title = `پێڕستی میرنشین و شارەکانی کوردستان | نەخشەی مێژوویی کوردستان`;
     } else if (options.view === 'map') {

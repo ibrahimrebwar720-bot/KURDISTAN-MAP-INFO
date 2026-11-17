@@ -4,7 +4,7 @@ import { Download, Share, PlusSquare, X, Shield, Sparkles } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 
-const KURD_MAP_ICON = '/src/assets/images/kurd_map_pwa_icon_1791793702859.jpg';
+const KURD_MAP_ICON = '/pwa-192x192.png';
 
 export const PWAInstallBanner: React.FC = () => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();

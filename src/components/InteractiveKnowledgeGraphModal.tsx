@@ -216,7 +216,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
             const mx = (centerNode.x + node.x) / 2;
             const my = (centerNode.y + node.y) / 2;
 
-            ctx.font = '10px sans-serif';
+            ctx.font = "10px 'Rabar', 'Noto Serif', serif";
             const textWidth = ctx.measureText(node.relationLabel).width;
             const padding = 6;
 
@@ -260,14 +260,14 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         ctx.strokeStyle = nodeColor;
         ctx.stroke();
 
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = "bold 11px 'Rabar', 'Noto Serif', serif";
         ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const displayLabel = node.label.length > 12 ? node.label.slice(0, 10) + '..' : node.label;
         ctx.fillText(displayLabel, node.x, node.y);
 
-        ctx.font = 'bold 9px sans-serif';
+        ctx.font = "bold 9px 'Rabar', 'Noto Serif', serif";
         ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
         ctx.fillText(node.categoryName, node.x, node.y + node.radius + 12);
       }
@@ -294,7 +294,7 @@ export const InteractiveKnowledgeGraphModal: React.FC<Props> = ({
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        ctx.font = 'bold 13px sans-serif';
+        ctx.font = "bold 13px 'Rabar', 'Noto Serif', serif";
         ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

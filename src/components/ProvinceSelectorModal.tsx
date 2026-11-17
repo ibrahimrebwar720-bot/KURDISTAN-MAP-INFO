@@ -6,8 +6,6 @@ import {
   Check,
   Compass,
   MapPinned,
-  Globe,
-  Loader2,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
@@ -19,7 +17,6 @@ import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDigits } from '../utils/yearUtils';
-import { verifyFactsProvincesWithGoogle } from '../services/googleMapsSearchService';
 
 interface ProvinceSelectorModalProps {
   isOpen: boolean;
@@ -43,55 +40,12 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activePartFilter, setActivePartFilter] = useState<ProvincePart | 'all'>('all');
   const [cacheTick, setCacheTick] = useState<number>(0);
-  const [isVerifyingGoogle, setIsVerifyingGoogle] = useState<boolean>(false);
-  const [verifyProgress, setVerifyProgress] = useState<{ done: number; total: number } | null>(null);
-  const [verifyStatusMsg, setVerifyStatusMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const onUpdated = () => setCacheTick((t) => t + 1);
     window.addEventListener('google-province-cache-updated', onUpdated);
     return () => window.removeEventListener('google-province-cache-updated', onUpdated);
   }, []);
-
-  const handleVerifyWithGoogle = async () => {
-    if (isVerifyingGoogle) return;
-    setIsVerifyingGoogle(true);
-    setVerifyStatusMsg(null);
-    try {
-      const result = await verifyFactsProvincesWithGoogle(facts, {
-        onProgress: (done, total) => {
-          setVerifyProgress({ done, total });
-        },
-        onResolvedFact: () => {
-          setCacheTick((t) => t + 1);
-        },
-      });
-      setCacheTick((t) => t + 1);
-      window.dispatchEvent(new CustomEvent('google-province-cache-updated'));
-      if (result.quotaHit) {
-        setVerifyStatusMsg(
-          isEn
-            ? 'Google Maps daily quota reached; local province boundaries were used.'
-            : 'کۆتای ڕۆژانەی گۆگڵ پڕبووەوە؛ سنوورە ناوخۆییەکان بەکارهێنران.'
-        );
-      } else if (result.checkedCount === 0) {
-        setVerifyStatusMsg(
-          isEn
-            ? 'All points have already been verified against Google Maps boundaries.'
-            : 'هەموو پۆینتەکان پێشتر بە داتای گۆگڵ پشتڕاستکراونەتەوە.'
-        );
-      } else {
-        setVerifyStatusMsg(
-          isEn
-            ? `${result.updatedCount} locations updated via Google Maps boundary data.`
-            : `${result.updatedCount} شوێن بە داتای سنوری گۆگڵ نوێکرانەوە.`
-        );
-      }
-    } finally {
-      setIsVerifyingGoogle(false);
-      setVerifyProgress(null);
-    }
-  };
 
   // Compute provinces with dynamic counts based on facts and active language
   const { allProvinces, kurdistanProvinces, outsideProvinces, totalFacts } = useMemo(() => {
@@ -440,19 +394,8 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className={`pt-3 mt-3 border-t space-y-2 shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-          {verifyStatusMsg && (
-            <div className={`text-[10px] font-bold px-2.5 py-1.5 rounded-[4px] border flex items-center gap-1.5 ${
-              isDark
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-            }`}>
-              <Check className="w-3 h-3 shrink-0" />
-              <span>{verifyStatusMsg}</span>
-            </div>
-          )}
-
+        {/* Footer Status */}
+        <div className={`pt-3 mt-3 border-t shrink-0 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               {currentSelected && currentSelected.id !== 'all' ? (
@@ -463,55 +406,6 @@ export const ProvinceSelectorModal: React.FC<ProvinceSelectorModalProps> = ({
               ) : (
                 <span>{isEn ? 'Showing all of Kurdistan' : 'هەموو کوردستان پیشاندراوە'}</span>
               )}
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleVerifyWithGoogle}
-                disabled={isVerifyingGoogle}
-                className={`px-2.5 py-1.5 rounded-[4px] text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border disabled:opacity-60 ${
-                  isDark
-                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-400/40'
-                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
-                }`}
-                title={
-                  isEn
-                    ? 'Verify administrative boundaries via Google Maps data'
-                    : 'پشکنینی سنورە ئیدارییەکان بە داتای فەرمی گۆگڵ ماپس'
-                }
-              >
-                {isVerifyingGoogle ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>
-                      {verifyProgress
-                        ? `${verifyProgress.done}/${verifyProgress.total}`
-                        : isEn
-                        ? 'Checking...'
-                        : 'پشکنین...'}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Globe className="w-3.5 h-3.5" />
-                    <span>{isEn ? 'Verify via Google' : 'پشکنینی سنور بە گۆگڵ'}</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  onSelectProvince('all');
-                  onClose();
-                }}
-                className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
-                  isDark
-                    ? 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border-white/10'
-                    : 'bg-slate-100 hover:bg-slate-200 text-amber-900 border-slate-300'
-                }`}
-              >
-                <span>{isEn ? 'Clear' : 'پاککردنەوە'}</span>
-              </button>
             </div>
           </div>
         </div>

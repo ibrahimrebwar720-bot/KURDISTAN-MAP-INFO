@@ -807,6 +807,623 @@ export function setCachedGoogleProvince(
 }
 
 // =========================================================================
+// Canonical Outside-Kurdistan Cities Registry (Kurdish & English + Coords)
+// =========================================================================
+
+interface OutsideCityEntry {
+  id: string;
+  nameCkb: string;
+  nameEn: string;
+  keywords: string[];
+  coords: Array<{ lat: number; lng: number; radiusKm: number }>;
+  aliases?: string[];
+}
+
+function normalizePlaceText(str: string): string {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    // Unify Arabic/Kurdish variant letters (ھ U+06BE -> ه U+0647, ی/ي/ى, ک/ك, ە/ة)
+    .replace(/ھ/g, 'ه')
+    .replace(/[يیىئ]/g, 'ی')
+    .replace(/[كک]/g, 'ک')
+    .replace(/[ةە]/g, 'ە')
+    .replace(/[أإآا]/g, 'ا')
+    .replace(/[ؤوۆ]/g, 'و')
+    .replace(/['’`\-–—_,،.()\[\]]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const INVALID_OUTSIDE_REGION_NORMALIZED = new Set([
+  'دەرەوەی هێلی کوردستان',
+  'دەرەوەی هێڵی کوردستان',
+  'دەرەوەی کوردستان',
+  'کوردستان',
+  'kurdistan',
+  'outside kurdistan',
+  'outside kurdistan borders',
+  'global',
+  'رضی اللە عنە',
+  'رضي الله عنه',
+  'کوری ئەحمەدیل',
+  'کوڕی ئەحمەدیل',
+  'جانپولاد زادە',
+  'جانپۆلاد زادە',
+  'هەموو کوردستان',
+  'دەرەوەی هێل',
+].map(normalizePlaceText));
+
+const INVALID_OUTSIDE_PROVINCE_IDS = new Set([
+  'outside_global',
+  'outside_دەرەوەی_هێڵی_کوردستان',
+  'outside_دەرەوەی_کوردستان',
+  'outside_رضی_اللە_عنە',
+  'outside_کوڕی_ئەحمەدیل',
+  'outside_جانپۆلاد_زادە',
+  'outside_outside_kurdistan_borders',
+  'outside_کوردستان',
+]);
+
+function isValidOutsideRegionLabel(raw: string): boolean {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return false;
+  if (/^[\d\u0660-\u0669\u06F0-\u06F9\s\-–—]+$/.test(trimmed)) return false;
+  if (/رضی\s*الل|رضي\s*الل|کوڕی\s*ئەحمەدیل|جانپۆلاد|سەردەمی|کۆچی|زایینی/.test(trimmed)) return false;
+  const norm = normalizePlaceText(trimmed);
+  if (!norm || INVALID_OUTSIDE_REGION_NORMALIZED.has(norm)) return false;
+  return true;
+}
+
+const OUTSIDE_CITIES_REGISTRY: OutsideCityEntry[] = [
+  // Iraq (outside Kurdistan)
+  {
+    id: 'outside_baghdad',
+    nameCkb: 'بەغدا',
+    nameEn: 'Baghdad',
+    keywords: ['baghdad', 'بەغدا', 'بغداد', 'بەغداد'],
+    coords: [{ lat: 33.3152, lng: 44.3661, radiusKm: 55 }],
+  },
+  {
+    id: 'outside_babylon',
+    nameCkb: 'بابل (حللە)',
+    nameEn: 'Babylon (Hillah)',
+    keywords: ['babylon', 'hillah', 'hilla', 'بابل', 'حللە', 'حلة'],
+    coords: [{ lat: 32.4682, lng: 44.5502, radiusKm: 45 }],
+  },
+  {
+    id: 'outside_tikrit',
+    nameCkb: 'تکریت (سەلاحەدین)',
+    nameEn: 'Tikrit (Saladin)',
+    keywords: ['tikrit', 'تکریت', 'تكريت'],
+    coords: [{ lat: 34.5981, lng: 43.6755, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_basra',
+    nameCkb: 'بەسڕە',
+    nameEn: 'Basra',
+    keywords: ['basra', 'بەسڕە', 'بەسرە', 'بصرة'],
+    coords: [{ lat: 30.5085, lng: 47.7804, radiusKm: 60 }],
+  },
+  {
+    id: 'outside_najaf',
+    nameCkb: 'نەجەف',
+    nameEn: 'Najaf',
+    keywords: ['najaf', 'نەجەف', 'نجف'],
+    coords: [{ lat: 32.0, lng: 44.3333, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_karbala',
+    nameCkb: 'کەربەلا',
+    nameEn: 'Karbala',
+    keywords: ['karbala', 'کەربەلا', 'كربلاء'],
+    coords: [{ lat: 32.616, lng: 44.0249, radiusKm: 30 }],
+  },
+  {
+    id: 'outside_anbar',
+    nameCkb: 'ئەنبار (ڕومادی)',
+    nameEn: 'Al Anbar (Ramadi)',
+    keywords: ['anbar', 'ramadi', 'fallujah', 'ئەنبار', 'ڕومادی', 'فەلووجە'],
+    coords: [{ lat: 33.4258, lng: 43.2992, radiusKm: 70 }],
+  },
+
+  // Syria & Lebanon
+  {
+    id: 'outside_damascus',
+    nameCkb: 'دیمەشق',
+    nameEn: 'Damascus',
+    keywords: ['damascus', 'دیمەشق', 'دمشق'],
+    coords: [{ lat: 33.5138, lng: 36.2765, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_aleppo',
+    nameCkb: 'حەلەب',
+    nameEn: 'Aleppo',
+    keywords: ['aleppo', 'حەلەب', 'حلب'],
+    coords: [{ lat: 36.2021, lng: 37.1343, radiusKm: 32 }],
+  },
+  {
+    id: 'outside_azaz',
+    nameCkb: 'ئەعزاز (حەلەب)',
+    nameEn: 'Azaz (Aleppo)',
+    keywords: ["a'zaz", 'azaz', 'ئەعزاز', 'عەزاز', 'اعزاز'],
+    coords: [{ lat: 36.5875, lng: 37.0466, radiusKm: 10 }],
+  },
+  {
+    id: 'outside_homs',
+    nameCkb: 'حومس (سووریا)',
+    nameEn: 'Homs (Syria)',
+    keywords: ['homs', 'حومس', 'حمس', 'حمص'],
+    coords: [{ lat: 34.7325, lng: 36.7135, radiusKm: 30 }],
+  },
+  {
+    id: 'outside_hama',
+    nameCkb: 'حەما (سووریا)',
+    nameEn: 'Hama (Syria)',
+    keywords: ['hama', 'حەما', 'حەمما', 'حماة'],
+    coords: [{ lat: 35.1408, lng: 36.7553, radiusKm: 30 }],
+  },
+  {
+    id: 'outside_raqqa',
+    nameCkb: 'ڕەققە',
+    nameEn: 'Raqqa',
+    keywords: ['raqqa', 'ڕەققە', 'رەققە', 'الرقة'],
+    coords: [{ lat: 35.9594, lng: 39.0094, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_baalbek',
+    nameCkb: 'بەعلەبەک (لوبنان)',
+    nameEn: 'Baalbek (Lebanon)',
+    keywords: ['baalbek', 'بەعلەبەک', 'بعلبك'],
+    coords: [{ lat: 34.0047, lng: 36.2116, radiusKm: 22 }],
+  },
+  {
+    id: 'outside_mount_lebanon',
+    nameCkb: 'جەبەل لوبنان (لوبنان)',
+    nameEn: 'Mount Lebanon (Lebanon)',
+    keywords: ['mount lebanon', 'beirut', 'جەبەل لوبنان', 'بەیرووت', 'لبنان'],
+    coords: [{ lat: 33.9798, lng: 35.8154, radiusKm: 25 }],
+  },
+  {
+    id: 'outside_tripoli_lb',
+    nameCkb: 'تەرابلوس (لوبنان)',
+    nameEn: 'Tripoli (Lebanon)',
+    keywords: ['tripoli lebanon', 'تەرابلوس', 'طرابلس'],
+    coords: [{ lat: 34.4348, lng: 35.836, radiusKm: 25 }],
+  },
+
+  // Palestine
+  {
+    id: 'outside_jerusalem',
+    nameCkb: 'قودس',
+    nameEn: 'Jerusalem',
+    keywords: ['jerusalem', 'قودس', 'القدس', 'ئورشەلیم'],
+    coords: [{ lat: 31.7769, lng: 35.2224, radiusKm: 12 }],
+  },
+  {
+    id: 'outside_ramallah',
+    nameCkb: 'ڕامەڵڵا (فەلەستین)',
+    nameEn: 'Ramallah (Palestine)',
+    keywords: ['ramallah', 'ڕامەڵڵا', 'رام الله'],
+    coords: [{ lat: 31.9522, lng: 35.2332, radiusKm: 12 }],
+  },
+  {
+    id: 'outside_nablus',
+    nameCkb: 'نابلس (فەلەستین)',
+    nameEn: 'Nablus (Palestine)',
+    keywords: ['nablus', 'نابلس'],
+    coords: [{ lat: 32.2227, lng: 35.2621, radiusKm: 20 }],
+  },
+  {
+    id: 'outside_acre',
+    nameCkb: 'عەککا (فەلەستین)',
+    nameEn: 'Acre / Akka',
+    keywords: ['acre', 'akko', 'akka', 'eka', 'عەککا', 'عکا'],
+    coords: [{ lat: 32.9282, lng: 35.0756, radiusKm: 25 }],
+  },
+
+  // Egypt
+  {
+    id: 'outside_cairo',
+    nameCkb: 'قاهیرە',
+    nameEn: 'Cairo',
+    keywords: ['cairo', 'قاهیرە', 'قاھیرە', 'القاهرة'],
+    coords: [{ lat: 30.15, lng: 31.25, radiusKm: 75 }],
+  },
+  {
+    id: 'outside_faiyum',
+    nameCkb: 'فەییوم (میسر)',
+    nameEn: 'Faiyum (Egypt)',
+    keywords: ['faiyum', 'fayoum', 'beni suef', 'فەییوم', 'الفيوم'],
+    coords: [{ lat: 29.0946, lng: 30.6409, radiusKm: 65 }],
+  },
+  {
+    id: 'outside_alexandria',
+    nameCkb: 'ئەسکەندەرییە (میسر)',
+    nameEn: 'Alexandria (Egypt)',
+    keywords: ['alexandria', 'ئەسکەندەرییە', 'الإسكندرية'],
+    coords: [{ lat: 31.2001, lng: 29.9187, radiusKm: 45 }],
+  },
+
+  // Hejaz & Yemen
+  {
+    id: 'outside_medina',
+    nameCkb: 'مەدینە',
+    nameEn: 'Medina',
+    keywords: ['medina', 'madinah', 'مەدینە', 'المدينة'],
+    coords: [{ lat: 24.5247, lng: 39.5692, radiusKm: 65 }],
+  },
+  {
+    id: 'outside_mecca',
+    nameCkb: 'مەککە',
+    nameEn: 'Mecca',
+    keywords: ['mecca', 'makkah', 'مەککە', 'مكة'],
+    coords: [{ lat: 21.4225, lng: 39.8262, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_taif',
+    nameCkb: 'تائیف (حیجاز)',
+    nameEn: 'Taif (Hejaz)',
+    keywords: ['taif', "ta'if", 'تائیف', 'الطائف'],
+    coords: [{ lat: 21.2841, lng: 40.4248, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_jeddah',
+    nameCkb: 'جەددە (حیجاز)',
+    nameEn: 'Jeddah (Hejaz)',
+    keywords: ['jeddah', 'jidda', 'جەددە', 'جدة'],
+    coords: [
+      { lat: 20.2802, lng: 38.5126, radiusKm: 55 },
+      { lat: 21.4858, lng: 39.1925, radiusKm: 45 },
+    ],
+  },
+  {
+    id: 'outside_taiz',
+    nameCkb: 'تەعز (یەمەن)',
+    nameEn: 'Taiz (Yemen)',
+    keywords: ['taiz', 'taizz', "ta'izz", 'تەعز', 'تعز'],
+    coords: [{ lat: 13.5776, lng: 44.0178, radiusKm: 60 }],
+  },
+  {
+    id: 'outside_sanaa',
+    nameCkb: 'سەنعا (یەمەن)',
+    nameEn: 'Sanaa (Yemen)',
+    keywords: ['sanaa', "sana'a", 'سەنعا', 'صنعاء'],
+    coords: [{ lat: 15.3545, lng: 44.2064, radiusKm: 65 }],
+  },
+  {
+    id: 'outside_hadhramaut',
+    nameCkb: 'حەزرەمەوت (یەمەن)',
+    nameEn: 'Hadhramaut (Yemen)',
+    keywords: ['hadhramaut', 'hadramaut', 'حەزرەمەوت', 'حضرموت'],
+    coords: [{ lat: 15.5527, lng: 48.5164, radiusKm: 180 }],
+  },
+
+  // Turkey (outside Northern Kurdistan)
+  {
+    id: 'outside_kilis',
+    nameCkb: 'کیلیس',
+    nameEn: 'Kilis',
+    keywords: ['kilis', 'کیلیس', 'کلیس'],
+    coords: [{ lat: 36.7165, lng: 37.1147, radiusKm: 9 }],
+  },
+  {
+    id: 'outside_istanbul',
+    nameCkb: 'ئیستەنبوڵ',
+    nameEn: 'Istanbul',
+    keywords: ['istanbul', 'ئیستەنبوڵ', 'ئەستەنبوڵ', 'ئیستەنبۆل', 'ئەستەنبۆڵ', 'اسطنبول'],
+    coords: [{ lat: 41.1, lng: 28.85, radiusKm: 65 }],
+  },
+  {
+    id: 'outside_bursa_iznik',
+    nameCkb: 'ئیزنیک / بۆرسە (تورکیا)',
+    nameEn: 'Iznik / Bursa (Turkey)',
+    keywords: ['iznik', 'îznîk', 'bursa', 'ئیزنیک', 'بۆرسە', 'بورصة'],
+    coords: [{ lat: 40.4303, lng: 29.7224, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_manisa',
+    nameCkb: 'مانیسا (تورکیا)',
+    nameEn: 'Manisa (Turkey)',
+    keywords: ['manisa', 'مانیسا', 'مەغنیسیا', 'مەغنیسا'],
+    coords: [{ lat: 38.614, lng: 27.4296, radiusKm: 45 }],
+  },
+  {
+    id: 'outside_hattusa',
+    nameCkb: 'هاتوشا / چۆروم (تورکیا)',
+    nameEn: 'Hattusa / Corum (Turkey)',
+    keywords: ['hattusa', 'corum', 'çorum', 'bogazkale', 'هاتوشا', 'چۆروم'],
+    coords: [{ lat: 40.0198, lng: 34.615, radiusKm: 50 }],
+  },
+  {
+    id: 'outside_kirsehir',
+    nameCkb: 'قڕشەهیر / ڕووباری هالیس (تورکیا)',
+    nameEn: 'Kirsehir / Halys River (Turkey)',
+    keywords: ['kirsehir', 'kırşehir', 'halys', 'قڕشەهیر', 'ڕووباری هالیس', 'ڕوباری هالیس'],
+    coords: [{ lat: 39.1742, lng: 33.7352, radiusKm: 55 }],
+  },
+  {
+    id: 'outside_ankara',
+    nameCkb: 'ئەنقەرە',
+    nameEn: 'Ankara',
+    keywords: ['ankara', 'ئەنقەرە'],
+    coords: [{ lat: 39.9334, lng: 32.8597, radiusKm: 50 }],
+  },
+  {
+    id: 'outside_izmir',
+    nameCkb: 'ئیزمیر',
+    nameEn: 'Izmir',
+    keywords: ['izmir', 'ئیزمیر'],
+    coords: [{ lat: 38.4237, lng: 27.1428, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_adana',
+    nameCkb: 'ئەدەنە',
+    nameEn: 'Adana',
+    keywords: ['adana', 'ئەدەنە'],
+    coords: [{ lat: 37.0, lng: 35.3213, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_hatay',
+    nameCkb: 'هاتای (ئەنتاکیا)',
+    nameEn: 'Hatay (Antioch)',
+    keywords: ['hatay', 'antakya', 'antioch', 'هاتای', 'ئەنتاکیا'],
+    coords: [{ lat: 36.2026, lng: 36.1604, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_trabzon',
+    nameCkb: 'ترابزۆن',
+    nameEn: 'Trabzon',
+    keywords: ['trabzon', 'ترابزۆن'],
+    coords: [{ lat: 41.0027, lng: 39.7168, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_konya',
+    nameCkb: 'قۆنیا',
+    nameEn: 'Konya',
+    keywords: ['konya', 'قۆنیا'],
+    coords: [{ lat: 37.8746, lng: 32.4932, radiusKm: 50 }],
+  },
+  {
+    id: 'outside_kayseri',
+    nameCkb: 'قەیسەری',
+    nameEn: 'Kayseri',
+    keywords: ['kayseri', 'قەیسەری'],
+    coords: [{ lat: 38.7312, lng: 35.4787, radiusKm: 45 }],
+  },
+
+  // Iran (outside Eastern Kurdistan)
+  {
+    id: 'outside_maragheh',
+    nameCkb: 'مەراغە (ئازەربایجانی ڕۆژهەڵات)',
+    nameEn: 'Maragheh (East Azerbaijan)',
+    keywords: ['maragheh', 'مەراغە'],
+    coords: [{ lat: 37.38, lng: 46.3, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_sarab',
+    nameCkb: 'سەراب (ئازەربایجانی ڕۆژهەڵات)',
+    nameEn: 'Sarab (East Azerbaijan)',
+    keywords: ['sarab', 'سەراب'],
+    coords: [{ lat: 37.6882, lng: 47.3512, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_tabriz',
+    nameCkb: 'تەورێز (ئازەربایجانی ڕۆژهەڵات)',
+    nameEn: 'Tabriz (East Azerbaijan)',
+    keywords: ['tabriz', 'تەورێز', 'تەبرێز'],
+    coords: [{ lat: 38.0739, lng: 46.2979, radiusKm: 24 }],
+  },
+  {
+    id: 'outside_ahar',
+    nameCkb: 'ئەهەر / گانزاک (ئازەربایجانی ڕۆژهەڵات)',
+    nameEn: 'Ahar (East Azerbaijan)',
+    keywords: ['ahar', 'گانزاگ', 'گانزاک', 'ئەهەر'],
+    coords: [{ lat: 38.3244, lng: 46.8127, radiusKm: 24 }],
+  },
+  {
+    id: 'outside_khorasan',
+    nameCkb: 'خوراسان (ئیسفەراین)',
+    nameEn: 'Khorasan (Esfarayen)',
+    keywords: ['khorasan', 'esfarayen', 'mashhad', 'خوراسان', 'خۆراسان', 'ئیسفەراین'],
+    coords: [
+      { lat: 37.0376, lng: 57.4365, radiusKm: 120 },
+      { lat: 36.2605, lng: 59.6168, radiusKm: 120 },
+    ],
+  },
+  {
+    id: 'outside_darab_fars',
+    nameCkb: 'داراب (فارس / ئێران)',
+    nameEn: 'Darab (Fars, Iran)',
+    keywords: ['darab', 'darabgerd', 'داراب', 'دارابگرد'],
+    coords: [{ lat: 28.7, lng: 54.4, radiusKm: 75 }],
+  },
+  {
+    id: 'outside_shiraz',
+    nameCkb: 'شیراز (فارس)',
+    nameEn: 'Shiraz (Fars)',
+    keywords: ['shiraz', 'شیراز'],
+    coords: [{ lat: 29.5918, lng: 52.5837, radiusKm: 70 }],
+  },
+  {
+    id: 'outside_larestan',
+    nameCkb: 'لارستان (فارس)',
+    nameEn: 'Larestan (Fars)',
+    keywords: ['larestan', 'lar', 'لارستان'],
+    coords: [
+      { lat: 26.9651, lng: 56.066, radiusKm: 65 },
+      { lat: 27.6833, lng: 54.3417, radiusKm: 65 },
+    ],
+  },
+  {
+    id: 'outside_hormozgan',
+    nameCkb: 'میناب (هورموزگان)',
+    nameEn: 'Minab / Hormozgan (Iran)',
+    keywords: ['hormozgan', 'minab', 'bandar abbas', 'سندرک', 'میناب', 'هورموزگان'],
+    coords: [{ lat: 26.8819, lng: 57.4624, radiusKm: 65 }],
+  },
+  {
+    id: 'outside_tehran',
+    nameCkb: 'تاران',
+    nameEn: 'Tehran',
+    keywords: ['tehran', 'تاران', 'تەهران'],
+    coords: [{ lat: 35.6892, lng: 51.389, radiusKm: 80 }],
+  },
+  {
+    id: 'outside_isfahan',
+    nameCkb: 'ئەسفەهان',
+    nameEn: 'Isfahan',
+    keywords: ['isfahan', 'esfahan', 'ئەسفەهان'],
+    coords: [{ lat: 32.6539, lng: 51.666, radiusKm: 80 }],
+  },
+
+  // Caucasus (Armenia, Azerbaijan, Georgia)
+  {
+    id: 'outside_nakhchivan',
+    nameCkb: 'نەخچەوان',
+    nameEn: 'Nakhchivan',
+    keywords: ['nakhchivan', 'نەخچەوان', 'نەخجەوان'],
+    coords: [{ lat: 39.25, lng: 45.45, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_dvin',
+    nameCkb: 'دڤین (ئەرمینیا)',
+    nameEn: 'Dvin (Armenia)',
+    keywords: ['dvin', 'دڤین', 'دوین'],
+    coords: [{ lat: 40.01, lng: 44.58, radiusKm: 16 }],
+  },
+  {
+    id: 'outside_vayots_dzor',
+    nameCkb: 'ڤایۆتس دزۆر (ئەرمینیا)',
+    nameEn: 'Vayots Dzor (Armenia)',
+    keywords: ['vayots dzor', 'yeghegis', 'ڤایۆتس دزۆر'],
+    coords: [{ lat: 39.9097, lng: 45.5493, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_yerevan',
+    nameCkb: 'یەریڤان (ئەرمینیا)',
+    nameEn: 'Yerevan (Armenia)',
+    keywords: ['yerevan', 'یەریڤان', 'یەرەڤان'],
+    coords: [{ lat: 40.1872, lng: 44.5152, radiusKm: 15 }],
+  },
+  {
+    id: 'outside_ganja',
+    nameCkb: 'گەنجە (ئازەربایجان)',
+    nameEn: 'Ganja (Azerbaijan)',
+    keywords: ['ganja', 'گەنجە'],
+    coords: [{ lat: 40.6879, lng: 46.3723, radiusKm: 40 }],
+  },
+  {
+    id: 'outside_arran_azerbaijan',
+    nameCkb: 'ئەرران / بەردە (ئازەربایجان)',
+    nameEn: 'Arran / Barda (Azerbaijan)',
+    keywords: ['arran', 'barda', 'ئەرران', 'بەردە'],
+    coords: [{ lat: 40.18, lng: 47.65, radiusKm: 60 }],
+  },
+  {
+    id: 'outside_baku',
+    nameCkb: 'باکۆ (ئازەربایجان)',
+    nameEn: 'Baku (Azerbaijan)',
+    keywords: ['baku', 'باکۆ'],
+    coords: [{ lat: 40.4093, lng: 49.8671, radiusKm: 45 }],
+  },
+  {
+    id: 'outside_tbilisi',
+    nameCkb: 'تبلیسی (جۆرجیا)',
+    nameEn: 'Tbilisi (Georgia)',
+    keywords: ['tbilisi', 'tiflis', 'تبلیسی', 'تەفلیس'],
+    coords: [{ lat: 41.7151, lng: 44.8271, radiusKm: 45 }],
+  },
+
+  // Europe & International
+  {
+    id: 'outside_lausanne',
+    nameCkb: 'لۆزان (سویسرا)',
+    nameEn: 'Lausanne (Switzerland)',
+    keywords: ['lausanne', 'vaud', 'لۆزان'],
+    coords: [{ lat: 46.5197, lng: 6.6323, radiusKm: 35 }],
+  },
+  {
+    id: 'outside_geneva',
+    nameCkb: 'جنێڤ (سویسرا)',
+    nameEn: 'Geneva (Switzerland)',
+    keywords: ['geneva', 'geneve', 'جنێڤ'],
+    coords: [{ lat: 46.2044, lng: 6.1432, radiusKm: 30 }],
+  },
+  {
+    id: 'outside_paris',
+    nameCkb: 'پاریس (فەڕەنسا)',
+    nameEn: 'Paris (France)',
+    keywords: ['paris', 'sevres', 'sèvres', 'ile de france', 'پاریس', 'سیڤەر'],
+    coords: [{ lat: 48.8566, lng: 2.3522, radiusKm: 60 }],
+  },
+  {
+    id: 'outside_london',
+    nameCkb: 'لەندەن (بەریتانیا)',
+    nameEn: 'London (UK)',
+    keywords: ['london', 'لەندەن'],
+    coords: [{ lat: 51.5072, lng: -0.1276, radiusKm: 55 }],
+  },
+  {
+    id: 'outside_moscow',
+    nameCkb: 'مۆسکۆ (ڕووسیا)',
+    nameEn: 'Moscow (Russia)',
+    keywords: ['moscow', 'مۆسکۆ'],
+    coords: [{ lat: 55.7558, lng: 37.6173, radiusKm: 65 }],
+  },
+];
+
+function findOutsideCityByCoords(lat: number, lng: number): OutsideCityEntry | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null;
+  let bestEntry: OutsideCityEntry | null = null;
+  let bestDistKm = Infinity;
+  for (const entry of OUTSIDE_CITIES_REGISTRY) {
+    for (const c of entry.coords) {
+      const dist = haversineKm(lat, lng, c.lat, c.lng);
+      if (dist <= c.radiusKm && dist < bestDistKm) {
+        bestDistKm = dist;
+        bestEntry = entry;
+      }
+    }
+  }
+  return bestEntry;
+}
+
+function findOutsideCityByText(rawText: string): OutsideCityEntry | null {
+  const norm = normalizePlaceText(rawText);
+  if (!norm) return null;
+  for (const entry of OUTSIDE_CITIES_REGISTRY) {
+    for (const kw of entry.keywords) {
+      const normKw = normalizePlaceText(kw);
+      if (!normKw) continue;
+      if (norm === normKw) return entry;
+      // Match whole token/phrase boundaries cleanly
+      const escaped = normKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(?:^|\\s)${escaped}(?:$|\\s)`, 'i');
+      if (regex.test(norm)) return entry;
+    }
+  }
+  return null;
+}
+
+function findOutsideCityById(id: string | undefined): OutsideCityEntry | null {
+  if (!id) return null;
+  return OUTSIDE_CITIES_REGISTRY.find((c) => c.id === id) || null;
+}
+
+// =========================================================================
 // Google Admin Area -> Kurdish Province Mapping
 // =========================================================================
 const OUTSIDE_PROVINCE_KURDISH_NAMES: Record<string, string> = {
@@ -816,32 +1433,50 @@ const OUTSIDE_PROVINCE_KURDISH_NAMES: Record<string, string> = {
   'basra governorate': 'بەسڕە',
   'najaf': 'نەجەف',
   'karbala': 'کەربەلا',
-  'babylon': 'بابل',
-  'al anbar': 'ئەنبار',
-  'anbar': 'ئەنبار',
+  'babylon': 'بابل (حللە)',
+  'al anbar': 'ئەنبار (ڕومادی)',
+  'anbar': 'ئەنبار (ڕومادی)',
   'tehran': 'تاران',
   'tehran province': 'تاران',
   'isfahan': 'ئەسفەهان',
-  'fars': 'فارس (شیراز)',
-  'east azerbaijan': 'ئازەربایجانی ڕۆژهەڵات (تەورێز)',
-  'east azerbaijan province': 'ئازەربایجانی ڕۆژهەڵات (تەورێز)',
+  'fars': 'شیراز (فارس)',
+  'east azerbaijan': 'تەورێز (ئازەربایجانی ڕۆژهەڵات)',
+  'east azerbaijan province': 'تەورێز (ئازەربایجانی ڕۆژهەڵات)',
   'ardabil': 'ئەردەبێڵ',
   'zanjan': 'زەنجان',
   'qazvin': 'قەزوین',
   'markazi': 'مەرکەزی',
-  'khorasan': 'خوراسان',
-  'razavi khorasan': 'خوراسان',
+  'hormozgan': 'میناب (هورموزگان)',
+  'khorasan': 'خوراسان (ئیسفەراین)',
+  'north khorasan': 'خوراسان (ئیسفەراین)',
+  'razavi khorasan': 'خوراسان (ئیسفەراین)',
   'damascus': 'دیمەشق',
   'damascus governorate': 'دیمەشق',
+  'rif dimashq': 'دیمەشق',
   'aleppo': 'حەلەب',
   'aleppo governorate': 'حەلەب',
+  'homs': 'حومس (سووریا)',
+  'hama': 'حەما (سووریا)',
+  'baalbek-hermel': 'بەعلەبەک (لوبنان)',
+  'mount lebanon': 'جەبەل لوبنان (لوبنان)',
+  'north': 'تەرابلوس (لوبنان)',
   'cairo': 'قاهیرە',
   'cairo governorate': 'قاهیرە',
+  'faiyum': 'فەییوم (میسر)',
+  'beni suef': 'فەییوم (میسر)',
+  'alexandria': 'ئەسکەندەرییە (میسر)',
   'istanbul': 'ئیستەنبوڵ',
+  'bursa': 'ئیزنیک / بۆرسە (تورکیا)',
+  'manisa': 'مانیسا (تورکیا)',
+  'corum': 'هاتوشا / چۆروم (تورکیا)',
+  'çorum': 'هاتوشا / چۆروم (تورکیا)',
+  'kirsehir': 'قڕشەهیر / ڕووباری هالیس (تورکیا)',
+  'kırşehir': 'قڕشەهیر / ڕووباری هالیس (تورکیا)',
+  'kilis': 'کیلیس',
   'ankara': 'ئەنقەرە',
   'izmir': 'ئیزمیر',
   'adana': 'ئەدەنە',
-  'hatay': 'هاتای',
+  'hatay': 'هاتای (ئەنتاکیا)',
   'trabzon': 'ترابزۆن',
   'konya': 'قۆنیا',
   'kayseri': 'قەیسەری',
@@ -850,13 +1485,25 @@ const OUTSIDE_PROVINCE_KURDISH_NAMES: Record<string, string> = {
   'ile-de-france': 'پاریس (فەڕەنسا)',
   'île-de-france': 'پاریس (فەڕەنسا)',
   'yerevan': 'یەریڤان (ئەرمینیا)',
+  'ararat': 'دڤین (ئەرمینیا)',
+  'vayots dzor': 'ڤایۆتس دزۆر (ئەرمینیا)',
   'tbilisi': 'تبلیسی (جۆرجیا)',
+  'ganja': 'گەنجە (ئازەربایجان)',
+  'nakhchivan': 'نەخچەوان',
   'baku': 'باکۆ (ئازەربایجان)',
   'moscow': 'مۆسکۆ (ڕووسیا)',
   'london': 'لەندەن (بەریتانیا)',
   'mecca': 'مەککە',
+  'makkah': 'مەککە',
+  'al madinah': 'مەدینە',
+  'madinah': 'مەدینە',
   'medina': 'مەدینە',
   'jerusalem': 'قودس',
+  'west bank': 'نابلس (فەلەستین)',
+  'taizz': 'تەعز (یەمەن)',
+  "ta'izz": 'تەعز (یەمەن)',
+  'sanaa': 'سەنعا (یەمەن)',
+  'hadhramaut': 'حەزرەمەوت (یەمەن)',
 };
 
 function normalizeAdminString(str: string): string {
@@ -864,7 +1511,7 @@ function normalizeAdminString(str: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+(governorate|province|il|vilayeti|muhafazah|district|subdistrict)$/i, '')
+    .replace(/\s+(governorate|province|il|vilayeti|muhafazah|district|subdistrict|county)$/i, '')
     .trim();
 }
 
@@ -945,7 +1592,7 @@ export function mapGoogleAddressToProvince(info: {
       }
       return {
         provinceId: 'outside_nineveh_mosul',
-        provinceName: locRaw ? `${locRaw} (نەینەوا)` : 'نەینەوا (مووسڵ)',
+        provinceName: 'نەینەوا (مووسڵ)',
         inKurdistan: false,
       };
     }
@@ -961,7 +1608,7 @@ export function mapGoogleAddressToProvince(info: {
       }
       return {
         provinceId: 'outside_diyala',
-        provinceName: locRaw ? `${locRaw} (دیالە)` : 'دیالە',
+        provinceName: 'دیالە',
         inKurdistan: false,
       };
     }
@@ -981,9 +1628,12 @@ export function mapGoogleAddressToProvince(info: {
           return { provinceId: gp.id, provinceName: gp.name, inKurdistan: true, province: gp };
         }
       }
+      if (loc.includes('tikrit') || a2.includes('tikrit')) {
+        return { provinceId: 'outside_tikrit', provinceName: 'تکریت (سەلاحەدین)', inKurdistan: false };
+      }
       return {
         provinceId: 'outside_saladin',
-        provinceName: locRaw ? `${locRaw} (سەلاحەدین)` : 'سەلاحەدین',
+        provinceName: 'سەلاحەدین',
         inKurdistan: false,
       };
     }
@@ -998,7 +1648,7 @@ export function mapGoogleAddressToProvince(info: {
       }
       return {
         provinceId: 'outside_wasit',
-        provinceName: locRaw ? `${locRaw} (واست)` : 'واست',
+        provinceName: 'واست',
         inKurdistan: false,
       };
     }
@@ -1053,6 +1703,9 @@ export function mapGoogleAddressToProvince(info: {
           }
         }
       }
+      if (a2.includes('azaz') || a2.includes("a'zaz") || loc.includes('azaz') || loc.includes("a'zaz")) {
+        return { provinceId: 'outside_azaz', provinceName: 'ئەعزاز (حەلەب)', inKurdistan: false };
+      }
       return { provinceId: 'outside_aleppo', provinceName: 'حەلەب', inKurdistan: false };
     }
   }
@@ -1067,7 +1720,7 @@ export function mapGoogleAddressToProvince(info: {
     if (ip && Number.isFinite(info.lat) && Number.isFinite(info.lng) && isPointInProvince(info.lat!, info.lng!, ip)) {
       return { provinceId: ip.id, provinceName: ip.name, inKurdistan: true, province: ip };
     }
-    return { provinceId: 'outside_khuzestan', provinceName: locRaw || 'خووزستان (ئەهواز)', inKurdistan: false };
+    return { provinceId: 'outside_khuzestan', provinceName: 'خووزستان (ئەهواز)', inKurdistan: false };
   }
 
   // 2. Direct 1-to-1 match against googleAdmin1 across all 38 Kurdistan provinces
@@ -1081,19 +1734,42 @@ export function mapGoogleAddressToProvince(info: {
     }
   }
 
-  // 3. Outside Kurdistan: construct clean name from OUTSIDE_PROVINCE_KURDISH_NAMES or raw Google Admin 1 / Locality
+  // 3. Outside Kurdistan: match canonical city registry by exact coordinates first, then locality/admin2/admin1
+  if (Number.isFinite(info.lat) && Number.isFinite(info.lng)) {
+    const coordCity = findOutsideCityByCoords(info.lat!, info.lng!);
+    if (coordCity) {
+      return {
+        provinceId: coordCity.id,
+        provinceName: coordCity.nameCkb,
+        inKurdistan: false,
+      };
+    }
+  }
+
+  for (const field of [locRaw, a2Raw, a1Raw]) {
+    const cityMatch = findOutsideCityByText(field);
+    if (cityMatch) {
+      return {
+        provinceId: cityMatch.id,
+        provinceName: cityMatch.nameCkb,
+        inKurdistan: false,
+      };
+    }
+  }
+
+  // 4. Fallback to OUTSIDE_PROVINCE_KURDISH_NAMES or cleaned admin name
   const knownOutside =
+    OUTSIDE_PROVINCE_KURDISH_NAMES[loc] ||
+    OUTSIDE_PROVINCE_KURDISH_NAMES[a2] ||
     OUTSIDE_PROVINCE_KURDISH_NAMES[a1] ||
-    OUTSIDE_PROVINCE_KURDISH_NAMES[a1Raw.toLowerCase()] ||
-    OUTSIDE_PROVINCE_KURDISH_NAMES[loc];
+    OUTSIDE_PROVINCE_KURDISH_NAMES[a1Raw.toLowerCase()];
 
   const displayOutsideName =
     knownOutside ||
-    a1Raw
-      .replace(/\s+Governorate$/i, '')
-      .replace(/\s+Province$/i, '')
-      .trim() ||
     locRaw ||
+    a1Raw
+      .replace(/\s+(Governorate|Province|District|Subdistrict)$/i, '')
+      .trim() ||
     (info.country || 'دەرەوەی هێڵی کوردستان');
 
   const outsideId = `outside_${normalizeKurdishSearchText(displayOutsideName).replace(/\s+/g, '_') || 'global'}`;
@@ -1214,29 +1890,57 @@ const OUTSIDE_KURDISH_TO_ENGLISH: Array<[string, string]> = [
   ['بەسڕە', 'Basra'],
   ['نەجەف', 'Najaf'],
   ['کەربەلا', 'Karbala'],
+  ['بابل (حللە)', 'Babylon (Hillah)'],
   ['بابل', 'Babylon'],
+  ['تکریت (سەلاحەدین)', 'Tikrit (Saladin)'],
+  ['تکریت', 'Tikrit'],
+  ['ئەنبار (ڕومادی)', 'Al Anbar (Ramadi)'],
   ['ئەنبار', 'Al Anbar'],
   ['تاران', 'Tehran'],
   ['ئەسفەهان', 'Isfahan'],
+  ['داراب (فارس / ئێران)', 'Darab (Fars, Iran)'],
+  ['داراب (فارس)', 'Darab (Fars)'],
   ['شیراز (فارس)', 'Shiraz (Fars)'],
   ['فارس (شیراز)', 'Fars (Shiraz)'],
   ['شیراز', 'Shiraz (Fars)'],
+  ['لارستان (فارس)', 'Larestan (Fars)'],
+  ['لارستان', 'Larestan (Fars)'],
+  ['میناب (هورموزگان)', 'Minab / Hormozgan (Iran)'],
+  ['تەورێز (ئازەربایجانی ڕۆژهەڵات)', 'Tabriz (East Azerbaijan)'],
   ['ئازەربایجانی ڕۆژهەڵات (تەورێز)', 'East Azerbaijan (Tabriz)'],
+  ['مەراغە (ئازەربایجانی ڕۆژهەڵات)', 'Maragheh (East Azerbaijan)'],
+  ['سەراب (ئازەربایجانی ڕۆژهەڵات)', 'Sarab (East Azerbaijan)'],
+  ['ئەهەر / گانزاک (ئازەربایجانی ڕۆژهەڵات)', 'Ahar (East Azerbaijan)'],
   ['ئەردەبێڵ', 'Ardabil'],
   ['زەنجان', 'Zanjan'],
   ['قەزوین', 'Qazvin'],
   ['مەرکەزی', 'Markazi'],
+  ['خوراسان (ئیسفەراین)', 'Khorasan (Esfarayen)'],
   ['خوراسان', 'Khorasan'],
   ['دیمەشق', 'Damascus'],
   ['حەلەب', 'Aleppo'],
+  ['ئەعزاز (حەلەب)', 'Azaz (Aleppo)'],
+  ['حومس (سووریا)', 'Homs (Syria)'],
+  ['حەما (سووریا)', 'Hama (Syria)'],
   ['ڕەققە', 'Raqqa'],
+  ['بەعلەبەک (لوبنان)', 'Baalbek (Lebanon)'],
+  ['جەبەل لوبنان (لوبنان)', 'Mount Lebanon (Lebanon)'],
+  ['تەرابلوس (لوبنان)', 'Tripoli (Lebanon)'],
   ['خووزستان (ئەهواز)', 'Khuzestan (Ahvaz)'],
   ['قاهیرە', 'Cairo'],
+  ['فەییوم (میسر)', 'Faiyum (Egypt)'],
+  ['ئەسکەندەرییە (میسر)', 'Alexandria (Egypt)'],
   ['ئیستەنبوڵ', 'Istanbul'],
   ['ئەستەنبوڵ', 'Istanbul'],
+  ['ئیزنیک / بۆرسە (تورکیا)', 'Iznik / Bursa (Turkey)'],
+  ['مانیسا (تورکیا)', 'Manisa (Turkey)'],
+  ['هاتوشا / چۆروم (تورکیا)', 'Hattusa / Corum (Turkey)'],
+  ['قڕشەهیر / ڕووباری هالیس (تورکیا)', 'Kirsehir / Halys River (Turkey)'],
+  ['کیلیس', 'Kilis'],
   ['ئەنقەرە', 'Ankara'],
   ['ئیزمیر', 'Izmir'],
   ['ئەدەنە', 'Adana'],
+  ['هاتای (ئەنتاکیا)', 'Hatay (Antioch)'],
   ['هاتای', 'Hatay'],
   ['ترابزۆن', 'Trabzon'],
   ['قۆنیا', 'Konya'],
@@ -1246,16 +1950,29 @@ const OUTSIDE_KURDISH_TO_ENGLISH: Array<[string, string]> = [
   ['لۆزان', 'Lausanne (Switzerland)'],
   ['پاریس (فەڕەنسا)', 'Paris (France)'],
   ['پاریس', 'Paris (France)'],
+  ['دڤین (ئەرمینیا)', 'Dvin (Armenia)'],
+  ['ڤایۆتس دزۆر (ئەرمینیا)', 'Vayots Dzor (Armenia)'],
   ['یەریڤان (ئەرمینیا)', 'Yerevan (Armenia)'],
   ['یەریڤان', 'Yerevan (Armenia)'],
   ['تبلیسی (جۆرجیا)', 'Tbilisi (Georgia)'],
+  ['نەخچەوان', 'Nakhchivan'],
+  ['گەنجە (ئازەربایجان)', 'Ganja (Azerbaijan)'],
+  ['ئەرران / بەردە (ئازەربایجان)', 'Arran / Barda (Azerbaijan)'],
   ['باکۆ (ئازەربایجان)', 'Baku (Azerbaijan)'],
   ['مۆسکۆ (ڕووسیا)', 'Moscow (Russia)'],
   ['مۆسکۆ', 'Moscow'],
   ['لەندەن (بەریتانیا)', 'London (UK)'],
   ['مەککە', 'Mecca'],
   ['مەدینە', 'Medina'],
+  ['تائیف (حیجاز)', 'Taif (Hejaz)'],
+  ['جەددە (حیجاز)', 'Jeddah (Hejaz)'],
+  ['تەعز (یەمەن)', 'Taiz (Yemen)'],
+  ['سەنعا (یەمەن)', 'Sanaa (Yemen)'],
+  ['حەزرەمەوت (یەمەن)', 'Hadhramaut (Yemen)'],
   ['قودس', 'Jerusalem'],
+  ['ڕامەڵڵا (فەلەستین)', 'Ramallah (Palestine)'],
+  ['نابلس (فەلەستین)', 'Nablus (Palestine)'],
+  ['عەککا (فەلەستین)', 'Acre / Akka'],
   ['مووسڵ (نەینەوا)', 'Mosul (Nineveh)'],
   ['نەینەوا (مووسڵ)', 'Nineveh (Mosul)'],
   ['مووسڵ', 'Mosul (Nineveh)'],
@@ -1274,7 +1991,19 @@ const OUTSIDE_ID_ENGLISH_MAP: Record<string, string> = {
   outside_khuzestan: 'Khuzestan (Ahvaz)',
 };
 
-function translateOutsideLabel(name: string, outsideId: string | undefined, lang: AppLanguage): string {
+for (const city of OUTSIDE_CITIES_REGISTRY) {
+  OUTSIDE_ID_ENGLISH_MAP[city.id] = city.nameEn;
+}
+
+export function translateOutsideLabel(name: string, outsideId: string | undefined, lang: AppLanguage): string {
+  const byReg = findOutsideCityById(outsideId);
+  if (byReg) {
+    return lang === 'en' ? byReg.nameEn : byReg.nameCkb;
+  }
+  const byText = findOutsideCityByText(name);
+  if (byText) {
+    return lang === 'en' ? byText.nameEn : byText.nameCkb;
+  }
   if (lang !== 'en') return name;
   if (outsideId && OUTSIDE_ID_ENGLISH_MAP[outsideId]) {
     return OUTSIDE_ID_ENGLISH_MAP[outsideId];
@@ -1285,81 +2014,86 @@ function translateOutsideLabel(name: string, outsideId: string | undefined, lang
       return en;
     }
   }
-  if (clean === 'دەرەوەی هێڵی کوردستان' || clean === 'دەرەوەی کوردستان') {
+  if (!isValidOutsideRegionLabel(clean)) {
     return 'Outside Kurdistan Borders';
   }
   return clean || 'Outside Kurdistan Borders';
 }
 
-function extractOutsideNameFromFact(fact: FactItem, lang: AppLanguage = 'ckb'): string {
+function resolveOutsideCityFromFact(
+  fact: FactItem,
+  lang: AppLanguage = 'ckb'
+): {
+  id: string;
+  name: string;
+  nameEn: string;
+  aliases: string[];
+} {
+  // 1. Canonical ID if explicit and valid
+  if (fact.provinceId && !INVALID_OUTSIDE_PROVINCE_IDS.has(fact.provinceId)) {
+    const byId = findOutsideCityById(fact.provinceId);
+    if (byId) {
+      return {
+        id: byId.id,
+        name: lang === 'en' ? byId.nameEn : byId.nameCkb,
+        nameEn: byId.nameEn,
+        aliases: [byId.nameCkb, byId.nameEn, ...byId.keywords],
+      };
+    }
+  }
+
+  // 2. Exact coordinate lookup (prevents multi-city desc strings or vague labels like "کوردستان" from misrouting)
+  const byCoords = findOutsideCityByCoords(fact.lat, fact.lng);
+  if (byCoords) {
+    return {
+      id: byCoords.id,
+      name: lang === 'en' ? byCoords.nameEn : byCoords.nameCkb,
+      nameEn: byCoords.nameEn,
+      aliases: [byCoords.nameCkb, byCoords.nameEn, ...byCoords.keywords],
+    };
+  }
+
+  // 3. Valid structured region field (ignoring previously corrupted parenthesized/generic strings)
   const r = (fact.region || '').trim();
-  if (r) return translateOutsideLabel(r, fact.provinceId, lang);
-
-  const n = (fact.name || '').trim();
-  const parenMatch = n.match(/\(([^)]+)\)/);
-  if (parenMatch && parenMatch[1]) {
-    const inside = parenMatch[1].trim();
-    if (
-      inside &&
-      !inside.includes('کوردستان') &&
-      !inside.toLowerCase().includes('kurdistan') &&
-      inside.length <= 32
-    ) {
-      return translateOutsideLabel(inside, fact.provinceId, lang);
+  if (isValidOutsideRegionLabel(r)) {
+    const cityFromRegion = findOutsideCityByText(r);
+    if (cityFromRegion) {
+      return {
+        id: cityFromRegion.id,
+        name: lang === 'en' ? cityFromRegion.nameEn : cityFromRegion.nameCkb,
+        nameEn: cityFromRegion.nameEn,
+        aliases: [cityFromRegion.nameCkb, cityFromRegion.nameEn, ...cityFromRegion.keywords],
+      };
     }
+    const cleanRegionName = translateOutsideLabel(r, fact.provinceId, lang);
+    const cleanRegionCkb = translateOutsideLabel(r, fact.provinceId, 'ckb');
+    const customId = `outside_${normalizeKurdishSearchText(cleanRegionCkb).replace(/\s+/g, '_') || 'global'}`;
+    return {
+      id: customId,
+      name: cleanRegionName,
+      nameEn: translateOutsideLabel(r, fact.provinceId, 'en'),
+      aliases: [cleanRegionCkb, cleanRegionName],
+    };
   }
 
-  const externalCities: Array<[string, string, string]> = [
-    ['بەغدا', 'بەغدا', 'Baghdad'],
-    ['baghdad', 'بەغدا', 'Baghdad'],
-    ['قاهیرە', 'قاهیرە', 'Cairo'],
-    ['cairo', 'قاهیرە', 'Cairo'],
-    ['تاران', 'تاران', 'Tehran'],
-    ['tehran', 'تاران', 'Tehran'],
-    ['دیمەشق', 'دیمەشق', 'Damascus'],
-    ['damascus', 'دیمەشق', 'Damascus'],
-    ['ئیستەنبوڵ', 'ئیستەنبوڵ', 'Istanbul'],
-    ['ئەستەنبوڵ', 'ئیستەنبوڵ', 'Istanbul'],
-    ['istanbul', 'ئیستەنبوڵ', 'Istanbul'],
-    ['ئەنقەرە', 'ئەنقەرە', 'Ankara'],
-    ['ankara', 'ئەنقەرە', 'Ankara'],
-    ['لۆزان', 'لۆزان (سویسرا)', 'Lausanne (Switzerland)'],
-    ['lausanne', 'لۆزان (سویسرا)', 'Lausanne (Switzerland)'],
-    ['سویسرا', 'لۆزان (سویسرا)', 'Switzerland'],
-    ['پاریس', 'پاریس (فەڕەنسا)', 'Paris (France)'],
-    ['paris', 'پاریس (فەڕەنسا)', 'Paris (France)'],
-    ['فڕەنسا', 'پاریس (فەڕەنسا)', 'Paris (France)'],
-    ['فەڕەنسا', 'پاریس (فەڕەنسا)', 'Paris (France)'],
-    ['شیراز', 'شیراز (فارس)', 'Shiraz (Fars)'],
-    ['shiraz', 'شیراز (فارس)', 'Shiraz (Fars)'],
-    ['ئەسفەهان', 'ئەسفەهان', 'Isfahan'],
-    ['isfahan', 'ئەسفەهان', 'Isfahan'],
-    ['مووسڵ', 'مووسڵ (نەینەوا)', 'Mosul (Nineveh)'],
-    ['mosul', 'مووسڵ (نەینەوا)', 'Mosul (Nineveh)'],
-    ['حەلەب', 'حەلەب', 'Aleppo'],
-    ['aleppo', 'حەلەب', 'Aleppo'],
-    ['بەسڕە', 'بەسڕە', 'Basra'],
-    ['basra', 'بەسڕە', 'Basra'],
-    ['مۆسکۆ', 'مۆسکۆ', 'Moscow'],
-    ['moscow', 'مۆسکۆ', 'Moscow'],
-    ['یەریڤان', 'یەریڤان', 'Yerevan'],
-    ['yerevan', 'یەریڤان', 'Yerevan'],
-  ];
-
-  const d = (fact.desc || '').trim();
-  const nLower = n.toLowerCase();
-  const dLower = d.toLowerCase();
-  for (const [kw, labelCkb, labelEn] of externalCities) {
-    if (
-      kurdishWordMatch(n, kw) ||
-      kurdishWordMatch(d, kw) ||
-      (/^[a-z]+$/i.test(kw) && (nLower.includes(kw) || dLower.includes(kw)))
-    ) {
-      return lang === 'en' ? labelEn : labelCkb;
-    }
+  // 4. Desc & title city-keyword match (never extract raw parentheses from fact.name!)
+  const cityFromDesc = findOutsideCityByText(fact.desc || '') || findOutsideCityByText(fact.name || '');
+  if (cityFromDesc) {
+    return {
+      id: cityFromDesc.id,
+      name: lang === 'en' ? cityFromDesc.nameEn : cityFromDesc.nameCkb,
+      nameEn: cityFromDesc.nameEn,
+      aliases: [cityFromDesc.nameCkb, cityFromDesc.nameEn, ...cityFromDesc.keywords],
+    };
   }
 
-  return lang === 'en' ? 'Outside Kurdistan Borders' : 'دەرەوەی هێڵی کوردستان';
+  const fallbackName = lang === 'en' ? 'Outside Kurdistan Borders' : 'دەرەوەی هێڵی کوردستان';
+  return {
+    id: 'outside_global',
+    name: fallbackName,
+    nameEn: 'Outside Kurdistan Borders',
+    aliases: ['دەرەوەی هێڵی کوردستان', 'Outside Kurdistan Borders'],
+  };
 }
 
 export function matchFactToProvince(
@@ -1388,24 +2122,24 @@ export function matchFactToProvince(
     partName: lang === 'en' ? p.partNameEn || PART_ENGLISH_NAMES[p.part] : p.partName,
   });
 
-  // 1. Explicit stored provinceId
+  // 1. Explicit stored provinceId (skip generic/corrupted outside IDs so polygon & city resolution can re-classify accurately)
   if (fact.provinceId) {
     const exactProv = KURDISTAN_PROVINCES.find((p) => p.id === fact.provinceId);
     if (exactProv) return localizedProv(exactProv);
 
-    if (fact.provinceId.startsWith('outside_')) {
-      const outsideName = extractOutsideNameFromFact(fact, lang);
+    if (fact.provinceId.startsWith('outside_') && !INVALID_OUTSIDE_PROVINCE_IDS.has(fact.provinceId)) {
+      const resolvedOutside = resolveOutsideCityFromFact(fact, lang);
       return {
-        id: fact.provinceId,
-        name: outsideName,
-        nameEn: outsideName,
+        id: resolvedOutside.id,
+        name: resolvedOutside.name,
+        nameEn: resolvedOutside.nameEn,
         part: 'outside',
         partName: lang === 'en' ? PART_ENGLISH_NAMES.outside : PART_KURDISH_NAMES.outside,
         partNameEn: PART_ENGLISH_NAMES.outside,
         inKurdistan: false,
         center: [fact.lat || 33.31, fact.lng || 44.36],
         zoom: 7,
-        aliases: [outsideName],
+        aliases: resolvedOutside.aliases,
       };
     }
   }
@@ -1423,26 +2157,37 @@ export function matchFactToProvince(
         const prov = KURDISTAN_PROVINCES.find((p) => p.id === cachedGoogle.provinceId);
         if (prov) return localizedProv(prov);
       } else {
-        const dispName = translateOutsideLabel(cachedGoogle.provinceName, cachedGoogle.provinceId, lang);
+        // Re-map cached Google fields through updated mapper so stale cached labels stay accurate
+        const remapped = mapGoogleAddressToProvince({
+          countryCode: cachedGoogle.countryCode,
+          adminLevel1: cachedGoogle.adminLevel1,
+          adminLevel2: cachedGoogle.adminLevel2,
+          locality: cachedGoogle.locality,
+          lat: fact.lat,
+          lng: fact.lng,
+        });
+        const dispName = translateOutsideLabel(remapped.provinceName, remapped.provinceId, lang);
+        const dispNameEn = translateOutsideLabel(remapped.provinceName, remapped.provinceId, 'en');
+        const regEntry = findOutsideCityById(remapped.provinceId);
         return {
-          id: cachedGoogle.provinceId,
+          id: remapped.provinceId,
           name: dispName,
-          nameEn: dispName,
+          nameEn: dispNameEn,
           part: 'outside',
           partName: lang === 'en' ? PART_ENGLISH_NAMES.outside : PART_KURDISH_NAMES.outside,
           partNameEn: PART_ENGLISH_NAMES.outside,
           inKurdistan: false,
           center: [fact.lat, fact.lng],
           zoom: 7,
-          aliases: [dispName],
+          aliases: regEntry ? [regEntry.nameCkb, regEntry.nameEn, ...regEntry.keywords] : [dispName, dispNameEn],
         };
       }
     }
   }
 
-  // 3. Explicit fact.region (only the structured region field, never random paragraph mentions!)
+  // 3. Explicit fact.region (only if it matches a Kurdistan province; outside cities are handled carefully in Step 6)
   const r = (fact.region || '').trim();
-  if (r) {
+  if (r && isValidOutsideRegionLabel(r)) {
     const rLower = r.toLowerCase();
     for (const prov of KURDISTAN_PROVINCES) {
       if (
@@ -1518,22 +2263,20 @@ export function matchFactToProvince(
     }
   }
 
-  // 6. Outside Kurdistan
-  const outsideNameCkb = extractOutsideNameFromFact(fact, 'ckb');
-  const outsideName = extractOutsideNameFromFact(fact, lang);
-  const outsideId = `outside_${normalizeKurdishSearchText(outsideNameCkb).replace(/\s+/g, '_') || 'global'}`;
+  // 6. Outside Kurdistan: accurate city resolution via coordinates, valid region, and description
+  const resolvedOutside = resolveOutsideCityFromFact(fact, lang);
 
   return {
-    id: outsideId,
-    name: outsideName,
-    nameEn: outsideName,
+    id: resolvedOutside.id,
+    name: resolvedOutside.name,
+    nameEn: resolvedOutside.nameEn,
     part: 'outside',
     partName: lang === 'en' ? PART_ENGLISH_NAMES.outside : PART_KURDISH_NAMES.outside,
     partNameEn: PART_ENGLISH_NAMES.outside,
     inKurdistan: false,
     center: [fact.lat || 33.31, fact.lng || 44.36],
     zoom: 7,
-    aliases: [outsideName],
+    aliases: resolvedOutside.aliases,
   };
 }
 
@@ -1584,9 +2327,9 @@ export function getProvincesWithCounts(
     count: countsMap.get(p.id) || 0,
   }));
 
-  const outsideList: Array<ProvinceItem & { count: number }> = Array.from(outsideMap.values()).filter(
-    (p) => p.count >= 1
-  );
+  const outsideList: Array<ProvinceItem & { count: number }> = Array.from(outsideMap.values())
+    .filter((p) => p.count >= 1)
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
   return {
     allProvinces: [...kurdistanList, ...outsideList],

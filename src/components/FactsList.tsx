@@ -60,7 +60,6 @@ import {
   formatTranslationError,
 } from '../services/aiTranslationService';
 import { findMismatchedDuplicateNotesFacts } from '../utils/factConsistency';
-import { CINEMATIC_STATIONS } from '../data/cinematicTimeMachineData';
 
 interface Props {
   facts: FactItem[];
@@ -87,11 +86,11 @@ interface Props {
   pendingSubmissionsCount?: number;
   onOpenEditFact?: (fact: FactItem) => void;
   onOpenCollectionManager?: () => void;
-  onOpenGallery?: () => void;
   onOpenTheme?: () => void;
   onOpenHero?: () => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
+  initialSearchTerm?: string;
 }
 
 type SortOption = 'latest_added' | 'year_asc' | 'year_desc' | 'category' | 'num';
@@ -135,17 +134,23 @@ export const FactsList: React.FC<Props> = ({
   onOpenSubmittedPhotos,
   pendingSubmissionsCount,
   onOpenEditFact,
-  onOpenHero,
   onClose,
   onLogoutAdmin,
+  initialSearchTerm,
 }) => {
-  const { colorMode, toggleColorMode } = useTheme();
+  const { colorMode } = useTheme();
   const { language, isEn, dir, toggleLanguage } = useLanguage();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
   const [categoryFilter, setCategoryFilter] = useState<string>(activeCategory || 'all');
   const [provinceFilter, setProvinceFilter] = useState<string>(selectedProvince || 'all');
   const [isProvinceModalOpen, setIsProvinceModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('year_asc');
+
+  useEffect(() => {
+    if (typeof initialSearchTerm === 'string' && initialSearchTerm.trim().length > 0) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
 
   // Admin AI Translation States
   const [translatingIds, setTranslatingIds] = useState<Record<number, boolean>>({});
@@ -170,16 +175,6 @@ export const FactsList: React.FC<Props> = ({
       setEnglishExistingIds(new Set(translatedFactIds));
     }
   }, [translatedFactIds]);
-
-  const featuredDocumentaryFactIds = useMemo(() => {
-    const ids = new Set<number>();
-    CINEMATIC_STATIONS.forEach((s) => {
-      if (typeof s.associatedFactId === 'number') {
-        ids.add(s.associatedFactId);
-      }
-    });
-    return ids;
-  }, []);
 
   const linkedByEnFactIds = useMemo(() => {
     const ids = new Set<number>();
@@ -353,7 +348,6 @@ export const FactsList: React.FC<Props> = ({
       const score = (f: FactItem) => {
         let s = 0;
         if (linkedByEnFactIds.has(f.id)) s += 100;
-        if (featuredDocumentaryFactIds.has(f.id)) s += 50;
         if (getFactDisplayImage(f)) s += 10;
         return s;
       };
@@ -370,7 +364,6 @@ export const FactsList: React.FC<Props> = ({
     studioSearch,
     studioSortMode,
     linkedByEnFactIds,
-    featuredDocumentaryFactIds,
   ]);
 
   const untranslatedCount = useMemo(
@@ -622,118 +615,191 @@ export const FactsList: React.FC<Props> = ({
         isDark ? 'bg-[#030611] text-slate-100' : 'bg-[#f4f3ef] text-slate-900'
       }`}
     >
-      {/* Header Container: Ultra-compact on mobile, spacious HUD on desktop */}
+      {/* Unified Archive Catalog Search & Filter Header (Navbar handles global Home/Lang/Theme) */}
       <header
-        className={`border-b shrink-0 z-20 shadow-md transition-colors ${
+        className={`border-b shrink-0 z-20 shadow-sm transition-colors ${
           isDark
             ? 'bg-[#070b16]/95 border-white/[0.08]'
             : 'bg-white border-slate-200'
         }`}
       >
-        {/* ================= MOBILE COMPACT HEADER (< sm) ================= */}
-        <div className="flex sm:hidden flex-col gap-1.5 px-2.5 py-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <button
-                type="button"
-                onClick={onOpenHero}
-                className="shrink-0 rounded-[3px] p-0.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
-                title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3.5 flex flex-col gap-2.5">
+          {/* Row 1: Section Heading + Live Search + View Toggle + Admin Tools */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                  isDark
+                    ? 'bg-amber-500/15 border-amber-400/30 text-amber-300'
+                    : 'bg-amber-100 border-amber-300 text-amber-800'
+                }`}
               >
-                <img
-                  src="/kimlogo.png"
-                  alt="Logo"
-                  className="w-5 h-5 rounded-[3px] object-contain"
-                />
-              </button>
-              <h2 className={`text-xs font-black font-heading truncate tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {isEn ? 'Historical Archive' : 'پێڕستی دەسەڵاتەکان'}
-              </h2>
-              <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-[3px] border shrink-0 ${
-                isDark ? 'bg-amber-400/15 text-amber-300 border-amber-400/25' : 'bg-amber-100 text-amber-900 border-amber-300'
-              }`}>
-                {formatDigits(filteredFacts.length, language)}
-              </span>
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className={`text-sm sm:text-base font-extrabold font-heading truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {isEn ? 'Archive Directory' : 'ئەرشیفی دەسەڵاتەکان'}
+                  </h2>
+                  <span className={`font-mono text-xs ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
+                  <span className={`text-xs font-mono tabular-nums font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                    {formatDigits(filteredFacts.length, language)} / {formatDigits(facts.length, language)}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
-              {/* Admin AI Translator Studio Button (Mobile) */}
-              {isAdmin && (
-                <button
-                  onClick={openAiStudio}
-                  className="preserve-contrast h-8 px-2 flex items-center gap-1 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[10px] transition-all cursor-pointer active:scale-95 shadow-sm"
-                  title={isEn ? 'AI Kurdish → English Translator Studio' : 'ستۆدیۆی وەرگێڕانی AI بۆ ئینگلیزی'}
-                >
-                  <Languages className="w-3.5 h-3.5" />
-                  <span>AI</span>
-                </button>
-              )}
+            {/* Controls Cluster: Search Input next to Cards/List Switcher + Admin Tools */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1 sm:flex-initial justify-end">
+              {/* Search Input next to Cards/List button */}
+              <div className="relative flex-1 min-w-[160px] sm:w-56 md:w-64 sm:flex-initial">
+                <Search className={`w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={
+                    isEn
+                      ? 'Search dynasty, leader, city, or year...'
+                      : 'گەڕان بەپێی ناو، سەرکردە، شار یان ساڵ...'
+                  }
+                  className={`w-full text-xs ps-9 pe-8 py-2 rounded-xl border focus:outline-none transition-all text-start h-9 ${
+                    isDark
+                      ? 'bg-white/[0.05] hover:bg-white/[0.08] text-slate-100 placeholder:text-slate-500 border-white/[0.1] focus:border-amber-400'
+                      : 'bg-slate-50 hover:bg-white text-slate-900 placeholder:text-slate-400 border-slate-300 focus:bg-white focus:border-amber-500 font-medium'
+                  }`}
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className={`absolute end-2.5 top-1/2 -translate-y-1/2 p-1 cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                    title={isEn ? 'Clear search' : 'سڕینەوە'}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
 
-              {/* Language Switcher */}
               <button
-                onClick={toggleLanguage}
-                className={`h-8 px-2 flex items-center gap-1 rounded-[4px] border text-[10px] font-mono font-bold transition-all cursor-pointer active:scale-95 ${
-                  isDark
-                    ? 'bg-white/[0.06] text-amber-300 border-white/10'
-                    : 'bg-slate-100 text-amber-900 border-slate-300 shadow-xs'
-                }`}
-                title={isEn ? 'گۆڕین بۆ زمانی کوردی' : 'Switch to English'}
-              >
-                {isEn ? 'کوردی' : 'EN'}
-              </button>
-
-              {/* View Mode Toggle */}
-              <button
+                type="button"
                 onClick={() => setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'))}
-                className={`w-8 h-8 flex items-center justify-center rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
+                className={`h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 text-xs font-bold shrink-0 ${
                   isDark
                     ? 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border-white/10'
                     : 'bg-slate-100 hover:bg-slate-200 text-amber-900 border-slate-300 shadow-xs'
                 }`}
                 title={
                   viewMode === 'grid'
-                    ? (isEn ? 'Switch to compact list' : 'گۆڕین بۆ لیستی پوخت')
-                    : (isEn ? 'Switch to card grid' : 'گۆڕین بۆ کارتەکان')
+                    ? isEn
+                      ? 'Switch to list view'
+                      : 'گۆڕین بۆ لیستی پوخت'
+                    : isEn
+                    ? 'Switch to card grid'
+                    : 'گۆڕین بۆ کارتەکان'
                 }
-                aria-label={isEn ? 'View mode' : 'شێوازی نیشاندان'}
               >
-                {viewMode === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+                {viewMode === 'grid' ? (
+                  <>
+                    <List className="w-4 h-4" />
+                    <span className="hidden md:inline">{isEn ? 'List' : 'لیست'}</span>
+                  </>
+                ) : (
+                  <>
+                    <LayoutGrid className="w-4 h-4" />
+                    <span className="hidden md:inline">{isEn ? 'Cards' : 'کارتەکان'}</span>
+                  </>
+                )}
               </button>
 
-              {/* Theme Toggle */}
-              <button
-                onClick={toggleColorMode}
-                className={`w-8 h-8 flex items-center justify-center rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
-                  isDark
-                    ? 'bg-white/[0.06] text-amber-400 border-white/10'
-                    : 'bg-slate-100 text-amber-800 border-slate-300 shadow-xs'
-                }`}
-                title={isDark ? (isEn ? 'Light mode' : 'دۆخی ڕووناک') : (isEn ? 'Dark mode' : 'دۆخی تاریک')}
-              >
-                {isDark ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-600" />}
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    onClick={openAiStudio}
+                    className="preserve-contrast h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                    title={isEn ? 'AI Translation Studio' : 'ستۆدیۆی وەرگێڕانی AI'}
+                  >
+                    <Languages className="w-4 h-4" />
+                    <span className="hidden lg:inline">{isEn ? 'AI Studio' : 'وەرگێڕانی AI'}</span>
+                  </button>
 
-              {/* Admin Add Fact */}
-              {isAdmin && onOpenAddFact && (
-                <button
-                  onClick={() => onOpenAddFact('standard')}
-                  className="w-8 h-8 flex items-center justify-center rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
-                  title={isEn ? 'Add new topic' : 'زیادکردنی بابەتی نوێ'}
-                >
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                </button>
+                  {onOpenSubmittedPhotos && (
+                    <button
+                      type="button"
+                      onClick={onOpenSubmittedPhotos}
+                      className={`h-9 px-2.5 flex items-center gap-1 rounded-xl font-bold text-xs border transition-all cursor-pointer active:scale-95 ${
+                        isDark
+                          ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/40'
+                          : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300'
+                      }`}
+                      title={isEn ? 'Photo submissions' : 'وێنە نێردراوەکان'}
+                    >
+                      <Images className="w-4 h-4 text-amber-500" />
+                      {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-black text-[10px]">
+                          {formatDigits(pendingSubmissionsCount, language)}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {onOpenAddFact && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddFact('photo_only')}
+                        className="h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-extrabold text-xs shadow-xs cursor-pointer active:scale-95"
+                        title={isEn ? 'Add quick photo' : 'زیادکردنی وێنە'}
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        <span className="hidden md:inline">{isEn ? 'Photo' : 'وێنە'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddFact('standard')}
+                        className={`h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl border font-bold text-xs cursor-pointer active:scale-95 ${
+                          isDark
+                            ? 'bg-white/[0.08] hover:bg-white/[0.14] border-white/10 text-white'
+                            : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-900 shadow-xs'
+                        }`}
+                        title={isEn ? 'Add new topic' : 'بابەتی نوێ'}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span className="hidden md:inline">{isEn ? 'Topic' : 'بابەت'}</span>
+                      </button>
+                    </>
+                  )}
+
+                  {onLogoutAdmin && (
+                    <button
+                      type="button"
+                      onClick={onLogoutAdmin}
+                      className={`h-9 px-2.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'text-rose-300 bg-rose-950/40 hover:bg-rose-900/50 border-rose-800/40'
+                          : 'text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-300'
+                      }`}
+                      title={isEn ? 'Exit Admin' : 'دەرچوون لە ئەدمین'}
+                    >
+                      {isEn ? 'Logout' : 'دەرچوون'}
+                    </button>
+                  )}
+                </>
               )}
 
-              {/* Close Button */}
               {onClose && (
                 <button
+                  type="button"
                   onClick={onClose}
-                  className={`w-8 h-8 flex items-center justify-center rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
+                  className={`hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border transition-all cursor-pointer active:scale-95 ${
                     isDark
-                      ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-500/30'
-                      : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 shadow-xs'
+                      ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border-white/[0.1]'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 border-slate-300 shadow-xs'
                   }`}
-                  title={isEn ? 'Close' : 'داخستن و گەڕانەوە'}
+                  title={isEn ? 'Back to Map' : 'گەڕانەوە بۆ نەخشە'}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -741,43 +807,29 @@ export const FactsList: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Mobile Row 2: Search Input + Category & Sort Dropdowns */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative flex-1 min-w-0">
-              <Search className={`w-3.5 h-3.5 absolute start-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={isEn ? 'Search name, era, city...' : 'گەڕان بەپێی ناو، سەدە، شار...'}
-                className={`w-full text-[11px] ps-8 pe-6 py-1.5 rounded-[4px] border focus:outline-none transition-all text-start h-8 ${
-                  isDark
-                    ? 'bg-white/[0.05] text-slate-100 placeholder:text-slate-500 border-white/[0.1] focus:border-amber-400 focus:bg-white/[0.08]'
-                    : 'bg-white text-slate-900 placeholder:text-slate-400 border-slate-300 focus:border-amber-500 shadow-inner font-medium'
-                }`}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className={`absolute end-2 top-1/2 -translate-y-1/2 p-0.5 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
-                  title={isEn ? 'Clear' : 'سڕینەوە'}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-
-            <div className="relative shrink-0 max-w-[120px]">
+          {/* Row 2: Clean Unified Filters (Category, Province, Sort, Clear) */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
+            {/* Category Filter */}
+            <div className={`flex items-center gap-1.5 rounded-xl px-2.5 h-9 border text-xs shrink-0 transition-colors ${
+              categoryFilter !== 'all'
+                ? isDark
+                  ? 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                  : 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs'
+                : isDark
+                ? 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.09]'
+                : 'bg-slate-50 hover:bg-white border-slate-300 shadow-xs'
+            }`}>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <select
                 value={categoryFilter}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className={`w-full h-8 px-2 rounded-[4px] border text-[11px] font-bold focus:outline-none cursor-pointer truncate appearance-none ${
-                  isDark ? 'bg-[#101626] border-white/10 text-amber-300' : 'bg-white border-slate-300 text-amber-900 shadow-xs'
+                className={`bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 max-w-[140px] sm:max-w-[180px] truncate ${
+                  isDark ? 'text-slate-100' : 'text-slate-900'
                 }`}
-                title={isEn ? 'Category' : 'پۆلێن'}
+                title={isEn ? 'Filter by category' : 'فلتەر بەپێی پۆلێن'}
               >
                 <option value="all" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                  {isEn ? `All (${formatDigits(facts.length, language)})` : `هەموو پۆلێنەکان (${facts.length})`}
+                  {isEn ? `All Categories (${formatDigits(facts.length, language)})` : `هەموو پۆلێنەکان (${facts.length})`}
                 </option>
                 {localizedCategories.filter((c) => c.id !== 'all').map((cat) => (
                   <option key={cat.id} value={cat.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
@@ -787,476 +839,136 @@ export const FactsList: React.FC<Props> = ({
               </select>
             </div>
 
-            <div className="relative shrink-0 max-w-[92px]">
+            {/* Province Filter */}
+            <div className={`flex items-center gap-1.5 rounded-xl px-2.5 h-9 border text-xs shrink-0 transition-colors ${
+              provinceFilter !== 'all'
+                ? isDark
+                  ? 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                  : 'bg-amber-100 border-amber-400 text-amber-950 shadow-xs'
+                : isDark
+                ? 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.09]'
+                : 'bg-slate-50 hover:bg-white border-slate-300 shadow-xs'
+            }`}>
+              <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <select
+                value={provinceFilter}
+                onChange={(e) => handleProvinceChange(e.target.value)}
+                className={`bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 max-w-[130px] sm:max-w-[165px] truncate ${
+                  isDark ? 'text-slate-100' : 'text-slate-900'
+                }`}
+                title={isEn ? 'Filter by province' : 'فلتەر بەپێی پارێزگا'}
+              >
+                <option value="all" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
+                  {isEn ? 'All Provinces' : 'هەموو پارێزگاکان'}
+                </option>
+                <optgroup label={isEn ? 'Southern Kurdistan' : 'باشووری کوردستان'} className={isDark ? 'bg-[#0c101d] text-emerald-400 font-bold' : 'bg-slate-100 text-emerald-700 font-bold'}>
+                  {provincesWithCounts.kurdistanProvinces
+                    .filter((p) => p.part === 'south')
+                    .map((p) => (
+                      <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
+                        {isEn ? p.nameEn : p.name}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label={isEn ? 'Northern Kurdistan' : 'باکووری کوردستان'} className={isDark ? 'bg-[#0c101d] text-amber-400 font-bold' : 'bg-slate-100 text-amber-700 font-bold'}>
+                  {provincesWithCounts.kurdistanProvinces
+                    .filter((p) => p.part === 'north')
+                    .map((p) => (
+                      <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
+                        {isEn ? p.nameEn : p.name}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label={isEn ? 'Eastern Kurdistan' : 'ڕۆژهەڵاتی کوردستان'} className={isDark ? 'bg-[#0c101d] text-cyan-400 font-bold' : 'bg-slate-100 text-cyan-700 font-bold'}>
+                  {provincesWithCounts.kurdistanProvinces
+                    .filter((p) => p.part === 'east')
+                    .map((p) => (
+                      <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
+                        {isEn ? p.nameEn : p.name}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label={isEn ? 'Western Kurdistan' : 'ڕۆژئاوای کوردستان'} className={isDark ? 'bg-[#0c101d] text-purple-400 font-bold' : 'bg-slate-100 text-purple-700 font-bold'}>
+                  {provincesWithCounts.kurdistanProvinces
+                    .filter((p) => p.part === 'west')
+                    .map((p) => (
+                      <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
+                        {isEn ? p.nameEn : p.name}
+                      </option>
+                    ))}
+                </optgroup>
+                {provincesWithCounts.outsideProvinces.length > 0 && (
+                  <optgroup label={isEn ? 'Outside Kurdistan' : 'دەرەوەی کوردستان'} className={isDark ? 'bg-[#0c101d] text-rose-400 font-bold' : 'bg-slate-100 text-rose-700 font-bold'}>
+                    {provincesWithCounts.outsideProvinces.map((p) => (
+                      <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
+                        {isEn ? p.nameEn : p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsProvinceModalOpen(true)}
+                className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                  isDark ? 'hover:bg-white/10 text-amber-400' : 'hover:bg-slate-200 text-amber-700'
+                }`}
+                title={isEn ? 'Browse all provinces' : 'بینینی هەموو پارێزگاکان'}
+              >
+                <Compass className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className={`flex items-center gap-1.5 rounded-xl px-2.5 h-9 border text-xs shrink-0 transition-colors ${
+              isDark ? 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.09]' : 'bg-slate-50 hover:bg-white border-slate-300 shadow-xs'
+            }`}>
+              <ArrowUpDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className={`w-full h-8 px-2 rounded-[4px] border text-[11px] font-medium focus:outline-none cursor-pointer truncate appearance-none ${
-                  isDark ? 'bg-[#101626] border-white/10 text-slate-200' : 'bg-white border-slate-300 text-slate-800 shadow-xs'
+                className={`bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 ${
+                  isDark ? 'text-slate-100' : 'text-slate-900'
                 }`}
-                title={isEn ? 'Sort by' : 'ڕیزکردن'}
+                title={isEn ? 'Sort entries' : 'ڕیزبەندی بابەتەکان'}
               >
-                <option value="latest_added" className={isDark ? 'bg-[#0c101d] text-amber-300 font-bold' : 'bg-white text-amber-900 font-bold'}>
-                  {isEn ? 'Newest' : 'نوێترین تۆمار'}
-                </option>
                 <option value="year_asc" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
                   {isEn ? 'Oldest → Newest' : 'ساڵ (کۆن بۆ نوێ)'}
                 </option>
                 <option value="year_desc" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
                   {isEn ? 'Newest → Oldest' : 'ساڵ (نوێ بۆ کۆن)'}
                 </option>
+                <option value="latest_added" className={isDark ? 'bg-[#0c101d] text-amber-300 font-bold' : 'bg-white text-amber-900 font-bold'}>
+                  {isEn ? 'Recently Added' : 'نوێترین تۆمارکراو'}
+                </option>
                 <option value="category" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                  {isEn ? 'Category' : 'بەپێی پۆلێن'}
+                  {isEn ? 'By Category' : 'بەپێی پۆلێن'}
                 </option>
                 <option value="num" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                  {isEn ? 'Index Order' : 'بەپێی ڕیزبەندی'}
+                  {isEn ? 'Default Order' : 'ڕیزبەندیی سەرەتا'}
                 </option>
               </select>
             </div>
 
-            <button
-              onClick={() => setIsProvinceModalOpen(true)}
-              className={`h-8 px-2 rounded-[4px] border text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer active:scale-95 transition-all ${
-                provinceFilter !== 'all'
-                  ? (isDark ? 'bg-amber-400/25 text-amber-300 border-amber-400/50 shadow-xs' : 'bg-amber-100 text-amber-900 border-amber-400 shadow-xs')
-                  : (isDark ? 'bg-white/[0.06] text-amber-300 border-white/10 hover:bg-white/[0.1]' : 'bg-white text-amber-900 border-slate-300 hover:bg-slate-50 shadow-xs')
-              }`}
-              title={isEn ? 'Provinces' : 'پۆلێنی پارێزگاکان'}
-            >
-              <MapPin className="w-3 h-3 text-amber-500 shrink-0" />
-              <span className="truncate max-w-[70px]">
-                {provinceFilter === 'all'
-                  ? (isEn ? 'Province' : 'پارێزگا')
-                  : (isEn
-                      ? provincesWithCounts.allProvinces.find((p) => p.id === provinceFilter)?.nameEn || 'Province'
-                      : provincesWithCounts.allProvinces.find((p) => p.id === provinceFilter)?.name || 'پارێزگا')}
-              </span>
-            </button>
-
             {isFilterActive && (
               <button
+                type="button"
                 onClick={() => {
                   handleCategoryChange('all');
                   handleProvinceChange('all');
                   setSearchTerm('');
                 }}
-                className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
+                className={`flex items-center gap-1 px-3 h-9 rounded-xl text-xs font-bold cursor-pointer border shrink-0 transition-all ${
                   isDark
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
-                    : 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs'
+                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-400/30'
+                    : 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300 shadow-xs'
                 }`}
-                title={isEn ? 'Clear filters' : 'پاککردنەوەی فلتەر'}
+                title={isEn ? 'Clear all filters' : 'پاککردنەوەی فلتەر'}
               >
                 <X className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Reset' : 'پاککردنەوە'}</span>
               </button>
             )}
-          </div>
-        </div>
-
-        {/* ================= DESKTOP SPACIOUS HEADER (>= sm) ================= */}
-        <div className="hidden sm:flex flex-col gap-3 px-6 py-3.5">
-          {/* Row 1: Brand / Title + Command Search + Action Dock */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={onOpenHero}
-                className={`w-10 h-10 rounded-[4px] flex items-center justify-center p-1 shadow-md overflow-hidden border cursor-pointer hover:scale-105 active:scale-95 transition-transform ${
-                  isDark ? 'bg-[#101626] border-white/10 hover:border-amber-400/50' : 'bg-white border-slate-200 hover:border-amber-500'
-                }`}
-                title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
-              >
-                <img
-                  src="/kimlogo.png"
-                  alt="KURDISTAN INFO MAP Logo"
-                  className="w-full h-full object-contain"
-                />
-              </button>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className={`text-base font-extrabold font-heading tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {isEn ? 'Historical Archive Directory' : 'ئەرشیفی دەسەڵاتە مێژووییەکان'}
-                  </h2>
-                  <span className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded-[3px] border font-semibold tracking-wider ${
-                    isDark ? 'bg-amber-400/10 text-amber-300 border-amber-400/20' : 'bg-amber-100 text-amber-900 border-amber-300'
-                  }`}>
-                    {isEn ? 'EN EDITION' : '2026 HUD'}
-                  </span>
-                </div>
-                <div className={`flex items-center gap-1.5 text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  <span className={`font-mono tabular-nums font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                    {formatDigits(filteredFacts.length, language)}
-                  </span>
-                  <span className={isDark ? 'text-slate-600' : 'text-slate-300'}>/</span>
-                  <span className={`font-mono tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {formatDigits(facts.length, language)}
-                  </span>
-                  <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
-                    {isEn ? 'entries in archive' : 'بابەت لە ئەرشیفدا'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Command Search Input */}
-            <div className="relative flex-1 max-w-xl min-w-[220px]">
-              <Search className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={
-                  isEn
-                    ? 'Search dynasty, ruler, century, city or region...'
-                    : 'گەڕان بەپێی ناوی میرنشین، سەرکردە، سەدە، شار یان ناوچە...'
-                }
-                className={`w-full text-xs ps-10 pe-16 py-2.5 rounded-[4px] border focus:outline-none transition-all text-start h-10 shadow-inner ${
-                  isDark
-                    ? 'bg-white/[0.04] hover:bg-white/[0.06] text-slate-100 placeholder:text-slate-500 border-white/[0.1] focus:border-amber-400 focus:bg-white/[0.08]'
-                    : 'bg-slate-50 hover:bg-white text-slate-900 placeholder:text-slate-400 border-slate-300 focus:bg-white focus:border-amber-500 font-medium'
-                }`}
-              />
-              {searchTerm ? (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className={`absolute end-3 top-1/2 -translate-y-1/2 p-1 cursor-pointer transition-colors ${
-                    isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                  title={isEn ? 'Clear search' : 'سڕینەوە'}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              ) : (
-                <div className={`absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] font-mono pointer-events-none px-1.5 py-0.5 rounded-[3px] border ${
-                  isDark ? 'bg-white/[0.05] border-white/5 text-slate-400' : 'bg-slate-200 border-slate-300 text-slate-600'
-                }`}>
-                  <span>⌘K</span>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Actions */}
-            <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-              {/* Admin AI Translator Studio Button */}
-              {isAdmin && (
-                <button
-                  onClick={openAiStudio}
-                  className="preserve-contrast h-9.5 px-3 flex items-center gap-1.5 rounded-[4px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95 border border-indigo-400/40"
-                  title={isEn ? 'Open AI Kurdish → English Translator Studio' : 'کردنەوەی ستۆدیۆی وەرگێڕانی AI (کوردی → ئینگلیزی)'}
-                >
-                  <Languages className="w-4 h-4" />
-                  <span>{isEn ? 'AI Translator Studio' : 'وەرگێڕانی AI بۆ ئینگلیزی'}</span>
-                </button>
-              )}
-
-              {/* Language Switcher */}
-              <button
-                onClick={toggleLanguage}
-                className={`h-9.5 px-3 flex items-center gap-1.5 rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
-                  isDark
-                    ? 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border-white/10'
-                    : 'bg-white hover:bg-slate-50 text-amber-900 border-slate-300 shadow-xs'
-                }`}
-                title={isEn ? 'گۆڕین بۆ زمانی کوردی سۆرانی' : 'Switch to English Dataset'}
-              >
-                <Globe className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-bold font-mono">{isEn ? 'کوردی' : 'EN'}</span>
-              </button>
-
-              {/* View Toggle */}
-              <button
-                onClick={() => setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'))}
-                className={`h-9.5 px-3 flex items-center gap-1.5 rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
-                  isDark
-                    ? 'bg-white/[0.06] hover:bg-white/[0.12] text-amber-300 border-white/10'
-                    : 'bg-white hover:bg-slate-50 text-amber-900 border-slate-300 shadow-xs'
-                }`}
-                title={
-                  viewMode === 'grid'
-                    ? (isEn ? 'Switch to list view' : 'گۆڕین بۆ لیستی پوخت')
-                    : (isEn ? 'Switch to card grid' : 'گۆڕین بۆ کارتەکان')
-                }
-              >
-                {viewMode === 'grid' ? (
-                  <>
-                    <List className="w-4 h-4" />
-                    <span className="text-xs font-semibold">{isEn ? 'List' : 'لیست'}</span>
-                  </>
-                ) : (
-                  <>
-                    <LayoutGrid className="w-4 h-4" />
-                    <span className="text-xs font-semibold">{isEn ? 'Cards' : 'کارتەکان'}</span>
-                  </>
-                )}
-              </button>
-
-              {isAdmin && (
-                <div className="flex items-center gap-1.5">
-                  {onOpenSubmittedPhotos && (
-                    <button
-                      onClick={onOpenSubmittedPhotos}
-                      className={`flex items-center gap-1.5 px-3 h-9.5 rounded-[4px] font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 ${
-                        isDark
-                          ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white border border-amber-400/40'
-                          : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 shadow-xs'
-                      }`}
-                      title={isEn ? 'Review submitted photos' : 'بینینی وێنە نێردراوەکان'}
-                    >
-                      <Images className="w-4 h-4 text-amber-500" />
-                      <span className="hidden md:inline">{isEn ? 'Submissions' : 'وێنە نێردراوەکان'}</span>
-                      {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-[2px] bg-amber-500 text-slate-950 font-black text-[10px] animate-pulse">
-                          {formatDigits(pendingSubmissionsCount, language)}
-                        </span>
-                      )}
-                    </button>
-                  )}
-                  {onOpenAddFact && (
-                    <>
-                      <button
-                        onClick={() => onOpenAddFact('photo_only')}
-                        className="flex items-center gap-1.5 px-3 h-9.5 rounded-[4px] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all cursor-pointer active:scale-95"
-                        title={isEn ? 'Add quick archival photo' : 'زیادکردنی وێنەی مێژوویی'}
-                      >
-                        <ImageIcon className="w-4 h-4 stroke-[2.5]" />
-                        <span>{isEn ? 'Photo' : 'وێنە'}</span>
-                      </button>
-                      <button
-                        onClick={() => onOpenAddFact('standard')}
-                        className={`flex items-center gap-1.5 px-3 h-9.5 rounded-[4px] border font-bold text-xs transition-all cursor-pointer active:scale-95 ${
-                          isDark
-                            ? 'bg-white/[0.08] hover:bg-white/[0.14] border-white/10 text-white'
-                            : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-900 shadow-xs'
-                        }`}
-                        title={isEn ? 'Add new topic' : 'زیادکردنی بابەتی نوێ'}
-                      >
-                        <Plus className="w-4 h-4 stroke-[2.5]" />
-                        <span>{isEn ? 'New Topic' : 'بابەتی نوێ'}</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {isAdmin && onLogoutAdmin && (
-                <button
-                  onClick={onLogoutAdmin}
-                  className={`px-3 h-9.5 rounded-[4px] text-xs font-semibold border transition-colors cursor-pointer ${
-                    isDark
-                      ? 'text-rose-300 bg-rose-950/40 hover:bg-rose-900/50 border-rose-800/40'
-                      : 'text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-300'
-                  }`}
-                  title={isEn ? 'Exit Admin mode' : 'دەرچوون لە ئەدمین'}
-                >
-                  {isEn ? 'Logout' : 'دەرچوون'}
-                </button>
-              )}
-
-              {/* Theme Toggle */}
-              <button
-                onClick={toggleColorMode}
-                className={`h-9.5 px-3 flex items-center gap-1.5 rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
-                  isDark
-                    ? 'border-white/10 bg-white/[0.06] hover:bg-white/[0.12] text-amber-400'
-                    : 'border-slate-300 bg-white hover:bg-slate-100 text-amber-800 shadow-xs'
-                }`}
-                title={isDark ? (isEn ? 'Light mode' : 'دۆخی ڕووناک') : (isEn ? 'Dark mode' : 'دۆخی تاریک')}
-              >
-                {isDark ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-600" />}
-                <span className="text-xs font-semibold">
-                  {isDark ? (isEn ? 'Dark' : 'تاریک') : (isEn ? 'Light' : 'ڕووناک')}
-                </span>
-              </button>
-
-              {/* Close Button */}
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className={`h-9.5 px-3.5 flex items-center gap-2 rounded-[4px] border transition-all cursor-pointer active:scale-95 ${
-                    isDark
-                      ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white border-white/[0.1]'
-                      : 'bg-white hover:bg-slate-100 text-slate-800 hover:text-slate-950 border-slate-300 shadow-xs'
-                  }`}
-                  title={isEn ? 'Close directory' : 'داخستن و گەڕانەوە'}
-                >
-                  <span className="text-xs font-medium">{isEn ? 'Close' : 'داخستن'}</span>
-                  <X className="w-4 h-4 text-amber-500" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Row 2: Precision Filter & Chronological Sorting Dock */}
-          <div className={`flex items-center justify-between gap-3 pt-2.5 border-t ${isDark ? 'border-white/[0.06]' : 'border-slate-200'}`}>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {/* Category Dropdown */}
-              <div className={`flex items-center gap-2 rounded-[4px] px-3 h-9 border text-xs transition-colors ${
-                isDark ? 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.09]' : 'bg-white hover:bg-slate-50 border-slate-300 shadow-xs'
-              }`}>
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  {isEn ? 'Category:' : 'پۆلێن:'}
-                </span>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  className={`bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pe-1 ${
-                    isDark ? 'text-slate-100' : 'text-slate-900'
-                  }`}
-                  title={isEn ? 'Filter by category' : 'فلتەر بەپێی پۆلێن'}
-                >
-                  <option value="all" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                    {isEn ? `All Categories (${formatDigits(facts.length, language)})` : `هەموو پۆلێنەکان (${facts.length})`}
-                  </option>
-                  {localizedCategories.filter((c) => c.id !== 'all').map((cat) => (
-                    <option key={cat.id} value={cat.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                      {cat.name} ({formatDigits(categoryCounts[cat.id] || 0, language)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Province Dropdown */}
-              <div className={`flex items-center gap-1.5 rounded-[4px] px-2.5 h-9 border text-xs transition-colors ${
-                provinceFilter !== 'all'
-                  ? (isDark ? 'bg-amber-500/20 border-amber-400/50 text-amber-300' : 'bg-amber-100 border-amber-400 text-amber-900 shadow-xs')
-                  : (isDark ? 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.09]' : 'bg-white hover:bg-slate-50 border-slate-300 shadow-xs')
-              }`}>
-                <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  {isEn ? 'Province:' : 'پارێزگا:'}
-                </span>
-                <select
-                  value={provinceFilter}
-                  onChange={(e) => handleProvinceChange(e.target.value)}
-                  className={`bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pe-1 max-w-[160px] truncate ${
-                    isDark ? 'text-slate-100' : 'text-slate-900'
-                  }`}
-                  title={isEn ? 'Filter by province' : 'فلتەر بەپێی پارێزگا'}
-                >
-                  <option value="all" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                    {isEn ? `All Provinces (${formatDigits(facts.length, language)})` : `هەموو پارێزگاکان (${facts.length})`}
-                  </option>
-                  <optgroup label={isEn ? 'Southern Kurdistan' : 'باشووری کوردستان'} className={isDark ? 'bg-[#0c101d] text-emerald-400 font-bold' : 'bg-slate-100 text-emerald-700 font-bold'}>
-                    {provincesWithCounts.kurdistanProvinces
-                      .filter((p) => p.part === 'south')
-                      .map((p) => (
-                        <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                          {(isEn ? p.nameEn : p.name)} ({formatDigits(p.count, language)})
-                        </option>
-                      ))}
-                  </optgroup>
-                  <optgroup label={isEn ? 'Northern Kurdistan' : 'باکووری کوردستان'} className={isDark ? 'bg-[#0c101d] text-amber-400 font-bold' : 'bg-slate-100 text-amber-700 font-bold'}>
-                    {provincesWithCounts.kurdistanProvinces
-                      .filter((p) => p.part === 'north')
-                      .map((p) => (
-                        <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                          {(isEn ? p.nameEn : p.name)} ({formatDigits(p.count, language)})
-                        </option>
-                      ))}
-                  </optgroup>
-                  <optgroup label={isEn ? 'Eastern Kurdistan' : 'ڕۆژهەڵاتی کوردستان'} className={isDark ? 'bg-[#0c101d] text-cyan-400 font-bold' : 'bg-slate-100 text-cyan-700 font-bold'}>
-                    {provincesWithCounts.kurdistanProvinces
-                      .filter((p) => p.part === 'east')
-                      .map((p) => (
-                        <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                          {(isEn ? p.nameEn : p.name)} ({formatDigits(p.count, language)})
-                        </option>
-                      ))}
-                  </optgroup>
-                  <optgroup label={isEn ? 'Western Kurdistan' : 'ڕۆژئاوای کوردستان'} className={isDark ? 'bg-[#0c101d] text-purple-400 font-bold' : 'bg-slate-100 text-purple-700 font-bold'}>
-                    {provincesWithCounts.kurdistanProvinces
-                      .filter((p) => p.part === 'west')
-                      .map((p) => (
-                        <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                          {(isEn ? p.nameEn : p.name)} ({formatDigits(p.count, language)})
-                        </option>
-                      ))}
-                  </optgroup>
-                  {provincesWithCounts.outsideProvinces.length > 0 && (
-                    <optgroup label={isEn ? 'Outside Kurdistan (Recorded)' : 'دەرەوەی کوردستان (تۆمارکراو)'} className={isDark ? 'bg-[#0c101d] text-rose-400 font-bold' : 'bg-slate-100 text-rose-700 font-bold'}>
-                      {provincesWithCounts.outsideProvinces.map((p) => (
-                        <option key={p.id} value={p.id} className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                          {(isEn ? p.nameEn : p.name)} ({formatDigits(p.count, language)})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-                <button
-                  onClick={() => setIsProvinceModalOpen(true)}
-                  className={`p-1 rounded-[3px] cursor-pointer transition-colors ${
-                    isDark ? 'hover:bg-white/10 text-amber-400' : 'hover:bg-slate-200 text-amber-700'
-                  }`}
-                  title={isEn ? 'Open full provinces browser' : 'کردنەوەی پێڕستی تەواوی پارێزگاکان'}
-                >
-                  <Compass className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Sort Dropdown */}
-              <div className={`flex items-center gap-2 rounded-[4px] px-3 h-9 border text-xs transition-colors ${
-                isDark ? 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.09]' : 'bg-white hover:bg-slate-50 border-slate-300 shadow-xs'
-              }`}>
-                <ArrowUpDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  {isEn ? 'Sort:' : 'ڕیزکردن:'}
-                </span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className={`bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pe-1 ${
-                    isDark ? 'text-slate-100' : 'text-slate-900'
-                  }`}
-                  title={isEn ? 'Sort entries' : 'ڕیزبەندی بابەتەکان'}
-                >
-                  <option value="latest_added" className={isDark ? 'bg-[#0c101d] text-amber-300 font-bold' : 'bg-white text-amber-900 font-bold'}>
-                    {isEn ? 'Recently Added' : 'دوایین و کۆتا تۆمارکراو'}
-                  </option>
-                  <option value="year_asc" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                    {isEn ? 'Year (Oldest First)' : 'ساڵ (کۆن بۆ نوێ)'}
-                  </option>
-                  <option value="year_desc" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                    {isEn ? 'Year (Newest First)' : 'ساڵ (نوێ بۆ کۆن)'}
-                  </option>
-                  <option value="category" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                    {isEn ? 'By Category' : 'بەپێی جۆری دەسەڵات'}
-                  </option>
-                  <option value="num" className={isDark ? 'bg-[#0c101d] text-slate-100' : 'bg-white text-slate-900'}>
-                    {isEn ? 'Default Order' : 'بەپێی تۆمارکردنی سەرەتا'}
-                  </option>
-                </select>
-              </div>
-
-              {isFilterActive && (
-                <button
-                  onClick={() => {
-                    handleCategoryChange('all');
-                    handleProvinceChange('all');
-                    setSearchTerm('');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 h-9 rounded-[4px] text-xs font-semibold cursor-pointer border transition-all ${
-                    isDark
-                      ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/20'
-                      : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-xs'
-                  }`}
-                  title={isEn ? 'Clear all filters' : 'پاککردنەوەی هەموو فلتەرەکان'}
-                >
-                  <X className="w-3 h-3" />
-                  <span>{isEn ? 'Clear Filters' : 'پاککردنەوەی فلتەر'}</span>
-                </button>
-              )}
-            </div>
-
-            <div className={`text-xs font-medium flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              <span>{isEn ? 'Showing:' : 'نیشاندراو:'}</span>
-              <span className={`font-mono tabular-nums font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                {formatDigits(filteredFacts.length, language)}
-              </span>
-              <span className={isDark ? 'text-slate-500' : 'text-slate-600'}>
-                {isEn ? 'historical entries' : 'دەسەڵات و تۆمار'}
-              </span>
-            </div>
           </div>
         </div>
       </header>
@@ -1589,7 +1301,7 @@ export const FactsList: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    <p className={`text-[11px] line-clamp-2 leading-relaxed ${isDark ? 'text-slate-300/85' : 'text-slate-700 font-normal'}`}>
+                    <p className={`text-[11px] line-clamp-2 leading-relaxed font-normal ${isDark ? 'text-slate-300/85' : 'text-slate-700'}`}>
                       {fact.fullText || fact.desc}
                     </p>
                   </div>
@@ -2100,17 +1812,6 @@ export const FactsList: React.FC<Props> = ({
                                 }`}
                               >
                                 {isEn ? 'Linked in EN' : 'لینکراوە لە ئینگلیزیدا'}
-                              </span>
-                            )}
-                            {featuredDocumentaryFactIds.has(src.id) && (
-                              <span
-                                className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${
-                                  isDark
-                                    ? 'bg-violet-500/20 text-violet-300 border-violet-400/40'
-                                    : 'bg-violet-100 text-violet-800 border-violet-300'
-                                }`}
-                              >
-                                {isEn ? 'Documentary Tour' : 'دۆکیومێنتاری'}
                               </span>
                             )}
                             {mismatchOwnerById.get(src.id) && (

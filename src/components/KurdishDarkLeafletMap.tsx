@@ -13,7 +13,6 @@ import {
   Menu,
   Search,
   Castle,
-  Satellite,
   Shield,
   ShieldCheck,
   Plus,
@@ -42,9 +41,6 @@ import {
   Image as ImageIcon,
   Images,
   ImagePlus,
-  Film,
-  Play,
-  Pause,
   Medal,
   Palette,
   Link2,
@@ -52,14 +48,15 @@ import {
   Moon,
   Share2,
   Globe,
+  RotateCcw,
 } from 'lucide-react';
 import { SubmitPhotoModal } from './SubmitPhotoModal';
 import { TimelineSlider } from './TimelineSlider';
+import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import {
   filterFactsByActiveYear,
   formatKurdishYear,
   formatDigits,
-  getFactChronologicalYear,
 } from '../utils/yearUtils';
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 import { getCategoryInfo, getAccessibleCategoryColor } from '../types/history';
@@ -98,15 +95,10 @@ interface Props {
   onOpenHero?: () => void;
   onOpenSettings?: () => void;
   onOpenMenu?: () => void;
-  onOpenGallery?: () => void;
   onOpenJourney?: () => void;
   onOpenTheme?: () => void;
   mapMode?: 'dark' | 'satellite';
   setMapMode?: (mode: 'dark' | 'satellite') => void;
-  markerViewMode?: 'photo' | 'points';
-  setMarkerViewMode?: (mode: 'photo' | 'points') => void;
-  showBottomPhotoStrip?: boolean;
-  setShowBottomPhotoStrip?: React.Dispatch<React.SetStateAction<boolean>>;
   activeTagFilter: string;
   setActiveTagFilter: (tag: string) => void;
   selectedProvince?: string;
@@ -128,7 +120,6 @@ interface Props {
   onReplayIntro?: () => void;
   playMapIntro?: boolean;
   onMapIntroComplete?: () => void;
-  onOpenDocumentaryTour?: () => void;
   externalFlyTo?: { lat: number; lng: number; zoom?: number; id?: string } | null;
 }
 
@@ -235,26 +226,6 @@ export const TAG_FILTER_OPTIONS = [
   },
 ];
 
-const getCategoryEmoji = (categoryOrTag: string | undefined): string => {
-  const cat = (categoryOrTag || '').toLowerCase();
-  if (cat.includes('principality') || cat.includes('میرنشین')) return '🏰';
-  if (cat.includes('civilization') || cat.includes('شارستانییەت')) return '🏛️';
-  if (cat.includes('rebellion') || cat.includes('شۆڕش')) return '⚔️';
-  if (
-    cat.includes('scholar') ||
-    cat.includes('زانا') ||
-    cat.includes('شاعیر') ||
-    cat.includes('ئەدیب')
-  )
-    return '📜';
-  if (cat.includes('heritage') || cat.includes('کەلەپوور') || cat.includes('شوێنەوار'))
-    return '🌟';
-  if (cat.includes('battle') || cat.includes('شەڕ') || cat.includes('جەنگ'))
-    return '🛡️';
-  if (cat.includes('capital') || cat.includes('پایتەخت')) return '👑';
-  return '📍';
-};
-
 export const KurdishDarkLeafletMap: React.FC<Props> = ({
   facts,
   selectedFact,
@@ -268,15 +239,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   onOpenHero,
   onOpenSettings,
   onOpenMenu,
-  onOpenGallery,
   onOpenJourney,
   onOpenTheme,
   mapMode: externalMapMode,
-  setMapMode: externalSetMapMode,
-  markerViewMode: externalMarkerViewMode,
-  setMarkerViewMode: externalSetMarkerViewMode,
-  showBottomPhotoStrip: externalShowBottomPhotoStrip,
-  setShowBottomPhotoStrip: externalSetShowBottomPhotoStrip,
   activeTagFilter,
   setActiveTagFilter,
   selectedProvince = 'all',
@@ -296,7 +261,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   onReplayIntro,
   playMapIntro = false,
   onMapIntroComplete,
-  onOpenDocumentaryTour,
   externalFlyTo,
 }) => {
   const { language, isEn, dir, toggleLanguage } = useLanguage();
@@ -306,6 +270,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const currentTileUrlRef = useRef<string>('');
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const selectedMarkerLayerRef = useRef<L.LayerGroup | null>(null);
+  const provincesCanvasRendererRef = useRef<L.Canvas | null>(null);
+  const vectorCanvasRendererRef = useRef<L.Canvas | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
   const allProvincesLayerRef = useRef<L.LayerGroup | null>(null);
   const provinceLabelsLayerRef = useRef<L.LayerGroup | null>(null);
@@ -364,22 +331,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   // Principality / Authority Focus Isolation Mode (فۆکەسی دەسەڵات: تەنها پەیوەندیدارەکانی دەردەکەون)
   const [isPrincipalityFocusActive, setIsPrincipalityFocusActive] = useState<boolean>(true);
 
-  // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite)
-  const [internalMapMode, setInternalMapMode] = useState<'dark' | 'satellite'>('dark');
-  const mapMode = externalMapMode ?? internalMapMode;
-  const setMapMode = externalSetMapMode ?? setInternalMapMode;
+  // Map Mode: 'dark' (Esri Dark Canvas) or 'satellite' (Esri Dark Satellite) — controlled via Settings
+  const mapMode = externalMapMode ?? 'dark';
 
-  // Marker Display Mode: 'points' (Classic Pins - Default) vs 'photo' (Image Pins & Squares)
-  const [internalMarkerViewMode, setInternalMarkerViewMode] = useState<'photo' | 'points'>('points');
-  const markerViewMode = externalMarkerViewMode ?? internalMarkerViewMode;
-  const setMarkerViewMode = externalSetMarkerViewMode ?? setInternalMarkerViewMode;
-
-  // Bottom Photo Strip toggle
-  const [internalShowBottomPhotoStrip, setInternalShowBottomPhotoStrip] = useState<boolean>(false);
-  const showBottomPhotoStrip = externalShowBottomPhotoStrip ?? internalShowBottomPhotoStrip;
-  const setShowBottomPhotoStrip = externalSetShowBottomPhotoStrip ?? setInternalShowBottomPhotoStrip;
-
-  // Quick Topic Summary Card state for bottom dock
+  // Quick Topic Summary Card / Side Inspector Drawer state
   const [showQuickSummary, setShowQuickSummary] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{
@@ -388,6 +343,35 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     title: string;
   } | null>(null);
   const [factToSubmitPhoto, setFactToSubmitPhoto] = useState<FactItem | null>(null);
+
+  // Inline Map Instant Search state
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [showMapSearchResults, setShowMapSearchResults] = useState(false);
+  const mapSearchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (mapSearchRef.current && !mapSearchRef.current.contains(e.target as Node)) {
+        setShowMapSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const mapSearchMatches = useMemo(() => {
+    const q = mapSearchQuery.trim();
+    if (!q) return [];
+    return facts
+      .filter(
+        (f) =>
+          kurdishSearchMatch(f.name, q) ||
+          kurdishSearchMatch(f.desc, q) ||
+          kurdishSearchMatch(f.region || '', q) ||
+          kurdishSearchMatch(f.year || '', q)
+      )
+      .slice(0, 6);
+  }, [facts, mapSearchQuery]);
 
   // Dynamic Era Atmosphere & Lighting based on timeline year
   const eraAtmosphere = useMemo(() => {
@@ -647,31 +631,33 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     // Center on Greater Kurdistan (Bakur, Bashur, Rojava, Rojhelat)
-    // Optimized for 60 FPS - 120 FPS high-refresh rate displays (ProMotion / 120Hz OLEDs)
+    // Prefer Canvas renderer & deferred tile updates during active zoom/pan for zero stutter
     const map = L.map(mapContainerRef.current, {
       center: [36.2, 43.8],
       zoom: 5.5,
       minZoom: 4,
       maxZoom: 16,
+      preferCanvas: true,
       zoomControl: false,
       attributionControl: false,
       zoomAnimation: true,
-      zoomAnimationThreshold: 8,
-      fadeAnimation: true,
+      zoomAnimationThreshold: 6,
+      fadeAnimation: false,
       markerZoomAnimation: true,
       inertia: true,
-      inertiaDeceleration: 3400, // Smooth 120fps friction curve
-      inertiaMaxSpeed: 2400,
-      easeLinearity: 0.15,
-      wheelDebounceTime: 20, // Rapid responsive wheel response for high Hz mice/trackpads
-      wheelPxPerZoomLevel: 90,
+      inertiaDeceleration: 3000,
+      inertiaMaxSpeed: 1800,
+      easeLinearity: 0.2,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelDebounceTime: 60,
+      wheelPxPerZoomLevel: 120,
     });
 
-    // TileLayer with persistent CacheStorage - adapts to Dark or Soft Light mode
+    // TileLayer with native browser cache + deferred zoom loading
     const initialTileUrl = colorMode === 'light' ? LIGHT_MAP_TILE_URL : DARK_MAP_TILE_URL;
     const initialTileLayer = createCachedTileLayer(initialTileUrl, {
       maxZoom: 16,
-      subdomains: ['server', 'services'],
     });
 
     initialTileLayer.addTo(map);
@@ -687,17 +673,34 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     provinceLabelsPane.style.zIndex = '355';
     provinceLabelsPane.style.pointerEvents = 'none';
 
+    // Shared Canvas renderers eliminate SVG/DOM overhead on 4,300+ polygon vertices & 289+ point markers
+    const provincesCanvasRenderer = L.canvas({
+      pane: 'kurdistan-provinces-pane',
+      padding: 0.25,
+      tolerance: 0,
+    });
+    provincesCanvasRendererRef.current = provincesCanvasRenderer;
+
+    const vectorCanvasRenderer = L.canvas({
+      padding: 0.25,
+      tolerance: 8,
+    });
+    vectorCanvasRendererRef.current = vectorCanvasRenderer;
+
     const allProvincesLayer = L.layerGroup().addTo(map);
     allProvincesLayerRef.current = allProvincesLayer;
 
     const provinceLabelsLayer = L.layerGroup().addTo(map);
     provinceLabelsLayerRef.current = provinceLabelsLayer;
 
-    // Layer Group for markers
+    // Layer Groups for base markers vs single active selected marker
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
 
-    // Layer Group for Knowledge Graph spiderweb laser lines
+    const selectedMarkerLayer = L.layerGroup().addTo(map);
+    selectedMarkerLayerRef.current = selectedMarkerLayer;
+
+    // Layer Group for Knowledge Graph connection lines
     const knowledgeGraphLayer = L.layerGroup().addTo(map);
     knowledgeGraphLayerRef.current = knowledgeGraphLayer;
 
@@ -708,33 +711,26 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       maxZoom: 6.2,
     });
 
-    // Invalidate size after layout settles to prevent blank tiles or NaN coordinates
-    const timer1 = setTimeout(() => {
-      try {
-        map.invalidateSize();
-      } catch {}
-    }, 100);
-
-    const timer2 = setTimeout(() => {
-      try {
-        map.invalidateSize();
-      } catch {}
-    }, 400);
-
-    const handleResize = () => {
-      try {
-        map.invalidateSize();
-      } catch {}
+    // Invalidate size after layout settles without triggering pan recalcs
+    let resizeRafId: number | null = null;
+    const scheduleInvalidateSize = () => {
+      if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(() => {
+        resizeRafId = null;
+        try {
+          map.invalidateSize({ animate: false, pan: false });
+        } catch {}
+      });
     };
-    window.addEventListener('resize', handleResize);
+
+    const timer1 = setTimeout(scheduleInvalidateSize, 100);
+    const timer2 = setTimeout(scheduleInvalidateSize, 400);
+
+    window.addEventListener('resize', scheduleInvalidateSize);
 
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
-      resizeObserver = new ResizeObserver(() => {
-        try {
-          map.invalidateSize();
-        } catch {}
-      });
+      resizeObserver = new ResizeObserver(scheduleInvalidateSize);
       resizeObserver.observe(mapContainerRef.current);
     }
 
@@ -744,12 +740,17 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
-      window.removeEventListener('resize', handleResize);
+      if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
+      window.removeEventListener('resize', scheduleInvalidateSize);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
       allProvincesLayerRef.current = null;
       provinceLabelsLayerRef.current = null;
+      markersLayerRef.current = null;
+      selectedMarkerLayerRef.current = null;
+      provincesCanvasRendererRef.current = null;
+      vectorCanvasRendererRef.current = null;
       knowledgeGraphLayerRef.current = null;
       map.remove();
       mapInstanceRef.current = null;
@@ -899,6 +900,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       const shadePalette = ['#d97706', '#92400e', '#ea580c', '#b45309', '#f59e0b'];
       const isLight = colorMode === 'light';
       const borderColor = isLight ? '#b45309' : theme.primaryColor || '#f59e0b';
+      const provRenderer = provincesCanvasRendererRef.current || undefined;
 
       if (allProvincesLayerRef.current && provinceLabelsLayerRef.current) {
         KURDISTAN_PROVINCES.forEach((prov, idx) => {
@@ -915,6 +917,8 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           if (rings) {
             const innerPoly = L.polygon(rings as L.LatLngExpression[][], {
               pane: 'kurdistan-provinces-pane',
+              renderer: provRenderer,
+              smoothFactor: 1.5,
               color: borderColor,
               weight: isSelectedProv ? 1.5 : 0.9,
               opacity: isSelectedProv ? 0.8 : isLight ? 0.55 : 0.42,
@@ -935,12 +939,10 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
               className: 'kurdistan-province-map-label',
               iconSize: [0, 0],
               iconAnchor: [0, 0],
-              html: `<div style="transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;font-size:10px;font-weight:700;letter-spacing:0.01em;color:${
-                isLight ? 'rgba(69,26,3,0.78)' : 'rgba(253,230,138,0.72)'
+              html: `<div style="transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;font-size:10px;font-weight:700;color:${
+                isLight ? 'rgba(69,26,3,0.82)' : 'rgba(253,230,138,0.75)'
               };text-shadow:${
-                isLight
-                  ? '0 1px 2px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.9)'
-                  : '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9)'
+                isLight ? '0 1px 1px rgba(255,255,255,0.9)' : '0 1px 2px rgba(0,0,0,0.9)'
               };">${labelText}</div>`,
             });
             const labelMarker = L.marker(prov.center, {
@@ -954,13 +956,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       }
 
       const polygon = L.polygon(GREAT_KURDISTAN_POLYGON, {
+        pane: 'kurdistan-provinces-pane',
+        renderer: provRenderer,
+        smoothFactor: 1.5,
         color: theme.primaryColor || '#f59e0b',
         weight: 2.2,
         opacity: 0.92,
         fillColor: theme.primaryColor || '#f59e0b',
         fillOpacity: 0.03,
         dashArray: '8, 8',
-        className: 'luminous-polygon-border',
         interactive: false,
       }).addTo(map);
 
@@ -1011,6 +1015,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           : null;
       if (rings) {
         const provPoly = L.polygon(rings as L.LatLngExpression[][], {
+          pane: 'kurdistan-provinces-pane',
+          renderer: provincesCanvasRendererRef.current || undefined,
+          smoothFactor: 1.5,
           color: '#fbbf24',
           weight: 2.5,
           opacity: 0.95,
@@ -1024,21 +1031,11 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     }
   }, [activeProvince]);
 
-  // Cinematic Guided Tour / Story Mode (گەشتی بینراوی مێژوویی)
-  const [isTourActive, setIsTourActive] = useState(false);
-  const [tourIndex, setTourIndex] = useState(0);
-  const [isTourPaused, setIsTourPaused] = useState(false);
-  const [tourSpeed, setTourSpeed] = useState<number>(7); // seconds per stop
-  const [tourProgress, setTourProgress] = useState(0); // 0 to 100%
-  const tourProgressRef = useRef(0);
-
-  // Filter facts based on Principality Focus Isolation, Category Tag, and Active Year
+  // Filter facts based on Principality Focus Isolation, Category Tag, Province, and Active Year
   const visibleFacts = useMemo(() => {
     let list = facts;
 
-    // 1. Principality / Authority Focus Isolation:
-    // If a principality/authority is selected and focus mode is active:
-    // Only show the state itself and its related items (rulers, castles, battles, scholars, allies) on the map!
+    // 1. Principality / Authority Focus Isolation
     if (isPrincipalityFocusActive && relatedFactIdsSet && relatedFactIdsSet.size > 0) {
       list = list.filter((fact) => relatedFactIdsSet.has(fact.id));
       return list;
@@ -1054,150 +1051,15 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
       list = filterFactsByProvince(list, activeProvince);
     }
 
-    // 3. Active Year Filter (Only if not in tour mode, and when specific year is chosen)
-    if (!isTourActive && selectedYear !== 'all') {
+    // 3. Active Year Filter
+    if (selectedYear !== 'all') {
       list = filterFactsByActiveYear(list, selectedYear);
     }
 
     return list;
-  }, [facts, isPrincipalityFocusActive, relatedFactIdsSet, activeTagFilter, activeProvince, selectedYear, isTourActive, provinceCacheTick]);
+  }, [facts, isPrincipalityFocusActive, relatedFactIdsSet, activeTagFilter, activeProvince, selectedYear, provinceCacheTick]);
 
-  // Facts with verified images for Photo Mode and Bottom Photo Strip
-  const visibleFactsWithImages = useMemo(() => {
-    const withImgs = visibleFacts.filter((f) => {
-      const img = getFactDisplayImage(f);
-      return typeof img === 'string' && img.trim().length > 0;
-    });
-    if (withImgs.length > 0) return withImgs;
-    // Fallback: facts having images across the dataset
-    return facts.filter((f) => {
-      const img = getFactDisplayImage(f);
-      return typeof img === 'string' && img.trim().length > 0;
-    });
-  }, [visibleFacts, facts]);
-
-  // Chronologically sorted facts for the Cinematic Story Mode
-  // ALWAYS includes all historical places (never filtered down by single year)
-  const tourList = useMemo(() => {
-    let list = facts;
-    if (activeTagFilter !== 'all') {
-      const catFiltered = list.filter((fact) => getCategoryInfo(fact).id === activeTagFilter);
-      if (catFiltered.length > 0) list = catFiltered;
-    }
-    return [...list].sort((a, b) => {
-      const yearA = getFactChronologicalYear(a);
-      const yearB = getFactChronologicalYear(b);
-      if (yearA !== yearB) return yearA - yearB;
-      return a.id - b.id;
-    });
-  }, [facts, activeTagFilter]);
-
-  const currentTourFact: FactItem | undefined = tourList[tourIndex];
-
-  // Smooth cinematic flight to target fact
-  const flyToTourFact = useCallback(
-    (targetFact: FactItem) => {
-      const map = mapInstanceRef.current;
-      if (!map || !targetFact) return;
-
-      onSelectFact(targetFact);
-
-      if (onYearChange && typeof targetFact.startYear === 'number') {
-        onYearChange(targetFact.startYear);
-      }
-
-      try {
-        const targetZoom = Math.max(targetFact.zoom || 9, 8);
-        map.flyTo([targetFact.lat, targetFact.lng], targetZoom, {
-          animate: true,
-          duration: 2.2,
-          easeLinearity: 0.25,
-        });
-      } catch (err) {
-        console.warn('Tour flyTo error:', err);
-      }
-    },
-    [onSelectFact, onYearChange]
-  );
-
-  // Toggle Story Mode / Cinematic Tour
-  const handleToggleTour = useCallback(() => {
-    if (isTourActive) {
-      setIsTourActive(false);
-      setIsTourPaused(false);
-      tourProgressRef.current = 0;
-      setTourProgress(0);
-      setShowQuickSummary(false);
-      if (onYearChange) {
-        onYearChange('all');
-      }
-    } else {
-      if (tourList.length === 0) {
-        return;
-      }
-
-      setShowAllMarkers(true);
-
-      let startIdx = 0;
-      if (selectedFact) {
-        const found = tourList.findIndex((f) => f.id === selectedFact.id);
-        if (found !== -1) startIdx = found;
-      }
-
-      setTourIndex(startIdx);
-      setIsTourActive(true);
-      setIsTourPaused(false);
-      tourProgressRef.current = 0;
-      setTourProgress(0);
-      setShowQuickSummary(false);
-      setIsMoreMenuOpen(false);
-      flyToTourFact(tourList[startIdx]);
-    }
-  }, [isTourActive, tourList, selectedFact, flyToTourFact, onYearChange, setShowAllMarkers]);
-
-  const handleNextTourFact = useCallback(() => {
-    if (tourList.length === 0) return;
-    const nextIdx = (tourIndex + 1) % tourList.length;
-    setTourIndex(nextIdx);
-    tourProgressRef.current = 0;
-    setTourProgress(0);
-    flyToTourFact(tourList[nextIdx]);
-  }, [tourIndex, tourList, flyToTourFact]);
-
-  const handlePrevTourFact = useCallback(() => {
-    if (tourList.length === 0) return;
-    const prevIdx = (tourIndex - 1 + tourList.length) % tourList.length;
-    setTourIndex(prevIdx);
-    tourProgressRef.current = 0;
-    setTourProgress(0);
-    flyToTourFact(tourList[prevIdx]);
-  }, [tourIndex, tourList, flyToTourFact]);
-
-  // Auto-advance timer for Cinematic Tour
-  useEffect(() => {
-    if (!isTourActive || isTourPaused || tourList.length === 0) {
-      return;
-    }
-
-    const intervalMs = 100;
-    const stepIncrement = (intervalMs / (tourSpeed * 1000)) * 100;
-
-    const timer = setInterval(() => {
-      const nextProgress = tourProgressRef.current + stepIncrement;
-      if (nextProgress >= 100) {
-        tourProgressRef.current = 0;
-        setTourProgress(0);
-        handleNextTourFact();
-      } else {
-        tourProgressRef.current = nextProgress;
-        setTourProgress(nextProgress);
-      }
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [isTourActive, isTourPaused, tourSpeed, tourList.length, handleNextTourFact]);
-
-  // Update Markers
+  // Update Base Markers (Canvas circleMarkers - points only)
   useEffect(() => {
     const map = mapInstanceRef.current;
     const markersLayer = markersLayerRef.current;
@@ -1205,131 +1067,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
     markersLayer.clearLayers();
 
-    // In Tour Mode, display all facts from the tour.
-    // In normal mode, display visibleFacts (filtered by active year and active category)
-    const factsToRender = isTourActive ? tourList : visibleFacts;
+    if (!showAllMarkers) {
+      return;
+    }
 
-    factsToRender.forEach((fact) => {
-      const isSelected = selectedFact?.id === fact.id;
+    const canvasRenderer = vectorCanvasRendererRef.current || undefined;
 
-      if (!showAllMarkers && !isSelected && !isTourActive) {
-        return;
-      }
-
-      // Determine color based on unified category
-      const catInfo = getCategoryInfo(fact, language);
-      const tagColor = catInfo.color;
-      const glowColor = `${tagColor}d9`;
-      const catEmoji = getCategoryEmoji(catInfo.id || fact.tag);
-      const displayImg = getFactDisplayImage(fact);
-      const safeName = (fact.name || '').replace(/"/g, '&quot;');
-      const alignClass = isEn ? 'text-left' : 'text-right';
-
-      let iconHtml = '';
-      let iconSize: [number, number] = [16, 16];
-      let iconAnchor: [number, number] = [8, 8];
-
-      if (markerViewMode === 'photo') {
-        // Photo Map Mode: small square image pins pointing directly to coordinates
-        if (isSelected) {
-          iconSize = [46, 56];
-          iconAnchor = [23, 56];
-          iconHtml = `
-            <div class="preserve-contrast relative w-[46px] h-[56px] flex flex-col items-center select-none pointer-events-auto animate-marker-pop z-50">
-              <!-- Spatial luminous ring -->
-              <div class="absolute top-0 w-[46px] h-[46px] rounded-xl luminous-spatial-ring pointer-events-none" style="background-color: ${glowColor}35; box-shadow: 0 0 18px ${glowColor};"></div>
-              
-              <!-- Square Image Container -->
-              <div class="relative w-[44px] h-[44px] rounded-xl overflow-hidden border-2 border-white ring-2 ring-amber-400 bg-black shadow-[0_8px_25px_rgba(0,0,0,0.95),0_0_20px_${glowColor}] z-10 flex items-center justify-center">
-                ${
-                  displayImg
-                    ? `<img src="${displayImg}" alt="${safeName}" class="w-full h-full object-cover" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-                       <div class="hidden w-full h-full items-center justify-center bg-slate-900 text-sm font-bold text-amber-300">${catEmoji}</div>`
-                    : `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black text-lg select-none text-amber-300">${catEmoji}</div>`
-                }
-              </div>
-
-              <!-- Downward Pin Pointer Tip -->
-              <div class="w-3 h-3 rotate-45 -mt-1.5 mx-auto relative z-0 border-r border-b border-black/40 bg-amber-400 shadow-sm"></div>
-
-              <!-- Name Label Tag Underneath -->
-              <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1 pointer-events-auto z-50 animate-spatial-spring">
-                <div dir="${dir}" class="px-3 py-1 rounded-xl bg-[#080c14]/95 border border-white/20 shadow-[0_8px_25px_rgba(0,0,0,0.9),0_0_15px_rgba(245,158,11,0.25)] backdrop-blur-xl whitespace-nowrap ${alignClass}">
-                  <span class="text-xs font-extrabold text-white tracking-wide font-heading">${safeName}</span>
-                </div>
-              </div>
-            </div>
-          `;
-        } else {
-          iconSize = [36, 44];
-          iconAnchor = [18, 44];
-          iconHtml = `
-            <div class="preserve-contrast relative w-[36px] h-[44px] flex flex-col items-center select-none pointer-events-auto cursor-pointer group transition-transform duration-200 hover:scale-125 hover:z-50 active:scale-95">
-              <!-- Square Image Container -->
-              <div class="relative w-[34px] h-[34px] rounded-lg overflow-hidden border-2 bg-black shadow-[0_4px_14px_rgba(0,0,0,0.85)] z-10 flex items-center justify-center transition-all" style="border-color: ${tagColor}; box-shadow: 0 4px 12px rgba(0,0,0,0.8), 0 0 8px ${glowColor}60;">
-                ${
-                  displayImg
-                    ? `<img src="${displayImg}" alt="${safeName}" class="w-full h-full object-cover" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-                       <div class="hidden w-full h-full items-center justify-center bg-slate-900 text-xs" style="color: ${tagColor}; font-weight: bold;">${catEmoji}</div>`
-                    : `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black text-sm select-none" style="color: ${tagColor};">${catEmoji}</div>`
-                }
-              </div>
-
-              <!-- Downward Pin Pointer Tip -->
-              <div class="w-2.5 h-2.5 rotate-45 -mt-1 mx-auto relative z-0 border-r border-b border-black/40 shadow-xs" style="background-color: ${tagColor};"></div>
-
-              <!-- Hover Tooltip -->
-              <div class="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap px-2 py-0.5 rounded-md bg-[#080c14]/95 border border-white/20 text-[10px] font-bold text-amber-300 shadow-[0_4px_12px_rgba(0,0,0,0.9)] backdrop-blur-md" dir="${dir}">
-                ${safeName}
-              </div>
-            </div>
-          `;
-        }
-      } else {
-        // Standard Points Mode
-        if (isSelected) {
-          iconSize = [28, 28];
-          iconAnchor = [14, 14];
-          iconHtml = `
-            <div class="preserve-contrast relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop map-pin-circle">
-              <!-- Circular luminous wave -->
-              <div class="absolute -inset-2 rounded-full pointer-events-none opacity-40 animate-ping" style="background-color: ${glowColor};"></div>
-              
-              <!-- Circular soft halo -->
-              <div class="absolute -inset-0.5 rounded-full pointer-events-none opacity-60 animate-pulse" style="background-color: ${glowColor};"></div>
-              
-              <!-- Central Pin Circle Dot -->
-              <div class="relative w-5 h-5 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-lg z-10 transition-transform duration-150 hover:scale-115 active:scale-90" style="background-color: ${tagColor}; box-shadow: 0 0 16px ${glowColor};">
-                <div class="w-1.5 h-1.5 rounded-full bg-white shadow-xs"></div>
-              </div>
-
-              <!-- Name Label Tag -->
-              <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50">
-                <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-amber-400/50 mx-auto -mb-1"></div>
-                <div dir="${dir}" class="px-3 py-1 bg-[#080c14] border border-amber-500/60 whitespace-nowrap ${alignClass} shadow-lg">
-                  <span class="text-xs font-black text-white tracking-wide font-heading">${safeName}</span>
-                </div>
-              </div>
-            </div>
-          `;
-        } else {
-          iconSize = [16, 16];
-          iconAnchor = [8, 8];
-          iconHtml = `
-            <div class="w-4 h-4 flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-150 hover:scale-125 active:scale-85 select-none map-pin-circle">
-              <div class="w-2.5 h-2.5 rounded-full border border-black/80 hover:bg-white shadow-xs transition-all duration-150" style="background-color: ${tagColor}; box-shadow: 0 0 6px ${glowColor};"></div>
-            </div>
-          `;
-        }
-      }
-
-      const customIcon = L.divIcon({
-        html: iconHtml,
-        className: 'kurdish-map-marker-container',
-        iconSize,
-        iconAnchor,
-      });
-
+    visibleFacts.forEach((fact) => {
       const lat = Number(fact.lat);
       const lng = Number(fact.lng);
       if (
@@ -1343,13 +1087,29 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         return;
       }
 
+      const catInfo = getCategoryInfo(fact, language);
+      const tagColor = catInfo.color;
+
       try {
-        const marker = L.marker([lat, lng], {
-          icon: customIcon,
-          zIndexOffset: isSelected ? 1000 : 10,
+        const circle = L.circleMarker([lat, lng], {
+          renderer: canvasRenderer,
+          radius: 5.5,
+          color: '#0b0f1c',
+          weight: 1.5,
+          opacity: 0.9,
+          fillColor: tagColor,
+          fillOpacity: 0.95,
         });
 
-        marker.on('click', (e) => {
+        if (fact.name) {
+          circle.bindTooltip(fact.name, {
+            direction: 'top',
+            offset: [0, -6],
+            opacity: 0.95,
+          });
+        }
+
+        circle.on('click', (e) => {
           if (e && e.originalEvent) {
             L.DomEvent.stopPropagation(e);
           }
@@ -1358,12 +1118,84 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           setShowQuickSummary(true);
         });
 
-        markersLayer.addLayer(marker);
+        markersLayer.addLayer(circle);
       } catch (err) {
-        console.warn('Failed to add marker:', err);
+        console.warn('Failed to add canvas marker:', err);
       }
     });
-  }, [visibleFacts, selectedFact?.id, showAllMarkers, isTourActive, tourList, markerViewMode, language, dir, isEn]);
+  }, [visibleFacts, showAllMarkers, language]);
+
+  // Update Single Active Selected Marker Separately (never rebuilds all base markers on click)
+  useEffect(() => {
+    const selectedLayer = selectedMarkerLayerRef.current;
+    if (!selectedLayer) return;
+
+    selectedLayer.clearLayers();
+    if (!selectedFact) return;
+
+    const lat = Number(selectedFact.lat);
+    const lng = Number(selectedFact.lng);
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      return;
+    }
+
+    const catInfo = getCategoryInfo(selectedFact, language);
+    const tagColor = catInfo.color;
+    const glowColor = `${tagColor}d9`;
+    const safeName = (selectedFact.name || '').replace(/"/g, '&quot;');
+    const alignClass = isEn ? 'text-left' : 'text-right';
+
+    const iconSize: [number, number] = [28, 28];
+    const iconAnchor: [number, number] = [14, 14];
+    const iconHtml = `
+      <div class="preserve-contrast relative w-8 h-8 flex items-center justify-center select-none pointer-events-auto animate-marker-pop map-pin-circle">
+        <div class="absolute -inset-2 rounded-full pointer-events-none opacity-40 animate-ping" style="background-color: ${glowColor};"></div>
+        <div class="relative w-5 h-5 rounded-full border-2 border-white flex items-center justify-center cursor-pointer shadow-lg z-10" style="background-color: ${tagColor};">
+          <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+        </div>
+        <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-auto z-50">
+          <div class="w-2 h-2 rotate-45 bg-[#080c14] border-t border-l border-amber-400/50 mx-auto -mb-1"></div>
+          <div dir="${dir}" class="px-3 py-1 bg-[#080c14] border border-amber-500/60 whitespace-nowrap ${alignClass} shadow-lg">
+            <span class="text-xs font-black text-white tracking-wide font-heading">${safeName}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const customIcon = L.divIcon({
+      html: iconHtml,
+      className: 'kurdish-map-marker-container',
+      iconSize,
+      iconAnchor,
+    });
+
+    try {
+      const marker = L.marker([lat, lng], {
+        icon: customIcon,
+        zIndexOffset: 1000,
+      });
+
+      marker.on('click', (e) => {
+        if (e && e.originalEvent) {
+          L.DomEvent.stopPropagation(e);
+        }
+        setIsPrincipalityFocusActive(true);
+        onSelectFact(selectedFact);
+        setShowQuickSummary(true);
+      });
+
+      selectedLayer.addLayer(marker);
+    } catch (err) {
+      console.warn('Failed to add selected marker:', err);
+    }
+  }, [selectedFact, language, dir, isEn]);
 
   // Smooth camera flyTo on selectedFact change (disabled while intro is running)
   useEffect(() => {
@@ -1432,18 +1264,18 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         return;
       }
 
-      // Static clean connection line
+      // Static clean connection line on Canvas
       const connectionLine = L.polyline(
         [
           [lat1, lng1],
           [lat2, lng2],
         ],
         {
+          renderer: vectorCanvasRendererRef.current || undefined,
           color: link.color,
           weight: link.isDirectParent ? 3 : 2.2,
           opacity: 0.9,
           lineCap: 'round',
-          className: 'knowledge-graph-static-line cursor-pointer',
           interactive: true,
         }
       );
@@ -1518,22 +1350,22 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         }}
       />
 
-      {/* Dynamic Era Atmosphere Lighting & Vignette Overlay (Dark mode only) */}
+      {/* Dynamic Era Atmosphere Lighting & Vignette Overlay (Dark mode only, lightweight radial gradient) */}
       {eraAtmosphere && colorMode !== 'light' && (
         <div
-          className={`absolute inset-0 pointer-events-none z-10 transition-all duration-1000 ${eraAtmosphere.tintClass}`}
+          className={`absolute inset-0 pointer-events-none z-10 ${eraAtmosphere.tintClass}`}
           style={{
-            boxShadow: `inset 0 0 140px 30px ${eraAtmosphere.glowColor}`,
+            background: `radial-gradient(circle at center, transparent 58%, ${eraAtmosphere.glowColor} 100%)`,
           }}
         />
       )}
 
-      {/* Dynamic Spatial Category Ambient Color Bleed */}
+      {/* Dynamic Spatial Category Ambient Color Bleed (lightweight gradient instead of blurred inset shadow) */}
       {selectedFact && (
         <div
-          className="absolute inset-0 pointer-events-none z-10 transition-all duration-700 ease-out"
+          className="absolute inset-0 pointer-events-none z-10"
           style={{
-            boxShadow: `inset 0 0 160px 24px ${getCategoryInfo(selectedFact, language).color}22`,
+            background: `radial-gradient(circle at center, transparent 62%, ${getCategoryInfo(selectedFact, language).color}1f 100%)`,
           }}
         />
       )}
@@ -1548,8 +1380,256 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         durationMs={4000}
       />
 
-      {/* 3. Top-Center Indicators: Pick Mode / Filter Badge / Selected Location Badge */}
-      <div className="absolute top-16 sm:top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-1.5 max-w-[92vw]" dir={dir}>
+      {/* 3. Unified Calm Top Map Search & Control Bar (Navbar handles Home/Lang/Theme/Settings) */}
+      <div
+        className="absolute top-2.5 inset-x-2.5 sm:top-3 sm:inset-x-3 z-30 pointer-events-none flex flex-wrap items-center justify-between gap-2"
+        dir={dir}
+      >
+        {/* Start Cluster: Inline Map Search + Categories + Provinces */}
+        <div className="pointer-events-auto flex items-center gap-1.5 flex-wrap max-w-full">
+          {/* Inline Map Search (Slim & Narrow) */}
+          <div ref={mapSearchRef} className="relative w-36 xs:w-44 sm:w-48">
+            <div className="glass-dock-2026 rounded-xl flex items-center px-2 h-8 border border-transparent focus-within:border-amber-400/70 transition-colors shadow-lg">
+              <Search className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+              <input
+                type="text"
+                value={mapSearchQuery}
+                onFocus={() => setShowMapSearchResults(true)}
+                onChange={(e) => {
+                  setMapSearchQuery(e.target.value);
+                  setShowMapSearchResults(true);
+                }}
+                placeholder={isEn ? 'Search map...' : 'گەڕان لە نەخشە...'}
+                className={`w-full bg-transparent text-xs font-medium px-2 focus:outline-none ${
+                  isDark ? 'text-white placeholder:text-slate-400' : 'text-slate-900 placeholder:text-slate-500'
+                }`}
+              />
+              {mapSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapSearchQuery('');
+                    setShowMapSearchResults(false);
+                  }}
+                  className={`p-0.5 rounded cursor-pointer ${
+                    isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                  title={isEn ? 'Clear search' : 'سڕینەوە'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Live Search Dropdown */}
+            {showMapSearchResults && mapSearchQuery.trim().length > 0 && (
+              <div
+                className={`absolute top-full mt-1.5 start-0 w-72 sm:w-80 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-xl z-50 max-h-72 overflow-y-auto custom-scrollbar ${
+                  isDark
+                    ? 'bg-[#0b1020]/98 border-white/15 text-slate-100'
+                    : 'bg-white/98 border-slate-300 text-slate-900'
+                }`}
+              >
+                {mapSearchMatches.length === 0 ? (
+                  <p className={`text-xs px-3 py-3 text-center ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {isEn ? 'No matching places found.' : 'هیچ شوێنێک نەدۆزرایەوە.'}
+                  </p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {mapSearchMatches.map((match) => {
+                      const cat = getCategoryInfo(match, language);
+                      const img = getFactDisplayImage(match);
+                      return (
+                        <button
+                          key={match.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectFact(match);
+                            setShowQuickSummary(true);
+                            setShowMapSearchResults(false);
+                            setMapSearchQuery('');
+                          }}
+                          className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-start transition-colors cursor-pointer ${
+                            isDark ? 'hover:bg-white/[0.08]' : 'hover:bg-amber-50'
+                          }`}
+                        >
+                          <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-amber-500/30 bg-black/80 flex items-center justify-center">
+                            {img ? (
+                              <img src={getOptimizedImageUrl(img, 'thumb')} alt={match.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <MapPin className="w-4 h-4 text-amber-400" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold truncate">{match.name}</p>
+                            <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              {cat.name}
+                              {(match.year || match.century) ? ` · ${match.year || match.century}` : ''}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Categories + Provinces Pill */}
+          <div className="glass-dock-2026 rounded-xl p-0.5 flex items-center gap-0.5 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setIsCategoryModalOpen((prev) => !prev)}
+              className={`relative flex items-center gap-1.5 px-2.5 h-8.5 rounded-lg transition-all cursor-pointer active:scale-95 text-xs font-bold ${
+                activeTagFilter !== 'all'
+                  ? isDark
+                    ? 'bg-amber-400/25 text-amber-300 border border-amber-400/40'
+                    : 'bg-amber-100 text-amber-950 border border-amber-400'
+                  : isDark
+                  ? 'text-slate-200 hover:text-amber-300 hover:bg-white/[0.08]'
+                  : 'text-slate-800 hover:text-amber-900 hover:bg-amber-50'
+              }`}
+              title={isEn ? 'Filter by category' : 'پۆلێنەکان'}
+            >
+              <Layers className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+              <span className="whitespace-nowrap hidden xs:inline">
+                {activeTagFilter === 'all'
+                  ? isEn
+                    ? 'Categories'
+                    : 'پۆلێنەکان'
+                  : isEn
+                  ? currentFilterObj.shortLabelEn
+                  : currentFilterObj.shortLabel}
+              </span>
+              {activeTagFilter !== 'all' && (
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: getAccessibleCategoryColor(currentFilterObj.color, isDark) }}
+                />
+              )}
+            </button>
+
+            <div className={`w-[1px] h-4 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
+
+            <button
+              type="button"
+              onClick={() => setIsProvinceModalOpen((prev) => !prev)}
+              className={`relative flex items-center gap-1.5 px-2.5 h-8.5 rounded-lg transition-all cursor-pointer active:scale-95 text-xs font-bold ${
+                activeProvince !== 'all'
+                  ? isDark
+                    ? 'bg-amber-400/25 text-amber-300 border border-amber-400/40'
+                    : 'bg-amber-100 text-amber-950 border border-amber-400'
+                  : isDark
+                  ? 'text-slate-200 hover:text-amber-300 hover:bg-white/[0.08]'
+                  : 'text-slate-800 hover:text-amber-900 hover:bg-amber-50'
+              }`}
+              title={isEn ? 'Filter by province' : 'پارێزگاکان'}
+            >
+              <MapPin className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+              <span className="whitespace-nowrap hidden xs:inline">
+                {activeProvince === 'all'
+                  ? isEn
+                    ? 'Provinces'
+                    : 'پارێزگاکان'
+                  : isEn
+                  ? currentProvinceObj?.nameEn || currentProvinceObj?.name || 'Province'
+                  : currentProvinceObj?.name || 'پارێزگا'}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* End Cluster: Reset Camera + Admin Bar */}
+        <div className="pointer-events-auto flex items-center gap-1.5 flex-wrap">
+          <div className="glass-dock-2026 rounded-xl p-0.5 flex items-center gap-0.5 shadow-lg">
+            {/* Reset Camera */}
+            <button
+              type="button"
+              onClick={handleResetCamera}
+              className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer active:scale-95 ${
+                isDark
+                  ? 'text-slate-200 hover:text-amber-300 hover:bg-white/[0.08]'
+                  : 'text-slate-800 hover:text-amber-900 hover:bg-amber-50'
+              }`}
+              title={isEn ? 'Reset map view to Greater Kurdistan' : 'گەڕانەوەی دیدی نەخشە بۆ کوردستانی گەورە'}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Admin Quick Bar when active */}
+          {isAdmin && (
+            <div
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-xl glass-dock-2026 border shadow-lg ${
+                isDark ? 'border-amber-400/30' : 'border-amber-400/50'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
+              {onOpenSubmittedPhotos && (
+                <button
+                  type="button"
+                  onClick={onOpenSubmittedPhotos}
+                  className={`flex items-center gap-1 px-2 h-8 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    isDark
+                      ? 'bg-amber-500/20 hover:bg-amber-500/35 text-amber-200'
+                      : 'bg-amber-100 hover:bg-amber-200 text-amber-950'
+                  }`}
+                  title={isEn ? 'Submitted photos' : 'وێنە نێردراوەکان'}
+                >
+                  <Images className="w-3.5 h-3.5" />
+                  {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
+                    <span className="preserve-contrast px-1.5 rounded-full bg-amber-600 text-white font-black text-[10px]">
+                      {formatDigits(pendingSubmissionsCount, language)}
+                    </span>
+                  )}
+                </button>
+              )}
+              {onOpenAddFact && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenAddFact('photo_only')}
+                    className={`flex items-center gap-1 px-2 h-8 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                      isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-800 hover:bg-slate-100'
+                    }`}
+                    title={isEn ? 'Add quick photo' : 'وێنەی نوێ'}
+                  >
+                    <ImageIcon className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                    <span className="hidden lg:inline">{isEn ? 'Photo' : 'وێنە'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenAddFact('standard')}
+                    className={`flex items-center gap-1 px-2 h-8 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                      isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-800 hover:bg-slate-100'
+                    }`}
+                    title={isEn ? 'Add topic' : 'بابەتی نوێ'}
+                  >
+                    <Plus className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                    <span className="hidden lg:inline">{isEn ? 'Topic' : 'بابەت'}</span>
+                  </button>
+                </>
+              )}
+              {onLogoutAdmin && (
+                <button
+                  type="button"
+                  onClick={onLogoutAdmin}
+                  className={`flex items-center gap-1 px-2 h-8 rounded-lg text-[11px] font-bold cursor-pointer ${
+                    isDark ? 'text-rose-300 hover:bg-rose-950/60' : 'text-rose-700 hover:bg-rose-100'
+                  }`}
+                  title={isEn ? 'Exit Admin' : 'دەرچوون'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3B. Status Pills Below Top Toolbar: Pick Mode / Category Filter / Authority Focus / Empty EN Helper */}
+      <div className="absolute top-[96px] sm:top-[60px] left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-1.5 max-w-[92vw]" dir={dir}>
         {/* A. Picking Location Prompt */}
         {isPickingLocation ? (
           <div className="preserve-contrast flex items-center gap-2 pointer-events-auto px-4 py-2 rounded-xl bg-amber-500/95 text-slate-950 font-bold text-xs shadow-[0_0_30px_rgba(245,158,11,0.5)] border border-amber-300 animate-bounce">
@@ -1616,25 +1696,14 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           }`}>
             <span className={`w-2 h-2 rounded-full animate-ping shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
             <Crown className={`w-4 h-4 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-            <span className={`text-xs font-bold font-heading truncate max-w-[180px] sm:max-w-xs ${
+            <span className={`text-xs font-bold font-heading truncate max-w-[160px] sm:max-w-xs ${
               isDark ? 'text-white' : 'text-slate-900'
             }`}>
-              {isEn ? 'Focus: ' : 'فۆکەسی دەسەڵات: '}
+              {isEn ? 'Focus: ' : 'فۆکەس: '}
               <span className={`font-extrabold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{selectedFact.name}</span>
             </span>
-            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0 ${
-              isDark
-                ? 'bg-amber-400/20 text-amber-300 border-amber-400/30'
-                : 'bg-amber-100 text-amber-900 border-amber-300'
-            }`}>
-              {isEn
-                ? `${formatDigits(visibleFacts.length, language)} linked`
-                : `تەنها ${formatDigits(visibleFacts.length, language)} شوێنی پەیوەندیدار دیارە`}
-            </span>
             <button
-              onClick={() => {
-                setIsPrincipalityFocusActive(false);
-              }}
+              onClick={() => setIsPrincipalityFocusActive(false)}
               className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ms-1 border shrink-0 ${
                 isDark
                   ? 'bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 hover:text-white border-amber-400/30'
@@ -1694,226 +1763,29 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 3. Top-Left Admin Indicator when active */}
-      {isAdmin && (
-        <div
-          dir={dir}
-          className={`absolute top-3 left-3 z-30 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl liquid-glass-dock border shadow-lg ${
-            isDark ? 'border-white/20' : 'border-slate-300'
-          }`}
-        >
-          <div className={`w-2 h-2 rounded-full animate-ping shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
-          <span className={`text-[11px] font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-            {isEn ? 'Admin Active' : 'ئەدمین چالاکە'}
-          </span>
-          <div className="ms-1.5 flex items-center gap-1">
-            {onOpenSubmittedPhotos && (
-              <button
-                onClick={onOpenSubmittedPhotos}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[10px] font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
-                  isDark
-                    ? 'bg-amber-500/25 hover:bg-amber-500/40 border-amber-400/40 text-amber-200'
-                    : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-950'
-                }`}
-                title={isEn ? 'View submitted photos' : 'بینینی وێنە نێردراوەکان'}
-              >
-                <Images className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                <span>{isEn ? 'Submissions' : 'وێنە نێردراوەکان'}</span>
-                {typeof pendingSubmissionsCount === 'number' && pendingSubmissionsCount > 0 && (
-                  <span className="preserve-contrast w-4 h-4 rounded-full bg-amber-600 text-white font-black text-[9px] flex items-center justify-center animate-pulse">
-                    {formatDigits(pendingSubmissionsCount, language)}
-                  </span>
-                )}
-              </button>
-            )}
-            {onOpenAddFact && (
-              <>
-                <button
-                  onClick={() => onOpenAddFact('photo_only')}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-glass-btn text-[10px] font-semibold transition-colors cursor-pointer ${
-                    isDark ? 'text-slate-300 hover:text-white' : 'text-slate-800 hover:text-slate-950'
-                  }`}
-                  title={isEn ? 'Quick photo entry form' : 'فۆڕمی وێنەی مێژوویی'}
-                >
-                  <ImageIcon className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                  <span>{isEn ? 'New Photo' : 'وێنەی نوێ'}</span>
-                </button>
-                <button
-                  onClick={() => onOpenAddFact('standard')}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-xl liquid-glass-btn text-[10px] font-semibold transition-colors cursor-pointer ${
-                    isDark ? 'text-slate-300 hover:text-white' : 'text-slate-800 hover:text-slate-950'
-                  }`}
-                  title={isEn ? 'Add new historical topic' : 'فۆڕمی گشتی بابەت'}
-                >
-                  <Plus className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
-                  <span>{isEn ? 'Topic' : 'بابەت'}</span>
-                </button>
-              </>
-            )}
-          </div>
-          {onLogoutAdmin && (
-            <button
-              onClick={onLogoutAdmin}
-              className={`ms-1 flex items-center gap-1 px-2 py-1 rounded-xl border text-[10px] transition-colors cursor-pointer font-bold ${
-                isDark
-                  ? 'bg-red-950/70 hover:bg-red-900/70 text-red-300 border-red-800/60'
-                  : 'bg-rose-100 hover:bg-rose-200 text-rose-800 border-rose-300'
-              }`}
-              title={isEn ? 'Exit Admin Mode' : 'داخستنی دۆخی ئەدمین'}
-            >
-              <X className="w-3 h-3" />
-              <span>{isEn ? 'Exit' : 'داخستن'}</span>
-            </button>
-          )}
-        </div>
-      )}
+      {/* 4. Non-Overlapping Side Inspector Drawer (Desktop) & Bottom Sheet (Mobile) */}
+      {selectedFact && showQuickSummary && (() => {
+        const stepList = visibleFacts.length > 1 ? visibleFacts : facts;
+        const currentIdx = stepList.findIndex((f) => f.id === selectedFact.id);
+        const handleStepTopic = (delta: -1 | 1) => {
+          if (stepList.length <= 1) return;
+          const baseIdx = currentIdx >= 0 ? currentIdx : 0;
+          const nextIdx = (baseIdx + delta + stepList.length) % stepList.length;
+          onSelectFact(stepList[nextIdx]);
+          setShowQuickSummary(true);
+        };
+        const displayImg = getFactDisplayImage(selectedFact);
 
-      {/* 4. Top-Right Action Dock */}
-      <div className="absolute top-3 right-3 z-30 pointer-events-auto flex items-center gap-1.5" dir={dir}>
-        <div className="glass-dock-2026 rounded-2xl p-1 flex items-center gap-1 shadow-2xl">
-          {/* Home (Hero Section) */}
-          {onOpenHero && (
-            <button
-              onClick={onOpenHero}
-              className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
-                colorMode === 'light'
-                  ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
-                  : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
-              }`}
-              title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی (Hero Section)'}
-            >
-              <img
-                src="/kimlogo.png"
-                alt="Logo"
-                className="w-4 h-4 rounded-md object-contain group-hover:scale-110 transition-transform shrink-0"
-              />
-              <span className="font-heading font-extrabold text-xs">
-                {isEn ? 'Home' : 'سەرەکی'}
-              </span>
-            </button>
-          )}
-
-          {/* Category Filter Button on Map */}
-          <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-          <button
-            onClick={() => setIsCategoryModalOpen((prev) => !prev)}
-            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
-              activeTagFilter !== 'all'
-                ? isDark
-                  ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
-                  : 'bg-amber-100 text-amber-950 border border-amber-400 shadow-xs'
-                : colorMode === 'light'
-                ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
-                : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
-            }`}
-            title={isEn ? 'Categories (filter map by historical category)' : 'پۆلێنەکان (فلتەرکردن بەپێی یەک جۆر پۆلێن لەسەر نەخشە)'}
-          >
-            <Layers className={`w-4 h-4 group-hover:scale-110 transition-transform shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-            <span className="font-heading font-extrabold text-xs whitespace-nowrap">
-              {activeTagFilter === 'all'
-                ? (isEn ? 'Categories' : 'پۆلێنەکان')
-                : (isEn ? currentFilterObj.shortLabelEn : currentFilterObj.shortLabel)}
-            </span>
-            {activeTagFilter !== 'all' ? (
-              <span
-                className="w-2 h-2 rounded-full shrink-0 shadow-xs"
-                style={{ backgroundColor: getAccessibleCategoryColor(currentFilterObj.color, isDark) }}
-              />
-            ) : (
-              <ChevronDown className={`w-3 h-3 group-hover:translate-y-0.5 transition-transform ${isDark ? 'text-amber-400/70' : 'text-amber-700/80'}`} />
-            )}
-          </button>
-
-          {/* Province Filter Button on Map */}
-          <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-          <button
-            onClick={() => setIsProvinceModalOpen((prev) => !prev)}
-            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
-              activeProvince !== 'all'
-                ? isDark
-                  ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
-                  : 'bg-amber-100 text-amber-950 border border-amber-400 shadow-xs'
-                : colorMode === 'light'
-                ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
-                : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
-            }`}
-            title={
-              isEn
-                ? `Provinces (filter by ${KURDISTAN_PROVINCES.length} provinces of Kurdistan)`
-                : `پۆلێنی پارێزگاکان (فلتەرکردن بەپێی ${formatDigits(KURDISTAN_PROVINCES.length, language)} پارێزگای کوردستان)`
-            }
-          >
-            <MapPin className={`w-4 h-4 group-hover:scale-110 transition-transform shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-            <span className="font-heading font-extrabold text-xs whitespace-nowrap">
-              {activeProvince === 'all'
-                ? (isEn ? 'Provinces' : 'پارێزگاکان')
-                : (isEn
-                    ? currentProvinceObj?.nameEn || currentProvinceObj?.name || 'Province'
-                    : currentProvinceObj?.name || 'پارێزگا')}
-            </span>
-            {activeProvince !== 'all' ? (
-              <span className={`w-2 h-2 rounded-full shrink-0 shadow-xs ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
-            ) : (
-              <ChevronDown className={`w-3 h-3 group-hover:translate-y-0.5 transition-transform ${isDark ? 'text-amber-400/70' : 'text-amber-700/80'}`} />
-            )}
-          </button>
-
-          {/* Compact Language Switcher */}
-          <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-          <button
-            type="button"
-            onClick={toggleLanguage}
-            className={`relative flex items-center gap-1 px-2 sm:px-2.5 py-2 rounded-xl transition-all cursor-pointer active:scale-95 group ${
-              colorMode === 'light'
-                ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15 border border-amber-500/30 bg-amber-50/70'
-                : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
-            }`}
-            title={isEn ? 'گۆڕین بۆ زمانی کوردی سۆرانی' : 'Switch to English Version'}
-            aria-label={isEn ? 'Switch to Kurdish' : 'Switch to English'}
-          >
-            <Globe className={`w-3.5 h-3.5 shrink-0 ${colorMode === 'light' ? 'text-amber-700' : 'text-amber-400'}`} />
-            <span className="font-mono font-extrabold text-[11px]">
-              {isEn ? 'کوردی' : 'EN'}
-            </span>
-          </button>
-
-          {/* Settings Icon */}
-          {onOpenSettings && (
-            <>
-              <div className={`w-[1px] h-4 mx-0.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-              <button
-                onClick={onOpenSettings}
-                className={`relative p-2 rounded-xl transition-all cursor-pointer active:scale-95 group flex items-center justify-center ${
-                  colorMode === 'light'
-                    ? 'text-amber-900 hover:text-slate-950 hover:bg-amber-500/15'
-                    : 'text-amber-300 hover:text-white hover:bg-white/[0.08]'
-                }`}
-                title={isEn ? 'Settings' : 'ڕێکخستنەکان (Settings)'}
-                aria-label={isEn ? 'Settings' : 'ڕێکخستنەکان'}
-              >
-                <SlidersHorizontal className={`w-4 h-4 group-hover:scale-110 transition-transform shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 5. Bottom Center Floating Capsule & Year Timeline Slider Dock */}
-      <div
-        className="absolute left-1.5 right-1.5 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl z-40 pointer-events-auto flex flex-col items-center gap-0.5 sm:gap-1 w-auto sm:w-full max-h-[calc(100dvh-4rem)] overflow-y-auto scrollbar-none"
-        style={{
-          bottom: 'max(0.6rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
-        }}
-      >
-        {/* Quick Topic Summary Card */}
-        {selectedFact && showQuickSummary && (
-          <div
+        return (
+          <aside
             dir={dir}
-            className="relative w-full max-w-md sm:max-w-lg mb-1 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl glass-dock-2026 text-start animate-spatial-spring z-40 transition-all select-text shrink-0 overflow-y-auto max-h-[52vh] sm:max-h-[60vh] custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
+            className={`absolute inset-x-2 bottom-2 max-h-[62dvh] md:inset-x-auto md:top-16 md:bottom-3 md:end-3 md:w-[375px] lg:w-[405px] md:max-h-none z-40 rounded-2xl sm:rounded-3xl glass-dock-2026 border flex flex-col overflow-hidden text-start animate-spatial-spring select-text shadow-2xl ${
+              isDark ? 'border-white/15' : 'border-slate-300'
+            }`}
           >
-            {/* Header */}
-            <div className={`flex items-start justify-between pb-2.5 mb-2.5 border-b gap-2 ${
+            {/* Inspector Header */}
+            <div className={`px-4 pt-3.5 pb-3 border-b shrink-0 flex items-start justify-between gap-2 ${
               isDark ? 'border-white/[0.08]' : 'border-slate-200'
             }`}>
               <div className="min-w-0 flex-1">
@@ -1921,9 +1793,9 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   <div className="w-5 h-3.5 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs shrink-0 border border-amber-400/50">
                     <span className="text-[6px] text-amber-500 font-bold leading-none select-none">☀️</span>
                   </div>
-                  <div className={`flex items-center gap-1.5 text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <div className={`flex items-center gap-1.5 text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     <span
-                      className="font-semibold"
+                      className="font-semibold truncate"
                       style={{ color: getAccessibleCategoryColor(getCategoryInfo(selectedFact, language).color, isDark) }}
                     >
                       {getCategoryInfo(selectedFact, language).name || selectedFact.tag || (isEn ? 'Historical Power' : 'دەسەڵاتی مێژوویی')}
@@ -1931,67 +1803,90 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     {(selectedFact.year || selectedFact.century) && (
                       <>
                         <span aria-hidden="true" className={`font-mono ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>·</span>
-                        <span className={`font-mono tabular-nums font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                        <span className={`font-mono tabular-nums font-bold shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                           {selectedFact.year || selectedFact.century}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <h3 className={`text-sm sm:text-base font-extrabold font-heading truncate mt-1 ${
-                  isDark ? 'text-white drop-shadow-xs' : 'text-slate-900'
+                <h3 className={`text-base sm:text-lg font-extrabold font-heading leading-snug mt-1 ${
+                  isDark ? 'text-white' : 'text-slate-900'
                 }`}>
                   {selectedFact.name}
                 </h3>
               </div>
 
+              {/* Prev / Next / Close Controls */}
               <div className="flex items-center gap-1 shrink-0">
+                {stepList.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleStepTopic(-1)}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-300 hover:text-white border-white/[0.08]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                      }`}
+                      title={isEn ? 'Previous site' : 'شوێنی پێشوو'}
+                    >
+                      {isEn ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStepTopic(1)}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-300 hover:text-white border-white/[0.08]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                      }`}
+                      title={isEn ? 'Next site' : 'شوێنی دواتر'}
+                    >
+                      {isEn ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                    </button>
+                  </>
+                )}
                 <button
+                  type="button"
                   onClick={() => setShowQuickSummary(false)}
-                  className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer border ${
                     isDark
-                      ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border-white/[0.08]'
+                      ? 'bg-white/[0.06] hover:bg-white/[0.14] text-slate-300 hover:text-white border-white/[0.08]'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border-slate-300'
                   }`}
-                  title={isEn ? 'Close summary' : 'داخستنی کورتە'}
+                  title={isEn ? 'Minimize inspector' : 'داخستنی پانێڵ'}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Topic Image */}
-            {(() => {
-              const displayImg = getFactDisplayImage(selectedFact);
-              if (!displayImg) {
-                return (
-                  <div className="relative mb-2.5 rounded-2xl p-3 sm:p-3.5 border border-dashed border-amber-500/45 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-center flex flex-col items-center justify-center gap-2">
-                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {isEn
-                        ? 'No archival photo has been added for this entry yet'
-                        : 'ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setFactToSubmitPhoto(selectedFact)}
-                      className="preserve-contrast flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
-                    >
-                      <ImagePlus className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>
-                        {isEn
-                          ? 'Contribute an image URL to kurdistan info map'
-                          : '(یارمەتی -kurdistan info map-بدە بۆ ناردنی لینکی وێنە)'}
-                      </span>
-                    </button>
-                  </div>
-                );
-              }
-              return (
-                <div className="preserve-contrast relative mb-2.5 rounded-2xl overflow-hidden border border-white/[0.1] bg-black/90 group shadow-lg flex flex-col items-center justify-center p-1.5">
+            {/* Scrollable Inspector Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3">
+              {/* Topic Image or Submit Prompt */}
+              {!displayImg ? (
+                <div className="rounded-2xl p-3 border border-dashed border-amber-500/45 bg-gradient-to-b from-amber-500/[0.08] to-transparent text-center flex flex-col items-center justify-center gap-2">
+                  <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    {isEn
+                      ? 'No archival photo added for this entry yet'
+                      : 'ئەم بابەتە هێشتا وێنەی فەرمی بۆ دانەنراوە'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setFactToSubmitPhoto(selectedFact)}
+                    className="preserve-contrast flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                  >
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    <span>{isEn ? 'Suggest Image URL' : 'ناردنی لینکی وێنە'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="preserve-contrast relative rounded-2xl overflow-hidden border border-white/[0.1] bg-black/90 group shadow-md flex flex-col items-center justify-center p-1.5">
                   <img
                     src={displayImg}
                     alt={selectedFact.imageCaption || selectedFact.name}
-                    className="max-h-56 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 cursor-pointer shadow-md"
+                    className="max-h-48 sm:max-h-56 max-w-full w-auto h-auto object-contain mx-auto rounded-xl group-hover:scale-[1.01] transition-transform duration-300 cursor-pointer"
                     onClick={() =>
                       setLightboxImage({
                         url: displayImg,
@@ -2000,159 +1895,129 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                       })
                     }
                   />
-
-                  <div className="w-full mt-2 px-3 py-1.5 rounded-xl bg-white/[0.08] border border-white/[0.1] text-amber-200 text-[11px] flex items-center justify-between gap-2 shadow-xs">
+                  <div className="w-full mt-1.5 px-2.5 py-1 rounded-xl bg-white/[0.08] border border-white/[0.1] text-amber-200 text-[11px] flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span className="truncate font-medium">{selectedFact.imageCaption || selectedFact.name}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLightboxImage({
-                            url: displayImg,
-                            caption: selectedFact.imageCaption,
-                            title: selectedFact.name,
-                          });
-                        }}
-                        className="p-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] text-slate-200 hover:text-white border border-white/[0.12] cursor-pointer"
-                        title={isEn ? 'Enlarge image' : 'گەورەکردنی وێنە'}
-                      >
-                        <Maximize2 className="w-3 h-3" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightboxImage({
+                          url: displayImg,
+                          caption: selectedFact.imageCaption,
+                          title: selectedFact.name,
+                        });
+                      }}
+                      className="p-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] text-slate-200 hover:text-white cursor-pointer"
+                      title={isEn ? 'Enlarge image' : 'گەورەکردنی وێنە'}
+                    >
+                      <Maximize2 className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
-              );
-            })()}
+              )}
 
-            {/* Location Description */}
-            {selectedFact.desc && (
-              <div className={`flex items-center gap-1.5 mb-2 text-xs font-medium ${isDark ? 'text-amber-300/80' : 'text-amber-800'}`}>
-                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                <span className="truncate">{selectedFact.desc}</span>
-              </div>
-            )}
+              {/* Location Description */}
+              {selectedFact.desc && (
+                <div className={`flex items-center gap-1.5 text-xs font-semibold ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
+                  <MapPin className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                  <span>{selectedFact.desc}</span>
+                </div>
+              )}
 
-            {/* Summary Text Content */}
-            <div className={`p-3.5 rounded-2xl border text-xs sm:text-[13px] leading-relaxed max-h-36 overflow-y-auto custom-scrollbar ${
-              isDark
-                ? 'bg-white/[0.03] border-white/[0.06] text-slate-200'
-                : 'bg-slate-50 border-slate-200 text-slate-800'
-            }`}>
-              <p className="line-clamp-5 whitespace-pre-line leading-relaxed">
+              {/* Unclipped Readable Historical Narrative */}
+              <div className={`p-3.5 rounded-2xl border text-[13px] leading-relaxed font-normal whitespace-pre-line ${
+                isDark
+                  ? 'bg-white/[0.03] border-white/[0.08] text-slate-200'
+                  : 'bg-slate-50 border-slate-200 text-slate-800'
+              }`}>
                 {selectedFact.fullText || selectedFact.desc}
-              </p>
+              </div>
+
+              {/* Linked Topics */}
+              {((selectedKnowledgeGraph?.nodes.length || 0) > 0 || selectedLinked.allRelated.length > 0) && (
+                <div className={`p-3 rounded-2xl border space-y-2 ${
+                  isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className={`flex items-center justify-between text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                    <span className="flex items-center gap-1.5">
+                      <Link2 className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                      <span>{isEn ? 'Connected Sites' : 'شوێنە پەیوەندیدارەکان'}</span>
+                    </span>
+                    <span className={`font-mono tabular-nums text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {formatDigits(selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length, language)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedKnowledgeGraph?.nodes && selectedKnowledgeGraph.nodes.length > 0
+                      ? selectedKnowledgeGraph.nodes
+                      : selectedLinked.allRelated
+                    ).slice(0, 8).map((lf) => {
+                      const c = getCategoryInfo(lf, language);
+                      const accColor = getAccessibleCategoryColor(c.color, isDark);
+                      return (
+                        <button
+                          key={lf.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectFact(lf);
+                            setShowQuickSummary(true);
+                          }}
+                          className={`px-2.5 py-1 rounded-xl text-xs flex items-center gap-1.5 border hover:border-amber-400/50 transition-all cursor-pointer active:scale-95 ${
+                            isDark
+                              ? 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200'
+                              : 'border-slate-300 bg-white hover:bg-amber-50 text-slate-900'
+                          }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accColor }} />
+                          <span className="truncate max-w-[140px] font-semibold">{lf.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Linked Topics */}
-            {((selectedKnowledgeGraph?.nodes.length || 0) > 0 || selectedLinked.allRelated.length > 0) && (
-              <div className={`mt-2.5 p-2.5 rounded-2xl border space-y-2 ${
-                isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <div className={`flex items-center justify-between text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
-                  <span className="flex items-center gap-1.5">
-                    <Link2 className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                    <span>
-                      {isEn ? 'Connected Sites & Historical Figures:' : 'بابەت و کەسایەتییە پەیوەندیدارەکان:'}
-                    </span>
-                  </span>
-                  <span className={`font-mono tabular-nums text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {formatDigits(selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length, language)}{' '}
-                    {isEn ? 'links' : 'تۆمار'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {(selectedKnowledgeGraph?.nodes && selectedKnowledgeGraph.nodes.length > 0
-                    ? selectedKnowledgeGraph.nodes
-                    : selectedLinked.allRelated
-                  ).slice(0, 8).map((lf) => {
-                    const c = getCategoryInfo(lf, language);
-                    const accColor = getAccessibleCategoryColor(c.color, isDark);
-                    return (
-                      <button
-                        key={lf.id}
-                        type="button"
-                        onClick={() => {
-                          onSelectFact(lf);
-                        }}
-                        className={`px-2.5 py-1 rounded-xl text-xs shrink-0 flex items-center gap-1.5 border hover:border-amber-400/50 transition-all cursor-pointer active:scale-95 ${
-                          isDark
-                            ? 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200'
-                            : 'border-slate-300 bg-white hover:bg-amber-50 text-slate-900'
-                        }`}
-                        title={isEn ? `Select "${lf.name}"` : `کلیک بکە بۆ نیشاندانی «${lf.name}»`}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accColor }} />
-                        <span className="truncate max-w-[130px] font-semibold">{lf.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Action Footer */}
-            <div className={`flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t ${
-              isDark ? 'border-white/[0.08]' : 'border-slate-200'
+            {/* Sticky Inspector Action Footer */}
+            <div className={`px-4 py-3 border-t shrink-0 flex flex-wrap items-center justify-between gap-2 ${
+              isDark ? 'border-white/[0.08] bg-[#070b16]/80' : 'border-slate-200 bg-white/90'
             }`}>
-              <div className="flex items-center gap-2 flex-wrap">
-                {onOpenDetail && (
-                  <button
-                    onClick={() => {
-                      setShowQuickSummary(false);
-                      onOpenDetail(selectedFact);
-                    }}
-                    className="preserve-contrast flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-extrabold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_16px_rgba(245,158,11,0.3)]"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>{isEn ? 'Full Dossier & Sources' : 'زانیاری زیاتر و بەڵگەنامەکان'}</span>
-                  </button>
-                )}
+              {onOpenDetail && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenDetail(selectedFact);
+                  }}
+                  className="preserve-contrast flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-extrabold text-xs transition-all cursor-pointer active:scale-95 shadow-md"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>{isEn ? 'Read Full Dossier' : 'زانیاریی تەواو و سەرچاوەکان'}</span>
+                </button>
+              )}
 
-                {!getFactDisplayImage(selectedFact) && (
-                  <button
-                    type="button"
-                    onClick={() => setFactToSubmitPhoto(selectedFact)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
-                      isDark
-                        ? 'bg-amber-500/20 hover:bg-amber-500/35 border-amber-400/40 text-amber-300 hover:text-white'
-                        : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-950'
-                    }`}
-                    title={isEn ? 'Submit an archival photo link' : 'یارمەتی -kurdistan info map- بدە بۆ ناردنی لینکی وێنە'}
-                  >
-                    <ImagePlus className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                    <span>{isEn ? 'Submit Photo' : 'ناردنی وێنە'}</span>
-                  </button>
-                )}
-
+              <div className="flex items-center gap-1.5">
                 {isPrincipalityFact(selectedFact) && (
                   <button
                     type="button"
                     onClick={() => setIsPrincipalityFocusActive((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`flex items-center gap-1 px-2.5 h-9.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                       isPrincipalityFocusActive
-                        ? 'liquid-glass-btn-active shadow-md font-extrabold'
-                        : `liquid-glass-btn border ${
-                            isDark ? 'text-amber-300 hover:text-white border-white/10' : 'text-amber-900 hover:text-slate-950 border-slate-300'
-                          }`
+                        ? 'liquid-glass-btn-active font-extrabold'
+                        : isDark
+                        ? 'bg-white/[0.06] text-amber-300 border-white/10 hover:bg-white/10'
+                        : 'bg-slate-100 text-amber-900 border-slate-300 hover:bg-slate-200'
                     }`}
-                    title={isEn ? 'Isolate this polity and its linked sites' : 'فۆکەس لەسەر تەنها ئەم دەسەڵاتە و شوێنە پەیوەندیدارەکانی'}
+                    title={isEn ? 'Focus on this polity and its linked sites' : 'فۆکەس لەسەر ئەم دەسەڵاتە'}
                   >
                     <Crown className="w-3.5 h-3.5" />
-                    <span>
-                      {isPrincipalityFocusActive
-                        ? (isEn ? 'Authority Focus: On' : 'فۆکەسی دەسەڵات: چالاکە')
-                        : (isEn ? 'Authority Focus: Off' : 'فۆکەسی دەسەڵات: ناچالاک')}
-                    </span>
                   </button>
                 )}
-              </div>
 
-              <div className="flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={async () => {
                     const ok = await copyTopicToClipboard(selectedFact, language);
                     if (!ok) {
@@ -2165,154 +2030,40 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                     setCopiedSummary(true);
                     setTimeout(() => setCopiedSummary(false), 2000);
                   }}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-glass-btn text-[10px] font-semibold transition-colors cursor-pointer ${
-                    isDark ? 'text-amber-300 hover:text-white' : 'text-amber-900 hover:text-slate-950'
+                  className={`flex items-center gap-1 px-2.5 h-9.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                    isDark
+                      ? 'bg-white/[0.06] hover:bg-white/10 text-amber-300 border-white/10'
+                      : 'bg-slate-100 hover:bg-slate-200 text-amber-900 border-slate-300'
                   }`}
-                  title={isEn ? 'Copy text & direct share link' : 'لەبەرگرتنەوەی دەق و بەستەری ڕاستەوخۆ'}
+                  title={isEn ? 'Copy share link & summary' : 'کۆپیکردنی بەستەر و دەق'}
                 >
                   {copiedSummary ? (
-                    <Check className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                    <Check className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
                   ) : (
-                    <Copy className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                    <Copy className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
                   )}
-                  <span>
-                    {copiedSummary
-                      ? (isEn ? 'Copied' : 'کۆپیکرا')
-                      : (isEn ? 'Copy Text & Link' : 'کۆپیکردنی بەستەر و دەق')}
-                  </span>
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          </aside>
+        );
+      })()}
 
-        {/* Bottom Photo Strip */}
-        {markerViewMode === 'photo' && showBottomPhotoStrip && visibleFactsWithImages.length > 0 && !showQuickSummary && (
-          <div
-            className={`w-full max-w-md sm:max-w-2xl px-2.5 py-2 mb-1 rounded-2xl glass-dock-2026 border animate-spatial-spring text-start select-none ${
-              isDark
-                ? 'border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.85)]'
-                : 'border-slate-300 shadow-[0_12px_32px_rgba(15,23,42,0.14)]'
-            }`}
-            dir={dir}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`flex items-center justify-between mb-1.5 px-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-              <div className="flex items-center gap-1.5">
-                <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                <span className={`text-[11px] font-heading font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {isEn ? 'Historical Site Photos on Map' : 'وێنەی شوێنە مێژووییەکان لەسەر نەخشە'}
-                </span>
-                <span
-                  className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
-                    isDark
-                      ? 'bg-amber-400/20 text-amber-300 border-amber-400/30'
-                      : 'bg-amber-100 text-amber-900 border-amber-300'
-                  }`}
-                >
-                  {formatDigits(visibleFactsWithImages.length, language)} {isEn ? 'sites' : 'شوێن'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBottomPhotoStrip(false);
-                }}
-                className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                  isDark
-                    ? 'hover:bg-white/10 text-slate-400 hover:text-white'
-                    : 'hover:bg-slate-200 text-slate-600 hover:text-slate-950'
-                }`}
-                title={isEn ? 'Collapse photo strip' : 'داخستنی شریتی وێنەکان'}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
-              {visibleFactsWithImages.map((f) => {
-                const img = getFactDisplayImage(f);
-                const isSelected = selectedFact?.id === f.id;
-                const cat = getCategoryInfo(f, language);
-                const accessibleColor = getAccessibleCategoryColor(cat.color, isDark);
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectFact(f);
-                      setShowQuickSummary(true);
-                      if (mapInstanceRef.current) {
-                        try {
-                          mapInstanceRef.current.flyTo([f.lat, f.lng], Math.max(mapInstanceRef.current.getZoom(), 8), {
-                            animate: true,
-                            duration: 1.2,
-                          });
-                        } catch {}
-                      }
-                    }}
-                    className={`preserve-contrast relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all duration-200 cursor-pointer snap-start group bg-black/90 ${
-                      isSelected
-                        ? 'border-amber-400 ring-2 ring-amber-400/80 scale-105 shadow-[0_0_16px_rgba(245,158,11,0.6)] z-10'
-                        : isDark
-                          ? 'border-white/20 hover:border-amber-400/70 hover:scale-105 shadow-md'
-                          : 'border-slate-300 hover:border-amber-500 hover:scale-105 shadow-md'
-                    }`}
-                    style={!isSelected ? { borderColor: `${accessibleColor}99` } : undefined}
-                    title={`${f.name} (${f.year || f.century || ''})`}
-                  >
-                    <img
-                      src={getOptimizedImageUrl(img, 'thumb')}
-                      alt={f.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-0.5 text-center">
-                      <span className="block text-[8px] sm:text-[9px] font-bold text-white truncate max-w-full leading-tight font-heading">
-                        {f.name}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Floating Reopen Button if strip is collapsed */}
-        {markerViewMode === 'photo' && !showBottomPhotoStrip && visibleFactsWithImages.length > 0 && !showQuickSummary && (
-          <button
-            type="button"
-            dir={dir}
-            onClick={() => {
-              setShowBottomPhotoStrip(true);
-            }}
-            className={`mb-1 flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-dock-2026 text-xs font-bold border cursor-pointer active:scale-95 transition-all animate-spatial-spring ${
-              isDark
-                ? 'text-amber-300 hover:text-amber-200 border-amber-400/40 shadow-[0_4px_20px_rgba(0,0,0,0.6)]'
-                : 'text-amber-900 hover:text-amber-950 border-amber-400 shadow-[0_4px_20px_rgba(15,23,42,0.14)]'
-            }`}
-            title={isEn ? 'Show photo strip below' : 'نیشاندانی وێنەکان لە خوارەوە'}
-          >
-            <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-            <span>{isEn ? 'Map Photos' : 'وێنەکانی خوارەوە'}</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] border font-bold ${
-                isDark
-                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/30'
-                  : 'bg-amber-100 text-amber-900 border-amber-300'
-              }`}
-            >
-              {formatDigits(visibleFactsWithImages.length, language)}
-            </span>
-            <ChevronUp className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400/80' : 'text-amber-700'}`} />
-          </button>
-        )}
-
+      {/* 5. Bottom Timeline Slider Dock */}
+      <div
+        className={`absolute z-30 pointer-events-auto flex-col items-center gap-1 transition-all ${
+          selectedFact && showQuickSummary
+            ? `hidden md:flex ${
+                isEn
+                  ? 'md:left-3 md:right-[405px] lg:right-[435px]'
+                  : 'md:right-3 md:left-[405px] lg:left-[435px]'
+              }`
+            : 'flex left-1.5 right-1.5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-xl'
+        }`}
+        style={{
+          bottom: 'max(0.6rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
+        }}
+      >
         {/* Timeline Slider Component */}
         <TimelineSlider
           facts={facts}
@@ -2320,27 +2071,24 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           onYearChange={(newYear) => {
             if (onYearChange) onYearChange(newYear);
           }}
-          filteredCount={isTourActive ? tourList.length : visibleFacts.length}
+          filteredCount={visibleFacts.length}
           totalCount={facts.length}
-          isTourActive={isTourActive}
-          onToggleTour={handleToggleTour}
         />
 
-        {/* Selected Fact Capsule */}
+        {/* Selected Fact Capsule (when inspector is minimized) */}
         {selectedFact && !showQuickSummary && (
           <button
             dir={dir}
             onClick={() => setShowQuickSummary(true)}
-            className="group relative flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-2xl liquid-glass-btn shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_8px_25px_rgba(0,0,0,0.35)] cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-start overflow-hidden"
-            title={isEn ? 'Click to view topic summary' : 'کلیک بکە بۆ پیشاندانی کورتەی بابەت بە مۆنشن و گرافیک'}
+            className="group relative flex items-center gap-2 px-3.5 py-2 rounded-2xl liquid-glass-btn shadow-lg cursor-pointer transition-all duration-200 active:scale-95 animate-fade-in text-start overflow-hidden"
+            title={isEn ? 'Open topic inspector' : 'کردنەوەی زانیاریی شوێنی هەڵبژێردراو'}
           >
-            <div className="glass-specular-ray" />
-            <div className="w-3 h-2 sm:w-3.5 sm:h-2.5 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs shrink-0">
-              <span className="text-[4px] sm:text-[5px] text-amber-500 font-bold leading-none select-none">☀️</span>
+            <div className="w-3.5 h-2.5 rounded-xs bg-gradient-to-b from-red-600 via-white to-emerald-600 flex items-center justify-center shadow-xs shrink-0">
+              <span className="text-[5px] text-amber-500 font-bold leading-none select-none">☀️</span>
             </div>
 
             <span
-              className={`text-[11px] sm:text-xs font-bold tracking-wide transition-colors truncate max-w-[150px] sm:max-w-xs ${
+              className={`text-xs font-bold tracking-wide transition-colors truncate max-w-[160px] sm:max-w-xs ${
                 isDark ? 'text-white group-hover:text-amber-300' : 'text-slate-900 group-hover:text-amber-800'
               }`}
             >
@@ -2349,7 +2097,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
 
             {(selectedFact.year || selectedFact.century) && (
               <span
-                className={`text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded border shrink-0 ${
+                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${
                   isDark
                     ? 'text-amber-300 bg-white/10 border-white/15'
                     : 'text-amber-900 bg-amber-100 border-amber-300 font-bold'
@@ -2360,20 +2108,12 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             )}
 
             <span
-              className={`text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 ms-0.5 ps-1.5 border-s shrink-0 ${
-                isDark ? 'text-amber-400 border-white/15' : 'text-amber-800 border-slate-300 font-bold'
+              className={`text-[10px] font-bold flex items-center gap-0.5 ms-0.5 ps-1.5 border-s shrink-0 ${
+                isDark ? 'text-amber-400 border-white/15' : 'text-amber-800 border-slate-300'
               }`}
             >
-              <span>{isEn ? 'Summary' : 'کورتە'}</span>
-              <ChevronUp
-                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 transition-transform duration-300 ${
-                  showQuickSummary
-                    ? isDark
-                      ? 'rotate-180 text-amber-300'
-                      : 'rotate-180 text-amber-800'
-                    : `${isDark ? 'text-amber-400' : 'text-amber-700'} group-hover:-translate-y-0.5`
-                }`}
-              />
+              <span>{isEn ? 'Open' : 'کردنەوە'}</span>
+              <ChevronUp className="w-3 h-3" />
             </span>
           </button>
         )}
@@ -2427,299 +2167,6 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
             )}
           </div>
         </div>
-      )}
-
-      {/* 5. Cinematic Guided Tour / Story Mode Overlay */}
-      {isTourActive && currentTourFact && (
-        <>
-          <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none z-30 animate-fade-in" />
-          <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none z-30 animate-fade-in" />
-
-          <div
-            dir={dir}
-            className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-[95%] sm:w-[92%] md:max-w-3xl lg:max-w-4xl z-40 pointer-events-auto animate-fade-in text-start"
-          >
-            <div
-              className={`relative liquid-glass-panel rounded-3xl p-4 sm:p-5 border overflow-hidden ${
-                isDark
-                  ? 'border-amber-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(245,158,11,0.25)]'
-                  : 'border-amber-400/60 shadow-[0_25px_70px_rgba(15,23,42,0.22)]'
-              }`}
-            >
-              <div className="glass-specular-ray" />
-
-              {/* Card Header */}
-              <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className={`w-8 h-8 rounded-xl liquid-glass-btn flex items-center justify-center shrink-0 shadow-xs border ${
-                      isDark ? 'border-amber-400/30' : 'border-amber-400/60'
-                    }`}
-                  >
-                    <Film className={`w-4 h-4 animate-pulse ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs sm:text-sm font-black font-heading tracking-wide truncate ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                        {isEn ? 'Cinematic Historical Tour' : 'گەشتی بینراوی مێژوویی'}
-                      </span>
-                      <span className={`w-2 h-2 rounded-full animate-ping shrink-0 ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`} />
-                    </div>
-                    <span className={`text-[10px] sm:text-[11px] font-mono ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {isEn ? (
-                        <>
-                          Stop <span className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{formatDigits(tourIndex + 1, language)}</span> of {formatDigits(tourList.length, language)}
-                        </>
-                      ) : (
-                        <>
-                          شوێنی <span className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{formatDigits(tourIndex + 1, language)}</span> لە {formatDigits(tourList.length, language)}
-                        </>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Speed selector & Exit button */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="flex items-center p-0.5 rounded-lg liquid-glass-subtle text-[10px] font-mono" dir="ltr">
-                    {[5, 7, 10].map((sec) => (
-                      <button
-                        key={sec}
-                        onClick={() => setTourSpeed(sec)}
-                        title={isEn ? `Step duration: ${sec}s` : `خێرایی پەڕینەوە: ${sec} چرکە`}
-                        className={`px-1.5 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
-                          tourSpeed === sec
-                            ? 'liquid-glass-btn-active'
-                            : isDark
-                              ? 'text-slate-400 hover:text-white'
-                              : 'text-slate-700 hover:text-slate-950'
-                        }`}
-                      >
-                        {sec}s
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={handleToggleTour}
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center liquid-glass-btn transition-colors cursor-pointer border ${
-                      isDark ? 'text-slate-300 hover:text-white border-white/15' : 'text-slate-700 hover:text-slate-950 border-slate-300'
-                    }`}
-                    title={isEn ? 'Exit tour' : 'داخستنی گەشت'}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Animated Timeline Countdown Bar */}
-              <div className={`w-full h-1.5 rounded-full overflow-hidden my-2.5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`}>
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all duration-100 ease-linear rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]"
-                  style={{ width: `${tourProgress}%` }}
-                />
-              </div>
-
-              {/* Visual Presentation & Information Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 sm:gap-5 my-2.5 items-stretch">
-                {(() => {
-                  const tourImg = getFactDisplayImage(currentTourFact);
-                  return (
-                    <div
-                      className="preserve-contrast md:col-span-5 relative w-full h-56 sm:h-64 md:h-72 rounded-2xl overflow-hidden border border-white/20 bg-black/85 shadow-2xl group flex items-center justify-center cursor-pointer select-none"
-                      onClick={() => {
-                        if (tourImg) {
-                          setLightboxImage({
-                            url: tourImg,
-                            title: currentTourFact.name,
-                            caption: currentTourFact.imageCaption || currentTourFact.desc,
-                          });
-                        }
-                      }}
-                      title={isEn ? 'Click to view full-size image' : 'کلیک بکە بۆ بینینی وێنەکە بە سایزی تەواو'}
-                    >
-                      {tourImg ? (
-                        <>
-                          <img
-                            src={getOptimizedImageUrl(tourImg, 'thumb')}
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-40 select-none pointer-events-none"
-                          />
-                          <img
-                            src={getOptimizedImageUrl(tourImg, 'full')}
-                            alt={currentTourFact.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="relative z-10 max-h-full max-w-full w-auto h-auto object-contain md:object-cover rounded-xl transition-transform duration-700 ease-out group-hover:scale-105"
-                          />
-                          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-20 pointer-events-none" />
-
-                          <div className="absolute bottom-2.5 left-2.5 z-30 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md text-amber-300 text-[10px] font-bold border border-white/15 flex items-center gap-1 group-hover:bg-amber-500 group-hover:text-black transition-all">
-                            <Maximize2 className="w-3 h-3" />
-                            <span>{isEn ? 'Zoom' : 'گەورەکردن'}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-4 text-center z-10 space-y-2">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
-                            <Landmark className="w-6 h-6" />
-                          </div>
-                          <span className="text-xs text-slate-300 font-bold">{currentTourFact.name}</span>
-                          <span className="text-[10px] text-amber-300/80 font-mono">
-                            {isEn ? 'Archival Entry' : 'وێنەی ئەرشیفی'}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="absolute top-2.5 end-2.5 z-30 flex items-center gap-1.5 pointer-events-none">
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/40 shadow-sm">
-                          {getCategoryInfo(currentTourFact, language).name}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="md:col-span-7 flex flex-col justify-between space-y-2.5">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {(currentTourFact.year || currentTourFact.century) && (
-                        <span
-                          className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-xl border flex items-center gap-1 ${
-                            isDark
-                              ? 'liquid-glass-subtle text-amber-300 border-amber-400/30'
-                              : 'bg-amber-50 text-amber-900 border-amber-300'
-                          }`}
-                        >
-                          <Calendar className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                          <span>{currentTourFact.year || currentTourFact.century}</span>
-                        </span>
-                      )}
-                      {currentTourFact.eraName && (
-                        <span
-                          className={`text-[10px] px-2.5 py-0.5 rounded-lg border font-medium ${
-                            isDark
-                              ? 'text-slate-200 bg-white/10 border-white/10'
-                              : 'text-slate-800 bg-slate-100 border-slate-300'
-                          }`}
-                        >
-                          {currentTourFact.eraName}
-                        </span>
-                      )}
-                      <span
-                        className={`text-[10px] font-mono flex items-center gap-1 ms-auto ${
-                          isDark ? 'text-slate-400' : 'text-slate-600'
-                        }`}
-                        dir="ltr"
-                      >
-                        <Compass className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                        <span>{currentTourFact.lat.toFixed(1)}°N, {currentTourFact.lng.toFixed(1)}°E</span>
-                      </span>
-                    </div>
-
-                    <h3 className={`text-base sm:text-lg md:text-xl font-extrabold font-heading tracking-wide leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {currentTourFact.name}
-                    </h3>
-
-                    <div
-                      className={`text-xs sm:text-[13px] leading-relaxed p-3 sm:p-3.5 rounded-2xl border shadow-inner max-h-[130px] sm:max-h-[150px] overflow-y-auto ${
-                        isDark
-                          ? 'text-slate-100 bg-black/40 border-white/10'
-                          : 'text-slate-800 bg-slate-50 border-slate-200'
-                      }`}
-                    >
-                      {currentTourFact.fullText || currentTourFact.desc}
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] ${
-                        isDark
-                          ? 'bg-amber-500/10 border-amber-400/20 text-amber-200/90'
-                          : 'bg-amber-50 border-amber-300 text-amber-950'
-                      }`}
-                    >
-                      <Sparkles className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                      <span className={`font-bold shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
-                        {isEn ? 'Place & Period:' : 'شوێن و کات:'}
-                      </span>
-                      <span className="truncate">
-                        {currentTourFact.region || (isEn ? 'Kurdistan' : 'کوردستان')}
-                        {(currentTourFact.eraPeriod || currentTourFact.eraName)
-                          ? ` · ${currentTourFact.eraPeriod || currentTourFact.eraName}`
-                          : ''}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bottom Interactive Navigation */}
-                  <div className={`flex items-center justify-between pt-2.5 border-t text-xs gap-2 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={handlePrevTourFact}
-                        title={isEn ? 'Previous site' : 'شوێنی پێشوو'}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-xl liquid-glass-btn transition-all cursor-pointer font-bold text-xs ${
-                          isDark ? 'text-slate-200 hover:text-amber-300' : 'text-slate-800 hover:text-amber-900'
-                        }`}
-                      >
-                        {isEn ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                        <span className="hidden sm:inline">{isEn ? 'Prev' : 'پێشوو'}</span>
-                      </button>
-
-                      <button
-                        onClick={() => setIsTourPaused(!isTourPaused)}
-                        title={
-                          isTourPaused
-                            ? (isEn ? 'Resume tour' : 'دەستپێکردنەوەی گەشت')
-                            : (isEn ? 'Pause tour' : 'وەستاندنی کاتی')
-                        }
-                        className={`flex items-center gap-1 px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer text-xs ${
-                          isTourPaused
-                            ? 'liquid-glass-btn-active shadow-md animate-pulse'
-                            : `liquid-glass-btn ${isDark ? 'text-amber-300 hover:text-white' : 'text-amber-900 hover:text-slate-950'}`
-                        }`}
-                      >
-                        {isTourPaused ? (
-                          <>
-                            <Play className="w-3.5 h-3.5 fill-current" />
-                            <span>{isEn ? 'Resume' : 'بەردەوامی'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Pause className="w-3.5 h-3.5 fill-current" />
-                            <span>{isEn ? 'Pause' : 'وەستان'}</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={handleNextTourFact}
-                        title={isEn ? 'Next site' : 'شوێنی دواتر'}
-                        className={`flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-glass-btn transition-all cursor-pointer font-bold text-xs ${
-                          isDark ? 'text-slate-200 hover:text-amber-300' : 'text-slate-800 hover:text-amber-900'
-                        }`}
-                      >
-                        <span className="hidden sm:inline">{isEn ? 'Next' : 'دواتر'}</span>
-                        {isEn ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-
-                    {onOpenDetail && (
-                      <button
-                        onClick={() => onOpenDetail(currentTourFact)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-glass-btn-active font-extrabold transition-all cursor-pointer text-xs shadow-sm"
-                        title={isEn ? 'View full dossier & sources' : 'بینینی تەواوی سەرچاوە و بەڵگەنامەکان'}
-                      >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        <span>{isEn ? 'Full Topic' : 'تەواوی بابەت'}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
       )}
 
       {/* Theme Selector Modal */}

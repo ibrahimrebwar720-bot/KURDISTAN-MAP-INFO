@@ -4,7 +4,6 @@ import {
   Sun,
   Moon,
   Image as ImageIcon,
-  MapPin,
   Layers,
   Satellite,
   Compass,
@@ -25,17 +24,11 @@ interface Props {
   onClose: () => void;
   mapMode: 'dark' | 'satellite';
   setMapMode: (mode: 'dark' | 'satellite') => void;
-  markerViewMode: 'photo' | 'points';
-  setMarkerViewMode: (mode: 'photo' | 'points') => void;
-  showBottomPhotoStrip: boolean;
-  setShowBottomPhotoStrip: React.Dispatch<React.SetStateAction<boolean>>;
   showAllMarkers: boolean;
   setShowAllMarkers: (val: boolean) => void;
   showPolygon: boolean;
   setShowPolygon: (val: boolean) => void;
   onReplayIntro?: () => void;
-  onOpenDocumentaryTour?: () => void;
-  onOpenGallery?: () => void;
   onOpenTheme?: () => void;
   isAdmin: boolean;
   onTriggerAdminPin: () => void;
@@ -52,10 +45,6 @@ export const AppSettingsModal: React.FC<Props> = ({
   onClose,
   mapMode,
   setMapMode,
-  markerViewMode,
-  setMarkerViewMode,
-  showBottomPhotoStrip,
-  setShowBottomPhotoStrip,
   showAllMarkers,
   setShowAllMarkers,
   onOpenTheme,
@@ -98,7 +87,7 @@ export const AppSettingsModal: React.FC<Props> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fade-in"
+      className="fixed inset-0 z-[1220] flex items-center justify-center p-4 bg-black/85 animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -228,68 +217,7 @@ export const AppSettingsModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* 2. Marker View Mode */}
-        <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold flex items-center gap-1.5">
-              <ImageIcon className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-              <span>{isEn ? 'Map Marker Style' : 'شێوازی نیشاندانی شوێنەکان'}</span>
-            </span>
-            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
-              {isEn
-                ? markerViewMode === 'photo'
-                  ? 'Photo Cards'
-                  : 'Classic Pins'
-                : markerViewMode === 'photo'
-                ? 'وێنەیی (چوارگۆشە)'
-                : 'خاڵەکان (پۆینت)'}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setMarkerViewMode('photo')}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
-                markerViewMode === 'photo'
-                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
-                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>{isEn ? 'Photo View' : 'نیشاندانی وێنەیی'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMarkerViewMode('points');
-                setShowBottomPhotoStrip(false);
-              }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border ${
-                markerViewMode === 'points'
-                  ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-md font-extrabold'
-                  : 'bg-white dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
-              }`}
-            >
-              <MapPin className="w-3.5 h-3.5" />
-              <span>{isEn ? 'Classic Pins' : 'خاڵە کلاسیکییەکان'}</span>
-            </button>
-          </div>
-
-          {markerViewMode === 'photo' && (
-            <button
-              type="button"
-              onClick={() => setShowBottomPhotoStrip((prev) => !prev)}
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-600/25 dark:border-amber-500/25 transition-all cursor-pointer mt-1"
-            >
-              <span>{isEn ? 'Bottom Photo Strip' : 'شریتی وێنەیی خوارەوە'}</span>
-              <span className={`text-[11px] font-extrabold ${showBottomPhotoStrip ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                {isEn ? (showBottomPhotoStrip ? 'Shown' : 'Hidden') : showBottomPhotoStrip ? 'کراوەیە' : 'داخراوە'}
-              </span>
-            </button>
-          )}
-        </div>
-
-        {/* 3. Base Map Layer */}
+        {/* 2. Base Map Layer */}
         <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold flex items-center gap-1.5">

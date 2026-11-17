@@ -33,7 +33,6 @@ import {
   Link2,
   Landmark,
   Plus,
-  Globe,
   Copy,
   Images,
   Languages,
@@ -63,6 +62,7 @@ import {
 import {
   KURDISTAN_PROVINCES,
   matchFactToProvince,
+  translateOutsideLabel,
 } from '../data/kurdishProvincesData';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -298,12 +298,18 @@ export const FactEditorModal: React.FC<Props> = ({
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const searchTimeoutRef = useRef<any>(null);
+  const coordResolveTimeoutRef = useRef<any>(null);
+  const lastAutoDescRef = useRef<string>('');
+  const lastResolvedCoordsKeyRef = useRef<string>('');
 
-  // Clear timeout on unmount
+  // Clear timeouts on unmount
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
+      }
+      if (coordResolveTimeoutRef.current) {
+        clearTimeout(coordResolveTimeoutRef.current);
       }
     };
   }, []);
@@ -315,6 +321,10 @@ export const FactEditorModal: React.FC<Props> = ({
       setPlaceSearchResults([]);
       setShowManualCoords(false);
       setImageLoadError(null);
+      lastAutoDescRef.current = '';
+      lastResolvedCoordsKeyRef.current = factToEdit
+        ? `${factToEdit.lat.toFixed(4)},${factToEdit.lng.toFixed(4)}`
+        : '';
 
       if (factToEdit) {
         const isPhotoItem =
@@ -529,6 +539,8 @@ export const FactEditorModal: React.FC<Props> = ({
       setYearError(null);
       setConfirmDelete(false);
       setAiError(null);
+      lastAutoDescRef.current = '';
+      lastResolvedCoordsKeyRef.current = '';
     }
   }, [isOpen, factToEdit, initialMode]);
 
@@ -560,32 +572,77 @@ export const FactEditorModal: React.FC<Props> = ({
 
   const resolveProvinceFromCoords = async (targetLat: number, targetLng: number, skipCache = false) => {
     if (!Number.isFinite(targetLat) || !Number.isFinite(targetLng)) return;
+    const coordKey = `${targetLat.toFixed(4)},${targetLng.toFixed(4)}`;
+    lastResolvedCoordsKeyRef.current = coordKey;
+
+    // 1. Instant local geometric/province recognition so location updates with zero delay
+    const instantGeomProv = matchFactToProvince(
+      {
+        id: 0,
+        num: 0,
+        eraId: 1,
+        eraName: '',
+        eraPeriod: '',
+        name: name.trim(),
+        desc: '',
+        fullText: '',
+        lat: targetLat,
+        lng: targetLng,
+        tag: '',
+      },
+      language
+    );
+    if (instantGeomProv && instantGeomProv.id !== 'outside_global') {
+      setProvinceId(instantGeomProv.id);
+      setRegionName(instantGeomProv.name);
+      setSelectedPlaceName((prev) => (!prev || prev === lastAutoDescRef.current ? instantGeomProv.name : prev));
+      setDesc((prev) => {
+        if (!prev.trim() || prev.trim() === lastAutoDescRef.current) {
+          lastAutoDescRef.current = instantGeomProv.name;
+          return instantGeomProv.name;
+        }
+        return prev;
+      });
+    }
+
+    // 2. Refine automatically with geocoded locality / district / province
     setIsResolvingProvince(true);
     try {
       const res = await reverseGeocodeProvinceWithGoogle(targetLat, targetLng, { skipCache });
+      if (lastResolvedCoordsKeyRef.current !== coordKey) return;
+
       setProvinceId(res.provinceId);
       const matchedProv = KURDISTAN_PROVINCES.find((p) => p.id === res.provinceId);
-      const localizedProvName = isEn
-        ? matchedProv?.nameEn ||
-          (res.provinceName === 'دەرەوەی هێڵی کوردستان' ? 'Outside Kurdistan' : res.provinceName)
-        : matchedProv?.name || res.provinceName;
+      const localizedProvName = matchedProv
+        ? (isEn ? matchedProv.nameEn || matchedProv.name : matchedProv.name)
+        : translateOutsideLabel(res.provinceName, res.provinceId, language);
       setRegionName(localizedProvName);
-      const adminParts = [res.adminLevel2, res.adminLevel1, res.countryCode].filter(Boolean);
+
+      const localityPart = (res.locality || res.adminLevel2 || '').trim();
+      const autoLocationLabel =
+        localityPart && localizedProvName && !localizedProvName.toLowerCase().includes(localityPart.toLowerCase())
+          ? `${localityPart}${isEn ? ', ' : '، '}${localizedProvName}`
+          : localizedProvName || localityPart;
+
+      if (autoLocationLabel) {
+        setSelectedPlaceName(autoLocationLabel);
+        setDesc((prev) => {
+          if (!prev.trim() || prev.trim() === lastAutoDescRef.current) {
+            lastAutoDescRef.current = autoLocationLabel;
+            return autoLocationLabel;
+          }
+          return prev;
+        });
+      }
+
+      const adminParts = [res.locality, res.adminLevel2, res.adminLevel1, res.countryCode].filter(Boolean);
       setGoogleAdminSummary(
         adminParts.length > 0
-          ? `${
-              res.source === 'google'
-                ? isEn
-                  ? 'Google'
-                  : 'گۆگڵ'
-                : isEn
-                ? 'Map'
-                : 'نەخشە'
-            }: ${adminParts.join(' • ')}`
-          : ''
+          ? `${isEn ? 'Auto-detected' : 'بە خۆکاری ناسرایەوە'}: ${adminParts.join(' • ')}`
+          : localizedProvName || ''
       );
     } catch {
-      // keep fallback
+      // keep instant geometric fallback
     } finally {
       setIsResolvingProvince(false);
     }
@@ -596,30 +653,24 @@ export const FactEditorModal: React.FC<Props> = ({
     setLng(place.lng);
     setHasLocationPicked(true);
     setSelectedPlaceName(place.name);
-    if (!desc.trim()) {
-      setDesc(place.formattedAddress.split(',').slice(0, 2).join(isEn ? ', ' : '، '));
+    const shortAddr = place.formattedAddress.split(',').slice(0, 2).join(isEn ? ', ' : '، ');
+    if (!desc.trim() || desc.trim() === lastAutoDescRef.current) {
+      lastAutoDescRef.current = shortAddr;
+      setDesc(shortAddr);
     }
     if (place.provinceId) {
+      lastResolvedCoordsKeyRef.current = `${place.lat.toFixed(4)},${place.lng.toFixed(4)}`;
       setProvinceId(place.provinceId);
       const matchedProv = KURDISTAN_PROVINCES.find((p) => p.id === place.provinceId);
-      const localizedProvName = isEn
-        ? matchedProv?.nameEn ||
-          (place.provinceName === 'دەرەوەی هێڵی کوردستان' ? 'Outside Kurdistan' : place.provinceName || '')
-        : matchedProv?.name || place.provinceName || '';
+      const localizedProvName = matchedProv
+        ? (isEn ? matchedProv.nameEn || matchedProv.name : matchedProv.name)
+        : translateOutsideLabel(place.provinceName || '', place.provinceId, language);
       setRegionName(localizedProvName);
       const adminParts = [place.adminLevel2, place.adminLevel1, place.countryCode].filter(Boolean);
       setGoogleAdminSummary(
         adminParts.length > 0
-          ? `${
-              place.source === 'google'
-                ? isEn
-                  ? 'Google'
-                  : 'گۆگڵ'
-                : isEn
-                ? 'Map'
-                : 'نەخشە'
-            }: ${adminParts.join(' • ')}`
-          : ''
+          ? `${isEn ? 'Auto-detected' : 'بە خۆکاری ناسرایەوە'}: ${adminParts.join(' • ')}`
+          : localizedProvName || ''
       );
     } else {
       resolveProvinceFromCoords(place.lat, place.lng);
@@ -637,6 +688,21 @@ export const FactEditorModal: React.FC<Props> = ({
       resolveProvinceFromCoords(pickedCoords.lat, pickedCoords.lng);
     }
   }, [pickedCoords]);
+
+  // Automatically recognize location whenever a point's coordinates change (including initial pickedCoords or manual GPS edits)
+  useEffect(() => {
+    if (!isOpen || !hasLocationPicked) return;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+    const coordKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    if (lastResolvedCoordsKeyRef.current === coordKey) return;
+
+    if (coordResolveTimeoutRef.current) {
+      clearTimeout(coordResolveTimeoutRef.current);
+    }
+    coordResolveTimeoutRef.current = setTimeout(() => {
+      resolveProvinceFromCoords(lat, lng);
+    }, 350);
+  }, [isOpen, hasLocationPicked, lat, lng]);
 
   // Live preview calculation for real-time visual feedback across all 4 modes
   const previewTimeSpan = useMemo(() => {
@@ -798,7 +864,32 @@ export const FactEditorModal: React.FC<Props> = ({
           ? 'Historical Photograph'
           : 'وێنەی مێژوویی');
       const finalCaption = imageCaption.trim() || fullText.trim() || finalTitle;
-      const finalDesc = selectedPlaceName || desc.trim() || (isEn ? 'Kurdistan' : 'کوردستان');
+      const safeLat = Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8;
+      const safeLng = Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5;
+      const autoProv =
+        !provinceId.trim() || !regionName.trim()
+          ? matchFactToProvince(
+              {
+                id: 0,
+                num: 0,
+                eraId: 1,
+                eraName: '',
+                eraPeriod: '',
+                name: finalTitle,
+                desc: desc.trim(),
+                fullText: '',
+                lat: safeLat,
+                lng: safeLng,
+                region: regionName.trim() || undefined,
+                provinceId: provinceId.trim() || undefined,
+                tag: '',
+              },
+              language
+            )
+          : null;
+      const resolvedRegion = regionName.trim() || (autoProv && autoProv.id !== 'outside_global' ? autoProv.name : undefined);
+      const resolvedProvId = provinceId.trim() || (autoProv ? autoProv.id : undefined);
+      const finalDesc = selectedPlaceName || desc.trim() || resolvedRegion || (isEn ? 'Kurdistan' : 'کوردستان');
       const finalFullText = fullText.trim() || finalCaption;
 
       return {
@@ -818,11 +909,11 @@ export const FactEditorModal: React.FC<Props> = ({
         isBC: actualYear < 0,
         century: centuryLabel,
         centuryNumber: centuryNum,
-        lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
-        lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
+        lat: safeLat,
+        lng: safeLng,
         zoom: factToEdit?.zoom || 8,
-        region: regionName.trim() || undefined,
-        provinceId: provinceId.trim() || undefined,
+        region: resolvedRegion,
+        provinceId: resolvedProvId,
         tag: isEn ? 'Historical Photo' : 'وێنەی مێژوویی',
         collectionId: 'monument',
         category: 'monument',
@@ -977,6 +1068,32 @@ export const FactEditorModal: React.FC<Props> = ({
     const finalImagesArray = allImagesList.slice(0, 10);
     const finalPrimaryImage = finalImagesArray[0];
 
+    const safeLat = Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8;
+    const safeLng = Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5;
+    const autoProv =
+      !provinceId.trim() || !regionName.trim()
+        ? matchFactToProvince(
+            {
+              id: 0,
+              num: 0,
+              eraId: 1,
+              eraName: '',
+              eraPeriod: '',
+              name: name.trim(),
+              desc: desc.trim(),
+              fullText: '',
+              lat: safeLat,
+              lng: safeLng,
+              region: regionName.trim() || undefined,
+              provinceId: provinceId.trim() || undefined,
+              tag: '',
+            },
+            language
+          )
+        : null;
+    const resolvedRegion = regionName.trim() || (autoProv && autoProv.id !== 'outside_global' ? autoProv.name : undefined);
+    const resolvedProvId = provinceId.trim() || (autoProv ? autoProv.id : undefined);
+
     return {
       id: factToEdit ? factToEdit.id : Date.now(),
       num: factToEdit ? factToEdit.num : totalFactsCount + 1,
@@ -984,7 +1101,7 @@ export const FactEditorModal: React.FC<Props> = ({
       eraName: eraName,
       eraPeriod: factToEdit ? factToEdit.eraPeriod : isEn ? 'History of Kurdistan' : 'مێژووی کوردستان',
       name: name.trim(),
-      desc: desc.trim() || (isEn ? 'Kurdistan' : 'کوردستان'),
+      desc: desc.trim() || selectedPlaceName || resolvedRegion || (isEn ? 'Kurdistan' : 'کوردستان'),
       fullText: fullText.trim(),
       additionalNotes: additionalNotes.trim(),
       timeSpanType: timeMode,
@@ -1000,11 +1117,11 @@ export const FactEditorModal: React.FC<Props> = ({
       endCentury: timeMode === 'century_range' ? (parseInt(endCenturyInput, 10) || 1) : undefined,
       startCenturyBC: (timeMode === 'single_century' || timeMode === 'century_range') ? (startCenturyEra === 'BC') : undefined,
       endCenturyBC: timeMode === 'century_range' ? (endCenturyEra === 'BC') : undefined,
-      lat: Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8,
-      lng: Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5,
+      lat: safeLat,
+      lng: safeLng,
       zoom: factToEdit?.zoom || 8,
-      region: regionName.trim() || undefined,
-      provinceId: provinceId.trim() || undefined,
+      region: resolvedRegion,
+      provinceId: resolvedProvId,
       tag: selectedCategory,
       collectionId: selectedCategory,
       category: selectedCategory,
@@ -1897,35 +2014,24 @@ export const FactEditorModal: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {/* Province Classification & Google Boundary Verification */}
+                  {/* Automatic Location & Province Classification */}
                   <div className={`pt-2.5 border-t space-y-2 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                         <Compass className="w-3.5 h-3.5" />
                         <span>
                           {isEn
-                            ? 'Province Classification (Boundaries & Google Data):'
-                            : 'پۆلێنی پارێزگا (بەپێی سنوور و داتای گۆگڵ):'}
+                            ? 'Automatic Location & Province Recognition:'
+                            : 'ناسینەوەی خۆکاری شوێن و پارێزگا:'}
                         </span>
                       </label>
 
-                      <button
-                        type="button"
-                        onClick={() => resolveProvinceFromCoords(lat, lng, true)}
-                        disabled={isResolvingProvince}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all disabled:opacity-50 ${
-                          isDark
-                            ? 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-300'
-                            : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
-                        }`}
-                      >
-                        {isResolvingProvince ? (
+                      {isResolvingProvince && (
+                        <span className={`flex items-center gap-1.5 text-[11px] font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                           <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Globe className="w-3 h-3" />
-                        )}
-                        <span>{isEn ? 'Detect Boundary via Google' : 'دیاریکردنی سنوور بە داتای گۆگڵ'}</span>
-                      </button>
+                          <span>{isEn ? 'Detecting location...' : 'دەناسرێتەوە...'}</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
