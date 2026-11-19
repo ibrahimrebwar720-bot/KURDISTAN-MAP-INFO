@@ -1,0 +1,418 @@
+const TRANSLATION_MODELS = [
+  { model: 'gemini-4-hydrogen', thinkingLevel: 'LOW', maxAttempts: 2 },
+  { model: 'gemini-3.1-flash-lite', thinkingLevel: 'MINIMAL', maxAttempts: 3 },
+];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function jsonResponse(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+function extractReadableError(rawMessage) {
+  const trimmed = String(rawMessage || '').trim();
+  const jsonStart = trimmed.indexOf('{');
+  if (jsonStart !== -1) {
+    try {
+      const parsed = JSON.parse(trimmed.slice(jsonStart));
+      if (parsed?.error?.message) return String(parsed.error.message);
+      if (parsed?.message) return String(parsed.message);
+    } catch {
+      // ignore invalid JSON
+    }
+  }
+  return trimmed || 'Translation failed';
+}
+
+function classifyHttpError(status, rawText) {
+  const readable = extractReadableError(rawText);
+  const lower = `${rawText} ${readable}`.toLowerCase();
+
+  let retryAfterSeconds;
+  const retryMatch =
+    String(rawText).match(/retryDelay["']?\s*:\s*["']?(\d+)s/i) ||
+    String(rawText).match(/retry in\s+(\d+)s/i);
+  if (retryMatch) {
+    retryAfterSeconds = Number(retryMatch[1]);
+  }
+
+  if (
+    status === 403 ||
+    status === 401 ||
+    String(rawText).includes('PERMISSION_DENIED') ||
+    String(rawText).includes('API_KEY_INVALID')
+  ) {
+    return {
+      statusCode: status === 403 ? 403 : 400,
+      code: 'AUTH_ERROR',
+      message: 'Please check your Gemini API key in host environment variables.',
+    };
+  }
+
+  if (
+    status === 429 ||
+    String(rawText).includes('"code":429') ||
+    String(rawText).includes('RESOURCE_EXHAUSTED') ||
+    lower.includes('quota')
+  ) {
+    return {
+      statusCode: 429,
+      code: 'QUOTA_EXHAUSTED',
+      message:
+        'Free tier AI translation quota has been exceeded. Please select a billing-enabled Gemini API key or try again later.',
+      retryAfterSeconds,
+    };
+  }
+
+  if (
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
+    status === 500 ||
+    String(rawText).includes('"code":503') ||
+    String(rawText).includes('UNAVAILABLE') ||
+    lower.includes('high demand') ||
+    lower.includes('overloaded') ||
+    lower.includes('temporarily unavailable')
+  ) {
+    return {
+      statusCode: 503,
+      code: 'MODEL_UNAVAILABLE',
+      message:
+        'The AI translation model is currently experiencing high demand. Please try again in a few moments.',
+      retryAfterSeconds: retryAfterSeconds ?? 3,
+    };
+  }
+
+  return {
+    statusCode: status >= 400 && status < 600 ? status : 500,
+    code: 'API_ERROR',
+    message: readable,
+  };
+}
+
+async function callGeminiWithFallback(apiKey, buildPayload) {
+  let lastParsedError = {
+    statusCode: 500,
+    code: 'API_ERROR',
+    message: 'Translation failed',
+  };
+
+  for (let i = 0; i < TRANSLATION_MODELS.length; i++) {
+    const { model, thinkingLevel, maxAttempts } = TRANSLATION_MODELS[i];
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const body = buildPayload(thinkingLevel);
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'aistudio-build',
+          },
+          body: JSON.stringify(body),
+        });
+
+        const text = await res.text();
+        if (res.ok) {
+          const data = JSON.parse(text);
+          const candidateText =
+            data?.candidates?.[0]?.content?.parts
+              ?.map((p) => (typeof p?.text === 'string' ? p.text : ''))
+              .join('') || '{}';
+          const cleanJson = candidateText
+            .trim()
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/\s*```$/i, '');
+          return JSON.parse(cleanJson || '{}');
+        }
+
+        const parsed = classifyHttpError(res.status, text);
+        lastParsedError = parsed;
+
+        if (parsed.code === 'AUTH_ERROR') {
+          throw parsed;
+        }
+
+        if (parsed.code === 'MODEL_UNAVAILABLE') {
+          if (attempt < maxAttempts) {
+            const backoffMs = Math.min(3500, 800 * Math.pow(2, attempt - 1));
+            await sleep(backoffMs);
+            continue;
+          }
+          break;
+        }
+
+        if (parsed.code === 'QUOTA_EXHAUSTED') {
+          if (
+            attempt === 1 &&
+            parsed.retryAfterSeconds &&
+            parsed.retryAfterSeconds > 0 &&
+            parsed.retryAfterSeconds <= 10
+          ) {
+            await sleep(parsed.retryAfterSeconds * 1000 + 250);
+            continue;
+          }
+          break;
+        }
+
+        throw parsed;
+      } catch (err) {
+        if (err && typeof err === 'object' && 'statusCode' in err && 'code' in err) {
+          if (err.code === 'AUTH_ERROR' || err.code === 'API_ERROR') {
+            throw err;
+          }
+          lastParsedError = err;
+        } else {
+          lastParsedError = {
+            statusCode: 503,
+            code: 'MODEL_UNAVAILABLE',
+            message: err instanceof Error ? err.message : 'Network error calling Gemini API',
+          };
+          if (attempt < maxAttempts) {
+            await sleep(900 * attempt);
+            continue;
+          }
+        }
+      }
+    }
+  }
+
+  throw lastParsedError;
+}
+
+export async function handleTranslateFactRequest(request, env) {
+  try {
+    const apiKey = env?.GEMINI_API_KEY;
+    if (!apiKey) {
+      return jsonResponse(
+        {
+          error:
+            'GEMINI_API_KEY is not configured on this host. Add GEMINI_API_KEY in Cloudflare Workers/Pages Environment Variables & Secrets.',
+          code: 'MISSING_HOST_API_KEY',
+        },
+        503
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const fact = body?.fact;
+    const targetLanguage = body?.targetLanguage === 'ckb' ? 'ckb' : 'en';
+
+    if (!fact || !fact.name) {
+      return jsonResponse({ error: 'Missing required fact object with name.' }, 400);
+    }
+
+    const extraCaptions = Array.isArray(fact.images)
+      ? fact.images.map((img) => (typeof img?.caption === 'string' ? img.caption : ''))
+      : [];
+
+    const targetLangLabel =
+      targetLanguage === 'ckb' ? 'Central Kurdish (Sorani / کوردی سۆرانی)' : 'English';
+
+    const structuredInput = [
+      `Translate EACH field below independently and strictly into ${targetLangLabel}.`,
+      'NEVER mix content from one field into another field, NEVER pull information from memory about a different topic, and NEVER alter the subject.',
+      '',
+      `<FIELD name="name">${fact.name || ''}</FIELD>`,
+      `<FIELD name="desc">${fact.desc || ''}</FIELD>`,
+      `<FIELD name="fullText">${fact.fullText || ''}</FIELD>`,
+      `<FIELD name="additionalNotes">${fact.additionalNotes || ''}</FIELD>`,
+      `<FIELD name="eraName">${fact.eraName || ''}</FIELD>`,
+      `<FIELD name="eraPeriod">${fact.eraPeriod || ''}</FIELD>`,
+      `<FIELD name="year">${fact.year || ''}</FIELD>`,
+      `<FIELD name="century">${fact.century || ''}</FIELD>`,
+      `<FIELD name="region">${fact.region || ''}</FIELD>`,
+      `<FIELD name="imageCaption">${fact.imageCaption || ''}</FIELD>`,
+      `<FIELD name="imagesCaptions">${JSON.stringify(extraCaptions)}</FIELD>`,
+    ].join('\n');
+
+    const systemInstruction =
+      targetLanguage === 'ckb'
+        ? [
+            'You are an expert academic historian and strict translator specializing in Kurdish, Mesopotamian, Zagros, and Middle Eastern history.',
+            'Translate the provided English historical encyclopedia fields into clear, accurate, eloquent Central Kurdish (Sorani / کوردی سۆرانی).',
+            'CRITICAL RULES:',
+            '1. STRICT 1-TO-1 FIELD FIDELITY: Each output field MUST be a faithful Central Kurdish (Sorani) translation of ONLY its corresponding <FIELD> input. Never invent facts, never insert details from external memory, and never bleed text from one field into another.',
+            '2. SUBJECT COHERENCE CHECK ON additionalNotes: Check whether the <FIELD name="additionalNotes"> text genuinely belongs to the same historical person, place, dynasty, or event as <FIELD name="name"> and <FIELD name="fullText">. If additionalNotes is empty, set notesCoherentWithTopic=true and notesDetectedOtherSubject="". If additionalNotes is unmistakably pasted by mistake from a completely different, unrelated historical subject, set notesCoherentWithTopic=false, put the short name of that unrelated subject in notesDetectedOtherSubject, and set additionalNotes to "" in the output.',
+            '3. Convert Western digits (0123456789) into Kurdish/Eastern numerals (٠١٢٣٤٥٦٧٨٩) in Kurdish date/number strings where natural.',
+            '4. Convert "BCE" / "BC" to "پ.ز" (پێش زایین) and "CE" / "AD" to "ز" (زایینی). Format centuries naturally in Kurdish Sorani (e.g., "سەدەی ١٢ی زایینی", "سەدەی ٧ی پ.ز"). For extreme prehistoric times older than 4000 BCE (such as "Paleolithic / Prehistoric Era" or 70,000 - 30,000 BCE), format century naturally as "سەردەمی بەردین / پێش‌مێژوو".',
+            '5. Use established Kurdish historical orthography for cities and dynasties (e.g., هەولێر، سلێمانی، ئامەد، ئەردەڵان، بابان، سۆران، بادینان، بۆتان، ماد، حەسەنوەیهی، مەروانی، شەدادی، ئەیوبی، ئەشکەوتی شانەدەر).',
+            '6. If an input field is empty, return an empty string "" for that field.',
+            '7. For imagesCaptions, return an array of the exact same length as the input imagesCaptions array, translating each non-empty caption in exact order and preserving empty strings as "".',
+          ].join('\n')
+        : [
+            'You are an expert academic historian and strict translator specializing in Kurdish, Mesopotamian, Zagros, and Middle Eastern history.',
+            'Translate the provided Central Kurdish (Sorani) historical encyclopedia fields into clear, accurate, scholarly English.',
+            'CRITICAL RULES:',
+            '1. STRICT 1-TO-1 FIELD FIDELITY: Each output field MUST be a faithful English translation of ONLY its corresponding <FIELD> input. Never invent facts, never insert details from external memory, and never bleed text from one field into another.',
+            '2. SUBJECT COHERENCE CHECK ON additionalNotes: Check whether the <FIELD name="additionalNotes"> text genuinely belongs to the same historical person, place, dynasty, or event as <FIELD name="name"> and <FIELD name="fullText">. If additionalNotes is empty, set notesCoherentWithTopic=true and notesDetectedOtherSubject="". If additionalNotes is unmistakably pasted by mistake from a completely different, unrelated historical subject, set notesCoherentWithTopic=false, put the short English name of that unrelated subject in notesDetectedOtherSubject, and set additionalNotes to "" in the output.',
+            '3. Convert Kurdish/Eastern numerals (٠١٢٣٤٥٦٧٨٩) into standard Western Arabic numerals (0123456789).',
+            '4. Convert "پ.ز" / "پێش زایین" to "BCE" and "ز" / "زایینی" to "CE". Format centuries naturally (e.g., "12th Century CE", "7th Century BCE"). For extreme prehistoric times older than 4000 BCE (such as 70,000 - 30,000 BCE or "سەدەی ٧٠٠ی پێش زایین"), format century naturally as "Paleolithic / Prehistoric Era" instead of "700th Century BCE".',
+            '5. Use established English historical orthography for Kurdish entities and cities (e.g. Erbil, Sulaymaniyah, Amed / Diyarbakir, Ardalan, Baban, Soran, Badinan, Bohtan, Medes, Hasanwayhids, Marwanids, Shaddadids, Ayyubids, Shanidar Cave).',
+            '6. If an input field is empty, return an empty string "" for that field.',
+            '7. For imagesCaptions, return an array of the exact same length as the input imagesCaptions array, translating each non-empty caption in exact order and preserving empty strings as "".',
+          ].join('\n');
+
+    const parsed = await callGeminiWithFallback(apiKey, (thinkingLevel) => ({
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: structuredInput }],
+        },
+      ],
+      generationConfig: {
+        thinkingConfig: { thinkingLevel },
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            desc: { type: 'STRING' },
+            fullText: { type: 'STRING' },
+            additionalNotes: { type: 'STRING' },
+            notesCoherentWithTopic: { type: 'BOOLEAN' },
+            notesDetectedOtherSubject: { type: 'STRING' },
+            eraName: { type: 'STRING' },
+            eraPeriod: { type: 'STRING' },
+            year: { type: 'STRING' },
+            century: { type: 'STRING' },
+            region: { type: 'STRING' },
+            imageCaption: { type: 'STRING' },
+            imagesCaptions: {
+              type: 'ARRAY',
+              items: { type: 'STRING' },
+            },
+          },
+          required: [
+            'name',
+            'desc',
+            'fullText',
+            'additionalNotes',
+            'notesCoherentWithTopic',
+            'notesDetectedOtherSubject',
+            'eraName',
+            'eraPeriod',
+            'year',
+            'century',
+            'region',
+            'imageCaption',
+            'imagesCaptions',
+          ],
+        },
+      },
+    }));
+
+    const notesExcluded =
+      Boolean(String(fact.additionalNotes || '').trim()) && parsed.notesCoherentWithTopic === false;
+
+    const translated = {
+      name: parsed.name,
+      desc: parsed.desc,
+      fullText: parsed.fullText,
+      additionalNotes: notesExcluded ? '' : parsed.additionalNotes,
+      eraName: parsed.eraName,
+      eraPeriod: parsed.eraPeriod,
+      year: parsed.year,
+      century: parsed.century,
+      region: parsed.region,
+      imageCaption: parsed.imageCaption,
+      imagesCaptions: parsed.imagesCaptions,
+    };
+
+    return jsonResponse({
+      translated,
+      meta: {
+        notesExcluded,
+        notesMismatchSubject: notesExcluded
+          ? String(parsed.notesDetectedOtherSubject || '').trim()
+          : undefined,
+      },
+    });
+  } catch (err) {
+    const status = err?.statusCode || 500;
+    return jsonResponse(
+      {
+        error: err?.message || 'Translation failed',
+        code: err?.code || 'API_ERROR',
+        ...(err?.retryAfterSeconds ? { retryAfterSeconds: err.retryAfterSeconds } : {}),
+      },
+      status
+    );
+  }
+}
+
+export async function handleTranslateCollectionRequest(request, env) {
+  try {
+    const apiKey = env?.GEMINI_API_KEY;
+    if (!apiKey) {
+      return jsonResponse(
+        {
+          error:
+            'GEMINI_API_KEY is not configured on this host. Add GEMINI_API_KEY in Cloudflare Environment Variables & Secrets.',
+          code: 'MISSING_HOST_API_KEY',
+        },
+        503
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const name = body?.name;
+    const description = body?.description;
+    if (!name) {
+      return jsonResponse({ error: 'Missing collection name.' }, 400);
+    }
+
+    const parsed = await callGeminiWithFallback(apiKey, (thinkingLevel) => ({
+      systemInstruction: {
+        parts: [
+          {
+            text: 'Translate this Kurdish Sorani historical category/collection name and short description into concise, accurate English.',
+          },
+        ],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: JSON.stringify({ name: name || '', description: description || '' }) }],
+        },
+      ],
+      generationConfig: {
+        thinkingConfig: { thinkingLevel },
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            description: { type: 'STRING' },
+          },
+          required: ['name', 'description'],
+        },
+      },
+    }));
+
+    return jsonResponse({ translated: parsed });
+  } catch (err) {
+    const status = err?.statusCode || 500;
+    return jsonResponse(
+      {
+        error: err?.message || 'Collection translation failed',
+        code: err?.code || 'API_ERROR',
+        ...(err?.retryAfterSeconds ? { retryAfterSeconds: err.retryAfterSeconds } : {}),
+      },
+      status
+    );
+  }
+}

@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 
@@ -328,7 +329,10 @@ async function startServer() {
         },
       }));
 
-      const rawText = (response.text || '{}').trim();
+      const rawText = (response.text || '{}')
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '');
       const parsed = JSON.parse(rawText);
       const notesExcluded =
         Boolean((fact.additionalNotes || '').trim()) && parsed.notesCoherentWithTopic === false;
@@ -399,7 +403,11 @@ async function startServer() {
         },
       }));
 
-      const parsed = JSON.parse((response.text || '{}').trim());
+      const rawCollectionText = (response.text || '{}')
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '');
+      const parsed = JSON.parse(rawCollectionText);
       res.json({ translated: parsed });
     } catch (err: unknown) {
       const parsedErr = parseGeminiApiError(err);
@@ -444,6 +452,9 @@ async function startServer() {
     });
   } else {
     const distDir = path.resolve(process.cwd(), 'dist');
+    app.all('/api/*', (_req: Request, res: Response) => {
+      res.status(404).json({ error: 'API route not found' });
+    });
     app.use(express.static(distDir));
     app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.join(distDir, 'index.html'));

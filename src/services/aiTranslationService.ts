@@ -82,6 +82,19 @@ export function formatTranslationError(err: unknown, language: AppLanguage): str
       ? 'Daily Free Tier AI translation limit reached. To translate more items now, select a billing-enabled Gemini API key in Settings > Secrets, or try again tomorrow.'
       : 'سنووری ڕۆژانەی وەرگێڕانی AI لە پلانی خۆڕایی (Free Tier) پڕبووەتەوە. بۆ بەردەوامبوون، کلیلی Gemini API ی خاوەن Billing لە Settings > Secrets هەڵبژێرە یان سبەینێ هەوڵ بدەرەوە.';
   }
+  if (err instanceof TranslationApiError && err.code === 'MISSING_HOST_API_KEY') {
+    return isEn
+      ? 'GEMINI_API_KEY is not configured on this external host. Add GEMINI_API_KEY in your Cloudflare Workers/Pages Environment Variables & Secrets to enable translation.'
+      : 'کلیلی GEMINI_API_KEY لەسەر ئەم هۆستە دەرەکییە دانەنراوە. بۆ کارکردنی وەرگێڕان، لە ڕێکخستنەکانی هۆستەکەت (Cloudflare Environment Variables / Secrets) گۆڕاوی GEMINI_API_KEY زیاد بکە.';
+  }
+  if (
+    err instanceof TranslationApiError &&
+    (err.statusCode === 404 || err.statusCode === 405 || err.code === 'HOST_API_UNAVAILABLE')
+  ) {
+    return isEn
+      ? 'The translation server endpoint is not active on this static host. Deploy using Cloudflare Workers/Pages Functions or the Node server with GEMINI_API_KEY configured.'
+      : 'خزمەتگوزاریی وەرگێڕان لەسەر ئەم هۆستە چالاک نییە (تەنها فایلی ستاتیکە یان ڕاژەی /api چالاک نەکراوە). تکایە بە Cloudflare Workers/Pages Functions یان سێرڤەری تەواو لەگەڵ GEMINI_API_KEY بڵاوی بکەرەوە.';
+  }
   const rawMsg = err instanceof Error ? err.message : String(err || '');
   const lower = rawMsg.toLowerCase();
   if (
@@ -94,6 +107,11 @@ export function formatTranslationError(err: unknown, language: AppLanguage): str
     return isEn
       ? 'The AI translation server is temporarily busy due to high demand. Please wait a few seconds and try again.'
       : 'سێرڤەری وەرگێڕانی AI لەم ساتەدا فشاری زۆری لەسەرە (503). تکایە چەند چرکەیەک چاوەڕوان بە و دووبارە هەوڵ بدەرەوە.';
+  }
+  if (err instanceof TranslationApiError && err.statusCode === 500 && rawMsg === 'HTTP 500') {
+    return isEn
+      ? 'The translation server returned an internal error (HTTP 500). Ensure the host server is running and GEMINI_API_KEY is configured, then try again.'
+      : 'سێرڤەری وەرگێڕان تووشی هەڵەیەکی ناوخۆیی بوو (HTTP 500). دڵنیابە لە کارکردنی سێرڤەر و دانانی GEMINI_API_KEY لە هۆستەکەدا، پاشان دووبارە هەوڵ بدەرەوە.';
   }
   const cleaned = cleanRawErrorString(rawMsg);
   if (cleaned) {
@@ -149,6 +167,15 @@ export async function translateFactToLanguageDetailed(
 
   if (!response || !response.ok) {
     throw new TranslationApiError('Translation service unavailable', 503, 'MODEL_UNAVAILABLE');
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    throw new TranslationApiError(
+      'Host returned non-JSON response for /api/translate-fact',
+      404,
+      'HOST_API_UNAVAILABLE'
+    );
   }
 
   const data = (await response.json()) as {

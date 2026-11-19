@@ -80,9 +80,14 @@ npx wrangler pages deploy dist --project-name=kurdistan-map-info
 
 ---
 
-## 🔑 گۆڕاوە ژینگەییەکان (Environment Variables) - ئیختیاری:
-ئەگەر کلیلی تایبەتی خۆت هەیە بۆ Google Maps:
-لە داشبۆردی Cloudflare Pages -> بڕۆ بۆ **Settings** -> **Environment variables**:
+## 🔑 گۆڕاوە ژینگەییەکان (Environment Variables):
+١. **بۆ کارکردنی وەرگێڕانی AI لەسەر هۆستی Cloudflare (Workers یان Pages):**
+لە داشبۆردی Cloudflare -> بڕۆ بۆ **Settings** -> **Variables and Secrets** و کلیک لە **Add** بکە (جۆرەکەی بکە بە **Secret**):
+- ناوی گۆڕاو: `GEMINI_API_KEY`
+- بەهاکەی: کلیلی Gemini API ی خۆت
+*(تێبینی: هەردوو فایلی `worker.js` و فۆڵدەری `functions/api/*` ئامادەکراون تا ڕاستەوخۆ وەرگێڕان لەسەر Cloudflare کاربکات).*
+
+٢. **بۆ نەخشەی Google Maps (ئیختیاری):**
 - ناوی گۆڕاو: `VITE_GOOGLE_MAPS_API_KEY`
 - بەهاکەی: کلیلەکەت
-*(تێبینی: ئەگەر کلیلیش دانەنێیت، سیستەمەکە کلیلی ئامادەکراو و نەخشەی جێگرەوەی Leafletی تێدایە بە بێ کێشە کار دەکات).*
+*(ئەگەر کلیلیش دانەنێیت، نەخشەی Leaflet بە بێ کێشە کار دەکات).*

@@ -56,6 +56,7 @@ export default defineConfig(() => {
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
           globIgnores: ['assets/aistudio/**'],
+          navigateFallbackDenylist: [/^\/api\//],
           // Online-first runtime caching strategy for Firestore & Maps data
           runtimeCaching: [
             {
