@@ -782,7 +782,7 @@ export async function approvePhotoSubmission(
   );
   saveStoredSubmissions(updatedLocal);
 
-  return lang === 'en' ? updatedEnFact || updatedCkbFact : updatedCkbFact || updatedEnFact;
+  return lang === 'en' ? updatedEnFact : updatedCkbFact;
 }
 
 /**

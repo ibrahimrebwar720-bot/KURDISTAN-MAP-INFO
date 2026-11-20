@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, X, Lock, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ADMIN_SECRET_CODE } from '../types/history';
 import { useLanguage } from '../context/LanguageContext';
@@ -17,14 +17,33 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = () => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
       setPin('');
       setError(false);
       setSuccess(false);
+    } else {
+      clearTimers();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    return () => clearTimers();
+  }, []);
 
   if (!isOpen) return null;
 
@@ -34,14 +53,16 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
     if (pin.trim() === ADMIN_SECRET_CODE) {
       setSuccess(true);
       setError(false);
-      setTimeout(() => {
+      clearTimers();
+      successTimerRef.current = setTimeout(() => {
         onSuccess();
         onClose();
       }, 700);
     } else {
       setError(true);
       setPin('');
-      setTimeout(() => setError(false), 2500);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setError(false), 2500);
     }
   };
 
@@ -51,7 +72,8 @@ export const AdminPinModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =
       setPin(nextPin);
       if (nextPin === ADMIN_SECRET_CODE) {
         setSuccess(true);
-        setTimeout(() => {
+        clearTimers();
+        successTimerRef.current = setTimeout(() => {
           onSuccess();
           onClose();
         }, 700);

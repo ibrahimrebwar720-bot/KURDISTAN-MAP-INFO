@@ -312,6 +312,7 @@ export const FactEditorModal: React.FC<Props> = ({
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const searchTimeoutRef = useRef<any>(null);
+  const placeSearchSeqRef = useRef<number>(0);
   const coordResolveTimeoutRef = useRef<any>(null);
   const lastAutoDescRef = useRef<string>('');
   const lastResolvedCoordsKeyRef = useRef<string>('');
@@ -343,8 +344,7 @@ export const FactEditorModal: React.FC<Props> = ({
       if (factToEdit) {
         const isPhotoItem =
           factToEdit.tag === 'وێنەی مێژوویی' ||
-          factToEdit.tag === 'Historical Photo' ||
-          (!!factToEdit.imageUrl && !factToEdit.additionalNotes && factToEdit.category === 'monument');
+          factToEdit.tag === 'Historical Photo';
         setFormMode(isPhotoItem ? 'photo_only' : 'standard');
         setName(factToEdit.name);
         setDesc(factToEdit.desc);
@@ -557,11 +557,21 @@ export const FactEditorModal: React.FC<Props> = ({
       setDispersionNotice(null);
       lastAutoDescRef.current = '';
       lastResolvedCoordsKeyRef.current = '';
+      placeSearchSeqRef.current += 1;
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+      if (coordResolveTimeoutRef.current) {
+        clearTimeout(coordResolveTimeoutRef.current);
+        coordResolveTimeoutRef.current = null;
+      }
     }
   }, [isOpen, factToEdit, initialMode]);
 
   const handlePlaceSearch = (query: string) => {
     setPlaceSearchQuery(query);
+    const reqSeq = ++placeSearchSeqRef.current;
 
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -577,11 +587,15 @@ export const FactEditorModal: React.FC<Props> = ({
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const results = await searchPlacesOnMap(query);
+        if (reqSeq !== placeSearchSeqRef.current) return;
         setPlaceSearchResults(results);
       } catch {
+        if (reqSeq !== placeSearchSeqRef.current) return;
         setPlaceSearchResults([]);
       } finally {
-        setIsSearchingPlaces(false);
+        if (reqSeq === placeSearchSeqRef.current) {
+          setIsSearchingPlaces(false);
+        }
       }
     }, 350);
   };
@@ -768,7 +782,9 @@ export const FactEditorModal: React.FC<Props> = ({
       setLat(pickedCoords.lat);
       setLng(pickedCoords.lng);
       setHasLocationPicked(true);
-      resolveProvinceFromCoords(pickedCoords.lat, pickedCoords.lng);
+      if (!factToEdit?.provinceId || !factToEdit?.region) {
+        resolveProvinceFromCoords(pickedCoords.lat, pickedCoords.lng);
+      }
       return;
     }
 

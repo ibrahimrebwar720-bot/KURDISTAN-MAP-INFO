@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   ImagePlus,
@@ -42,6 +42,38 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
   const [previewLoaded, setPreviewLoaded] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [pastedFeedback, setPastedFeedback] = useState(false);
+  const pasteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submitCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (submitCloseTimerRef.current) {
+        clearTimeout(submitCloseTimerRef.current);
+        submitCloseTimerRef.current = null;
+      }
+      setUrl('');
+      setSenderName('');
+      setNote('');
+      setIsSubmitting(false);
+      setIsSubmitted(false);
+      setError(null);
+      setPreviewLoaded(false);
+      setPreviewError(false);
+      setPastedFeedback(false);
+    } else {
+      setError(null);
+      setIsSubmitted(false);
+      setPreviewLoaded(false);
+      setPreviewError(false);
+    }
+  }, [isOpen, fact.id]);
+
+  useEffect(() => {
+    return () => {
+      if (pasteTimerRef.current) clearTimeout(pasteTimerRef.current);
+      if (submitCloseTimerRef.current) clearTimeout(submitCloseTimerRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -54,7 +86,8 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
           setPreviewLoaded(false);
           setPreviewError(false);
           setPastedFeedback(true);
-          setTimeout(() => setPastedFeedback(false), 2000);
+          if (pasteTimerRef.current) clearTimeout(pasteTimerRef.current);
+          pasteTimerRef.current = setTimeout(() => setPastedFeedback(false), 2000);
         }
       }
     } catch {
@@ -108,7 +141,8 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
       setIsSubmitted(true);
       if (onSuccess) onSuccess();
 
-      setTimeout(() => {
+      if (submitCloseTimerRef.current) clearTimeout(submitCloseTimerRef.current);
+      submitCloseTimerRef.current = setTimeout(() => {
         onClose();
         setIsSubmitted(false);
         setUrl('');
@@ -129,11 +163,15 @@ export const SubmitPhotoModal: React.FC<SubmitPhotoModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 animate-fade-in text-start ${
+      onClick={() => {
+        if (!isSubmitting) onClose();
+      }}
+      className={`fixed inset-0 z-[1360] flex items-center justify-center p-3 sm:p-4 animate-fade-in text-start ${
         isDark ? 'bg-black/85' : 'bg-slate-900/50'
       }`}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`relative w-full max-w-lg rounded-[4px] border p-5 sm:p-6 overflow-hidden animate-scale-up ${
           isDark
             ? 'bg-[#0b0f1c] border-amber-500/30 border-t-amber-400/50 text-white shadow-[0_20px_60px_rgba(0,0,0,0.9)]'

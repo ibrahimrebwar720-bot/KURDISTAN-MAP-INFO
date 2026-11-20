@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FactItem } from '../data/kurdishHistoryData';
 import {
   X,
@@ -82,7 +82,18 @@ export const FactDetailModal: React.FC<Props> = ({
   const isDark = colorMode === 'dark';
   const [copied, setCopied] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedUrlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [wikiData, setWikiData] = useState<WikipediaResult | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (copiedUrlTimerRef.current) clearTimeout(copiedUrlTimerRef.current);
+      if (notesSavedTimerRef.current) clearTimeout(notesSavedTimerRef.current);
+    };
+  }, []);
 
   // Admin AI Translation state
   const [isTranslatingAi, setIsTranslatingAi] = useState(false);
@@ -173,7 +184,8 @@ export const FactDetailModal: React.FC<Props> = ({
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
         setCopiedUrl(true);
-        setTimeout(() => setCopiedUrl(false), 2500);
+        if (copiedUrlTimerRef.current) clearTimeout(copiedUrlTimerRef.current);
+        copiedUrlTimerRef.current = setTimeout(() => setCopiedUrl(false), 2500);
       }
     } catch {
       // fallback
@@ -182,16 +194,26 @@ export const FactDetailModal: React.FC<Props> = ({
 
   const handleCopyFact = async () => {
     if (!fact) return;
-    const ok = await copyTopicToClipboard(fact, language);
+    let ok = await copyTopicToClipboard(fact, language);
     if (!ok) {
       const shareUrl = getShareableTopicUrl(fact.id, language);
       const fallbackText = isEn
         ? `📌 "${fact.name}"\n\n${fact.fullText}\n\n📍 Location: ${fact.desc}\n🔗 Direct link: ${shareUrl}\n\nSource: kurdistan info map`
         : `📌 «${fact.name}»\n\n${fact.fullText}\n\n📍 شوێن: ${fact.desc}\n🔗 بەستەری ڕاستەوخۆ: ${shareUrl}\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map`;
-      navigator.clipboard.writeText(fallbackText);
+      try {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(fallbackText);
+          ok = true;
+        }
+      } catch {
+        // ignore clipboard failure
+      }
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (ok) {
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleSaveNotesInline = () => {
@@ -199,7 +221,8 @@ export const FactDetailModal: React.FC<Props> = ({
       onSaveNotes(fact.id, notesContent);
       setNotesSaved(true);
       setIsEditingNotes(false);
-      setTimeout(() => setNotesSaved(false), 2500);
+      if (notesSavedTimerRef.current) clearTimeout(notesSavedTimerRef.current);
+      notesSavedTimerRef.current = setTimeout(() => setNotesSaved(false), 2500);
     }
   };
 

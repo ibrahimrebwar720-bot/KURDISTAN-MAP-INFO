@@ -452,9 +452,12 @@ async function fetchWikipediaPage(
   const cleanTitle = title.trim();
   if (!cleanTitle || GENERIC_BLACKLIST.has(cleanTitle)) return null;
 
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
+
   try {
     const url = `https://${subdomain}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanTitle)}`;
-    const res = await fetch(url);
+    const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
     if (!res.ok) return null;
     const data = await res.json();
 
@@ -481,6 +484,10 @@ async function fetchWikipediaPage(
     };
   } catch {
     return null;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
 

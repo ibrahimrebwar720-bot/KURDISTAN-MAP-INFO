@@ -88,6 +88,15 @@ const ThemeSelectorModal = React.lazy(() =>
   }))
 );
 
+function escapeHtml(value: string): string {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface Props {
   facts: FactItem[];
   selectedFact: FactItem | null;
@@ -343,6 +352,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   // Quick Topic Summary Card / Side Inspector Drawer state
   const [showQuickSummary, setShowQuickSummary] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const copiedSummaryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{
     url: string;
     caption?: string;
@@ -441,6 +451,13 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
   // Admin secret 6-tap tracking
   const [adminTapCount, setAdminTapCount] = useState(0);
   const tapTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      if (copiedSummaryTimeoutRef.current) clearTimeout(copiedSummaryTimeoutRef.current);
+    };
+  }, []);
 
   // Compute fact counts per unified category
   const tagCounts = useMemo(() => {
@@ -949,7 +966,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 isLight ? 'rgba(69,26,3,0.82)' : 'rgba(253,230,138,0.75)'
               };text-shadow:${
                 isLight ? '0 1px 1px rgba(255,255,255,0.9)' : '0 1px 2px rgba(0,0,0,0.9)'
-              };">${labelText}</div>`,
+              };">${escapeHtml(labelText)}</div>`,
             });
             const labelMarker = L.marker(prov.center, {
               icon: labelIcon,
@@ -1108,7 +1125,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
         });
 
         if (fact.name) {
-          circle.bindTooltip(fact.name, {
+          circle.bindTooltip(escapeHtml(fact.name), {
             direction: 'top',
             offset: [0, -6],
             opacity: 0.95,
@@ -1155,7 +1172,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
     const catInfo = getCategoryInfo(selectedFact, language);
     const tagColor = catInfo.color;
     const glowColor = `${tagColor}d9`;
-    const safeName = (selectedFact.name || '').replace(/"/g, '&quot;');
+    const safeName = escapeHtml(selectedFact.name || '');
     const alignClass = isEn ? 'text-left' : 'text-right';
 
     const iconSize: [number, number] = [28, 28];
@@ -1299,7 +1316,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
           <div class="preserve-contrast px-2.5 py-0.5 text-[9px] font-black text-white border flex items-center gap-1 cursor-pointer select-none map-pin-circle"
                style="background-color: #060a16; border-color: ${link.color};" dir="${dir}">
             <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${link.color}"></span>
-            <span class="whitespace-nowrap font-bold">${link.label}</span>
+            <span class="whitespace-nowrap font-bold">${escapeHtml(link.label)}</span>
           </div>
         `,
         iconSize: [84, 22],
@@ -2052,16 +2069,26 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={async () => {
-                    const ok = await copyTopicToClipboard(selectedFact, language);
+                    let ok = await copyTopicToClipboard(selectedFact, language);
                     if (!ok) {
-                      navigator.clipboard.writeText(
-                        isEn
-                          ? `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 Location: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id, language)}\n\nSource: kurdistan info map`
-                          : `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 شوێن: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id, language)}\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map`
-                      );
+                      try {
+                        if (navigator?.clipboard?.writeText) {
+                          await navigator.clipboard.writeText(
+                            isEn
+                              ? `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 Location: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id, language)}\n\nSource: kurdistan info map`
+                              : `📌 «${selectedFact.name}»\n\n${selectedFact.fullText || selectedFact.desc}\n\n📍 شوێن: ${selectedFact.desc}\n🔗 ${getShareableTopicUrl(selectedFact.id, language)}\n\nسەرچاوە: نەخشە زانیاری کوردستان-kurdistan info map`
+                          );
+                          ok = true;
+                        }
+                      } catch {
+                        // ignore clipboard failure
+                      }
                     }
-                    setCopiedSummary(true);
-                    setTimeout(() => setCopiedSummary(false), 2000);
+                    if (ok) {
+                      setCopiedSummary(true);
+                      if (copiedSummaryTimeoutRef.current) clearTimeout(copiedSummaryTimeoutRef.current);
+                      copiedSummaryTimeoutRef.current = setTimeout(() => setCopiedSummary(false), 2000);
+                    }
                   }}
                   className={`flex items-center gap-1 px-2.5 h-9.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
                     isDark

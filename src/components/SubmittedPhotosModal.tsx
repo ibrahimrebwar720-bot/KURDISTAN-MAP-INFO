@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Images,
@@ -14,6 +14,7 @@ import {
   XCircle,
   Loader2,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import { FactItem } from '../data/kurdishHistoryData';
 import { PhotoSubmission } from '../types/history';
@@ -51,8 +52,28 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmDeleteId(null);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setPreviewImage(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -75,7 +96,8 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(submission.imageUrl);
         setCopiedId(submission.id);
-        setTimeout(() => setCopiedId(null), 2000);
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
       }
     } catch {
       // ignore
@@ -84,6 +106,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
 
   const handleApprove = async (submission: PhotoSubmission) => {
     setProcessingId(submission.id);
+    setErrorMsg(null);
     try {
       const updatedFact = await approvePhotoSubmission(submission, allFacts, language);
       if (updatedFact && onFactUpdated) {
@@ -94,9 +117,15 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
           ? `Photo published to "${submission.factName}" successfully!`
           : `وێنەکە بە سەرکەوتوویی لەسەر بابەتی «${submission.factName}» بڵاوکرایەوە!`
       );
-      setTimeout(() => setSuccessMsg(null), 3500);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error('Failed to approve photo submission:', err);
+      setErrorMsg(
+        isEn
+          ? 'Failed to approve and publish photo. Please try again.'
+          : 'پەسەندکردن و بڵاوکردنەوەی وێنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەرەوە.'
+      );
     } finally {
       setProcessingId(null);
     }
@@ -104,28 +133,36 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
 
   const handleReject = async (submission: PhotoSubmission) => {
     setProcessingId(submission.id);
+    setErrorMsg(null);
     try {
       await rejectPhotoSubmission(submission.id);
     } catch (err) {
       console.error('Failed to reject submission:', err);
+      setErrorMsg(
+        isEn
+          ? 'Failed to reject submission. Please check your connection.'
+          : 'ڕەتکردنەوەی وێنەکە سەرکەوتوو نەبوو.'
+      );
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleDelete = async (submissionId: string) => {
-    if (
-      window.confirm(
+    setProcessingId(submissionId);
+    setErrorMsg(null);
+    try {
+      await deletePhotoSubmission(submissionId);
+      setConfirmDeleteId(null);
+    } catch (err) {
+      console.error('Failed to delete submission:', err);
+      setErrorMsg(
         isEn
-          ? 'Are you sure you want to delete this submitted photo?'
-          : 'ئایا دڵنیایت لە سڕینەوەی ئەم وێنە نێردراوە؟'
-      )
-    ) {
-      try {
-        await deletePhotoSubmission(submissionId);
-      } catch (err) {
-        console.error('Failed to delete submission:', err);
-      }
+          ? 'Failed to delete submission. Please try again.'
+          : 'سڕینەوەی پێشنیارەکە سەرکەوتوو نەبوو.'
+      );
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -147,11 +184,13 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 animate-fade-in text-start ${
+      onClick={onClose}
+      className={`fixed inset-0 z-[1350] flex items-center justify-center p-3 sm:p-4 animate-fade-in text-start ${
         isDark ? 'bg-black/85' : 'bg-slate-900/50'
       }`}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-[4px] border overflow-hidden animate-scale-up ${
           isDark
             ? 'bg-[#0b0f1c] border-amber-500/30 border-t-amber-400/50 text-white shadow-[0_24px_70px_rgba(0,0,0,0.9)]'
@@ -214,7 +253,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
           </button>
         </div>
 
-        {/* Success Alert Banner */}
+        {/* Success / Error Alert Banners */}
         {successMsg && (
           <div
             className={`relative z-10 mx-5 mt-3 p-3 rounded-[4px] border text-xs flex items-center justify-between gap-2 animate-fade-in shadow-sm ${
@@ -228,8 +267,30 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
               <span className="font-bold">{successMsg}</span>
             </div>
             <button
+              type="button"
               onClick={() => setSuccessMsg(null)}
               className={`p-1 cursor-pointer ${isDark ? 'text-emerald-400 hover:text-white' : 'text-emerald-700 hover:text-emerald-950'}`}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        {errorMsg && (
+          <div
+            className={`relative z-10 mx-5 mt-3 p-3 rounded-[4px] border text-xs flex items-center justify-between gap-2 animate-fade-in shadow-sm ${
+              isDark
+                ? 'bg-rose-500/20 border-rose-400/40 text-rose-200'
+                : 'bg-rose-50 border-rose-300 text-rose-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
+              <span className="font-bold">{errorMsg}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMsg(null)}
+              className={`p-1 cursor-pointer ${isDark ? 'text-rose-300 hover:text-white' : 'text-rose-700 hover:text-rose-950'}`}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -556,18 +617,44 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
                           </button>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item.id)}
-                          className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors cursor-pointer ${
-                            isDark
-                              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
-                              : 'text-slate-500 hover:text-rose-700 hover:bg-rose-50'
-                          }`}
-                          title={isEn ? 'Delete submission' : 'سڕینەوەی ئەم پێشنیارە'}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {confirmDeleteId === item.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(item.id)}
+                              disabled={isProcessing}
+                              className="px-2 py-1 rounded-[4px] bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold cursor-pointer disabled:opacity-40"
+                            >
+                              {isEn ? 'Confirm' : 'سڕینەوە'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              disabled={isProcessing}
+                              className={`px-2 py-1 rounded-[4px] text-[10px] font-bold border cursor-pointer ${
+                                isDark
+                                  ? 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/15'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              {isEn ? 'Cancel' : 'نا'}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(item.id)}
+                            disabled={isProcessing}
+                            className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 ${
+                              isDark
+                                ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
+                                : 'text-slate-500 hover:text-rose-700 hover:bg-rose-50'
+                            }`}
+                            title={isEn ? 'Delete submission' : 'سڕینەوەی ئەم پێشنیارە'}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -614,7 +701,7 @@ export const SubmittedPhotosModal: React.FC<SubmittedPhotosModalProps> = ({
       {previewImage && (
         <div
           onClick={() => setPreviewImage(null)}
-          className="preserve-contrast fixed inset-0 z-[140] flex items-center justify-center p-4 bg-black/95 cursor-zoom-out animate-fade-in"
+          className="preserve-contrast fixed inset-0 z-[1400] flex items-center justify-center p-4 bg-black/95 cursor-zoom-out animate-fade-in"
         >
           <div className="relative max-w-4xl max-h-[90vh]">
             <img

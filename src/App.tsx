@@ -124,13 +124,26 @@ export default function App() {
     error?: string;
   } | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
+  const syncToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTopicSwitchRef = useRef<{ id: number; name?: string } | null>(null);
   const prevLanguageRef = useRef<AppLanguage>(language);
 
+  useEffect(() => {
+    return () => {
+      if (syncToastTimerRef.current) {
+        clearTimeout(syncToastTimerRef.current);
+      }
+    };
+  }, []);
+
   const showSyncToast = (msg: string) => {
+    if (syncToastTimerRef.current) {
+      clearTimeout(syncToastTimerRef.current);
+    }
     setSyncToast(msg);
-    setTimeout(() => {
+    syncToastTimerRef.current = setTimeout(() => {
       setSyncToast((cur) => (cur === msg ? null : cur));
+      syncToastTimerRef.current = null;
     }, 4200);
   };
 
@@ -821,12 +834,14 @@ export default function App() {
     }
 
     const existingFact = facts.find((f) => f.id === sourceFactId);
+    const normalizedParentId = typeof parentFactId === 'number' ? parentFactId : undefined;
+    const normalizedAllyIds = Array.isArray(allyFactIds) ? allyFactIds : undefined;
     const updatedFact: FactItem | null = existingFact
       ? {
           ...existingFact,
           relatedFactIds: targetFactIds,
-          parentFactId: typeof parentFactId === 'number' ? parentFactId : existingFact.parentFactId,
-          allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : existingFact.allyFactIds,
+          parentFactId: normalizedParentId,
+          allyFactIds: normalizedAllyIds,
         }
       : null;
 
@@ -837,13 +852,26 @@ export default function App() {
           return {
             ...f,
             relatedFactIds: targetFactIds,
-            parentFactId: typeof parentFactId === 'number' ? parentFactId : f.parentFactId,
-            allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : f.allyFactIds,
+            parentFactId: normalizedParentId,
+            allyFactIds: normalizedAllyIds,
           };
         }
         return f;
       })
     );
+
+    if (selectedFact && selectedFact.id === sourceFactId) {
+      setSelectedFact((prev) =>
+        prev
+          ? {
+              ...prev,
+              relatedFactIds: targetFactIds,
+              parentFactId: normalizedParentId,
+              allyFactIds: normalizedAllyIds,
+            }
+          : null
+      );
+    }
 
     if (detailFact && detailFact.id === sourceFactId) {
       setDetailFact((prev) =>
@@ -851,8 +879,8 @@ export default function App() {
           ? {
               ...prev,
               relatedFactIds: targetFactIds,
-              parentFactId: typeof parentFactId === 'number' ? parentFactId : prev.parentFactId,
-              allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : prev.allyFactIds,
+              parentFactId: normalizedParentId,
+              allyFactIds: normalizedAllyIds,
             }
           : null
       );
@@ -899,9 +927,13 @@ export default function App() {
     }
     setCrossLangSyncTarget(null);
     showSyncToast(
-      targetLang === 'en'
+      language === 'en'
+        ? targetLang === 'en'
+          ? 'Changes synced to English ✓'
+          : 'Changes synced to Kurdish Sorani ✓'
+        : targetLang === 'en'
         ? 'گۆڕانکارییەکان لە بەشی ئینگلیزیش هاوتا کران ✓'
-        : 'Changes synced to Kurdish Sorani ✓'
+        : 'گۆڕانکارییەکان لە بەشی کوردیش هاوتا کران ✓'
     );
   };
 
@@ -1275,7 +1307,7 @@ export default function App() {
       {untranslatedTopicNotice && (
         <div
           dir={isEn ? 'ltr' : 'rtl'}
-          className={`fixed bottom-5 start-1/2 -translate-x-1/2 z-[1400] w-[92vw] max-w-md rounded-2xl border p-4 shadow-2xl backdrop-blur-md space-y-2.5 animate-fade-in ${
+          className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[1400] w-[92vw] max-w-md rounded-2xl border p-4 shadow-2xl backdrop-blur-md space-y-2.5 animate-fade-in ${
             colorMode === 'light'
               ? 'bg-white/95 border-amber-500/60 text-slate-900'
               : 'bg-[#0b1020]/95 border-amber-400/50 text-slate-100'
@@ -1385,8 +1417,8 @@ export default function App() {
       {/* Subtle Non-AI Sync Toast */}
       {syncToast && (
         <div
-          dir="rtl"
-          className={`fixed top-4 start-1/2 -translate-x-1/2 z-[1450] px-4 py-2 rounded-xl border text-xs font-bold shadow-xl backdrop-blur-md animate-fade-in ${
+          dir={isEn ? 'ltr' : 'rtl'}
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[1450] px-4 py-2 rounded-xl border text-xs font-bold shadow-xl backdrop-blur-md animate-fade-in ${
             colorMode === 'light'
               ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
               : 'bg-emerald-950/95 border-emerald-400/50 text-emerald-200'

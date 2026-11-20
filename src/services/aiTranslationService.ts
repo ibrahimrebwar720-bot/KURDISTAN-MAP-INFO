@@ -313,14 +313,35 @@ export async function translateFactToLanguageDetailed(
     };
   };
   const t = data.translated;
-  if (!t || (!effectiveFields && !t.name)) {
-    throw new Error('AI translation returned empty result.');
+  if (!t || (!effectiveFields && !t.name?.trim())) {
+    throw new TranslationApiError('AI translation returned empty result.', 503, 'MODEL_UNAVAILABLE');
   }
 
   const notesExcluded = Boolean(data.meta?.notesExcluded);
   const notesMismatchSubject = notesExcluded
     ? data.meta?.notesMismatchSubject?.trim() || undefined
     : undefined;
+
+  if (effectiveFields) {
+    for (const fieldKey of effectiveFields) {
+      if (fieldKey === 'imagesCaptions') {
+        const hasSourceCaptions =
+          Array.isArray(sourceFact.images) && sourceFact.images.some((img) => normStr(img.caption));
+        if (hasSourceCaptions && !Array.isArray(t.imagesCaptions)) {
+          throw new TranslationApiError('AI translation returned incomplete image captions.', 503, 'MODEL_UNAVAILABLE');
+        }
+        continue;
+      }
+      if (fieldKey === 'additionalNotes' && notesExcluded) {
+        continue;
+      }
+      const sourceVal = normStr((sourceFact as unknown as Record<string, string | undefined>)[fieldKey]);
+      const outVal = typeof t[fieldKey] === 'string' ? (t[fieldKey] as string).trim() : '';
+      if (sourceVal && !outVal) {
+        throw new TranslationApiError('AI translation returned incomplete fields.', 503, 'MODEL_UNAVAILABLE');
+      }
+    }
+  }
 
   // Fallback province/region label if AI left region blank
   const matchedProv =

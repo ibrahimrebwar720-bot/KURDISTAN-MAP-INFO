@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Google Maps Platform error & quota defense monitoring
 (window as any).gm_authFailure = () => {
@@ -19,9 +20,11 @@ console.error = (...args: unknown[]) => {
 };
 
 createRoot(document.getElementById('root')!).render(
-  <LanguageProvider>
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
-  </LanguageProvider>
+  <ErrorBoundary>
+    <LanguageProvider>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </LanguageProvider>
+  </ErrorBoundary>
 );

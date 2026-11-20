@@ -15,7 +15,7 @@ function createGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
-      timeout: 15000,
+      timeout: 25000,
       headers: {
         'User-Agent': 'aistudio-build',
       },
@@ -66,9 +66,11 @@ function parseGeminiApiError(err: unknown): ParsedGeminiError {
   }
 
   const isAuth =
+    statusProp === 401 ||
     statusProp === 403 ||
     rawMessage.includes('PERMISSION_DENIED') ||
     rawMessage.includes('API_KEY_INVALID') ||
+    lowerMsg.includes('api key not valid') ||
     rawMessage.includes('GEMINI_API_KEY is not configured');
 
   if (isAuth) {
@@ -138,10 +140,11 @@ const TRANSLATION_MODELS: Array<{ model: string; thinkingLevel: ThinkingLevel; m
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function generateTranslationWithFallback(
+async function generateTranslationWithFallback<T>(
   ai: GoogleGenAI,
-  buildRequest: (model: string, thinkingLevel: ThinkingLevel) => Parameters<GoogleGenAI['models']['generateContent']>[0]
-) {
+  buildRequest: (model: string, thinkingLevel: ThinkingLevel) => Parameters<GoogleGenAI['models']['generateContent']>[0],
+  parseAndValidate: (rawText: string) => T
+): Promise<T> {
   let lastError: unknown;
 
   for (let i = 0; i < TRANSLATION_MODELS.length; i++) {
@@ -149,7 +152,17 @@ async function generateTranslationWithFallback(
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        return await ai.models.generateContent(buildRequest(model, thinkingLevel));
+        const response = await ai.models.generateContent(buildRequest(model, thinkingLevel));
+        const rawText = (response.text || '')
+          .trim()
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```$/i, '');
+        if (!rawText) {
+          throw Object.assign(new Error('Empty response from translation model (temporarily unavailable)'), {
+            status: 503,
+          });
+        }
+        return parseAndValidate(rawText);
       } catch (err) {
         lastError = err;
         const parsed = parseGeminiApiError(err);
@@ -236,6 +249,13 @@ interface TranslateFactRequestBody {
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: '4mb' }));
+  app.use((err: unknown, req: Request, res: Response, next: (err?: unknown) => void) => {
+    if (err instanceof SyntaxError && 'body' in err) {
+      res.status(400).json({ error: 'Invalid JSON request body.', code: 'BAD_REQUEST' });
+      return;
+    }
+    next(err);
+  });
 
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ ok: true, service: 'kurdistan-info-map-server' });
@@ -366,26 +386,61 @@ async function startServer() {
         requiredFields.push('notesCoherentWithTopic', 'notesDetectedOtherSubject');
       }
 
-      const response = await generateTranslationWithFallback(ai, (model, thinkingLevel) => ({
-        model,
-        contents: structuredInput,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel },
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: schemaProperties,
-            required: requiredFields,
+      const parsed = await generateTranslationWithFallback(
+        ai,
+        (model, thinkingLevel) => ({
+          model,
+          contents: structuredInput,
+          config: {
+            systemInstruction,
+            thinkingConfig: { thinkingLevel },
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: schemaProperties,
+              required: requiredFields,
+            },
           },
-        },
-      }));
+        }),
+        (rawText) => {
+          let data: Record<string, unknown>;
+          try {
+            data = JSON.parse(rawText) as Record<string, unknown>;
+          } catch {
+            throw Object.assign(new Error('Translation model returned malformed JSON (temporarily unavailable)'), {
+              status: 503,
+            });
+          }
+          if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw Object.assign(new Error('Translation model returned invalid JSON object (temporarily unavailable)'), {
+              status: 503,
+            });
+          }
+          const notesCoherent = data.notesCoherentWithTopic !== false;
+          for (const fieldKey of requestedFields) {
+            if (fieldKey === 'imagesCaptions') {
+              if (extraCaptions.some((c) => c.trim()) && !Array.isArray(data.imagesCaptions)) {
+                throw Object.assign(new Error('Translation missing imagesCaptions array (temporarily unavailable)'), {
+                  status: 503,
+                });
+              }
+              continue;
+            }
+            if (fieldKey === 'additionalNotes' && !notesCoherent) {
+              continue;
+            }
+            const sourceVal = String((fact as Record<string, unknown>)[fieldKey] || '').trim();
+            const outVal = typeof data[fieldKey] === 'string' ? (data[fieldKey] as string).trim() : '';
+            if (sourceVal && !outVal) {
+              throw Object.assign(new Error(`Translation returned empty field "${fieldKey}" (temporarily unavailable)`), {
+                status: 503,
+              });
+            }
+          }
+          return data;
+        }
+      );
 
-      const rawText = (response.text || '{}')
-        .trim()
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/i, '');
-      const parsed = JSON.parse(rawText);
       const notesExcluded =
         requestedSet.has('additionalNotes') &&
         Boolean((fact.additionalNotes || '').trim()) &&
@@ -443,29 +498,42 @@ async function startServer() {
           : 'Translate this Kurdish Sorani historical category/collection name and short description into concise, accurate English.';
 
       const ai = createGeminiClient();
-      const response = await generateTranslationWithFallback(ai, (model, thinkingLevel) => ({
-        model,
-        contents: JSON.stringify({ name: name || '', description: description || '' }),
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel },
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              description: { type: Type.STRING },
+      const parsed = await generateTranslationWithFallback(
+        ai,
+        (model, thinkingLevel) => ({
+          model,
+          contents: JSON.stringify({ name: name || '', description: description || '' }),
+          config: {
+            systemInstruction,
+            thinkingConfig: { thinkingLevel },
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                description: { type: Type.STRING },
+              },
+              required: ['name', 'description'],
             },
-            required: ['name', 'description'],
           },
-        },
-      }));
-
-      const rawCollectionText = (response.text || '{}')
-        .trim()
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/i, '');
-      const parsed = JSON.parse(rawCollectionText);
+        }),
+        (rawText) => {
+          let data: { name?: unknown; description?: unknown };
+          try {
+            data = JSON.parse(rawText) as { name?: unknown; description?: unknown };
+          } catch {
+            throw Object.assign(new Error('Collection translation returned malformed JSON (temporarily unavailable)'), {
+              status: 503,
+            });
+          }
+          if (!data || typeof data !== 'object' || typeof data.name !== 'string' || !data.name.trim()) {
+            throw Object.assign(new Error('Collection translation returned empty name (temporarily unavailable)'), {
+              status: 503,
+            });
+          }
+          return data;
+        }
+      );
       res.json({ translated: parsed });
     } catch (err: unknown) {
       const parsedErr = parseGeminiApiError(err);
@@ -484,6 +552,10 @@ async function startServer() {
     }
   });
 
+  app.all('/api/*', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found', code: 'NOT_FOUND' });
+  });
+
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -494,10 +566,6 @@ async function startServer() {
 
     // Fallback index.html serving via Vite transformIndexHtml if custom routes hit directly
     app.use('*', async (req: Request, res: Response, next) => {
-      if (req.originalUrl.startsWith('/api/')) {
-        next();
-        return;
-      }
       try {
         const fs = await import('fs/promises');
         const htmlPath = path.resolve(process.cwd(), 'index.html');
@@ -510,14 +578,24 @@ async function startServer() {
     });
   } else {
     const distDir = path.resolve(process.cwd(), 'dist');
-    app.all('/api/*', (_req: Request, res: Response) => {
-      res.status(404).json({ error: 'API route not found' });
-    });
     app.use(express.static(distDir));
     app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }
+
+  app.use((err: unknown, req: Request, res: Response, next: (err?: unknown) => void) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    console.error('Unhandled server error:', err);
+    if (req.originalUrl.startsWith('/api/')) {
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+      return;
+    }
+    res.status(500).send('Internal server error');
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);

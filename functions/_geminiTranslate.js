@@ -46,7 +46,8 @@ function classifyHttpError(status, rawText) {
     status === 403 ||
     status === 401 ||
     String(rawText).includes('PERMISSION_DENIED') ||
-    String(rawText).includes('API_KEY_INVALID')
+    String(rawText).includes('API_KEY_INVALID') ||
+    lower.includes('api key not valid')
   ) {
     return {
       statusCode: status === 403 ? 403 : 400,
@@ -100,7 +101,7 @@ function classifyHttpError(status, rawText) {
   };
 }
 
-async function callGeminiWithFallback(apiKey, buildPayload) {
+async function callGeminiWithFallback(apiKey, buildPayload, validateParsed) {
   let lastParsedError = {
     statusCode: 500,
     code: 'API_ERROR',
@@ -123,7 +124,7 @@ async function callGeminiWithFallback(apiKey, buildPayload) {
             'User-Agent': 'aistudio-build',
           },
           body: JSON.stringify(body),
-          signal: typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(15000) : undefined,
+          signal: typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(25000) : undefined,
         });
 
         const text = await res.text();
@@ -132,12 +133,22 @@ async function callGeminiWithFallback(apiKey, buildPayload) {
           const candidateText =
             data?.candidates?.[0]?.content?.parts
               ?.map((p) => (typeof p?.text === 'string' ? p.text : ''))
-              .join('') || '{}';
+              .join('') || '';
           const cleanJson = candidateText
             .trim()
             .replace(/^```(?:json)?\s*/i, '')
             .replace(/\s*```$/i, '');
-          return JSON.parse(cleanJson || '{}');
+          if (!cleanJson) {
+            throw new Error('Empty response from translation model');
+          }
+          const parsedJson = JSON.parse(cleanJson);
+          if (!parsedJson || typeof parsedJson !== 'object' || Array.isArray(parsedJson)) {
+            throw new Error('Invalid JSON object from translation model');
+          }
+          if (typeof validateParsed === 'function') {
+            validateParsed(parsedJson);
+          }
+          return parsedJson;
         }
 
         const parsed = classifyHttpError(res.status, text);
@@ -286,7 +297,7 @@ export async function handleTranslateFactRequest(request, env) {
             'Translate the provided English historical encyclopedia fields into clear, accurate, eloquent Central Kurdish (Sorani / کوردی سۆرانی).',
             'CRITICAL RULES:',
             '1. STRICT 1-TO-1 FIELD FIDELITY: Each output field MUST be a faithful Central Kurdish (Sorani) translation of ONLY its corresponding <FIELD> input. Never invent facts, never insert details from external memory, and never bleed text from one field into another.',
-            '2. SUBJECT COHERENCE CHECK ON additionalNotes: Check whether the <FIELD name="additionalNotes"> text genuinely belongs to the same historical person, place, dynasty, or event as <FIELD name="name"> and <FIELD name="fullText">. If additionalNotes is empty, set notesCoherentWithTopic=true and notesDetectedOtherSubject="". If additionalNotes is unmistakably pasted by mistake from a completely different, unrelated historical subject, set notesCoherentWithTopic=false, put the short name of that unrelated subject in notesDetectedOtherSubject, and set additionalNotes to "" in the output.',
+            '2. SUBJECT COHERENCE CHECK ON additionalNotes (when additionalNotes is requested): Check whether the <FIELD name="additionalNotes"> text genuinely belongs to the same historical person, place, dynasty, or event as the topic name/context. If additionalNotes is empty, set notesCoherentWithTopic=true and notesDetectedOtherSubject="". If additionalNotes is unmistakably pasted by mistake from a completely different, unrelated historical subject, set notesCoherentWithTopic=false, put the short name of that unrelated subject in notesDetectedOtherSubject, and set additionalNotes to "" in the output.',
             '3. Convert Western digits (0123456789) into Kurdish/Eastern numerals (٠١٢٣٤٥٦٧٨٩) in Kurdish date/number strings where natural.',
             '4. Convert "BCE" / "BC" to "پ.ز" (پێش زایین) and "CE" / "AD" to "ز" (زایینی). Format centuries naturally in Kurdish Sorani (e.g., "سەدەی ١٢ی زایینی", "سەدەی ٧ی پ.ز"). For extreme prehistoric times older than 4000 BCE (such as "Paleolithic / Prehistoric Era" or 70,000 - 30,000 BCE), format century naturally as "سەردەمی بەردین / پێش‌مێژوو".',
             '5. Use established Kurdish historical orthography for cities and dynasties (e.g., هەولێر، سلێمانی، ئامەد، ئەردەڵان، بابان، سۆران، بادینان، بۆتان، ماد، حەسەنوەیهی، مەروانی، شەدادی، ئەیوبی، ئەشکەوتی شانەدەر).',
@@ -298,7 +309,7 @@ export async function handleTranslateFactRequest(request, env) {
             'Translate the provided Central Kurdish (Sorani) historical encyclopedia fields into clear, accurate, scholarly English.',
             'CRITICAL RULES:',
             '1. STRICT 1-TO-1 FIELD FIDELITY: Each output field MUST be a faithful English translation of ONLY its corresponding <FIELD> input. Never invent facts, never insert details from external memory, and never bleed text from one field into another.',
-            '2. SUBJECT COHERENCE CHECK ON additionalNotes: Check whether the <FIELD name="additionalNotes"> text genuinely belongs to the same historical person, place, dynasty, or event as <FIELD name="name"> and <FIELD name="fullText">. If additionalNotes is empty, set notesCoherentWithTopic=true and notesDetectedOtherSubject="". If additionalNotes is unmistakably pasted by mistake from a completely different, unrelated historical subject, set notesCoherentWithTopic=false, put the short English name of that unrelated subject in notesDetectedOtherSubject, and set additionalNotes to "" in the output.',
+            '2. SUBJECT COHERENCE CHECK ON additionalNotes (when additionalNotes is requested): Check whether the <FIELD name="additionalNotes"> text genuinely belongs to the same historical person, place, dynasty, or event as the topic name/context. If additionalNotes is empty, set notesCoherentWithTopic=true and notesDetectedOtherSubject="". If additionalNotes is unmistakably pasted by mistake from a completely different, unrelated historical subject (e.g., discussing Emir Daysam of Azerbaijan when the entry is Shanidar Cave, or discussing poet Besarani when the entry is an Ardalan governor), set notesCoherentWithTopic=false, put the short English name of that unrelated subject in notesDetectedOtherSubject, and set additionalNotes to "" in the output.',
             '3. Convert Kurdish/Eastern numerals (٠١٢٣٤٥٦٧٨٩) into standard Western Arabic numerals (0123456789).',
             '4. Convert "پ.ز" / "پێش زایین" to "BCE" and "ز" / "زایینی" to "CE". Format centuries naturally (e.g., "12th Century CE", "7th Century BCE"). For extreme prehistoric times older than 4000 BCE (such as 70,000 - 30,000 BCE or "سەدەی ٧٠٠ی پێش زایین"), format century naturally as "Paleolithic / Prehistoric Era" instead of "700th Century BCE".',
             '5. Use established English historical orthography for Kurdish entities and cities (e.g. Erbil, Sulaymaniyah, Amed / Diyarbakir, Ardalan, Baban, Soran, Badinan, Bohtan, Medes, Hasanwayhids, Marwanids, Shaddadids, Ayyubids, Shanidar Cave).',
@@ -335,26 +346,46 @@ export async function handleTranslateFactRequest(request, env) {
       requiredFields.push('notesCoherentWithTopic', 'notesDetectedOtherSubject');
     }
 
-    const parsed = await callGeminiWithFallback(apiKey, (thinkingLevel) => ({
-      systemInstruction: {
-        parts: [{ text: systemInstruction }],
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: structuredInput }],
+    const parsed = await callGeminiWithFallback(
+      apiKey,
+      (thinkingLevel) => ({
+        systemInstruction: {
+          parts: [{ text: systemInstruction }],
         },
-      ],
-      generationConfig: {
-        thinkingConfig: { thinkingLevel },
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: schemaProperties,
-          required: requiredFields,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: structuredInput }],
+          },
+        ],
+        generationConfig: {
+          thinkingConfig: { thinkingLevel },
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: schemaProperties,
+            required: requiredFields,
+          },
         },
-      },
-    }));
+      }),
+      (data) => {
+        const notesCoherent = data.notesCoherentWithTopic !== false;
+        for (const fieldKey of requestedFields) {
+          if (fieldKey === 'imagesCaptions') {
+            if (extraCaptions.some((c) => c.trim()) && !Array.isArray(data.imagesCaptions)) {
+              throw new Error('Missing imagesCaptions array');
+            }
+            continue;
+          }
+          if (fieldKey === 'additionalNotes' && !notesCoherent) continue;
+          const sourceVal = String(fact[fieldKey] || '').trim();
+          const outVal = typeof data[fieldKey] === 'string' ? data[fieldKey].trim() : '';
+          if (sourceVal && !outVal) {
+            throw new Error(`Empty translation for field "${fieldKey}"`);
+          }
+        }
+      }
+    );
 
     const notesExcluded =
       requestedSet.has('additionalNotes') &&
@@ -419,33 +450,41 @@ export async function handleTranslateCollectionRequest(request, env) {
         ? 'Translate this English historical category/collection name and short description into concise, accurate Central Kurdish (Sorani / کوردی سۆرانی).'
         : 'Translate this Kurdish Sorani historical category/collection name and short description into concise, accurate English.';
 
-    const parsed = await callGeminiWithFallback(apiKey, (thinkingLevel) => ({
-      systemInstruction: {
-        parts: [
+    const parsed = await callGeminiWithFallback(
+      apiKey,
+      (thinkingLevel) => ({
+        systemInstruction: {
+          parts: [
+            {
+              text: instructionText,
+            },
+          ],
+        },
+        contents: [
           {
-            text: instructionText,
+            role: 'user',
+            parts: [{ text: JSON.stringify({ name: name || '', description: description || '' }) }],
           },
         ],
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: JSON.stringify({ name: name || '', description: description || '' }) }],
-        },
-      ],
-      generationConfig: {
-        thinkingConfig: { thinkingLevel },
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            name: { type: 'STRING' },
-            description: { type: 'STRING' },
+        generationConfig: {
+          thinkingConfig: { thinkingLevel },
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              name: { type: 'STRING' },
+              description: { type: 'STRING' },
+            },
+            required: ['name', 'description'],
           },
-          required: ['name', 'description'],
         },
-      },
-    }));
+      }),
+      (data) => {
+        if (typeof data.name !== 'string' || !data.name.trim()) {
+          throw new Error('Empty collection name in translation');
+        }
+      }
+    );
 
     return jsonResponse({ translated: parsed });
   } catch (err) {

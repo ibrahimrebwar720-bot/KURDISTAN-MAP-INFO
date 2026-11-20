@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Sun,
@@ -63,6 +63,20 @@ export const AppSettingsModal: React.FC<Props> = ({
   // Admin secret 6-tap tracking
   const [adminTapCount, setAdminTapCount] = useState(0);
   const tapTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!isOpen && tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = null;
+      setAdminTapCount(0);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
