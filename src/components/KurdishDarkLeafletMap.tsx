@@ -57,12 +57,18 @@ import {
   filterFactsByActiveYear,
   formatKurdishYear,
   formatDigits,
+  getFactYearSpan,
 } from '../utils/yearUtils';
 import { KurdishMapBorderIllumination } from './KurdishMapBorderIllumination';
 import { getCategoryInfo, getAccessibleCategoryColor } from '../types/history';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { getLinkedFacts, getKnowledgeGraphNetwork, KnowledgeGraphNetwork } from '../utils/factRelations';
+import {
+  getLinkedFacts,
+  getKnowledgeGraphNetwork,
+  compareFactsChronologically,
+  KnowledgeGraphNetwork,
+} from '../utils/factRelations';
 import { THEME_LIST } from '../types/theme';
 import { getFactDisplayImage } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -1936,49 +1942,76 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                 {selectedFact.fullText || selectedFact.desc}
               </div>
 
-              {/* Linked Topics */}
-              {((selectedKnowledgeGraph?.nodes.length || 0) > 0 || selectedLinked.allRelated.length > 0) && (
-                <div className={`p-3 rounded-2xl border space-y-2 ${
-                  isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className={`flex items-center justify-between text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
-                    <span className="flex items-center gap-1.5">
-                      <Link2 className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-                      <span>{isEn ? 'Connected Sites' : 'شوێنە پەیوەندیدارەکان'}</span>
-                    </span>
-                    <span className={`font-mono tabular-nums text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {formatDigits(selectedKnowledgeGraph?.nodes.length || selectedLinked.allRelated.length, language)}
-                    </span>
+              {/* Linked Topics (Vertical Chronological Column) */}
+              {((selectedKnowledgeGraph?.nodes.length || 0) > 0 || selectedLinked.allRelated.length > 0) && (() => {
+                const chronologicalLinked = [
+                  ...(selectedKnowledgeGraph?.nodes && selectedKnowledgeGraph.nodes.length > 0
+                    ? selectedKnowledgeGraph.nodes
+                    : selectedLinked.allRelated),
+                ].sort(compareFactsChronologically);
+
+                return (
+                  <div className={`p-3 rounded-2xl border space-y-2 ${
+                    isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className={`flex items-center justify-between text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                      <span className="flex items-center gap-1.5">
+                        <Link2 className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+                        <span>{isEn ? 'Connected Sites' : 'شوێنە پەیوەندیدارەکان'}</span>
+                      </span>
+                      <span className={`font-mono tabular-nums text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {formatDigits(chronologicalLinked.length, language)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto custom-scrollbar pe-0.5">
+                      {chronologicalLinked.map((lf, idx) => {
+                        const c = getCategoryInfo(lf, language);
+                        const accColor = getAccessibleCategoryColor(c.color, isDark);
+                        const rawYear = lf.year || lf.century || getFactYearSpan(lf, language).label;
+                        const displayYear = rawYear ? formatDigits(rawYear, language) : '';
+                        return (
+                          <button
+                            key={lf.id}
+                            type="button"
+                            onClick={() => {
+                              onSelectFact(lf);
+                              setShowQuickSummary(true);
+                            }}
+                            className={`w-full px-2.5 py-2 rounded-xl text-xs flex items-center justify-between gap-2 border hover:border-amber-400/50 transition-all cursor-pointer active:scale-[0.99] text-start ${
+                              isDark
+                                ? 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200'
+                                : 'border-slate-300 bg-white hover:bg-amber-50 text-slate-900'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span
+                                className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-mono tabular-nums font-bold shrink-0 ${
+                                  isDark ? 'bg-white/10 text-amber-300' : 'bg-amber-100 text-amber-900'
+                                }`}
+                              >
+                                {formatDigits(idx + 1, language)}
+                              </span>
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: accColor }} />
+                              <span className="truncate font-semibold">{lf.name}</span>
+                            </div>
+                            {displayYear && (
+                              <span
+                                className={`text-[10px] font-mono tabular-nums font-bold shrink-0 px-1.5 py-0.5 rounded-md border ${
+                                  isDark
+                                    ? 'bg-white/[0.04] text-amber-200/90 border-white/10'
+                                    : 'bg-amber-50 text-amber-900 border-amber-200'
+                                }`}
+                              >
+                                {displayYear}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(selectedKnowledgeGraph?.nodes && selectedKnowledgeGraph.nodes.length > 0
-                      ? selectedKnowledgeGraph.nodes
-                      : selectedLinked.allRelated
-                    ).slice(0, 8).map((lf) => {
-                      const c = getCategoryInfo(lf, language);
-                      const accColor = getAccessibleCategoryColor(c.color, isDark);
-                      return (
-                        <button
-                          key={lf.id}
-                          type="button"
-                          onClick={() => {
-                            onSelectFact(lf);
-                            setShowQuickSummary(true);
-                          }}
-                          className={`px-2.5 py-1 rounded-xl text-xs flex items-center gap-1.5 border hover:border-amber-400/50 transition-all cursor-pointer active:scale-95 ${
-                            isDark
-                              ? 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200'
-                              : 'border-slate-300 bg-white hover:bg-amber-50 text-slate-900'
-                          }`}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accColor }} />
-                          <span className="truncate max-w-[140px] font-semibold">{lf.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Sticky Inspector Action Footer */}

@@ -67,10 +67,11 @@ import { AppLanguage, useLanguage, getInitialLanguage } from './context/Language
 import {
   translateFactToLanguageDetailed,
   hasFactTextChanged,
-  hasFactStructureChanged,
+  getFactFieldDiff,
   syncFactNonTextFieldsToLanguage,
-  translateCollectionToEnglish,
+  translateCollectionToLanguage,
   formatTranslationError,
+  TranslatableFactField,
 } from './services/aiTranslationService';
 import {
   parseCurrentUrl,
@@ -111,7 +112,10 @@ export default function App() {
   const [crossLangSyncTarget, setCrossLangSyncTarget] = useState<{
     fact: FactItem;
     sourceLang: AppLanguage;
-    syncMode?: 'ai_text' | 'non_text';
+    syncMode?: 'ai_text' | 'partial_text' | 'non_text';
+    changedFields?: TranslatableFactField[];
+    changedLabelsKu?: string[];
+    changedLabelsEn?: string[];
   } | null>(null);
   const [untranslatedTopicNotice, setUntranslatedTopicNotice] = useState<{
     id: number;
@@ -672,24 +676,64 @@ export default function App() {
     // Persist text/topic data to Firestore cloud (URLs only, zero binary uploads)
     saveFactToCloud(savedFact, language).catch((err) => {
       console.error('Failed to sync fact to cloud:', err);
+      showSyncToast(
+        language === 'en'
+          ? 'Failed to save changes to cloud database.'
+          : 'پاشەکەوتکردن لە بنکەی داتای هەوردا سەرکەوتوو نەبوو.'
+      );
     });
 
-    // Since `ckb` is the Master Knowledge Base, edits propagate outward `ckb -> en`
-    if (language === 'ckb' && isAdmin && (options?.isEdit ?? exists) && !options?.skipCrossLangPrompt) {
-      const textChanged = hasFactTextChanged(prevFact, savedFact);
-      const structureChanged = hasFactStructureChanged(prevFact, savedFact);
+    // Bidirectional cross-language sync (`ckb <-> en`) for edits & new entries
+    const targetLang: AppLanguage = language === 'ckb' ? 'en' : 'ckb';
+    if (isAdmin && !options?.skipCrossLangPrompt) {
+      const isEditFlow = options?.isEdit ?? exists;
+      if (!isEditFlow) {
+        // Brand-new entry: offer full translation & sync to the other language
+        setCrossLangSyncTarget({
+          fact: savedFact,
+          sourceLang: language,
+          syncMode: 'ai_text',
+        });
+      } else {
+        const diff = getFactFieldDiff(prevFact, savedFact);
 
-      if (!textChanged && structureChanged) {
-        // Non-text edit (image, coords, dates, polygon, category, relations): sync directly WITHOUT AI quota!
-        syncFactNonTextFieldsToLanguage(savedFact, 'en')
-          .then((updated) => {
-            if (updated) {
-              showSyncToast('وێنە/شوێن/مێژووی بابەتەکە بێ AI لە بەشی ئینگلیزیش نوێکرایەوە');
-            }
-          })
-          .catch((err) => console.warn('Non-text sync to EN skipped:', err));
-      } else if (textChanged) {
-        setCrossLangSyncTarget({ fact: savedFact, sourceLang: 'ckb', syncMode: 'ai_text' });
+        if (diff.changedTextFields.length === 0 && diff.hasStructureChange) {
+          // Non-text edit (image, coords, dates, polygon, category, relations): sync directly WITHOUT AI quota!
+          syncFactNonTextFieldsToLanguage(savedFact, targetLang)
+            .then((updated) => {
+              if (updated) {
+                showSyncToast(
+                  language === 'en'
+                    ? 'Images/location/dates synced to Kurdish Sorani without AI ✓'
+                    : 'وێنە/شوێن/مێژووی بابەتەکە بێ AI لە بەشی ئینگلیزیش نوێکرایەوە ✓'
+                );
+              } else {
+                // Target entry does not exist in the other language yet: offer to translate & create it
+                setCrossLangSyncTarget({
+                  fact: savedFact,
+                  sourceLang: language,
+                  syncMode: 'ai_text',
+                });
+              }
+            })
+            .catch((err) => {
+              console.error('Non-text cross-lang sync failed:', err);
+              showSyncToast(
+                language === 'en'
+                  ? 'Failed to sync non-text changes to Kurdish Sorani.'
+                  : 'هاوکاتکردنی گۆڕانکارییەکان لە بەشی ئینگلیزیدا سەرکەوتوو نەبوو.'
+              );
+            });
+        } else if (diff.changedTextFields.length > 0) {
+          setCrossLangSyncTarget({
+            fact: savedFact,
+            sourceLang: language,
+            syncMode: diff.hasSummaryOrFullTextChange ? 'ai_text' : 'partial_text',
+            changedFields: diff.changedTextFields,
+            changedLabelsKu: diff.changedLabelsKu,
+            changedLabelsEn: diff.changedLabelsEn,
+          });
+        }
       }
     }
   };
@@ -713,10 +757,11 @@ export default function App() {
       console.error('Failed to delete fact from cloud:', err);
     });
 
-    // Cascade delete from Master ckb to derived English collection if chosen
-    if (language === 'ckb' && options?.deleteFromEnglish) {
-      deleteFactFromCloud(factId, 'en').catch((err) => {
-        console.error('Failed to cascade delete fact from EN cloud:', err);
+    // Cascade delete to the other language collection if chosen (`ckb <-> en`)
+    if (options?.deleteFromEnglish) {
+      const otherLang: AppLanguage = language === 'ckb' ? 'en' : 'ckb';
+      deleteFactFromCloud(factId, otherLang).catch((err) => {
+        console.error(`Failed to cascade delete fact from ${otherLang} cloud:`, err);
       });
     }
   };
@@ -744,10 +789,22 @@ export default function App() {
     // Persist to Firestore cloud
     saveNotesToCloud(factId, notes, targetFact, language).catch((err) => {
       console.error('Failed to save notes to cloud:', err);
+      showSyncToast(
+        language === 'en'
+          ? 'Failed to save notes to cloud database.'
+          : 'پاشەکەوتکردنی تێبینی لە هەوردا سەرکەوتوو نەبوو.'
+      );
     });
 
-    if (language === 'ckb' && isAdmin && updatedFact && hasFactTextChanged(targetFact, updatedFact)) {
-      setCrossLangSyncTarget({ fact: updatedFact, sourceLang: 'ckb', syncMode: 'ai_text' });
+    if (isAdmin && updatedFact && hasFactTextChanged(targetFact, updatedFact)) {
+      setCrossLangSyncTarget({
+        fact: updatedFact,
+        sourceLang: language,
+        syncMode: 'partial_text',
+        changedFields: ['additionalNotes'],
+        changedLabelsKu: ['تێبینی زیاتر'],
+        changedLabelsEn: ['Additional Notes'],
+      });
     }
   };
 
@@ -806,11 +863,19 @@ export default function App() {
       console.error('Failed to sync fact relations to cloud:', err);
     });
 
-    // 3. Relations are non-text IDs: sync directly from ckb -> en without burning AI quota
-    if (language === 'ckb' && updatedFact) {
-      const synced = await syncFactNonTextFieldsToLanguage(updatedFact, 'en').catch(() => false);
+    // 3. Relations are non-text IDs: sync directly across languages (`ckb <-> en`) without burning AI quota
+    if (updatedFact) {
+      const otherLang: AppLanguage = language === 'ckb' ? 'en' : 'ckb';
+      const synced = await syncFactNonTextFieldsToLanguage(updatedFact, otherLang).catch((err) => {
+        console.error(`Failed to sync relations to ${otherLang}:`, err);
+        return false;
+      });
       if (synced) {
-        showSyncToast('پەیوەندییەکانی بابەتەکە بێ AI لە بەشی ئینگلیزیش هاوکات کران');
+        showSyncToast(
+          language === 'en'
+            ? 'Linked topics synced to Kurdish Sorani without AI ✓'
+            : 'پەیوەندییەکانی بابەتەکە بێ AI لە بەشی ئینگلیزیش هاوکات کران ✓'
+        );
       }
     }
   };
@@ -821,9 +886,23 @@ export default function App() {
     if (crossLangSyncTarget.syncMode === 'non_text') {
       await syncFactNonTextFieldsToLanguage(crossLangSyncTarget.fact, targetLang);
     } else {
-      await translateFactToLanguageDetailed(crossLangSyncTarget.fact, targetLang);
+      await translateFactToLanguageDetailed(crossLangSyncTarget.fact, targetLang, {
+        fieldsToTranslate: crossLangSyncTarget.changedFields,
+      });
+    }
+    if (targetLang === 'en') {
+      setTranslatedFactIds((prev) => {
+        const next = new Set(prev);
+        next.add(crossLangSyncTarget.fact.id);
+        return next;
+      });
     }
     setCrossLangSyncTarget(null);
+    showSyncToast(
+      targetLang === 'en'
+        ? 'گۆڕانکارییەکان لە بەشی ئینگلیزیش هاوتا کران ✓'
+        : 'Changes synced to Kurdish Sorani ✓'
+    );
   };
 
   // Map Point Picking flow
@@ -847,18 +926,17 @@ export default function App() {
   const handleReplayIntro = useCallback(() => setShowIntro(true), []);
   const handleMapIntroComplete = useCallback(() => setShowIntro(false), []);
 
-  // Collections handlers (Synced to Firestore cloud; ckb -> en cascade)
+  // Collections handlers (Synced to Firestore cloud; bidirectional `ckb <-> en` cascade)
   const handleAddCollection = (newCol: CollectionItem) => {
     const updated = [...collections, newCol];
     setCollections(updated);
     saveCollectionToCloud(newCol, language).catch((err) => {
       console.error('Failed to save collection to cloud:', err);
     });
-    if (language === 'ckb') {
-      translateCollectionToEnglish(newCol)
-        .then((enCol) => saveCollectionToCloud(enCol, 'en'))
-        .catch((err) => console.warn('Failed to sync new collection to EN:', err));
-    }
+    const otherLang: AppLanguage = language === 'ckb' ? 'en' : 'ckb';
+    translateCollectionToLanguage(newCol, otherLang)
+      .then((translatedCol) => saveCollectionToCloud(translatedCol, otherLang))
+      .catch((err) => console.warn(`Failed to sync new collection to ${otherLang}:`, err));
   };
 
   const handleUpdateCollection = (updatedCol: CollectionItem) => {
@@ -869,11 +947,16 @@ export default function App() {
     saveCollectionToCloud(updatedCol, language).catch((err) => {
       console.error('Failed to update collection in cloud:', err);
     });
-    if (language === 'ckb') {
-      translateCollectionToEnglish(updatedCol)
-        .then((enCol) => saveCollectionToCloud(enCol, 'en'))
-        .catch((err) => console.warn('Failed to sync updated collection to EN:', err));
-    }
+    const otherLang: AppLanguage = language === 'ckb' ? 'en' : 'ckb';
+    const prevCol = collections.find((c) => c.id === updatedCol.id);
+    const shouldForceRetranslate =
+      language === 'ckb' &&
+      Boolean(prevCol) &&
+      prevCol?.name !== updatedCol.name &&
+      prevCol?.nameEn === updatedCol.nameEn;
+    translateCollectionToLanguage(updatedCol, otherLang, shouldForceRetranslate)
+      .then((translatedCol) => saveCollectionToCloud(translatedCol, otherLang))
+      .catch((err) => console.warn(`Failed to sync updated collection to ${otherLang}:`, err));
   };
 
   const handleDeleteCollection = (colId: string) => {
@@ -885,11 +968,10 @@ export default function App() {
     deleteCollectionFromCloud(colId, language).catch((err) => {
       console.error('Failed to delete collection from cloud:', err);
     });
-    if (language === 'ckb') {
-      deleteCollectionFromCloud(colId, 'en').catch((err) => {
-        console.warn('Failed to cascade delete collection from EN:', err);
-      });
-    }
+    const otherLang: AppLanguage = language === 'ckb' ? 'en' : 'ckb';
+    deleteCollectionFromCloud(colId, otherLang).catch((err) => {
+      console.warn(`Failed to cascade delete collection from ${otherLang}:`, err);
+    });
   };
 
   const pendingSubmissionsCount = photoSubmissions.filter((s) => s.status === 'pending').length;
@@ -998,6 +1080,17 @@ export default function App() {
               onOpenHero={handleReturnToHero}
               onClose={handleCloseMenu}
               onLogoutAdmin={handleAdminLogout}
+              onFactsLocationsFixed={(updatedList) => {
+                const updatedById = new Map(updatedList.map((f) => [f.id, f]));
+                setFacts((prev) => prev.map((f) => updatedById.get(f.id) || f));
+                setSelectedFact((prev) => (prev && updatedById.get(prev.id)) || prev);
+                setDetailFact((prev) => (prev && updatedById.get(prev.id)) || prev);
+                showSyncToast(
+                  language === 'en'
+                    ? `Dispersed ${updatedList.length} overlapping map pins ✓`
+                    : `${updatedList.length} پۆینتی تێکەڵبوو بەسەر پارێزگاکاندا پەرت کران ✓`
+                );
+              }}
               initialSearchTerm={directorySearchTerm}
             />
           </div>
@@ -1171,6 +1264,8 @@ export default function App() {
           fact={crossLangSyncTarget.fact}
           sourceLang={crossLangSyncTarget.sourceLang}
           syncMode={crossLangSyncTarget.syncMode}
+          changedLabelsKu={crossLangSyncTarget.changedLabelsKu}
+          changedLabelsEn={crossLangSyncTarget.changedLabelsEn}
           onConfirmYes={handleConfirmCrossLangSync}
           onDeclineNo={() => setCrossLangSyncTarget(null)}
         />

@@ -5,6 +5,31 @@ import { getProvinceById, matchFactToProvince } from '../data/kurdishProvincesDa
 import { formatYearRange } from '../utils/yearUtils';
 import { getFactFromCloud, saveFactToCloud } from './firestoreHistoryService';
 
+export type TranslatableFactField =
+  | 'name'
+  | 'desc'
+  | 'fullText'
+  | 'additionalNotes'
+  | 'eraName'
+  | 'eraPeriod'
+  | 'year'
+  | 'century'
+  | 'region'
+  | 'imageCaption'
+  | 'imagesCaptions';
+
+export interface FactFieldDiff {
+  changedTextFields: TranslatableFactField[];
+  hasSummaryOrFullTextChange: boolean;
+  hasStructureChange: boolean;
+  changedLabelsKu: string[];
+  changedLabelsEn: string[];
+}
+
+export interface TranslateFactOptions {
+  fieldsToTranslate?: TranslatableFactField[];
+}
+
 interface TranslatedFactTextPayload {
   name?: string;
   desc?: string;
@@ -124,11 +149,109 @@ export function formatTranslationError(err: unknown, language: AppLanguage): str
  * Translates a FactItem into the target language ('en' or 'ckb') via /api/translate-fact,
  * strictly preserving the exact same coordinates, boundaries, IDs, dates, relations, and image URLs,
  * then saves it directly to the target language's Firestore collection (`facts_en` or `facts`).
+ * When `options.fieldsToTranslate` is provided and an existing target-language entry exists,
+ * ONLY those specific changed fields are translated and merged — leaving `desc`, `fullText`,
+ * and all other untouched target-language fields completely intact.
  */
 export async function translateFactToLanguageDetailed(
   sourceFact: FactItem,
-  targetLanguage: AppLanguage
+  targetLanguage: AppLanguage,
+  options?: TranslateFactOptions
 ): Promise<TranslateFactOutcome> {
+  const requestedFields =
+    options?.fieldsToTranslate && options.fieldsToTranslate.length > 0
+      ? Array.from(new Set(options.fieldsToTranslate))
+      : undefined;
+
+  const existingTarget = requestedFields
+    ? await getFactFromCloud(sourceFact.id, targetLanguage)
+    : null;
+
+  // Only perform partial translation if we have an existing target entry to merge into;
+  // otherwise perform full translation so the new target entry is complete.
+  const effectiveFields = requestedFields && existingTarget ? requestedFields : undefined;
+
+  // If ONLY empty/cleared fields were modified in an existing target entry,
+  // apply the clear + structural sync immediately without needing an AI call.
+  if (effectiveFields && existingTarget) {
+    const allClearedOrEmpty = effectiveFields.every((fieldKey) => {
+      if (fieldKey === 'imagesCaptions') {
+        return !Array.isArray(sourceFact.images) || sourceFact.images.every((img) => !normStr(img.caption));
+      }
+      return !normStr((sourceFact as unknown as Record<string, string | undefined>)[fieldKey]);
+    });
+
+    if (allClearedOrEmpty) {
+      const reqSet = new Set<TranslatableFactField>(effectiveFields);
+      const existingCaptionByUrl = new Map<string, string>();
+      if (Array.isArray(existingTarget.images)) {
+        for (const img of existingTarget.images) {
+          if (img?.url && img.caption) {
+            existingCaptionByUrl.set(img.url, img.caption);
+          }
+        }
+      }
+      const clearedImages = Array.isArray(sourceFact.images)
+        ? sourceFact.images.map((img) => {
+            const preservedCap = reqSet.has('imagesCaptions') ? undefined : existingCaptionByUrl.get(img.url);
+            return {
+              url: img.url,
+              ...(preservedCap ? { caption: preservedCap } : {}),
+            };
+          })
+        : undefined;
+
+      const clearedFact: FactItem = {
+        ...existingTarget,
+        id: sourceFact.id,
+        num: sourceFact.num,
+        eraId: sourceFact.eraId,
+        lat: sourceFact.lat,
+        lng: sourceFact.lng,
+        zoom: sourceFact.zoom,
+        provinceId: sourceFact.provinceId,
+        tag: sourceFact.tag,
+        category: sourceFact.category,
+        collectionId: sourceFact.collectionId,
+        startYear: sourceFact.startYear,
+        endYear: sourceFact.endYear,
+        birthYear: sourceFact.birthYear,
+        deathYear: sourceFact.deathYear,
+        isBC: sourceFact.isBC,
+        centuryNumber: sourceFact.centuryNumber,
+        timeSpanType: sourceFact.timeSpanType,
+        startCentury: sourceFact.startCentury,
+        endCentury: sourceFact.endCentury,
+        startCenturyBC: sourceFact.startCenturyBC,
+        endCenturyBC: sourceFact.endCenturyBC,
+        territoryPolygon: sourceFact.territoryPolygon,
+        territoryColor: sourceFact.territoryColor,
+        overlayImageUrl: sourceFact.overlayImageUrl,
+        overlayBounds: sourceFact.overlayBounds,
+        parentFactId: sourceFact.parentFactId,
+        relatedFactIds: sourceFact.relatedFactIds,
+        allyFactIds: sourceFact.allyFactIds,
+        imageUrl: sourceFact.imageUrl,
+        images: clearedImages,
+        additionalNotes: reqSet.has('additionalNotes') ? undefined : existingTarget.additionalNotes,
+        eraName: reqSet.has('eraName') ? '' : existingTarget.eraName,
+        eraPeriod: reqSet.has('eraPeriod') ? '' : existingTarget.eraPeriod,
+        year: reqSet.has('year') ? '' : existingTarget.year,
+        century: reqSet.has('century') ? '' : existingTarget.century,
+        region: reqSet.has('region') ? undefined : existingTarget.region,
+        imageCaption: reqSet.has('imageCaption') ? undefined : existingTarget.imageCaption,
+        isCustom: true,
+        updatedAt: Date.now(),
+      };
+
+      await saveFactToCloud(clearedFact, targetLanguage);
+      return {
+        fact: clearedFact,
+        notesExcluded: false,
+      };
+    }
+  }
+
   let response: Response | null = null;
   for (let clientAttempt = 1; clientAttempt <= 2; clientAttempt++) {
     response = await fetch('/api/translate-fact', {
@@ -136,7 +259,11 @@ export async function translateFactToLanguageDetailed(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ fact: sourceFact, targetLanguage }),
+      body: JSON.stringify({
+        fact: sourceFact,
+        targetLanguage,
+        ...(effectiveFields ? { fieldsToTranslate: effectiveFields } : {}),
+      }),
     });
 
     if (response.ok) break;
@@ -186,7 +313,7 @@ export async function translateFactToLanguageDetailed(
     };
   };
   const t = data.translated;
-  if (!t || !t.name) {
+  if (!t || (!effectiveFields && !t.name)) {
     throw new Error('AI translation returned empty result.');
   }
 
@@ -195,7 +322,149 @@ export async function translateFactToLanguageDetailed(
     ? data.meta?.notesMismatchSubject?.trim() || undefined
     : undefined;
 
-  // Strictly preserve ALL original image URLs and gallery ordering
+  // Fallback province/region label if AI left region blank
+  const matchedProv =
+    (sourceFact.provinceId ? getProvinceById(sourceFact.provinceId) : undefined) ||
+    matchFactToProvince(sourceFact, targetLanguage);
+
+  const fallbackYear =
+    typeof sourceFact.startYear === 'number'
+      ? formatYearRange(sourceFact.startYear, sourceFact.endYear, targetLanguage)
+      : sourceFact.year;
+
+  const normalizeCentury = (rawCentury: string | undefined) => {
+    let resolved = (rawCentury || '').trim();
+    if (typeof sourceFact.startYear === 'number' && sourceFact.startYear < -4000) {
+      if (targetLanguage === 'en') {
+        if (
+          !resolved ||
+          /^\d+(st|nd|rd|th)\s+century\s+bce?$/i.test(resolved) ||
+          /سەدە/.test(resolved)
+        ) {
+          resolved = 'Paleolithic / Prehistoric Era';
+        }
+      } else if (!resolved || /century/i.test(resolved) || /٧٠٠/.test(resolved)) {
+        resolved = 'سەردەمی بەردین / پێش‌مێژوو';
+      }
+    }
+    return resolved;
+  };
+
+  const fallbackRegion = targetLanguage === 'en' ? matchedProv?.nameEn : matchedProv?.name;
+
+  // Partial Merge Mode: preserve existingTarget.desc, fullText, and all untouched fields 100%
+  if (effectiveFields && existingTarget) {
+    const reqSet = new Set<TranslatableFactField>(effectiveFields);
+    const existingCaptionByUrl = new Map<string, string>();
+    if (Array.isArray(existingTarget.images)) {
+      for (const img of existingTarget.images) {
+        if (img?.url && img.caption) {
+          existingCaptionByUrl.set(img.url, img.caption);
+        }
+      }
+    }
+
+    const mergedImages = Array.isArray(sourceFact.images)
+      ? sourceFact.images.map((img, idx) => {
+          if (reqSet.has('imagesCaptions')) {
+            const sourceCap = normStr(img.caption);
+            const aiCap =
+              Array.isArray(t.imagesCaptions) && typeof t.imagesCaptions[idx] === 'string'
+                ? t.imagesCaptions[idx].trim()
+                : undefined;
+            const resolvedCap = sourceCap
+              ? aiCap || existingCaptionByUrl.get(img.url) || sourceCap
+              : undefined;
+            return {
+              url: img.url,
+              ...(resolvedCap ? { caption: resolvedCap } : {}),
+            };
+          }
+          const preservedCap = existingCaptionByUrl.get(img.url);
+          return {
+            url: img.url,
+            ...(preservedCap ? { caption: preservedCap } : {}),
+          };
+        })
+      : undefined;
+
+    const mergedFact: FactItem = {
+      ...existingTarget,
+      // Always sync structural, spatial, numeric date, relational, and media URL fields verbatim
+      id: sourceFact.id,
+      num: sourceFact.num,
+      eraId: sourceFact.eraId,
+      lat: sourceFact.lat,
+      lng: sourceFact.lng,
+      zoom: sourceFact.zoom,
+      provinceId: sourceFact.provinceId || existingTarget.provinceId || matchedProv?.id,
+      tag: sourceFact.tag,
+      category: sourceFact.category,
+      collectionId: sourceFact.collectionId,
+      startYear: sourceFact.startYear,
+      endYear: sourceFact.endYear,
+      birthYear: sourceFact.birthYear,
+      deathYear: sourceFact.deathYear,
+      isBC: sourceFact.isBC,
+      centuryNumber: sourceFact.centuryNumber,
+      timeSpanType: sourceFact.timeSpanType,
+      startCentury: sourceFact.startCentury,
+      endCentury: sourceFact.endCentury,
+      startCenturyBC: sourceFact.startCenturyBC,
+      endCenturyBC: sourceFact.endCenturyBC,
+      territoryPolygon: sourceFact.territoryPolygon,
+      territoryColor: sourceFact.territoryColor,
+      overlayImageUrl: sourceFact.overlayImageUrl,
+      overlayBounds: sourceFact.overlayBounds,
+      parentFactId: sourceFact.parentFactId,
+      relatedFactIds: sourceFact.relatedFactIds,
+      allyFactIds: sourceFact.allyFactIds,
+      imageUrl: sourceFact.imageUrl,
+      images: mergedImages,
+      // Apply ONLY requested translated textual fields
+      name: reqSet.has('name') && t.name?.trim() ? t.name.trim() : existingTarget.name,
+      desc: reqSet.has('desc')
+        ? (t.desc || sourceFact.desc || existingTarget.desc || '').trim()
+        : existingTarget.desc,
+      fullText: reqSet.has('fullText')
+        ? (t.fullText || sourceFact.fullText || existingTarget.fullText || '').trim()
+        : existingTarget.fullText,
+      additionalNotes: reqSet.has('additionalNotes')
+        ? notesExcluded
+          ? undefined
+          : t.additionalNotes?.trim() || undefined
+        : existingTarget.additionalNotes,
+      eraName: reqSet.has('eraName')
+        ? (t.eraName || sourceFact.eraName || existingTarget.eraName || '').trim()
+        : existingTarget.eraName,
+      eraPeriod: reqSet.has('eraPeriod')
+        ? (t.eraPeriod || sourceFact.eraPeriod || existingTarget.eraPeriod || '').trim()
+        : existingTarget.eraPeriod,
+      year: reqSet.has('year')
+        ? (t.year || fallbackYear || existingTarget.year || '').trim()
+        : existingTarget.year,
+      century: reqSet.has('century')
+        ? normalizeCentury(t.century || sourceFact.century || existingTarget.century)
+        : existingTarget.century,
+      region: reqSet.has('region')
+        ? (t.region || fallbackRegion || sourceFact.region || '').trim() || undefined
+        : existingTarget.region,
+      imageCaption: reqSet.has('imageCaption')
+        ? t.imageCaption?.trim() || undefined
+        : existingTarget.imageCaption,
+      isCustom: true,
+      updatedAt: Date.now(),
+    };
+
+    await saveFactToCloud(mergedFact, targetLanguage);
+    return {
+      fact: mergedFact,
+      notesExcluded,
+      notesMismatchSubject,
+    };
+  }
+
+  // Strictly preserve ALL original image URLs and gallery ordering for full translation
   const preservedImages = Array.isArray(sourceFact.images)
     ? sourceFact.images.map((img, idx) => {
         const translatedCap =
@@ -209,38 +478,13 @@ export async function translateFactToLanguageDetailed(
       })
     : undefined;
 
-  // Fallback province/region label if AI left region blank
-  const matchedProv =
-    (sourceFact.provinceId ? getProvinceById(sourceFact.provinceId) : undefined) ||
-    matchFactToProvince(sourceFact, targetLanguage);
-
-  const fallbackYear =
-    typeof sourceFact.startYear === 'number'
-      ? formatYearRange(sourceFact.startYear, sourceFact.endYear, targetLanguage)
-      : sourceFact.year;
-
-  let resolvedCentury = (t.century || sourceFact.century || '').trim();
-  if (typeof sourceFact.startYear === 'number' && sourceFact.startYear < -4000) {
-    if (targetLanguage === 'en') {
-      if (
-        !resolvedCentury ||
-        /^\d+(st|nd|rd|th)\s+century\s+bce?$/i.test(resolvedCentury) ||
-        /سەدە/.test(resolvedCentury)
-      ) {
-        resolvedCentury = 'Paleolithic / Prehistoric Era';
-      }
-    } else if (!resolvedCentury || /century/i.test(resolvedCentury) || /٧٠٠/.test(resolvedCentury)) {
-      resolvedCentury = 'سەردەمی بەردین / پێش‌مێژوو';
-    }
-  }
+  const resolvedCentury = normalizeCentury(t.century || sourceFact.century);
 
   const resolvedAdditionalNotes = notesExcluded
     ? undefined
     : t.additionalNotes?.trim()
     ? t.additionalNotes.trim()
     : undefined;
-
-  const fallbackRegion = targetLanguage === 'en' ? matchedProv?.nameEn : matchedProv?.name;
 
   const translatedFact: FactItem = {
     // 1. Preserve ALL structural, spatial, relational, numeric date & image URL fields verbatim
@@ -277,7 +521,7 @@ export async function translateFactToLanguageDetailed(
     images: preservedImages,
 
     // 2. Apply AI-translated scholarly textual fields
-    name: t.name.trim(),
+    name: (t.name || sourceFact.name).trim(),
     desc: (t.desc || sourceFact.desc || '').trim(),
     fullText: (t.fullText || sourceFact.fullText || '').trim(),
     additionalNotes: resolvedAdditionalNotes,
@@ -401,6 +645,143 @@ function stableJson(val: unknown): string {
   return JSON.stringify(val ?? null);
 }
 
+const FIELD_LABELS: Record<TranslatableFactField, { ku: string; en: string }> = {
+  name: { ku: 'ناونیشان', en: 'Title' },
+  desc: { ku: 'پوختە', en: 'Summary' },
+  fullText: { ku: 'درێژە', en: 'Full Text' },
+  additionalNotes: { ku: 'تێبینی زیاتر', en: 'Additional Notes' },
+  eraName: { ku: 'ناوی سەردەم', en: 'Era Name' },
+  eraPeriod: { ku: 'ماوەی سەردەم', en: 'Era Period' },
+  year: { ku: 'ساڵ / مێژوو', en: 'Year / Date' },
+  century: { ku: 'سەدە', en: 'Century' },
+  region: { ku: 'ناوچە و پارێزگا', en: 'Region / Province' },
+  imageCaption: { ku: 'زانیاری وێنەی سەرەکی', en: 'Primary Image Caption' },
+  imagesCaptions: { ku: 'زانیاری وێنەکان', en: 'Gallery Captions' },
+};
+
+function didGalleryCaptionsTextChange(
+  prevImages: FactItem['images'],
+  nextImages: FactItem['images']
+): boolean {
+  const prevList = Array.isArray(prevImages) ? prevImages : [];
+  const nextList = Array.isArray(nextImages) ? nextImages : [];
+  const prevCapByUrl = new Map<string, string>();
+  for (const img of prevList) {
+    if (img?.url) {
+      prevCapByUrl.set(normStr(img.url), normStr(img.caption));
+    }
+  }
+  const nextCapByUrl = new Map<string, string>();
+  for (const img of nextList) {
+    if (img?.url) {
+      nextCapByUrl.set(normStr(img.url), normStr(img.caption));
+    }
+  }
+
+  for (const [url, nextCap] of nextCapByUrl.entries()) {
+    const prevCap = prevCapByUrl.get(url) ?? '';
+    if (nextCap !== prevCap) return true;
+  }
+  for (const [url, prevCap] of prevCapByUrl.entries()) {
+    if (prevCap && !nextCapByUrl.has(url)) {
+      return false; // Removing an image only removes its caption structurally; no AI translation needed
+    }
+  }
+  return false;
+}
+
+/**
+ * Computes the exact field-level diff between `prev` and `next` FactItem.
+ * Distinguishes edits to `desc` (پوختە) / `fullText` (درێژە) from edits to any other field
+ * so minor edits (name, region, year, notes, captions, etc.) only sync those specific fields.
+ */
+export function getFactFieldDiff(
+  prev: FactItem | null | undefined,
+  next: FactItem
+): FactFieldDiff {
+  if (!prev) {
+    const allFields: TranslatableFactField[] = [
+      'name',
+      'desc',
+      'fullText',
+      'additionalNotes',
+      'eraName',
+      'eraPeriod',
+      'year',
+      'century',
+      'region',
+      'imageCaption',
+      'imagesCaptions',
+    ];
+    return {
+      changedTextFields: allFields,
+      hasSummaryOrFullTextChange: true,
+      hasStructureChange: true,
+      changedLabelsKu: allFields.map((f) => FIELD_LABELS[f].ku),
+      changedLabelsEn: allFields.map((f) => FIELD_LABELS[f].en),
+    };
+  }
+
+  const changedTextFields: TranslatableFactField[] = [];
+  if (normStr(prev.name) !== normStr(next.name)) changedTextFields.push('name');
+  if (normStr(prev.desc) !== normStr(next.desc)) changedTextFields.push('desc');
+  if (normStr(prev.fullText) !== normStr(next.fullText)) changedTextFields.push('fullText');
+  if (normStr(prev.additionalNotes) !== normStr(next.additionalNotes)) {
+    changedTextFields.push('additionalNotes');
+  }
+  if (normStr(prev.eraName) !== normStr(next.eraName)) changedTextFields.push('eraName');
+  if (normStr(prev.eraPeriod) !== normStr(next.eraPeriod)) changedTextFields.push('eraPeriod');
+  if (normStr(prev.year) !== normStr(next.year)) changedTextFields.push('year');
+  if (normStr(prev.century) !== normStr(next.century)) changedTextFields.push('century');
+  if (normStr(prev.region) !== normStr(next.region)) changedTextFields.push('region');
+  if (normStr(prev.imageCaption) !== normStr(next.imageCaption)) {
+    changedTextFields.push('imageCaption');
+  }
+  if (didGalleryCaptionsTextChange(prev.images, next.images)) {
+    changedTextFields.push('imagesCaptions');
+  }
+
+  const changedLabelsKu = changedTextFields.map((f) => FIELD_LABELS[f].ku);
+  const changedLabelsEn = changedTextFields.map((f) => FIELD_LABELS[f].en);
+
+  // Append human-readable labels for non-text structural edits when shown alongside text changes
+  if (prev.lat !== next.lat || prev.lng !== next.lng || prev.zoom !== next.zoom) {
+    changedLabelsKu.push('شوێن لەسەر نەخشە');
+    changedLabelsEn.push('Map Coordinates');
+  }
+  if (
+    normStr(prev.imageUrl) !== normStr(next.imageUrl) ||
+    stableJson((prev.images || []).map((i) => normStr(i.url))) !==
+      stableJson((next.images || []).map((i) => normStr(i.url)))
+  ) {
+    changedLabelsKu.push('وێنەکان');
+    changedLabelsEn.push('Images');
+  }
+  if (prev.category !== next.category || prev.collectionId !== next.collectionId) {
+    changedLabelsKu.push('پۆلێن');
+    changedLabelsEn.push('Category');
+  }
+  if (
+    prev.territoryColor !== next.territoryColor ||
+    stableJson(prev.territoryPolygon) !== stableJson(next.territoryPolygon)
+  ) {
+    changedLabelsKu.push('سنووری دەسەڵات');
+    changedLabelsEn.push('Territory Boundary');
+  }
+
+  const hasSummaryOrFullTextChange =
+    changedTextFields.includes('desc') || changedTextFields.includes('fullText');
+  const hasStructureChange = hasFactStructureChanged(prev, next);
+
+  return {
+    changedTextFields,
+    hasSummaryOrFullTextChange,
+    hasStructureChange,
+    changedLabelsKu,
+    changedLabelsEn,
+  };
+}
+
 /**
  * Returns true if any human-language textual field changed between `prev` and `next`.
  * Used to avoid wasting AI quota when only coordinates, images, dates, polygons, or relations changed.
@@ -409,23 +790,7 @@ export function hasFactTextChanged(
   prev: FactItem | null | undefined,
   next: FactItem
 ): boolean {
-  if (!prev) return true;
-  if (normStr(prev.name) !== normStr(next.name)) return true;
-  if (normStr(prev.desc) !== normStr(next.desc)) return true;
-  if (normStr(prev.fullText) !== normStr(next.fullText)) return true;
-  if (normStr(prev.additionalNotes) !== normStr(next.additionalNotes)) return true;
-  if (normStr(prev.eraName) !== normStr(next.eraName)) return true;
-  if (normStr(prev.eraPeriod) !== normStr(next.eraPeriod)) return true;
-  if (normStr(prev.year) !== normStr(next.year)) return true;
-  if (normStr(prev.century) !== normStr(next.century)) return true;
-  if (normStr(prev.region) !== normStr(next.region)) return true;
-  if (normStr(prev.imageCaption) !== normStr(next.imageCaption)) return true;
-
-  const prevCaptions = (prev.images || []).map((i) => normStr(i.caption));
-  const nextCaptions = (next.images || []).map((i) => normStr(i.caption));
-  if (stableJson(prevCaptions) !== stableJson(nextCaptions)) return true;
-
-  return false;
+  return getFactFieldDiff(prev, next).changedTextFields.length > 0;
 }
 
 /**
@@ -549,13 +914,15 @@ export async function syncFactNonTextFieldsToLanguage(
 }
 
 /**
- * Translates a Kurdish collection into English via /api/translate-collection when `nameEn` is missing,
- * falling back safely to the Kurdish text if AI is offline or quota is reached.
+ * Translates a CollectionItem into the target language ('en' or 'ckb') via /api/translate-collection,
+ * falling back safely to existing text if AI is offline or quota is reached.
  */
-export async function translateCollectionToEnglish(
-  col: CollectionItem
+export async function translateCollectionToLanguage(
+  col: CollectionItem,
+  targetLanguage: AppLanguage,
+  forceRetranslate = false
 ): Promise<CollectionItem> {
-  if (col.nameEn && col.nameEn.trim()) {
+  if (targetLanguage === 'en' && !forceRetranslate && col.nameEn && col.nameEn.trim()) {
     return {
       ...col,
       name: col.nameEn.trim(),
@@ -564,27 +931,41 @@ export async function translateCollectionToEnglish(
   }
 
   try {
+    const sourceName = targetLanguage === 'ckb' ? col.nameEn || col.name : col.name;
+    const sourceDesc =
+      targetLanguage === 'ckb' ? col.descriptionEn || col.description || '' : col.description || '';
+
     const response = await fetch('/api/translate-collection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: col.name,
-        description: col.description || '',
+        name: sourceName,
+        description: sourceDesc,
+        targetLanguage,
       }),
     });
     if (response.ok) {
       const data = (await response.json()) as {
         translated?: { name?: string; description?: string };
       };
-      const enName = data?.translated?.name?.trim();
-      const enDesc = data?.translated?.description?.trim();
-      if (enName) {
+      const translatedName = data?.translated?.name?.trim();
+      const translatedDesc = data?.translated?.description?.trim();
+      if (translatedName) {
+        if (targetLanguage === 'en') {
+          return {
+            ...col,
+            name: translatedName,
+            nameEn: translatedName,
+            description: translatedDesc || col.description,
+            descriptionEn: translatedDesc || col.descriptionEn,
+          };
+        }
         return {
           ...col,
-          name: enName,
-          nameEn: enName,
-          description: enDesc || col.description,
-          descriptionEn: enDesc || col.descriptionEn,
+          name: translatedName,
+          nameEn: col.nameEn || sourceName,
+          description: translatedDesc || col.description,
+          descriptionEn: col.descriptionEn || sourceDesc || undefined,
         };
       }
     }
@@ -592,9 +973,26 @@ export async function translateCollectionToEnglish(
     // Fallback below
   }
 
+  if (targetLanguage === 'en') {
+    return {
+      ...col,
+      name: col.nameEn || col.name,
+      nameEn: col.nameEn || col.name,
+      description: col.descriptionEn || col.description,
+      descriptionEn: col.descriptionEn || col.description,
+    };
+  }
   return {
     ...col,
+    name: col.name,
     nameEn: col.nameEn || col.name,
+    description: col.description,
     descriptionEn: col.descriptionEn || col.description,
   };
+}
+
+export async function translateCollectionToEnglish(
+  col: CollectionItem
+): Promise<CollectionItem> {
+  return translateCollectionToLanguage(col, 'en');
 }

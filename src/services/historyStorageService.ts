@@ -183,6 +183,35 @@ export function saveStoredCollections(collections: CollectionItem[], lang: AppLa
   }
 }
 
+function normalizeCoordinatePair(pt: any): [number, number] | null {
+  if (Array.isArray(pt) && pt.length >= 2) {
+    const lat = Number(pt[0]);
+    const lng = Number(pt[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+  } else if (pt && typeof pt === 'object') {
+    const lat = Number(pt.lat ?? pt.latitude ?? pt[0]);
+    const lng = Number(pt.lng ?? pt.lon ?? pt.longitude ?? pt[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+  }
+  return null;
+}
+
+function normalizePolygonFromCloud(raw: any): [number, number][] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const pts = raw.map(normalizeCoordinatePair).filter((p): p is [number, number] => p !== null);
+  return pts.length > 0 ? pts : undefined;
+}
+
+function normalizeOverlayBoundsFromCloud(
+  raw: any
+): [[number, number], [number, number]] | undefined {
+  if (!Array.isArray(raw) || raw.length < 2) return undefined;
+  const sw = normalizeCoordinatePair(raw[0]);
+  const ne = normalizeCoordinatePair(raw[1]);
+  if (sw && ne) return [sw, ne];
+  return undefined;
+}
+
 export function sanitizeFact(fact: any, lang: AppLanguage = 'ckb'): FactItem {
   const latNum = Number(fact?.lat);
   const lngNum = Number(fact?.lng);
@@ -199,6 +228,8 @@ export function sanitizeFact(fact: any, lang: AppLanguage = 'ckb'): FactItem {
     year: fact?.year || dateInfo.year,
     century: fact?.century || dateInfo.century,
     centuryNumber: typeof fact?.centuryNumber === 'number' ? fact.centuryNumber : dateInfo.centuryNumber,
+    territoryPolygon: normalizePolygonFromCloud(fact?.territoryPolygon),
+    overlayBounds: normalizeOverlayBoundsFromCloud(fact?.overlayBounds),
     imageUrl: (() => {
       if (typeof fact?.imageUrl !== 'string' || !fact.imageUrl.trim()) return undefined;
       const trimmed = fact.imageUrl.trim();

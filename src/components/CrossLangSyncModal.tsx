@@ -9,7 +9,9 @@ interface CrossLangSyncModalProps {
   isOpen: boolean;
   fact: FactItem | null;
   sourceLang: AppLanguage;
-  syncMode?: 'ai_text' | 'non_text';
+  syncMode?: 'ai_text' | 'partial_text' | 'non_text';
+  changedLabelsKu?: string[];
+  changedLabelsEn?: string[];
   onConfirmYes: () => Promise<void>;
   onDeclineNo: () => void;
 }
@@ -19,6 +21,8 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
   fact,
   sourceLang,
   syncMode = 'ai_text',
+  changedLabelsKu = [],
+  changedLabelsEn = [],
   onConfirmYes,
   onDeclineNo,
 }) => {
@@ -41,6 +45,7 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
   const targetLang: AppLanguage = sourceLang === 'ckb' ? 'en' : 'ckb';
   const targetLangLabelKu = targetLang === 'en' ? 'ئینگلیزی' : 'کوردی سۆرانی';
   const targetLangLabelEn = targetLang === 'en' ? 'English' : 'Kurdish Sorani';
+  const displayedLabels = isEn ? changedLabelsEn : changedLabelsKu;
 
   const handleYesClick = async () => {
     if (isSyncing) return;
@@ -98,7 +103,11 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
                   isDark ? 'text-white' : 'text-slate-900'
                 }`}
               >
-                {isEn
+                {syncMode === 'partial_text'
+                  ? isEn
+                    ? `Apply Specific Change to ${targetLangLabelEn}?`
+                    : 'هاوکاتکردنی گۆڕانکاریی دیاریکراو'
+                  : isEn
                   ? `Apply Change to ${targetLangLabelEn}?`
                   : 'هاوکاتکردنی گۆڕانکاری لە زمانی تردا'}
               </h3>
@@ -152,15 +161,46 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
             </span>
           </div>
 
+          {/* Changed Fields Summary */}
+          {displayedLabels.length > 0 && (
+            <div className="space-y-1.5">
+              <p
+                className={`text-[11px] font-bold uppercase tracking-wide ${
+                  isDark ? 'text-slate-400' : 'text-slate-600'
+                }`}
+              >
+                {isEn ? 'Modified Fields:' : 'بەشە دەستکاریکراوەکان:'}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {displayedLabels.map((label) => (
+                  <span
+                    key={label}
+                    className={`px-2.5 py-1 rounded-md border text-[11px] font-bold ${
+                      isDark
+                        ? 'bg-amber-500/15 border-amber-400/35 text-amber-200'
+                        : 'bg-amber-50 border-amber-300 text-amber-900'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Explicit Confirmation Question */}
           <p
             className={`text-sm font-bold leading-relaxed ${
               isDark ? 'text-slate-100' : 'text-slate-900'
             }`}
           >
-            {isEn
+            {syncMode === 'partial_text'
+              ? isEn
+                ? `Do you want ONLY this specific change to be applied to ${targetLangLabelEn}?`
+                : `ئایا دەتەوێت تەنها ئەم گۆڕانکارییە لە بەشی ${targetLangLabelKu}ش جێبەجێ بکرێت؟`
+              : isEn
               ? `Do you want this change to be applied to the other language (${targetLangLabelEn}) as well?`
-              : `ئایە دەتەوێت گۆڕانکارییەکە لە زمانەکەی تریش (${targetLangLabelKu}) بکرێت؟`}
+              : `ئایا دەتەوێت گۆڕانکارییەکە لە زمانەکەی تریش (${targetLangLabelKu}) بکرێت؟`}
           </p>
 
           <p
@@ -172,6 +212,10 @@ export const CrossLangSyncModal: React.FC<CrossLangSyncModalProps> = ({
               ? isEn
                 ? 'If you select Yes, only images, coordinates, dates, boundaries, and relations will be copied to the English entry instantly without using AI quota.'
                 : 'ئەگەر «بەڵێ» هەڵبژێریت، تەنها وێنە، پۆینتەکان، ساڵ، سنوور و پەیوەندییەکان ڕاستەوخۆ و بێ بەکارهێنانی کۆتای AI بۆ زمانەکەی تر دەگوازرێنەوە.'
+              : syncMode === 'partial_text'
+              ? isEn
+                ? 'Only the modified field(s) above will be translated and updated. The existing Summary and Full Text will remain untouched.'
+                : 'تەنها ئەو بەشە گۆڕاوانەی سەرەوە بۆ ئینگلیزی وەردەگێڕدرێن و نوێ دەکرێنەوە؛ دەقی «پوختە» و «درێژە» وەک خۆیان دەمێننەوە و سەرلەنوێ وەرناگێڕدرێنەوە.'
               : isEn
               ? 'If you select Yes, AI will accurately translate the updated text into the other language while syncing the exact same images, coordinates, dates, and linked entries.'
               : 'ئەگەر «بەڵێ» هەڵبژێریت، زیرەکی دەستکرد دەقە نوێکراوەکە بە وردی وەردەگێڕێتە سەر زمانەکەی تر و هەمان وێنە، پۆوتانی نەخشە، مێژوو و پەیوەندییەکان هاوکات دەکات.'}

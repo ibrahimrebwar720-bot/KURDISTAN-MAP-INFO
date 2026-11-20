@@ -79,7 +79,10 @@ function classifyHttpError(status, rawText) {
     String(rawText).includes('UNAVAILABLE') ||
     lower.includes('high demand') ||
     lower.includes('overloaded') ||
-    lower.includes('temporarily unavailable')
+    lower.includes('temporarily unavailable') ||
+    lower.includes('timeout') ||
+    lower.includes('timed out') ||
+    lower.includes('abort')
   ) {
     return {
       statusCode: 503,
@@ -120,6 +123,7 @@ async function callGeminiWithFallback(apiKey, buildPayload) {
             'User-Agent': 'aistudio-build',
           },
           body: JSON.stringify(body),
+          signal: typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(15000) : undefined,
         });
 
         const text = await res.text();
@@ -190,6 +194,20 @@ async function callGeminiWithFallback(apiKey, buildPayload) {
   throw lastParsedError;
 }
 
+const ALL_TRANSLATABLE_FIELDS = [
+  'name',
+  'desc',
+  'fullText',
+  'additionalNotes',
+  'eraName',
+  'eraPeriod',
+  'year',
+  'century',
+  'region',
+  'imageCaption',
+  'imagesCaptions',
+];
+
 export async function handleTranslateFactRequest(request, env) {
   try {
     const apiKey = env?.GEMINI_API_KEY;
@@ -212,6 +230,15 @@ export async function handleTranslateFactRequest(request, env) {
       return jsonResponse({ error: 'Missing required fact object with name.' }, 400);
     }
 
+    const validFieldSet = new Set(ALL_TRANSLATABLE_FIELDS);
+    const requestedFieldsRaw = Array.isArray(body?.fieldsToTranslate)
+      ? body.fieldsToTranslate.filter((f) => typeof f === 'string' && validFieldSet.has(f))
+      : [];
+    const requestedFields =
+      requestedFieldsRaw.length > 0 ? Array.from(new Set(requestedFieldsRaw)) : ALL_TRANSLATABLE_FIELDS;
+    const requestedSet = new Set(requestedFields);
+    const isPartial = requestedFields.length < ALL_TRANSLATABLE_FIELDS.length;
+
     const extraCaptions = Array.isArray(fact.images)
       ? fact.images.map((img) => (typeof img?.caption === 'string' ? img.caption : ''))
       : [];
@@ -219,21 +246,37 @@ export async function handleTranslateFactRequest(request, env) {
     const targetLangLabel =
       targetLanguage === 'ckb' ? 'Central Kurdish (Sorani / کوردی سۆرانی)' : 'English';
 
+    const fieldInputs = {
+      name: `<FIELD name="name">${fact.name || ''}</FIELD>`,
+      desc: `<FIELD name="desc">${fact.desc || ''}</FIELD>`,
+      fullText: `<FIELD name="fullText">${fact.fullText || ''}</FIELD>`,
+      additionalNotes: `<FIELD name="additionalNotes">${fact.additionalNotes || ''}</FIELD>`,
+      eraName: `<FIELD name="eraName">${fact.eraName || ''}</FIELD>`,
+      eraPeriod: `<FIELD name="eraPeriod">${fact.eraPeriod || ''}</FIELD>`,
+      year: `<FIELD name="year">${fact.year || ''}</FIELD>`,
+      century: `<FIELD name="century">${fact.century || ''}</FIELD>`,
+      region: `<FIELD name="region">${fact.region || ''}</FIELD>`,
+      imageCaption: `<FIELD name="imageCaption">${fact.imageCaption || ''}</FIELD>`,
+      imagesCaptions: `<FIELD name="imagesCaptions">${JSON.stringify(extraCaptions)}</FIELD>`,
+    };
+
+    const contextLines = [];
+    if (isPartial) {
+      contextLines.push('Topic reference (DO NOT output unless requested as a <FIELD>):');
+      if (!requestedSet.has('name')) {
+        contextLines.push(`<CONTEXT name="topicName">${fact.name || ''}</CONTEXT>`);
+      }
+      if (requestedSet.has('additionalNotes') && !requestedSet.has('fullText') && fact.fullText) {
+        contextLines.push(`<CONTEXT name="topicFullText">${fact.fullText}</CONTEXT>`);
+      }
+    }
+
     const structuredInput = [
-      `Translate EACH field below independently and strictly into ${targetLangLabel}.`,
+      `Translate EACH <FIELD> below independently and strictly into ${targetLangLabel}.`,
       'NEVER mix content from one field into another field, NEVER pull information from memory about a different topic, and NEVER alter the subject.',
+      ...contextLines,
       '',
-      `<FIELD name="name">${fact.name || ''}</FIELD>`,
-      `<FIELD name="desc">${fact.desc || ''}</FIELD>`,
-      `<FIELD name="fullText">${fact.fullText || ''}</FIELD>`,
-      `<FIELD name="additionalNotes">${fact.additionalNotes || ''}</FIELD>`,
-      `<FIELD name="eraName">${fact.eraName || ''}</FIELD>`,
-      `<FIELD name="eraPeriod">${fact.eraPeriod || ''}</FIELD>`,
-      `<FIELD name="year">${fact.year || ''}</FIELD>`,
-      `<FIELD name="century">${fact.century || ''}</FIELD>`,
-      `<FIELD name="region">${fact.region || ''}</FIELD>`,
-      `<FIELD name="imageCaption">${fact.imageCaption || ''}</FIELD>`,
-      `<FIELD name="imagesCaptions">${JSON.stringify(extraCaptions)}</FIELD>`,
+      ...requestedFields.map((fieldKey) => fieldInputs[fieldKey]),
     ].join('\n');
 
     const systemInstruction =
@@ -263,6 +306,35 @@ export async function handleTranslateFactRequest(request, env) {
             '7. For imagesCaptions, return an array of the exact same length as the input imagesCaptions array, translating each non-empty caption in exact order and preserving empty strings as "".',
           ].join('\n');
 
+    const allSchemaProperties = {
+      name: { type: 'STRING' },
+      desc: { type: 'STRING' },
+      fullText: { type: 'STRING' },
+      additionalNotes: { type: 'STRING' },
+      eraName: { type: 'STRING' },
+      eraPeriod: { type: 'STRING' },
+      year: { type: 'STRING' },
+      century: { type: 'STRING' },
+      region: { type: 'STRING' },
+      imageCaption: { type: 'STRING' },
+      imagesCaptions: {
+        type: 'ARRAY',
+        items: { type: 'STRING' },
+      },
+    };
+
+    const schemaProperties = {};
+    const requiredFields = [];
+    for (const fieldKey of requestedFields) {
+      schemaProperties[fieldKey] = allSchemaProperties[fieldKey];
+      requiredFields.push(fieldKey);
+    }
+    if (requestedSet.has('additionalNotes')) {
+      schemaProperties.notesCoherentWithTopic = { type: 'BOOLEAN' };
+      schemaProperties.notesDetectedOtherSubject = { type: 'STRING' };
+      requiredFields.push('notesCoherentWithTopic', 'notesDetectedOtherSubject');
+    }
+
     const parsed = await callGeminiWithFallback(apiKey, (thinkingLevel) => ({
       systemInstruction: {
         parts: [{ text: systemInstruction }],
@@ -278,59 +350,25 @@ export async function handleTranslateFactRequest(request, env) {
         responseMimeType: 'application/json',
         responseSchema: {
           type: 'OBJECT',
-          properties: {
-            name: { type: 'STRING' },
-            desc: { type: 'STRING' },
-            fullText: { type: 'STRING' },
-            additionalNotes: { type: 'STRING' },
-            notesCoherentWithTopic: { type: 'BOOLEAN' },
-            notesDetectedOtherSubject: { type: 'STRING' },
-            eraName: { type: 'STRING' },
-            eraPeriod: { type: 'STRING' },
-            year: { type: 'STRING' },
-            century: { type: 'STRING' },
-            region: { type: 'STRING' },
-            imageCaption: { type: 'STRING' },
-            imagesCaptions: {
-              type: 'ARRAY',
-              items: { type: 'STRING' },
-            },
-          },
-          required: [
-            'name',
-            'desc',
-            'fullText',
-            'additionalNotes',
-            'notesCoherentWithTopic',
-            'notesDetectedOtherSubject',
-            'eraName',
-            'eraPeriod',
-            'year',
-            'century',
-            'region',
-            'imageCaption',
-            'imagesCaptions',
-          ],
+          properties: schemaProperties,
+          required: requiredFields,
         },
       },
     }));
 
     const notesExcluded =
-      Boolean(String(fact.additionalNotes || '').trim()) && parsed.notesCoherentWithTopic === false;
+      requestedSet.has('additionalNotes') &&
+      Boolean(String(fact.additionalNotes || '').trim()) &&
+      parsed.notesCoherentWithTopic === false;
 
-    const translated = {
-      name: parsed.name,
-      desc: parsed.desc,
-      fullText: parsed.fullText,
-      additionalNotes: notesExcluded ? '' : parsed.additionalNotes,
-      eraName: parsed.eraName,
-      eraPeriod: parsed.eraPeriod,
-      year: parsed.year,
-      century: parsed.century,
-      region: parsed.region,
-      imageCaption: parsed.imageCaption,
-      imagesCaptions: parsed.imagesCaptions,
-    };
+    const translated = {};
+    for (const fieldKey of requestedFields) {
+      if (fieldKey === 'additionalNotes') {
+        translated.additionalNotes = notesExcluded ? '' : parsed.additionalNotes;
+      } else {
+        translated[fieldKey] = parsed[fieldKey];
+      }
+    }
 
     return jsonResponse({
       translated,
@@ -371,15 +409,21 @@ export async function handleTranslateCollectionRequest(request, env) {
     const body = await request.json().catch(() => null);
     const name = body?.name;
     const description = body?.description;
+    const targetLang = body?.targetLanguage === 'ckb' ? 'ckb' : 'en';
     if (!name) {
       return jsonResponse({ error: 'Missing collection name.' }, 400);
     }
+
+    const instructionText =
+      targetLang === 'ckb'
+        ? 'Translate this English historical category/collection name and short description into concise, accurate Central Kurdish (Sorani / کوردی سۆرانی).'
+        : 'Translate this Kurdish Sorani historical category/collection name and short description into concise, accurate English.';
 
     const parsed = await callGeminiWithFallback(apiKey, (thinkingLevel) => ({
       systemInstruction: {
         parts: [
           {
-            text: 'Translate this Kurdish Sorani historical category/collection name and short description into concise, accurate English.',
+            text: instructionText,
           },
         ],
       },

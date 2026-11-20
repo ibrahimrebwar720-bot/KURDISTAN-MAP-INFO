@@ -4,6 +4,7 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
+  deleteField,
   getDocs,
   onSnapshot,
 } from 'firebase/firestore';
@@ -264,6 +265,90 @@ export function subscribeToCloudFacts(
   }
 }
 
+const REMOVABLE_OPTIONAL_FACT_FIELDS = [
+  'additionalNotes',
+  'region',
+  'provinceId',
+  'imageUrl',
+  'imageCaption',
+  'images',
+  'parentFactId',
+  'relatedFactIds',
+  'allyFactIds',
+  'endYear',
+  'birthYear',
+  'deathYear',
+  'startCentury',
+  'endCentury',
+  'startCenturyBC',
+  'endCenturyBC',
+  'territoryPolygon',
+  'territoryColor',
+  'overlayImageUrl',
+  'overlayBounds',
+] as const;
+
+function buildFirestoreFactPayload(sanitized: FactItem): Record<string, any> {
+  const payload: Record<string, any> = {
+    ...sanitized,
+    updatedAt: Date.now(),
+  };
+
+  if (typeof payload.imageUrl === 'string') {
+    if (payload.imageUrl.startsWith('data:')) {
+      delete payload.imageUrl;
+    } else {
+      payload.imageUrl = resolveImageUrl(payload.imageUrl) || undefined;
+    }
+  }
+
+  if (Array.isArray(sanitized.images) && sanitized.images.length > 0) {
+    payload.images = sanitized.images.map((item) => {
+      const cleanImg: Record<string, string> = { url: item.url };
+      if (item.caption && item.caption.trim()) {
+        cleanImg.caption = item.caption.trim();
+      }
+      return cleanImg;
+    });
+  } else {
+    delete payload.images;
+  }
+
+  // Firestore forbids nested arrays — serialize coordinate pairs as flat { lat, lng } objects
+  if (Array.isArray(sanitized.territoryPolygon) && sanitized.territoryPolygon.length > 0) {
+    payload.territoryPolygon = sanitized.territoryPolygon.map(([lat, lng]) => ({ lat, lng }));
+  } else {
+    delete payload.territoryPolygon;
+  }
+
+  if (Array.isArray(sanitized.overlayBounds) && sanitized.overlayBounds.length >= 2) {
+    payload.overlayBounds = sanitized.overlayBounds.map(([lat, lng]) => ({ lat, lng }));
+  } else {
+    delete payload.overlayBounds;
+  }
+
+  if (typeof payload.additionalNotes === 'string' && !payload.additionalNotes.trim()) {
+    delete payload.additionalNotes;
+  }
+  if (typeof payload.region === 'string' && !payload.region.trim()) {
+    delete payload.region;
+  }
+
+  for (const field of REMOVABLE_OPTIONAL_FACT_FIELDS) {
+    if (payload[field] === undefined) {
+      payload[field] = deleteField();
+    }
+  }
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
+
+  return payload;
+}
+
 /**
  * Save or update fact to Firestore cloud for the specified language collection
  */
@@ -278,29 +363,16 @@ export async function saveFactToCloud(fact: FactItem, lang: AppLanguage = 'ckb')
     }
   }
 
-  const docRef = doc(db, getFactsCollectionName(lang), String(sanitized.id));
-  const payload: Record<string, any> = {
-    ...sanitized,
-    updatedAt: Date.now(),
-  };
+  const colName = getFactsCollectionName(lang);
+  const docRef = doc(db, colName, String(sanitized.id));
+  const payload = buildFirestoreFactPayload(sanitized);
 
-  if (Array.isArray(sanitized.images)) {
-    payload.images = sanitized.images.map((item) => {
-      const cleanImg: Record<string, string> = { url: item.url };
-      if (item.caption && item.caption.trim()) {
-        cleanImg.caption = item.caption.trim();
-      }
-      return cleanImg;
-    });
+  try {
+    await setDoc(docRef, payload, { merge: true });
+  } catch (err) {
+    console.error(`Firestore WRITE error at ${colName}/${sanitized.id}:`, err);
+    throw err;
   }
-
-  Object.keys(payload).forEach((key) => {
-    if (payload[key] === undefined) {
-      delete payload[key];
-    }
-  });
-
-  await setDoc(docRef, payload, { merge: true });
 
   const local = loadStoredFacts(lang);
   const exists = local.some((f) => f.id === sanitized.id);
@@ -314,8 +386,14 @@ export async function saveFactToCloud(fact: FactItem, lang: AppLanguage = 'ckb')
  * Delete a fact from Firestore cloud for the specified language collection only
  */
 export async function deleteFactFromCloud(factId: number, lang: AppLanguage = 'ckb'): Promise<void> {
-  const docRef = doc(db, getFactsCollectionName(lang), String(factId));
-  await deleteDoc(docRef);
+  const colName = getFactsCollectionName(lang);
+  const docRef = doc(db, colName, String(factId));
+  try {
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.error(`Firestore DELETE error at ${colName}/${factId}:`, err);
+    throw err;
+  }
 
   const local = loadStoredFacts(lang);
   const updated = local.filter((f) => f.id !== factId);
@@ -331,32 +409,40 @@ export async function saveNotesToCloud(
   existingFact?: FactItem,
   lang: AppLanguage = 'ckb'
 ): Promise<void> {
-  const docRef = doc(db, getFactsCollectionName(lang), String(factId));
-  if (existingFact) {
-    const sanitized = sanitizeFact(existingFact, lang);
-    await setDoc(
-      docRef,
-      {
-        ...sanitized,
-        additionalNotes: notes,
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
-  } else {
-    await setDoc(
-      docRef,
-      {
-        id: factId,
-        additionalNotes: notes,
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
+  const colName = getFactsCollectionName(lang);
+  const docRef = doc(db, colName, String(factId));
+  const trimmedNotes = notes.trim();
+
+  try {
+    if (existingFact) {
+      const sanitized = sanitizeFact(
+        {
+          ...existingFact,
+          additionalNotes: trimmedNotes || undefined,
+        },
+        lang
+      );
+      await setDoc(docRef, buildFirestoreFactPayload(sanitized), { merge: true });
+    } else {
+      await setDoc(
+        docRef,
+        {
+          id: factId,
+          additionalNotes: trimmedNotes ? notes : deleteField(),
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
+    }
+  } catch (err) {
+    console.error(`Firestore WRITE error (notes) at ${colName}/${factId}:`, err);
+    throw err;
   }
 
   const local = loadStoredFacts(lang);
-  const updated = local.map((f) => (f.id === factId ? { ...f, additionalNotes: notes } : f));
+  const updated = local.map((f) =>
+    f.id === factId ? { ...f, additionalNotes: trimmedNotes ? notes : undefined } : f
+  );
   saveStoredFacts(updated, lang);
 }
 
@@ -370,33 +456,101 @@ export async function updateFactRelationsInCloud(
   allyFactIds?: number[],
   lang: AppLanguage = 'ckb'
 ): Promise<void> {
-  const docRef = doc(db, getFactsCollectionName(lang), String(factId));
+  const colName = getFactsCollectionName(lang);
+  const docRef = doc(db, colName, String(factId));
   const payload: Record<string, any> = {
     relatedFactIds,
+    parentFactId: typeof parentFactId === 'number' ? parentFactId : deleteField(),
+    allyFactIds: Array.isArray(allyFactIds) ? allyFactIds : deleteField(),
     updatedAt: Date.now(),
   };
-  if (typeof parentFactId === 'number') {
-    payload.parentFactId = parentFactId;
-  }
-  if (Array.isArray(allyFactIds)) {
-    payload.allyFactIds = allyFactIds;
-  }
 
-  await setDoc(docRef, payload, { merge: true });
+  try {
+    await setDoc(docRef, payload, { merge: true });
+  } catch (err) {
+    console.error(`Firestore WRITE error (relations) at ${colName}/${factId}:`, err);
+    throw err;
+  }
 
   const local = loadStoredFacts(lang);
   const updated = local.map((f) => {
     if (f.id === factId) {
-      return {
+      const nextFact: FactItem = {
         ...f,
         relatedFactIds,
-        ...(typeof parentFactId === 'number' ? { parentFactId } : {}),
-        ...(Array.isArray(allyFactIds) ? { allyFactIds } : {}),
       };
+      if (typeof parentFactId === 'number') {
+        nextFact.parentFactId = parentFactId;
+      } else {
+        delete nextFact.parentFactId;
+      }
+      if (Array.isArray(allyFactIds)) {
+        nextFact.allyFactIds = allyFactIds;
+      } else {
+        delete nextFact.allyFactIds;
+      }
+      return nextFact;
     }
     return f;
   });
   saveStoredFacts(updated, lang);
+}
+
+/**
+ * Update a fact's coordinates (and optional provinceId) in Firestore and cascade the same
+ * spatial coordinates to the counterpart language collection if present (without altering texts).
+ */
+export async function updateFactLocationInCloud(
+  fact: FactItem,
+  newLat: number,
+  newLng: number,
+  provinceId: string | undefined,
+  lang: AppLanguage = 'ckb'
+): Promise<FactItem> {
+  const updatedFact: FactItem = {
+    ...fact,
+    lat: newLat,
+    lng: newLng,
+    ...(provinceId ? { provinceId } : {}),
+    isCustom: true,
+    updatedAt: Date.now(),
+  };
+
+  await saveFactToCloud(updatedFact, lang);
+
+  const otherLang: AppLanguage = lang === 'ckb' ? 'en' : 'ckb';
+  const otherColName = getFactsCollectionName(otherLang);
+  const otherDocRef = doc(db, otherColName, String(fact.id));
+  try {
+    const snap = await getDoc(otherDocRef);
+    if (snap.exists()) {
+      await setDoc(
+        otherDocRef,
+        {
+          lat: newLat,
+          lng: newLng,
+          ...(provinceId ? { provinceId } : {}),
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
+      const otherLocal = loadStoredFacts(otherLang);
+      if (otherLocal.some((f) => f.id === fact.id)) {
+        saveStoredFacts(
+          otherLocal.map((f) =>
+            f.id === fact.id
+              ? { ...f, lat: newLat, lng: newLng, ...(provinceId ? { provinceId } : {}) }
+              : f
+          ),
+          otherLang
+        );
+      }
+    }
+  } catch (err) {
+    console.warn(`Failed to sync dispersed coordinates to ${otherColName}/${fact.id}:`, err);
+  }
+
+  return updatedFact;
 }
 
 /**
@@ -445,7 +599,16 @@ export async function saveCollectionToCloud(
   lang: AppLanguage = 'ckb'
 ): Promise<void> {
   const docRef = doc(db, getCollectionsCollectionName(lang), collectionItem.id);
-  await setDoc(docRef, { ...collectionItem, updatedAt: Date.now() }, { merge: true });
+  const payload: Record<string, any> = {
+    ...collectionItem,
+    updatedAt: Date.now(),
+  };
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
+  await setDoc(docRef, payload, { merge: true });
 
   const local = loadStoredCollections(lang);
   const exists = local.some((c) => c.id === collectionItem.id);

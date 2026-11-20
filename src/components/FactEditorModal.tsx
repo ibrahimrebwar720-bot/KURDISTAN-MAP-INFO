@@ -36,6 +36,7 @@ import {
   Copy,
   Images,
   Languages,
+  Shuffle,
 } from 'lucide-react';
 import { FactRelationsModal } from './FactRelationsModal';
 import {
@@ -63,7 +64,14 @@ import {
   KURDISTAN_PROVINCES,
   matchFactToProvince,
   translateOutsideLabel,
+  isPointInProvince,
 } from '../data/kurdishProvincesData';
+import {
+  resolveNonOverlappingCoords,
+  hasNearbyFactOverlap,
+  findDispersedPointInProvince,
+  isValidCoord,
+} from '../utils/locationDispersion';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { translateFactToEnglishDetailed, formatTranslationError } from '../services/aiTranslationService';
@@ -121,6 +129,7 @@ export const FactEditorModal: React.FC<Props> = ({
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('principality');
   const [isSavingAndTranslating, setIsSavingAndTranslating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [dispersionNotice, setDispersionNotice] = useState<string | null>(null);
 
   const duplicateNotesOwner = useMemo(() => {
     if (!isOpen || !additionalNotes.trim() || !allFacts.length) return null;
@@ -180,6 +189,11 @@ export const FactEditorModal: React.FC<Props> = ({
   const [yearError, setYearError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasLocationPicked, setHasLocationPicked] = useState(false);
+
+  const hasCoordOverlapNow = useMemo(() => {
+    if (!isOpen || !hasLocationPicked || !allFacts.length) return false;
+    return hasNearbyFactOverlap(lat, lng, allFacts, factToEdit?.id);
+  }, [isOpen, hasLocationPicked, lat, lng, allFacts, factToEdit]);
 
   // Is this fact a historical person / figure?
   const isPerson =
@@ -527,6 +541,7 @@ export const FactEditorModal: React.FC<Props> = ({
       setYearError(null);
       setConfirmDelete(false);
       setAiError(null);
+      setDispersionNotice(null);
     } else {
       setName('');
       setDesc('');
@@ -539,6 +554,7 @@ export const FactEditorModal: React.FC<Props> = ({
       setYearError(null);
       setConfirmDelete(false);
       setAiError(null);
+      setDispersionNotice(null);
       lastAutoDescRef.current = '';
       lastResolvedCoordsKeyRef.current = '';
     }
@@ -648,9 +664,55 @@ export const FactEditorModal: React.FC<Props> = ({
     }
   };
 
+  const handleDisperseInsideProvince = () => {
+    const resolved = resolveNonOverlappingCoords({
+      lat,
+      lng,
+      provinceId,
+      regionName,
+      name: name.trim(),
+      desc: desc.trim(),
+      allFacts,
+      excludeFactId: factToEdit?.id,
+      forceDisperse: true,
+    });
+    setLat(resolved.lat);
+    setLng(resolved.lng);
+    setHasLocationPicked(true);
+    lastResolvedCoordsKeyRef.current = `${resolved.lat.toFixed(4)},${resolved.lng.toFixed(4)}`;
+    if (resolved.province) {
+      const pName = isEn ? resolved.province.nameEn || resolved.province.name : resolved.province.name;
+      setProvinceId(resolved.province.id);
+      if (!regionName.trim()) setRegionName(pName);
+      setDispersionNotice(
+        isEn
+          ? `Placed at a free spot inside ${pName} boundaries so it won't overlap other pins.`
+          : `خاڵەکە خرایە شوێنێکی بەتاڵ لە ناو سنووری پارێزگای ${pName} بۆ ئەوەی لەگەڵ خاڵەکانی تر تێکەڵ نەبێت.`
+      );
+    } else {
+      setDispersionNotice(
+        isEn
+          ? 'Placed at a nearby non-overlapping coordinate.'
+          : 'خاڵەکە خرایە پۆوتانێکی بەتاڵ و دوور لە خاڵەکانی تر.'
+      );
+    }
+  };
+
   const handleSelectSearchedPlace = (place: PlaceSearchResult) => {
-    setLat(place.lat);
-    setLng(place.lng);
+    const resolvedCoords = resolveNonOverlappingCoords({
+      lat: place.lat,
+      lng: place.lng,
+      provinceId: place.provinceId,
+      regionName: place.provinceName,
+      name: place.name,
+      allFacts,
+      excludeFactId: factToEdit?.id,
+    });
+    const finalLat = resolvedCoords.lat;
+    const finalLng = resolvedCoords.lng;
+
+    setLat(finalLat);
+    setLng(finalLng);
     setHasLocationPicked(true);
     setSelectedPlaceName(place.name);
     const shortAddr = place.formattedAddress.split(',').slice(0, 2).join(isEn ? ', ' : '، ');
@@ -658,13 +720,14 @@ export const FactEditorModal: React.FC<Props> = ({
       lastAutoDescRef.current = shortAddr;
       setDesc(shortAddr);
     }
-    if (place.provinceId) {
-      lastResolvedCoordsKeyRef.current = `${place.lat.toFixed(4)},${place.lng.toFixed(4)}`;
-      setProvinceId(place.provinceId);
-      const matchedProv = KURDISTAN_PROVINCES.find((p) => p.id === place.provinceId);
+    const targetProvId = place.provinceId || resolvedCoords.province?.id || '';
+    if (targetProvId) {
+      lastResolvedCoordsKeyRef.current = `${finalLat.toFixed(4)},${finalLng.toFixed(4)}`;
+      setProvinceId(targetProvId);
+      const matchedProv = KURDISTAN_PROVINCES.find((p) => p.id === targetProvId);
       const localizedProvName = matchedProv
         ? (isEn ? matchedProv.nameEn || matchedProv.name : matchedProv.name)
-        : translateOutsideLabel(place.provinceName || '', place.provinceId, language);
+        : translateOutsideLabel(place.provinceName || '', targetProvId, language);
       setRegionName(localizedProvName);
       const adminParts = [place.adminLevel2, place.adminLevel1, place.countryCode].filter(Boolean);
       setGoogleAdminSummary(
@@ -673,7 +736,21 @@ export const FactEditorModal: React.FC<Props> = ({
           : localizedProvName || ''
       );
     } else {
-      resolveProvinceFromCoords(place.lat, place.lng);
+      resolveProvinceFromCoords(finalLat, finalLng);
+    }
+    if (resolvedCoords.dispersed) {
+      const provLabel = resolvedCoords.province
+        ? isEn
+          ? resolvedCoords.province.nameEn || resolvedCoords.province.name
+          : resolvedCoords.province.name
+        : place.provinceName || place.name;
+      setDispersionNotice(
+        isEn
+          ? `Another entry already uses that exact spot — automatically placed in a free spot inside ${provLabel}.`
+          : `پێشتر بابەتێکی تر لەسەر هەمان شوێن هەبوو — بە خۆکاری پەرت کرایە خاڵێکی بەتاڵ لە ناو سنووری ${provLabel}.`
+      );
+    } else {
+      setDispersionNotice(null);
     }
     setPlaceSearchResults([]);
     setPlaceSearchQuery('');
@@ -681,12 +758,50 @@ export const FactEditorModal: React.FC<Props> = ({
 
   // Update coords if picked from map
   useEffect(() => {
-    if (pickedCoords) {
+    if (!pickedCoords) return;
+    const isSameAsOriginal =
+      Boolean(factToEdit) &&
+      Math.abs(pickedCoords.lat - factToEdit!.lat) < 0.0001 &&
+      Math.abs(pickedCoords.lng - factToEdit!.lng) < 0.0001;
+
+    if (isSameAsOriginal) {
       setLat(pickedCoords.lat);
       setLng(pickedCoords.lng);
       setHasLocationPicked(true);
       resolveProvinceFromCoords(pickedCoords.lat, pickedCoords.lng);
+      return;
     }
+
+    const resolvedCoords = resolveNonOverlappingCoords({
+      lat: pickedCoords.lat,
+      lng: pickedCoords.lng,
+      provinceId,
+      regionName,
+      name: name.trim(),
+      desc: desc.trim(),
+      allFacts,
+      excludeFactId: factToEdit?.id,
+    });
+    setLat(resolvedCoords.lat);
+    setLng(resolvedCoords.lng);
+    setHasLocationPicked(true);
+    if (resolvedCoords.dispersed) {
+      const provLabel = resolvedCoords.province
+        ? isEn
+          ? resolvedCoords.province.nameEn || resolvedCoords.province.name
+          : resolvedCoords.province.name
+        : isEn
+        ? 'the region'
+        : 'ناوچەکە';
+      setDispersionNotice(
+        isEn
+          ? `That spot already had a pin — automatically moved to an open point inside ${provLabel}.`
+          : `خاڵێکی تر لەسەر ئەم شوێنە هەبوو — بە خۆکاری پەرت کرایە خاڵێکی بەتاڵ لە ناو سنووری ${provLabel}.`
+      );
+    } else {
+      setDispersionNotice(null);
+    }
+    resolveProvinceFromCoords(resolvedCoords.lat, resolvedCoords.lng);
   }, [pickedCoords]);
 
   // Automatically recognize location whenever a point's coordinates change (including initial pickedCoords or manual GPS edits)
@@ -864,8 +979,20 @@ export const FactEditorModal: React.FC<Props> = ({
           ? 'Historical Photograph'
           : 'وێنەی مێژوویی');
       const finalCaption = imageCaption.trim() || fullText.trim() || finalTitle;
-      const safeLat = Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8;
-      const safeLng = Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5;
+      const rawSafeLat = Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8;
+      const rawSafeLng = Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5;
+      const nonOverlapping = resolveNonOverlappingCoords({
+        lat: rawSafeLat,
+        lng: rawSafeLng,
+        provinceId: provinceId.trim() || undefined,
+        regionName: regionName.trim() || undefined,
+        name: finalTitle,
+        desc: desc.trim(),
+        allFacts,
+        excludeFactId: factToEdit?.id,
+      });
+      const safeLat = nonOverlapping.lat;
+      const safeLng = nonOverlapping.lng;
       const autoProv =
         !provinceId.trim() || !regionName.trim()
           ? matchFactToProvince(
@@ -881,14 +1008,14 @@ export const FactEditorModal: React.FC<Props> = ({
                 lat: safeLat,
                 lng: safeLng,
                 region: regionName.trim() || undefined,
-                provinceId: provinceId.trim() || undefined,
+                provinceId: provinceId.trim() || nonOverlapping.province?.id || undefined,
                 tag: '',
               },
               language
             )
           : null;
       const resolvedRegion = regionName.trim() || (autoProv && autoProv.id !== 'outside_global' ? autoProv.name : undefined);
-      const resolvedProvId = provinceId.trim() || (autoProv ? autoProv.id : undefined);
+      const resolvedProvId = provinceId.trim() || nonOverlapping.province?.id || (autoProv ? autoProv.id : undefined);
       const finalDesc = selectedPlaceName || desc.trim() || resolvedRegion || (isEn ? 'Kurdistan' : 'کوردستان');
       const finalFullText = fullText.trim() || finalCaption;
 
@@ -920,6 +1047,10 @@ export const FactEditorModal: React.FC<Props> = ({
         imageUrl: resolvedPrimary,
         imageCaption: finalCaption,
         images: [{ url: resolvedPrimary, caption: finalCaption }],
+        territoryPolygon: factToEdit?.territoryPolygon,
+        territoryColor: factToEdit?.territoryColor,
+        overlayImageUrl: factToEdit?.overlayImageUrl,
+        overlayBounds: factToEdit?.overlayBounds,
         isCustom: true,
       };
     }
@@ -1068,8 +1199,20 @@ export const FactEditorModal: React.FC<Props> = ({
     const finalImagesArray = allImagesList.slice(0, 10);
     const finalPrimaryImage = finalImagesArray[0];
 
-    const safeLat = Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8;
-    const safeLng = Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5;
+    const rawSafeLat = Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 ? Number(lat) : 36.8;
+    const rawSafeLng = Number.isFinite(Number(lng)) && Number(lng) >= -180 && Number(lng) <= 180 ? Number(lng) : 44.5;
+    const nonOverlapping = resolveNonOverlappingCoords({
+      lat: rawSafeLat,
+      lng: rawSafeLng,
+      provinceId: provinceId.trim() || undefined,
+      regionName: regionName.trim() || undefined,
+      name: name.trim(),
+      desc: desc.trim(),
+      allFacts,
+      excludeFactId: factToEdit?.id,
+    });
+    const safeLat = nonOverlapping.lat;
+    const safeLng = nonOverlapping.lng;
     const autoProv =
       !provinceId.trim() || !regionName.trim()
         ? matchFactToProvince(
@@ -1085,14 +1228,14 @@ export const FactEditorModal: React.FC<Props> = ({
               lat: safeLat,
               lng: safeLng,
               region: regionName.trim() || undefined,
-              provinceId: provinceId.trim() || undefined,
+              provinceId: provinceId.trim() || nonOverlapping.province?.id || undefined,
               tag: '',
             },
             language
           )
         : null;
     const resolvedRegion = regionName.trim() || (autoProv && autoProv.id !== 'outside_global' ? autoProv.name : undefined);
-    const resolvedProvId = provinceId.trim() || (autoProv ? autoProv.id : undefined);
+    const resolvedProvId = provinceId.trim() || nonOverlapping.province?.id || (autoProv ? autoProv.id : undefined);
 
     return {
       id: factToEdit ? factToEdit.id : Date.now(),
@@ -1131,6 +1274,10 @@ export const FactEditorModal: React.FC<Props> = ({
       parentFactId: typeof parentFactId === 'number' ? parentFactId : undefined,
       relatedFactIds: relatedFactIds.length > 0 ? relatedFactIds : undefined,
       allyFactIds: allyFactIds.length > 0 ? allyFactIds : undefined,
+      territoryPolygon: factToEdit?.territoryPolygon,
+      territoryColor: factToEdit?.territoryColor,
+      overlayImageUrl: factToEdit?.overlayImageUrl,
+      overlayBounds: factToEdit?.overlayBounds,
       isCustom: true,
     };
   };
@@ -1238,7 +1385,7 @@ export const FactEditorModal: React.FC<Props> = ({
           <div className={`mb-3 px-3 py-2 rounded-xl border text-[11px] font-medium shrink-0 ${
             isDark ? 'bg-sky-500/10 border-sky-400/25 text-sky-200' : 'bg-sky-50 border-sky-300 text-sky-900'
           }`}>
-            Central Kurdish (ckb) is the master knowledge base. Edits made here refine only the English edition without altering the Kurdish source.
+            After saving changes in English, you can choose whether to sync those updates to Kurdish Sorani (ckb) as well.
           </div>
         )}
 
@@ -1607,19 +1754,53 @@ export const FactEditorModal: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={onStartPickLocation}
-                    className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl border font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
-                      isDark
-                        ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-400/40 text-amber-300'
-                        : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
-                    }`}
-                  >
-                    <Crosshair className="w-3.5 h-3.5" />
-                    <span>{isEn ? 'Pick on Map Manually' : 'دیاریکردن بە دەست لەسەر نەخشە'}</span>
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleDisperseInsideProvince}
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-bold text-xs transition-all cursor-pointer active:scale-95 ${
+                        isDark
+                          ? 'bg-sky-500/15 hover:bg-sky-500/25 border-sky-400/35 text-sky-300'
+                          : 'bg-sky-50 hover:bg-sky-100 border-sky-300 text-sky-800'
+                      }`}
+                      title={isEn ? 'Place on a free spot inside province' : 'پەرتکردن بۆ خاڵێکی بەتاڵ لە ناو سنووری پارێزگادا'}
+                    >
+                      <Shuffle className="w-3.5 h-3.5" />
+                      <span>{isEn ? 'Scatter' : 'پەرتکردن'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onStartPickLocation}
+                      className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl border font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
+                        isDark
+                          ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-400/40 text-amber-300'
+                          : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
+                      }`}
+                    >
+                      <Crosshair className="w-3.5 h-3.5" />
+                      <span>{isEn ? 'Pick on Map Manually' : 'دیاریکردن بە دەست لەسەر نەخشە'}</span>
+                    </button>
+                  </div>
                 </div>
+                {(dispersionNotice || hasCoordOverlapNow) && (
+                  <div className={`px-3 py-2 rounded-xl border text-[11px] font-medium flex items-center gap-2 ${
+                    hasCoordOverlapNow
+                      ? isDark
+                        ? 'bg-amber-500/15 border-amber-400/35 text-amber-200'
+                        : 'bg-amber-50 border-amber-300 text-amber-900'
+                      : isDark
+                      ? 'bg-sky-500/15 border-sky-400/35 text-sky-200'
+                      : 'bg-sky-50 border-sky-300 text-sky-900'
+                  }`}>
+                    <Shuffle className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      {dispersionNotice ||
+                        (isEn
+                          ? 'Another entry already uses this spot — it will automatically disperse inside the province on save.'
+                          : 'بابەتێکی تر لەسەر هەمان شوێن هەیە — لە کاتی پاشەکەوتدا بە خۆکاری پەرت دەکرێتە خاڵێکی بەتاڵی ناو پارێزگاکە.')}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* 4. Photo Information & Caption */}
@@ -1933,9 +2114,9 @@ export const FactEditorModal: React.FC<Props> = ({
                   )}
 
                   {/* Visual Confirmation Badge */}
-                  <div className="flex items-center justify-between p-3 rounded-xl liquid-glass-subtle text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl liquid-glass-subtle text-xs">
                     {hasLocationPicked ? (
-                      <div className={`flex items-center gap-2.5 min-w-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      <div className={`flex items-center gap-2.5 min-w-0 flex-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
                           isDark ? 'bg-emerald-500/15 border-emerald-500/40' : 'bg-emerald-100 border-emerald-300'
                         }`}>
@@ -1957,7 +2138,7 @@ export const FactEditorModal: React.FC<Props> = ({
                         </div>
                       </div>
                     ) : (
-                      <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                      <div className={`flex items-center gap-2 text-xs flex-1 ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
                         <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
                           isDark ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' : 'bg-amber-100 border-amber-300 text-amber-800'
                         }`}>
@@ -1965,12 +2146,46 @@ export const FactEditorModal: React.FC<Props> = ({
                         </div>
                         <span>
                           {isEn
-                            ? 'Use Google Maps search above or click the map picker button to set coordinates.'
-                            : 'دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە یان بە دوگمەی نەخشە پۆینتەکە دیاری بکەیت.'}
+                            ? 'Use Google Maps search above, pick a province, or click the map picker button to set coordinates.'
+                            : 'دەتوانیت بە سێرچی گۆگڵ ماپس لە سەرەوە، هەڵبژاردنی پارێزگا، یان دوگمەی نەخشە پۆینتەکە دیاری بکەیت.'}
                         </span>
                       </div>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={handleDisperseInsideProvince}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-colors cursor-pointer shrink-0 ${
+                        isDark
+                          ? 'bg-sky-500/15 hover:bg-sky-500/25 border-sky-400/35 text-sky-300'
+                          : 'bg-sky-50 hover:bg-sky-100 border-sky-300 text-sky-800'
+                      }`}
+                      title={isEn ? 'Find another non-overlapping spot inside this province' : 'گواستنەوە بۆ خاڵێکی تری بەتاڵ لە ناو سنووری ئەم پارێزگایەدا'}
+                    >
+                      <Shuffle className="w-3 h-3" />
+                      <span>{isEn ? 'Scatter in Province' : 'پەرتکردن لە ناو پارێزگا'}</span>
+                    </button>
                   </div>
+
+                  {(dispersionNotice || hasCoordOverlapNow) && (
+                    <div className={`px-3 py-2 rounded-xl border text-[11px] font-medium flex items-center gap-2 ${
+                      hasCoordOverlapNow
+                        ? isDark
+                          ? 'bg-amber-500/15 border-amber-400/35 text-amber-200'
+                          : 'bg-amber-50 border-amber-300 text-amber-900'
+                        : isDark
+                        ? 'bg-sky-500/15 border-sky-400/35 text-sky-200'
+                        : 'bg-sky-50 border-sky-300 text-sky-900'
+                    }`}>
+                      <Shuffle className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {dispersionNotice ||
+                          (isEn
+                            ? 'Another entry already sits on this coordinate — it will automatically disperse inside the province boundary when saved.'
+                            : 'بابەتێکی تر لەسەر هەمان پۆوتان هەیە — لە کاتی پاشەکەوتدا بە خۆکاری پەرت دەکرێتە ناو سنووری ئەم پارێزگایە.')}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Optional Manual GPS Coordinates fields */}
                   {showManualCoords && (
@@ -2041,7 +2256,31 @@ export const FactEditorModal: React.FC<Props> = ({
                           const val = e.target.value;
                           setProvinceId(val);
                           const found = KURDISTAN_PROVINCES.find((p) => p.id === val);
-                          if (found) setRegionName(isEn ? found.nameEn || found.name : found.name);
+                          if (found) {
+                            const provLabel = isEn ? found.nameEn || found.name : found.name;
+                            setRegionName(provLabel);
+                            const needsMove =
+                              !hasLocationPicked ||
+                              !isValidCoord(lat, lng) ||
+                              !isPointInProvince(lat, lng, found) ||
+                              hasNearbyFactOverlap(lat, lng, allFacts, factToEdit?.id);
+                            if (needsMove) {
+                              const occupied = allFacts
+                                .filter((f) => (!factToEdit || f.id !== factToEdit.id) && isValidCoord(f.lat, f.lng))
+                                .map((f) => ({ lat: f.lat, lng: f.lng }));
+                              const seed = Math.abs(Math.round((factToEdit?.id || Date.now()) % 997));
+                              const scattered = findDispersedPointInProvince(found, occupied, seed);
+                              lastResolvedCoordsKeyRef.current = `${scattered.lat.toFixed(4)},${scattered.lng.toFixed(4)}`;
+                              setLat(scattered.lat);
+                              setLng(scattered.lng);
+                              setHasLocationPicked(true);
+                              setDispersionNotice(
+                                isEn
+                                  ? `Auto-placed at an open coordinate inside ${provLabel} boundaries.`
+                                  : `بە خۆکاری پۆوتانێکی بەتاڵ لە ناو سنووری پارێزگای ${provLabel} دیاریکرا.`
+                              );
+                            }
+                          }
                         }}
                         className={`w-full px-3 py-2 rounded-lg border text-xs font-bold focus:border-amber-500 focus:outline-none ${
                           isDark ? 'border-white/10 bg-[#0b101d] text-slate-100' : 'border-slate-300 bg-white text-slate-900'
@@ -3416,7 +3655,7 @@ export const FactEditorModal: React.FC<Props> = ({
               <div>
                 {confirmDelete ? (
                   <div className="flex flex-wrap items-center gap-1.5 animate-fade-in">
-                    {!isEn && translatedFactIds?.has(factToEdit.id) ? (
+                    {(isEn || translatedFactIds?.has(factToEdit.id)) ? (
                       <>
                         <button
                           type="button"
@@ -3427,7 +3666,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           className="preserve-contrast px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>سڕینەوە لە هەردوو زمان</span>
+                          <span>{isEn ? 'Delete in Both Languages' : 'سڕینەوە لە هەردوو زمان'}</span>
                         </button>
                         <button
                           type="button"
@@ -3437,7 +3676,7 @@ export const FactEditorModal: React.FC<Props> = ({
                           }}
                           className="preserve-contrast px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                         >
-                          <span>تەنها لە کوردی</span>
+                          <span>{isEn ? 'English Only' : 'تەنها لە کوردی'}</span>
                         </button>
                       </>
                     ) : (

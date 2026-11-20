@@ -29,13 +29,13 @@ import {
   Trash2,
 } from 'lucide-react';
 import { fetchWikipediaFactInfo, WikipediaResult } from '../services/wikipediaService';
-import { getLinkedFacts } from '../utils/factRelations';
+import { getLinkedFacts, compareFactsChronologically } from '../utils/factRelations';
 import { FactRelationsModal } from './FactRelationsModal';
 import { SubmitPhotoModal } from './SubmitPhotoModal';
 import { getCategoryInfo, getAccessibleCategoryColor } from '../types/history';
 import { getAllFactImages } from '../utils/historicalImages';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
-import { formatDigits } from '../utils/yearUtils';
+import { formatDigits, getFactYearSpan } from '../utils/yearUtils';
 import { getShareableTopicUrl, copyTopicToClipboard } from '../utils/urlRouter';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -103,7 +103,15 @@ export const FactDetailModal: React.FC<Props> = ({
 
   // Related Topics State & Filtering
   const [relationFilter, setRelationFilter] = useState<
-    'all' | 'leaders' | 'scholars' | 'castles' | 'battles' | 'monuments' | 'others'
+    | 'all'
+    | 'leaders'
+    | 'scholars'
+    | 'officials'
+    | 'castles'
+    | 'battles'
+    | 'monuments'
+    | 'principalities'
+    | 'others'
   >('all');
   const [isRelationsModalOpen, setIsRelationsModalOpen] = useState(false);
 
@@ -117,13 +125,18 @@ export const FactDetailModal: React.FC<Props> = ({
   }, [fact, allFacts]);
 
   const filteredRelatedItems = useMemo(() => {
-    if (relationFilter === 'all') return linkedData.allRelated;
-    if (relationFilter === 'leaders') return linkedData.byCategory.leaders;
-    if (relationFilter === 'scholars') return linkedData.byCategory.scholars;
-    if (relationFilter === 'castles') return linkedData.byCategory.castles;
-    if (relationFilter === 'battles') return linkedData.byCategory.battles;
-    if (relationFilter === 'monuments') return linkedData.byCategory.monuments;
-    return linkedData.byCategory.others;
+    let items: FactItem[];
+    if (relationFilter === 'all') items = linkedData.allRelated;
+    else if (relationFilter === 'leaders') items = linkedData.byCategory.leaders;
+    else if (relationFilter === 'scholars') items = linkedData.byCategory.scholars;
+    else if (relationFilter === 'officials') items = linkedData.byCategory.officials;
+    else if (relationFilter === 'castles') items = linkedData.byCategory.castles;
+    else if (relationFilter === 'battles') items = linkedData.byCategory.battles;
+    else if (relationFilter === 'monuments') items = linkedData.byCategory.monuments;
+    else if (relationFilter === 'principalities') items = linkedData.byCategory.principalities;
+    else items = linkedData.byCategory.others;
+
+    return [...items].sort(compareFactsChronologically);
   }, [linkedData, relationFilter]);
 
   // Fetch Wikipedia or Scholarly Dossier information when fact or language changes
@@ -136,6 +149,7 @@ export const FactDetailModal: React.FC<Props> = ({
     setIsEditingNotes(false);
     setNotesContent(fact.additionalNotes || '');
     setAiTranslateFeedback(null);
+    setRelationFilter('all');
 
     fetchWikipediaFactInfo(fact.id, fact.name, fact.desc, fact.fullText, language)
       .then((res) => {
@@ -893,6 +907,22 @@ export const FactDetailModal: React.FC<Props> = ({
                         : `جەنگ و ڕووداو (${formatDigits(linkedData.byCategory.battles.length, language)})`}
                     </button>
                   )}
+                  {linkedData.byCategory.officials.length > 0 && (
+                    <button
+                      onClick={() => setRelationFilter('officials')}
+                      className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                        relationFilter === 'officials'
+                          ? 'liquid-glass-btn-active'
+                          : isDark
+                          ? 'liquid-glass-subtle text-amber-300 hover:text-amber-200'
+                          : 'bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100'
+                      }`}
+                    >
+                      {isEn
+                        ? `Officials (${linkedData.byCategory.officials.length})`
+                        : `کاربەدەستان (${formatDigits(linkedData.byCategory.officials.length, language)})`}
+                    </button>
+                  )}
                   {linkedData.byCategory.monuments.length > 0 && (
                     <button
                       onClick={() => setRelationFilter('monuments')}
@@ -909,62 +939,114 @@ export const FactDetailModal: React.FC<Props> = ({
                         : `شوێنەوار (${formatDigits(linkedData.byCategory.monuments.length, language)})`}
                     </button>
                   )}
+                  {linkedData.byCategory.principalities.length > 0 && (
+                    <button
+                      onClick={() => setRelationFilter('principalities')}
+                      className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                        relationFilter === 'principalities'
+                          ? 'liquid-glass-btn-active'
+                          : isDark
+                          ? 'liquid-glass-subtle text-amber-300 hover:text-amber-200'
+                          : 'bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100'
+                      }`}
+                    >
+                      {isEn
+                        ? `Powers & Polities (${linkedData.byCategory.principalities.length})`
+                        : `میرنشین و دەسەڵات (${formatDigits(linkedData.byCategory.principalities.length, language)})`}
+                    </button>
+                  )}
+                  {linkedData.byCategory.others.length > 0 && (
+                    <button
+                      onClick={() => setRelationFilter('others')}
+                      className={`px-2.5 py-1 rounded-lg shrink-0 transition-all cursor-pointer font-bold ${
+                        relationFilter === 'others'
+                          ? 'liquid-glass-btn-active'
+                          : isDark
+                          ? 'liquid-glass-subtle text-slate-300 hover:text-white'
+                          : 'bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200'
+                      }`}
+                    >
+                      {isEn
+                        ? `Others (${linkedData.byCategory.others.length})`
+                        : `هیتر (${formatDigits(linkedData.byCategory.others.length, language)})`}
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* Related Items Cards Grid */}
+              {/* Related Items Vertical Chronological Column */}
               {filteredRelatedItems.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-64 overflow-y-auto custom-scrollbar pe-0.5">
-                  {filteredRelatedItems.map((item) => {
+                <div className="flex flex-col gap-2 pt-1 max-h-80 overflow-y-auto custom-scrollbar pe-0.5">
+                  {filteredRelatedItems.map((item, idx) => {
                     const itemCat = getCategoryInfo(item, language);
                     const catColor = getAccessibleCategoryColor(itemCat.color, isDark);
+                    const rawYear = item.year || item.century || getFactYearSpan(item, language).label;
+                    const displayYear = rawYear ? formatDigits(rawYear, language) : '';
                     return (
                       <div
                         key={item.id}
-                        className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between gap-2 group ${
+                        className={`p-2.5 sm:p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group ${
                           isDark
-                            ? 'liquid-glass-subtle border-white/5 hover:border-amber-400/30'
+                            ? 'liquid-glass-subtle border-white/5 hover:border-amber-400/35'
                             : 'bg-white border-slate-200 hover:border-amber-500/50 shadow-xs'
                         }`}
                       >
-                        <div>
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <span
-                              className="text-[9px] px-1.5 py-0.5 rounded-md font-bold"
-                              style={{
-                                backgroundColor: isDark ? `${itemCat.color}20` : `${catColor}14`,
-                                color: catColor,
-                                border: `1px solid ${catColor}45`,
-                              }}
-                            >
-                              {itemCat.name}
-                            </span>
-                            {(item.year || item.century) && (
-                              <span className={`text-[9px] font-mono ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
-                                {item.year || item.century}
-                              </span>
-                            )}
-                          </div>
-                          <h5
-                            className={`font-bold text-xs transition-colors truncate ${
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <span
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black font-mono tabular-nums shrink-0 mt-0.5 border ${
                               isDark
-                                ? 'text-white group-hover:text-amber-300'
-                                : 'text-slate-900 group-hover:text-amber-800'
+                                ? 'bg-amber-500/15 text-amber-300 border-amber-400/30'
+                                : 'bg-amber-100 text-amber-900 border-amber-300'
                             }`}
                           >
-                            {item.name}
-                          </h5>
-                          <p
-                            className={`text-[11px] line-clamp-2 mt-0.5 leading-relaxed ${
-                              isDark ? 'text-slate-300' : 'text-slate-600'
-                            }`}
-                          >
-                            {item.desc}
-                          </p>
+                            {formatDigits(idx + 1, language)}
+                          </span>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                              <span
+                                className="text-[9px] px-1.5 py-0.5 rounded-md font-bold"
+                                style={{
+                                  backgroundColor: isDark ? `${itemCat.color}20` : `${catColor}14`,
+                                  color: catColor,
+                                  border: `1px solid ${catColor}45`,
+                                }}
+                              >
+                                {itemCat.name}
+                              </span>
+                              {displayYear && (
+                                <span
+                                  className={`text-[10px] font-mono tabular-nums font-bold px-1.5 py-0.5 rounded-md border ${
+                                    isDark
+                                      ? 'bg-white/5 text-amber-200 border-white/10'
+                                      : 'bg-amber-50 text-amber-900 border-amber-200'
+                                  }`}
+                                >
+                                  {displayYear}
+                                </span>
+                              )}
+                            </div>
+                            <h5
+                              className={`font-bold text-xs transition-colors truncate ${
+                                isDark
+                                  ? 'text-white group-hover:text-amber-300'
+                                  : 'text-slate-900 group-hover:text-amber-800'
+                              }`}
+                            >
+                              {item.name}
+                            </h5>
+                            <p
+                              className={`text-[11px] line-clamp-2 mt-0.5 leading-relaxed ${
+                                isDark ? 'text-slate-300' : 'text-slate-600'
+                              }`}
+                            >
+                              {item.desc}
+                            </p>
+                          </div>
                         </div>
 
                         <div
-                          className={`flex items-center justify-end gap-1.5 pt-1.5 border-t ${
+                          className={`flex items-center justify-end gap-1.5 pt-1.5 sm:pt-0 border-t sm:border-t-0 shrink-0 ${
                             isDark ? 'border-white/5' : 'border-slate-100'
                           }`}
                         >

@@ -44,6 +44,7 @@ import {
   Square,
   Trash2,
   Download,
+  Shuffle,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -51,6 +52,7 @@ import {
   loadKurdishFactsFromCloud,
   loadEnglishFactsFromCloud,
   saveNotesToCloud,
+  updateFactLocationInCloud,
 } from '../services/firestoreHistoryService';
 import {
   translateFactToEnglishDetailed,
@@ -60,6 +62,10 @@ import {
   formatTranslationError,
 } from '../services/aiTranslationService';
 import { findMismatchedDuplicateNotesFacts } from '../utils/factConsistency';
+import {
+  analyzeOverlappingFactLocations,
+  LocationFixPlanItem,
+} from '../utils/locationDispersion';
 
 interface Props {
   facts: FactItem[];
@@ -90,6 +96,7 @@ interface Props {
   onOpenHero?: () => void;
   onClose?: () => void;
   onLogoutAdmin?: () => void;
+  onFactsLocationsFixed?: (updatedFacts: FactItem[]) => void;
   initialSearchTerm?: string;
 }
 
@@ -136,6 +143,7 @@ export const FactsList: React.FC<Props> = ({
   onOpenEditFact,
   onClose,
   onLogoutAdmin,
+  onFactsLocationsFixed,
   initialSearchTerm,
 }) => {
   const { colorMode } = useTheme();
@@ -169,6 +177,99 @@ export const FactsList: React.FC<Props> = ({
   const stopBatchRef = useRef(false);
   const [studioNotice, setStudioNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [isCleaningMismatches, setIsCleaningMismatches] = useState(false);
+
+  // Admin Location Overlap Fix (چاکسازی لۆکەیشن) states
+  const [isLocationFixOpen, setIsLocationFixOpen] = useState(false);
+  const [locationFixPlan, setLocationFixPlan] = useState<LocationFixPlanItem[]>([]);
+  const [isFixingLocations, setIsFixingLocations] = useState(false);
+  const [locationFixProgress, setLocationFixProgress] = useState<{ completed: number; total: number }>({
+    completed: 0,
+    total: 0,
+  });
+  const [locationFixNotice, setLocationFixNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const overlappingLocationsPreview = useMemo(
+    () => (isAdmin ? analyzeOverlappingFactLocations(facts) : []),
+    [facts, isAdmin]
+  );
+
+  const openLocationFixModal = () => {
+    const plan = analyzeOverlappingFactLocations(facts);
+    setLocationFixPlan(plan);
+    setLocationFixProgress({ completed: 0, total: plan.length });
+    setLocationFixNotice(null);
+    setIsLocationFixOpen(true);
+  };
+
+  const handleApplyLocationFixes = async () => {
+    if (isFixingLocations || locationFixPlan.length === 0) return;
+    setIsFixingLocations(true);
+    setLocationFixNotice(null);
+    const total = locationFixPlan.length;
+    setLocationFixProgress({ completed: 0, total });
+
+    const updatedFacts: FactItem[] = [];
+    let failedCount = 0;
+    let firstErrorMsg = '';
+    const BATCH_SIZE = 6;
+
+    try {
+      for (let i = 0; i < locationFixPlan.length; i += BATCH_SIZE) {
+        const chunk = locationFixPlan.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          chunk.map((item) =>
+            updateFactLocationInCloud(
+              item.fact,
+              item.newLat,
+              item.newLng,
+              item.provinceId,
+              language
+            )
+          )
+        );
+        results.forEach((res) => {
+          if (res.status === 'fulfilled') {
+            updatedFacts.push(res.value);
+          } else {
+            failedCount += 1;
+            if (!firstErrorMsg) {
+              firstErrorMsg = res.reason instanceof Error ? res.reason.message : String(res.reason || '');
+            }
+          }
+        });
+        setLocationFixProgress({
+          completed: Math.min(i + chunk.length, total),
+          total,
+        });
+      }
+
+      if (updatedFacts.length > 0) {
+        onFactsLocationsFixed?.(updatedFacts);
+      }
+
+      if (failedCount === 0) {
+        setLocationFixPlan([]);
+        setLocationFixNotice({
+          type: 'ok',
+          text: isEn
+            ? `Successfully dispersed and saved ${updatedFacts.length} overlapping map pins across province boundaries (synced to both languages).`
+            : `${formatDigits(updatedFacts.length, language)} خاڵی تێکەڵبوو بە سەرکەوتوویی پەرت کرانە ناو سنووری پارێزگاکانیان و لە هەردوو زمانەکەدا پاشەکەوت کران ✓`,
+        });
+      } else {
+        setLocationFixPlan((prev) =>
+          prev.filter((item) => !updatedFacts.some((u) => u.id === item.fact.id))
+        );
+        setLocationFixNotice({
+          type: 'err',
+          text: isEn
+            ? `Updated ${updatedFacts.length} locations, ${failedCount} failed${firstErrorMsg ? `: ${firstErrorMsg}` : '.'}`
+            : `${formatDigits(updatedFacts.length, language)} شوێن چاک کران، بەڵام ${formatDigits(failedCount, language)} سەرنەکەوت${firstErrorMsg ? `: ${firstErrorMsg}` : '.'}`,
+        });
+      }
+    } finally {
+      setIsFixingLocations(false);
+    }
+  };
 
   useEffect(() => {
     if (translatedFactIds) {
@@ -716,6 +817,29 @@ export const FactsList: React.FC<Props> = ({
 
               {isAdmin && (
                 <>
+                  <button
+                    type="button"
+                    onClick={openLocationFixModal}
+                    className={`h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl border font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 ${
+                      overlappingLocationsPreview.length > 0
+                        ? isDark
+                          ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-400/45'
+                          : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-emerald-400'
+                        : isDark
+                        ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border-white/15'
+                        : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                    }`}
+                    title={isEn ? 'Disperse overlapping map locations inside province boundaries' : 'چاکسازی و پەرتکردنی لۆکەیشنە تێکەڵبووەکان لە ناو سنووری پارێزگاکاندا'}
+                  >
+                    <Shuffle className="w-4 h-4 shrink-0" />
+                    <span>{isEn ? 'Fix Locations' : 'چاکسازی لۆکەیشن'}</span>
+                    {overlappingLocationsPreview.length > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-slate-950 font-black text-[10px] tabular-nums">
+                        {formatDigits(overlappingLocationsPreview.length, language)}
+                      </span>
+                    )}
+                  </button>
+
                   <button
                     type="button"
                     onClick={openAiStudio}
@@ -1863,6 +1987,223 @@ export const FactsList: React.FC<Props> = ({
                     </div>
                   );
                 })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ================= ADMIN LOCATION OVERLAP FIX MODAL (چاکسازی لۆکەیشن) ================= */}
+      {isAdmin && isLocationFixOpen && (
+        <div
+          className="fixed inset-0 z-[2000] flex items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-lg animate-fade-in"
+          onClick={() => !isFixingLocations && setIsLocationFixOpen(false)}
+        >
+          <div
+            dir={dir}
+            className={`relative w-full max-w-3xl max-h-[88dvh] flex flex-col rounded-3xl border overflow-hidden text-start ${
+              isDark
+                ? 'bg-[#070b16] border-emerald-500/40 text-slate-100 shadow-[0_25px_80px_rgba(0,0,0,0.95)]'
+                : 'bg-white border-emerald-300 text-slate-900 shadow-2xl'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              className={`p-4 sm:p-5 border-b flex items-center justify-between gap-3 ${
+                isDark
+                  ? 'border-white/10 bg-gradient-to-r from-emerald-950/60 via-[#0b1022] to-[#070b16]'
+                  : 'border-slate-200 bg-gradient-to-r from-emerald-50 via-white to-slate-50'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${
+                    isDark
+                      ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
+                      : 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                  }`}
+                >
+                  <Shuffle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className={`text-sm sm:text-base font-black font-heading truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {isEn ? 'Fix Overlapping Map Locations' : 'چاکسازی لۆکەیشن و پەرتکردنی خاڵەکان'}
+                  </h3>
+                  <p className={`text-[11px] leading-snug ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    {isEn
+                      ? 'Detects pins stacked on the same spot and scatters them evenly inside their province boundaries across both languages.'
+                      : 'ئەو خاڵانەی لەسەر هەمان پۆوتان کەوتوونەتە سەر یەک دەدۆزێتەوە و بەسەر پانتایی نێو سنووری پارێزگاکانیاندا پەرتیان دەکات.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isFixingLocations}
+                onClick={() => setIsLocationFixOpen(false)}
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer disabled:opacity-40 transition-colors ${
+                  isDark
+                    ? 'bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white border-white/10'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-300'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Action & Progress Toolbar */}
+            <div
+              className={`p-3 sm:p-4 border-b space-y-3 ${
+                isDark ? 'border-white/10 bg-[#0a0f1d]' : 'border-slate-200 bg-slate-50'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${
+                      locationFixPlan.length > 0
+                        ? isDark
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-400/35'
+                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                        : isDark
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/35'
+                        : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    }`}
+                  >
+                    {locationFixPlan.length > 0
+                      ? isEn
+                        ? `${locationFixPlan.length} overlapping entries found`
+                        : `${formatDigits(locationFixPlan.length, language)} خاڵی تێکەڵبوو دۆزرایەوە`
+                      : isEn
+                      ? '0 overlapping pins'
+                      : 'هیچ خاڵێکی تێکەڵبوو نەماوە'}
+                  </span>
+                </div>
+
+                {locationFixPlan.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={isFixingLocations}
+                    onClick={handleApplyLocationFixes}
+                    className="preserve-contrast px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                  >
+                    {isFixingLocations ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isFixingLocations
+                        ? isEn
+                          ? 'Dispersing & Saving...'
+                          : 'خەریکی چاکسازی و پاشەکەوت...'
+                        : isEn
+                        ? `Disperse & Save All (${locationFixPlan.length})`
+                        : `چاکسازیکردن و پاشەکەوت (${formatDigits(locationFixPlan.length, language)})`}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {isFixingLocations && locationFixProgress.total > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-mono font-bold">
+                    <span className={isDark ? 'text-emerald-300' : 'text-emerald-800'}>
+                      {isEn ? 'Updating Firestore coordinates...' : 'نوێکردنەوەی پۆوتانەکان لە بنکەی داتادا...'}
+                    </span>
+                    <span className={isDark ? 'text-amber-300' : 'text-amber-800'}>
+                      {formatDigits(locationFixProgress.completed, language)} / {formatDigits(locationFixProgress.total, language)}
+                    </span>
+                  </div>
+                  <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-200"
+                      style={{
+                        width: `${Math.round((locationFixProgress.completed / locationFixProgress.total) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {locationFixNotice && (
+                <div
+                  className={`p-2.5 px-3 rounded-xl text-xs font-medium flex items-center gap-2 border ${
+                    locationFixNotice.type === 'ok'
+                      ? isDark
+                        ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-200'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                      : isDark
+                      ? 'bg-rose-500/15 border-rose-400/30 text-rose-200'
+                      : 'bg-rose-50 border-rose-300 text-rose-900'
+                  }`}
+                >
+                  {locationFixNotice.type === 'ok' ? (
+                    <Check className={`w-4 h-4 shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                  ) : (
+                    <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
+                  )}
+                  <span>{locationFixNotice.text}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Preview List */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 custom-scrollbar">
+              {locationFixPlan.length === 0 ? (
+                <div className={`py-14 flex flex-col items-center justify-center text-center gap-2.5 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${
+                    isDark ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-400' : 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                  }`}>
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <p className="font-bold text-sm">
+                    {isEn
+                      ? 'All points are cleanly separated!'
+                      : 'هەموو خاڵەکان لەسەر نەخشە جیاکراونەتەوە و ڕێکن!'}
+                  </p>
+                  <p className={`max-w-md text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {isEn
+                      ? 'No two entries share overlapping coordinates within the same area.'
+                      : 'هیچ دوو بابەتێک لەسەر هەمان شوێن بەسەر یەکدا نەکەوتوون.'}
+                  </p>
+                </div>
+              ) : (
+                locationFixPlan.map((item) => (
+                  <div
+                    key={item.fact.id}
+                    className={`p-2.5 sm:p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-2.5 ${
+                      isDark
+                        ? 'bg-white/[0.03] border-white/10'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs sm:text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {item.fact.name}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${
+                            isDark
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
+                              : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          }`}
+                        >
+                          {isEn ? item.provinceNameEn : item.provinceNameCkb}
+                        </span>
+                      </div>
+                      <div className={`text-[10px] font-mono flex items-center gap-2 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-600'}`} dir="ltr">
+                        <span className={isDark ? 'text-rose-300/90' : 'text-rose-700'}>
+                          {item.oldLat.toFixed(4)}, {item.oldLng.toFixed(4)}
+                        </span>
+                        <span>→</span>
+                        <span className={isDark ? 'text-emerald-300 font-bold' : 'text-emerald-700 font-bold'}>
+                          {item.newLat.toFixed(4)}, {item.newLng.toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>

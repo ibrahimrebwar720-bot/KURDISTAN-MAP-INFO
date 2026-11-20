@@ -5,6 +5,7 @@ import { kurdishSearchMatch } from '../utils/kurdishSearch';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatDigits } from '../utils/yearUtils';
+import { compareFactsChronologically } from '../utils/factRelations';
 import {
   X,
   Search,
@@ -58,12 +59,14 @@ export const FactRelationsModal: React.FC<Props> = ({
     return allFacts.filter((f) => f.id !== currentFact.id);
   }, [allFacts, currentFact.id]);
 
-  // Candidate Allies (all other principalities / states / authorities)
+  // Candidate Allies (all other principalities / states / authorities), sorted chronologically
   const candidateAllies = useMemo(() => {
-    return candidateFacts.filter((f) => {
-      const c = getCategoryInfo(f, language).id;
-      return c === 'principality';
-    });
+    return candidateFacts
+      .filter((f) => {
+        const c = getCategoryInfo(f, language).id;
+        return c === 'principality';
+      })
+      .sort(compareFactsChronologically);
   }, [candidateFacts, language]);
 
   const filteredCandidateAllies = useMemo(() => {
@@ -92,21 +95,23 @@ export const FactRelationsModal: React.FC<Props> = ({
       );
     }
 
-    // Sort: selected items first, then alphabetical
+    // Sort: selected items first, then strictly chronological
     return [...list].sort((a, b) => {
       const aSelected = selectedIds.includes(a.id) ? 1 : 0;
       const bSelected = selectedIds.includes(b.id) ? 1 : 0;
       if (aSelected !== bSelected) return bSelected - aSelected;
-      return a.name.localeCompare(b.name, isEn ? 'en' : 'ku');
+      return compareFactsChronologically(a, b);
     });
-  }, [candidateFacts, selectedCatFilter, searchQuery, selectedIds, language, isEn]);
+  }, [candidateFacts, selectedCatFilter, searchQuery, selectedIds, language]);
 
-  // Principalities & broad entities for parent selector
+  // Principalities & broad entities for parent selector, sorted chronologically
   const broadEntities = useMemo(() => {
-    return candidateFacts.filter((f) => {
-      const c = getCategoryInfo(f, language).id;
-      return c === 'principality' || c === 'civilization';
-    });
+    return candidateFacts
+      .filter((f) => {
+        const c = getCategoryInfo(f, language).id;
+        return c === 'principality' || c === 'civilization';
+      })
+      .sort(compareFactsChronologically);
   }, [candidateFacts, language]);
 
   if (!isOpen) return null;

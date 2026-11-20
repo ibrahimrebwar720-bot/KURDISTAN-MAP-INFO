@@ -1,6 +1,20 @@
 import { FactItem } from '../data/kurdishHistoryData';
 import { getCategoryInfo } from '../types/history';
 import type { AppLanguage } from '../context/LanguageContext';
+import { getFactChronologicalYear, getFactYearSpan } from './yearUtils';
+
+export function compareFactsChronologically(a: FactItem, b: FactItem): number {
+  const yearA = getFactChronologicalYear(a);
+  const yearB = getFactChronologicalYear(b);
+  if (yearA !== yearB) return yearA - yearB;
+
+  const spanA = getFactYearSpan(a);
+  const spanB = getFactYearSpan(b);
+  if (spanA.endYear !== spanB.endYear) return spanA.endYear - spanB.endYear;
+
+  if ((a.num || 0) !== (b.num || 0)) return (a.num || 0) - (b.num || 0);
+  return a.id - b.id;
+}
 
 export interface LinkedFactsResult {
   allRelated: FactItem[];
@@ -69,6 +83,18 @@ export function getLinkedFacts(
     });
   }
 
+  if (Array.isArray(currentFact.allyFactIds)) {
+    currentFact.allyFactIds.forEach((aid) => {
+      if (typeof aid === 'number' && aid !== currentFact.id && !explicitIds.has(aid)) {
+        const found = allFacts.find((f) => f.id === aid);
+        if (found) {
+          explicitIds.add(found.id);
+          explicitList.push(found);
+        }
+      }
+    });
+  }
+
   allFacts.forEach((other) => {
     if (other.id === currentFact.id) return;
 
@@ -82,8 +108,18 @@ export function getLinkedFacts(
     ) {
       explicitIds.add(other.id);
       explicitList.push(other);
+    } else if (
+      Array.isArray(other.allyFactIds) &&
+      other.allyFactIds.includes(currentFact.id) &&
+      !explicitIds.has(other.id)
+    ) {
+      explicitIds.add(other.id);
+      explicitList.push(other);
     }
   });
+
+  explicitList.sort(compareFactsChronologically);
+  parentsList.sort(compareFactsChronologically);
 
   const allRelated = explicitList;
 
@@ -285,9 +321,12 @@ export function getKnowledgeGraphNetwork(
     }
   });
 
+  const sortedNodes = Array.from(nodesMap.values()).sort(compareFactsChronologically);
+  links.sort((a, b) => compareFactsChronologically(a.target, b.target));
+
   return {
     centerFact,
-    nodes: Array.from(nodesMap.values()),
+    nodes: sortedNodes,
     links,
     parentFact: resolvedParent,
   };
