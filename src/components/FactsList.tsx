@@ -947,7 +947,7 @@ export const FactsList: React.FC<Props> = ({
               <select
                 value={categoryFilter}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className={`bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 max-w-[140px] sm:max-w-[180px] truncate ${
+                className={`bare-input bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 max-w-[140px] sm:max-w-[180px] truncate ${
                   isDark ? 'text-slate-100' : 'text-slate-900'
                 }`}
                 title={isEn ? 'Filter by category' : 'فلتەر بەپێی پۆلێن'}
@@ -977,7 +977,7 @@ export const FactsList: React.FC<Props> = ({
               <select
                 value={provinceFilter}
                 onChange={(e) => handleProvinceChange(e.target.value)}
-                className={`bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 max-w-[130px] sm:max-w-[165px] truncate ${
+                className={`bare-input bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 max-w-[130px] sm:max-w-[165px] truncate ${
                   isDark ? 'text-slate-100' : 'text-slate-900'
                 }`}
                 title={isEn ? 'Filter by province' : 'فلتەر بەپێی پارێزگا'}
@@ -1051,7 +1051,7 @@ export const FactsList: React.FC<Props> = ({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className={`bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 ${
+                className={`bare-input bg-transparent text-xs font-bold focus:outline-none cursor-pointer pe-1 ${
                   isDark ? 'text-slate-100' : 'text-slate-900'
                 }`}
                 title={isEn ? 'Sort entries' : 'ڕیزبەندی بابەتەکان'}

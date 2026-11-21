@@ -38,6 +38,7 @@
 }
 
 @theme {
+  --breakpoint-xs: 24rem;
   --font-sans: 'Rabar', 'Noto Serif', Georgia, serif;
   --font-serif: 'Rabar', 'Noto Serif', Georgia, serif;
   --font-heading: 'Rabar', 'Noto Serif', Georgia, serif;
@@ -166,7 +167,15 @@
     --theme-border-accent: rgba(254, 240, 138, 0.65);
   }
 
-  html, body {
+  html {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
     height: 100%;
     height: 100dvh;
     width: 100%;
@@ -174,8 +183,6 @@
     padding: 0;
     overflow: hidden;
     overscroll-behavior: none;
-    position: fixed;
-    inset: 0;
   }
 
   body {
@@ -391,12 +398,14 @@ img,
   transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease !important;
 }
 
-.card-editorial-2026:hover {
-  background: #151d32 !important;
-  border-color: var(--theme-accent, #f59e0b) !important;
-  border-top-color: var(--theme-accent-light, #fbbf24) !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
-  transform: translateY(-2px) !important;
+@media (hover: hover) and (pointer: fine) {
+  .card-editorial-2026:hover {
+    background: #151d32 !important;
+    border-color: var(--theme-accent, #f59e0b) !important;
+    border-top-color: var(--theme-accent-light, #fbbf24) !important;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
+    transform: translateY(-2px) !important;
+  }
 }
 
 .card-editorial-2026:active {
@@ -424,13 +433,15 @@ img,
   transition: all 0.15s ease !important;
 }
 
-.liquid-glass-btn:hover,
-.glass-pill:hover {
-  background: #1c263e !important;
-  border-color: var(--theme-accent, #f59e0b) !important;
-  color: #ffffff !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45) !important;
-  transform: translateY(-1px) !important;
+@media (hover: hover) and (pointer: fine) {
+  .liquid-glass-btn:hover,
+  .glass-pill:hover {
+    background: #1c263e !important;
+    border-color: var(--theme-accent, #f59e0b) !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45) !important;
+    transform: translateY(-1px) !important;
+  }
 }
 
 .liquid-glass-btn:active,
@@ -450,13 +461,13 @@ img,
 
 /* 8. Warm Architectural Inputs & Selects - Theme Responsive */
 html.dark .liquid-glass-input,
-html.dark input,
-html.dark textarea,
-html.dark select,
+html.dark input:not(.bare-input),
+html.dark textarea:not(.bare-input),
+html.dark select:not(.bare-input),
 :root:not(.light) .liquid-glass-input,
-:root:not(.light) input,
-:root:not(.light) textarea,
-:root:not(.light) select {
+:root:not(.light) input:not(.bare-input),
+:root:not(.light) textarea:not(.bare-input),
+:root:not(.light) select:not(.bare-input) {
   background: #090d18 !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5) !important;
@@ -465,13 +476,13 @@ html.dark select,
 }
 
 html.dark .liquid-glass-input:focus,
-html.dark input:focus,
-html.dark textarea:focus,
-html.dark select:focus,
+html.dark input:not(.bare-input):focus,
+html.dark textarea:not(.bare-input):focus,
+html.dark select:not(.bare-input):focus,
 :root:not(.light) .liquid-glass-input:focus,
-:root:not(.light) input:focus,
-:root:not(.light) textarea:focus,
-:root:not(.light) select:focus {
+:root:not(.light) input:not(.bare-input):focus,
+:root:not(.light) textarea:not(.bare-input):focus,
+:root:not(.light) select:not(.bare-input):focus {
   border-color: var(--theme-accent, #f59e0b) !important;
   outline: 1px solid var(--theme-accent, #f59e0b) !important;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25) !important;
@@ -480,13 +491,13 @@ html.dark select:focus,
 }
 
 html.light .liquid-glass-input,
-html.light input,
-html.light textarea,
-html.light select,
+html.light input:not(.bare-input),
+html.light textarea:not(.bare-input),
+html.light select:not(.bare-input),
 [data-color-mode="light"] .liquid-glass-input,
-[data-color-mode="light"] input,
-[data-color-mode="light"] textarea,
-[data-color-mode="light"] select {
+[data-color-mode="light"] input:not(.bare-input),
+[data-color-mode="light"] textarea:not(.bare-input),
+[data-color-mode="light"] select:not(.bare-input) {
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05) !important;
@@ -495,13 +506,13 @@ html.light select,
 }
 
 html.light .liquid-glass-input:focus,
-html.light input:focus,
-html.light textarea:focus,
-html.light select:focus,
+html.light input:not(.bare-input):focus,
+html.light textarea:not(.bare-input):focus,
+html.light select:not(.bare-input):focus,
 [data-color-mode="light"] .liquid-glass-input:focus,
-[data-color-mode="light"] input:focus,
-[data-color-mode="light"] textarea:focus,
-[data-color-mode="light"] select:focus {
+[data-color-mode="light"] input:not(.bare-input):focus,
+[data-color-mode="light"] textarea:not(.bare-input):focus,
+[data-color-mode="light"] select:not(.bare-input):focus {
   border-color: var(--theme-accent, #b45309) !important;
   outline: 1px solid var(--theme-accent, #b45309) !important;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
@@ -729,12 +740,14 @@ html[dir="ltr"] .leaflet-popup-content {
   contain-intrinsic-size: 140px;
 }
 
-.card-editorial-2026:hover {
-  background: #151d32 !important;
-  border-color: var(--theme-accent, #f59e0b) !important;
-  border-top-color: var(--theme-accent-light, #fbbf24) !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
-  transform: translateY(-2px) !important;
+@media (hover: hover) and (pointer: fine) {
+  .card-editorial-2026:hover {
+    background: #151d32 !important;
+    border-color: var(--theme-accent, #f59e0b) !important;
+    border-top-color: var(--theme-accent-light, #fbbf24) !important;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 16px var(--theme-accent-glow, rgba(245, 158, 11, 0.15)) !important;
+    transform: translateY(-2px) !important;
+  }
 }
 
 .card-editorial-2026:active {
@@ -756,7 +769,6 @@ html[dir="ltr"] .leaflet-popup-content {
 
 .animate-spatial-spring {
   animation: spatialSpringPopup 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
 }
 
 /* Luminous Spatial Expanding Ring on Selected Markers */
@@ -808,8 +820,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 .animate-page-enter {
-  animation: pageEnter2026 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
+  animation: pageEnter2026 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Modal Spring Opening Motion (مۆدال و پەنجەرە سەرەکییەکان - نەرم و بێ کێشە) */
@@ -825,8 +836,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 .animate-modal-spring {
-  animation: modalSpring2026 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
+  animation: modalSpring2026 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Universal Fade In Animation */
@@ -840,8 +850,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 .animate-fade-in {
-  animation: fadeInAnim 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity;
+  animation: fadeInAnim 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Universal Scale In Animation */
@@ -858,8 +867,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 
 .animate-scale-in,
 .animate-scale-up {
-  animation: scaleInAnim 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
+  animation: scaleInAnim 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Universal Slide Up Animation */
@@ -875,8 +883,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 .animate-slide-up {
-  animation: slideUpAnim 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
+  animation: slideUpAnim 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Marker Pin Pop Motion on Map Tap */
@@ -1048,12 +1055,14 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease !important;
 }
 
-[data-color-mode="light"] .card-editorial-2026:hover {
-  border-color: var(--theme-accent, #b45309) !important;
-  border-top-color: var(--theme-accent-dark, #92400e) !important;
-  background: #fafaf9 !important;
-  box-shadow: 0 8px 20px -2px rgba(15, 23, 42, 0.12), 0 0 12px var(--theme-accent-glow, rgba(180, 83, 9, 0.12)) !important;
-  transform: translateY(-2px) !important;
+@media (hover: hover) and (pointer: fine) {
+  [data-color-mode="light"] .card-editorial-2026:hover {
+    border-color: var(--theme-accent, #b45309) !important;
+    border-top-color: var(--theme-accent-dark, #92400e) !important;
+    background: #fafaf9 !important;
+    box-shadow: 0 8px 20px -2px rgba(15, 23, 42, 0.12), 0 0 12px var(--theme-accent-glow, rgba(180, 83, 9, 0.12)) !important;
+    transform: translateY(-2px) !important;
+  }
 }
 
 [data-color-mode="light"] .card-editorial-2026:active {
@@ -1110,13 +1119,15 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   transition: all 0.15s ease !important;
 }
 
-[data-color-mode="light"] .liquid-glass-btn:hover,
-[data-color-mode="light"] .glass-pill:hover {
-  background: #f1f5f9 !important;
-  border-color: var(--theme-accent, #b45309) !important;
-  color: #0f172a !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1) !important;
-  transform: translateY(-1px) !important;
+@media (hover: hover) and (pointer: fine) {
+  [data-color-mode="light"] .liquid-glass-btn:hover,
+  [data-color-mode="light"] .glass-pill:hover {
+    background: #f1f5f9 !important;
+    border-color: var(--theme-accent, #b45309) !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1) !important;
+    transform: translateY(-1px) !important;
+  }
 }
 
 [data-color-mode="light"] .liquid-glass-btn:active,
@@ -1135,9 +1146,9 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
 }
 
 /* 10. Inputs, Search & Dropdowns in Light Mode */
-[data-color-mode="light"] input,
-[data-color-mode="light"] select,
-[data-color-mode="light"] textarea,
+[data-color-mode="light"] input:not(.bare-input),
+[data-color-mode="light"] select:not(.bare-input),
+[data-color-mode="light"] textarea:not(.bare-input),
 [data-color-mode="light"] .liquid-glass-input {
   background: #ffffff !important;
   color: #090d16 !important;
@@ -1146,15 +1157,15 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled), .interactiv
   font-weight: 500 !important;
 }
 
-[data-color-mode="light"] input::placeholder,
-[data-color-mode="light"] textarea::placeholder {
+[data-color-mode="light"] input:not(.bare-input)::placeholder,
+[data-color-mode="light"] textarea:not(.bare-input)::placeholder {
   color: #64748b !important;
   opacity: 1 !important;
 }
 
-[data-color-mode="light"] input:focus,
-[data-color-mode="light"] select:focus,
-[data-color-mode="light"] textarea:focus,
+[data-color-mode="light"] input:not(.bare-input):focus,
+[data-color-mode="light"] select:not(.bare-input):focus,
+[data-color-mode="light"] textarea:not(.bare-input):focus,
 [data-color-mode="light"] .liquid-glass-input:focus {
   border-color: var(--theme-accent, #b45309) !important;
   box-shadow: 0 0 0 3px var(--theme-accent-glow, rgba(180, 83, 9, 0.2)) !important;

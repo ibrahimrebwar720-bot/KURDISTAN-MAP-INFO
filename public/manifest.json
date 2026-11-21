@@ -29,12 +29,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/kimlogo.png",
-      "sizes": "1268x1241",
-      "type": "image/png",
-      "purpose": "any"
     }
   ]
 }

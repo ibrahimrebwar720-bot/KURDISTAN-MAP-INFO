@@ -22,7 +22,7 @@ const DEFAULT_DESCRIPTION_CKB =
   'گەڕان و دۆزینەوەی مێژووی میرنشینەکان، شارستانیەتە دێرینەکان، قەڵا و شارەکانی هەر چوار پارچەی کوردستان لەسەر نەخشەیەکی کارلێککاری ورد.';
 const DEFAULT_DESCRIPTION_EN =
   'Explore the interactive historical map and encyclopedia of Kurdish empires, principalities, ancient Zagros civilizations, citadels, and scholars across Kurdistan.';
-const DEFAULT_IMAGE_PATH = '/kimlogo.png';
+const DEFAULT_IMAGE_PATH = '/pwa-512x512.png';
 const DYNAMIC_JSONLD_ID = 'dynamic-seo-jsonld';
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string): void {

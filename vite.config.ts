@@ -11,7 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'kimlogo.png', 'icon.svg'],
+        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'icon.svg'],
         manifest: {
           id: '/',
           name: 'kurdistan info map',
@@ -44,18 +44,12 @@ export default defineConfig(() => {
               type: 'image/png',
               purpose: 'maskable',
             },
-            {
-              src: '/kimlogo.png',
-              sizes: '1268x1241',
-              type: 'image/png',
-              purpose: 'any',
-            },
           ],
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
-          globIgnores: ['assets/aistudio/**'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globIgnores: ['assets/aistudio/**', 'kimlogo.png'],
           navigateFallbackDenylist: [/^\/api\//],
           // Online-first runtime caching strategy for Firestore & Maps data
           runtimeCaching: [

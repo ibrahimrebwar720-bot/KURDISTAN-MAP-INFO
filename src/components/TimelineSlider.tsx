@@ -209,10 +209,11 @@ export const TimelineSlider: React.FC<Props> = ({
       clearTimeout(programmaticScrollTimerRef.current);
     }
 
-    activeEl.scrollIntoView({
+    const targetLeft =
+      activeEl.offsetLeft - container.clientWidth / 2 + activeEl.offsetWidth / 2;
+    container.scrollTo({
+      left: Math.max(0, targetLeft),
       behavior: smooth ? 'smooth' : 'auto',
-      inline: 'center',
-      block: 'nearest',
     });
 
     programmaticScrollTimerRef.current = setTimeout(() => {
@@ -728,12 +729,12 @@ export const TimelineSlider: React.FC<Props> = ({
                       }, 450);
                     }}
                     title={isEn ? `Year ${formatKurdishYear(mark.year, 'en')}` : `ساڵی ${formatKurdishYear(mark.year, 'ckb')}`}
-                    className={`group flex flex-col items-center justify-end shrink-0 cursor-pointer transition-all px-0.5 relative ${
+                    className={`group flex flex-col items-center justify-end shrink-0 cursor-pointer px-0.5 relative ${
                       isSelected ? 'scale-110 z-10' : 'opacity-85 hover:opacity-100'
                     }`}
                   >
                     <div
-                      className={`transition-all rounded-none ${
+                      className={`rounded-none ${
                         isSelected
                           ? isDark
                             ? 'w-1 h-4 sm:h-5.5 bg-amber-400 shadow-[0_0_10px_#f59e0b]'

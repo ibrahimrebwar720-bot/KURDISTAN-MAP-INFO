@@ -23,6 +23,7 @@ import {
 } from './services/firestoreHistoryService';
 import { KurdishDarkLeafletMap } from './components/KurdishDarkLeafletMap';
 import { FactsList } from './components/FactsList';
+import { HeroSection } from './components/HeroSection';
 import { Navbar, MobileBottomNav, AppWorkspaceView } from './components/Navbar';
 
 // Resilient dynamic import helper with automatic retry for network or dev-server transient hiccups
@@ -57,7 +58,6 @@ const AdminPinModal = lazyWithRetry(() => import('./components/AdminPinModal'), 
 const FactEditorModal = lazyWithRetry(() => import('./components/FactEditorModal'), 'FactEditorModal');
 const CollectionManagerModal = lazyWithRetry(() => import('./components/CollectionManagerModal'), 'CollectionManagerModal');
 const ThemeSelectorModal = lazyWithRetry(() => import('./components/ThemeSelectorModal'), 'ThemeSelectorModal');
-const HeroSection = lazyWithRetry(() => import('./components/HeroSection'), 'HeroSection');
 const HistoricalJourneyModal = lazyWithRetry(() => import('./components/HistoricalJourneyModal'), 'HistoricalJourneyModal');
 const AppSettingsModal = lazyWithRetry(() => import('./components/AppSettingsModal'), 'AppSettingsModal');
 const SubmittedPhotosModal = lazyWithRetry(() => import('./components/SubmittedPhotosModal'), 'SubmittedPhotosModal');
@@ -191,6 +191,16 @@ export default function App() {
     }
     return true;
   });
+
+  // Defer initializing Leaflet/markers/timeline until user enters the workspace (or opens a deep link)
+  // so fresh mobile cold starts never flash or contend with heavy map rendering behind Hero.
+  const [hasEnteredWorkspace, setHasEnteredWorkspace] = useState<boolean>(() => !isHeroOpen);
+
+  useEffect(() => {
+    if (!isHeroOpen) {
+      setHasEnteredWorkspace(true);
+    }
+  }, [isHeroOpen]);
 
   const [isJourneyOpen, setIsJourneyOpen] = useState<boolean>(
     () => initialUrlRef.current.view === 'journey'
@@ -1034,49 +1044,51 @@ export default function App() {
 
       {/* Main Screen Workspace */}
       <main className="relative flex-1 min-h-0 w-full h-full overflow-hidden">
-        {/* Full Viewport Interactive Kurdish Clean Dark Map */}
-        <KurdishDarkLeafletMap
-          facts={facts}
-          selectedFact={selectedFact}
-          onSelectFact={handleSelectFact}
-          onDeselectFact={handleDeselectFact}
-          onOpenDetail={handleOpenDetail}
-          showAllMarkers={showAllMarkers}
-          setShowAllMarkers={setShowAllMarkers}
-          showPolygon={showPolygon}
-          setShowPolygon={setShowPolygon}
-          onOpenHero={handleReturnToHero}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          mapMode={mapMode}
-          setMapMode={setMapMode}
-          onOpenMenu={handleOpenMenu}
-          onOpenJourney={handleOpenJourney}
-          onOpenTheme={() => {
-            setIsThemeModalOpen(true);
-          }}
-          activeTagFilter={selectedCategory}
-          setActiveTagFilter={setSelectedCategory}
-          selectedProvince={selectedProvince}
-          onSelectProvince={handleProvinceChange}
-          selectedYear={selectedYear}
-          onYearChange={setSelectedYear}
-          isAdmin={isAdmin}
-          onTriggerAdminPin={() => {
-            setIsAdminPinModalOpen(true);
-          }}
-          onOpenAddFact={handleOpenAddFact}
-          onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}
-          pendingSubmissionsCount={pendingSubmissionsCount}
-          onLogoutAdmin={handleAdminLogout}
-          isPickingLocation={isPickingLocation}
-          onPickLocation={handlePickLocationOnMap}
-          onCancelPickLocation={handleCancelPickLocation}
-          pickedCoords={pickedCoords}
-          onReplayIntro={handleReplayIntro}
-          playMapIntro={showIntro}
-          onMapIntroComplete={handleMapIntroComplete}
-          externalFlyTo={externalFlyTo}
-        />
+        {/* Full Viewport Interactive Kurdish Clean Dark Map (mounted only after leaving Hero) */}
+        {hasEnteredWorkspace && (
+          <KurdishDarkLeafletMap
+            facts={facts}
+            selectedFact={selectedFact}
+            onSelectFact={handleSelectFact}
+            onDeselectFact={handleDeselectFact}
+            onOpenDetail={handleOpenDetail}
+            showAllMarkers={showAllMarkers}
+            setShowAllMarkers={setShowAllMarkers}
+            showPolygon={showPolygon}
+            setShowPolygon={setShowPolygon}
+            onOpenHero={handleReturnToHero}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            mapMode={mapMode}
+            setMapMode={setMapMode}
+            onOpenMenu={handleOpenMenu}
+            onOpenJourney={handleOpenJourney}
+            onOpenTheme={() => {
+              setIsThemeModalOpen(true);
+            }}
+            activeTagFilter={selectedCategory}
+            setActiveTagFilter={setSelectedCategory}
+            selectedProvince={selectedProvince}
+            onSelectProvince={handleProvinceChange}
+            selectedYear={selectedYear}
+            onYearChange={setSelectedYear}
+            isAdmin={isAdmin}
+            onTriggerAdminPin={() => {
+              setIsAdminPinModalOpen(true);
+            }}
+            onOpenAddFact={handleOpenAddFact}
+            onOpenSubmittedPhotos={() => setIsSubmittedPhotosOpen(true)}
+            pendingSubmissionsCount={pendingSubmissionsCount}
+            onLogoutAdmin={handleAdminLogout}
+            isPickingLocation={isPickingLocation}
+            onPickLocation={handlePickLocationOnMap}
+            onCancelPickLocation={handleCancelPickLocation}
+            pickedCoords={pickedCoords}
+            onReplayIntro={handleReplayIntro}
+            playMapIntro={showIntro}
+            onMapIntroComplete={handleMapIntroComplete}
+            externalFlyTo={externalFlyTo}
+          />
+        )}
 
         {/* Workspace View for Archive Directory (پێڕست) */}
         {isMenuOpen && (
@@ -1256,19 +1268,23 @@ export default function App() {
           pendingSubmissionsCount={pendingSubmissionsCount}
           factsCount={facts.length}
         />
+      </React.Suspense>
 
-        {/* Entrance Hero Section (مەدخەل و سێکشنی سەرەکی) */}
-        {isHeroOpen && (
-          <HeroSection
-            facts={facts}
-            onEnterMap={handleEnterMap}
-            onOpenJourney={handleOpenJourney}
-            onOpenMenu={handleOpenMenu}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onSelectFactFromHero={handleSelectFactFromHero}
-            onSearchToDirectory={handleSearchToDirectory}
-          />
-        )}
+      {/* Entrance Hero Section (eagerly loaded for instant zero-flash mobile first paint) */}
+      {isHeroOpen && (
+        <HeroSection
+          facts={facts}
+          onEnterMap={handleEnterMap}
+          onOpenJourney={handleOpenJourney}
+          onOpenMenu={handleOpenMenu}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onSelectFactFromHero={handleSelectFactFromHero}
+          onSearchToDirectory={handleSearchToDirectory}
+        />
+      )}
+
+      {/* Lazy loaded secondary modals */}
+      <React.Suspense fallback={null}>
 
       {/* Admin Submitted Photos Moderation Modal (وێنە نێردراوەکان) */}
       {isAdmin && isSubmittedPhotosOpen && (

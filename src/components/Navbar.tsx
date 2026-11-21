@@ -25,7 +25,7 @@ interface Props {
   isMenuOpen?: boolean;
 }
 
-const KURD_MAP_ICON = '/kimlogo.png';
+const KURD_MAP_ICON = '/pwa-192x192.png';
 
 export const Navbar: React.FC<Props> = ({
   activeView,

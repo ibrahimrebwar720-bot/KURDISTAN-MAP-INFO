@@ -1423,7 +1423,7 @@ export const KurdishDarkLeafletMap: React.FC<Props> = ({
                   setShowMapSearchResults(true);
                 }}
                 placeholder={isEn ? 'Search map...' : 'گەڕان لە نەخشە...'}
-                className={`w-full bg-transparent text-xs font-medium px-2 focus:outline-none ${
+                className={`bare-input w-full bg-transparent text-xs font-medium px-2 focus:outline-none ${
                   isDark ? 'text-white placeholder:text-slate-400' : 'text-slate-900 placeholder:text-slate-500'
                 }`}
               />

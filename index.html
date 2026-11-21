@@ -22,7 +22,7 @@
       property="og:description"
       content="گەڕان و دۆزینەوەی مێژووی میرنشینەکان، شارستانیەتە دێرینەکان، قەڵا و شارەکانی هەر چوار پارچەی کوردستان لەسەر نەخشەیەکی کارلێککاری ورد."
     />
-    <meta property="og:image" content="/kimlogo.png" />
+    <meta property="og:image" content="/pwa-512x512.png" />
     <meta property="og:image:alt" content="Kurdish Historical Map &amp; Encyclopedia - نەخشەی مێژوویی کوردستان" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="نەخشەی مێژوویی کوردستان | Kurdish Historical Map" />
@@ -30,7 +30,7 @@
       name="twitter:description"
       content="گەڕان و دۆزینەوەی مێژووی میرنشینەکان، شارستانیەتە دێرینەکان، قەڵا و شارەکانی هەر چوار پارچەی کوردستان لەسەر نەخشەیەکی کارلێککاری ورد."
     />
-    <meta name="twitter:image" content="/kimlogo.png" />
+    <meta name="twitter:image" content="/pwa-512x512.png" />
 
     <!-- Static Schema.org Structured Data (WebApplication + Dataset + Historical Eras) -->
     <script id="static-seo-jsonld" type="application/ld+json">
@@ -45,7 +45,7 @@
             "operatingSystem": "All",
             "inLanguage": ["ckb", "en"],
             "description": "گەڕان و دۆزینەوەی مێژووی میرنشینەکان، شارستانیەتە دێرینەکان، قەڵا و شارەکانی هەر چوار پارچەی کوردستان لەسەر نەخشەیەکی کارلێککاری ورد.",
-            "image": "/kimlogo.png",
+            "image": "/pwa-512x512.png",
             "offers": {
               "@type": "Offer",
               "price": "0",
@@ -97,6 +97,34 @@
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Noto+Serif:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var urlLang = params.get('lang');
+          var storedLang = localStorage.getItem('kurdish_history_lang_v1');
+          var lang = (urlLang === 'en' || urlLang === 'ckb') ? urlLang : (storedLang === 'en' || storedLang === 'ckb' ? storedLang : 'ckb');
+          var dir = lang === 'en' ? 'ltr' : 'rtl';
+          var root = document.documentElement;
+          root.lang = lang;
+          root.dir = dir;
+          root.setAttribute('data-lang', lang);
+
+          var colorMode = localStorage.getItem('kurdish_history_color_mode_v1');
+          colorMode = colorMode === 'light' ? 'light' : 'dark';
+          var themeId = localStorage.getItem('kurdish_history_user_theme_v1') || 'kurdish-gold';
+          root.setAttribute('data-theme', themeId);
+          root.setAttribute('data-color-mode', colorMode);
+          root.classList.add(colorMode);
+          root.classList.remove(colorMode === 'light' ? 'dark' : 'light');
+
+          var metaTheme = document.querySelector('meta[name="theme-color"]');
+          if (metaTheme) {
+            metaTheme.setAttribute('content', colorMode === 'light' ? '#f7f6f2' : '#030712');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="antialiased font-sans selection:bg-amber-500 selection:text-slate-950">
     <div id="root"></div>

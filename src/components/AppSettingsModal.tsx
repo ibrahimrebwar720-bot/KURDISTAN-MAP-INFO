@@ -126,7 +126,7 @@ export const AppSettingsModal: React.FC<Props> = ({
               title={isEn ? 'Back to Home Page' : 'گەڕانەوە بۆ پەڕەی سەرەکی'}
             >
               <img
-                src="/kimlogo.png"
+                src="/pwa-192x192.png"
                 alt="Logo"
                 className="w-full h-full object-contain"
               />

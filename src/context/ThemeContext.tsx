@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ThemeId,
   ThemeDefinition,
@@ -34,18 +34,19 @@ const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeId, setThemeIdState] = useState<ThemeId>(() => loadStoredTheme());
   const [colorMode, setColorModeState] = useState<ColorMode>(() => loadStoredColorMode());
+  const isInitialMountRef = useRef(true);
 
   const setTheme = useCallback((newId: ThemeId) => {
     if (!THEMES[newId]) return;
     setThemeIdState(newId);
     saveStoredTheme(newId);
-    applyThemeToDom(newId, colorMode);
+    applyThemeToDom(newId, colorMode, true);
   }, [colorMode]);
 
   const setColorMode = useCallback((newMode: ColorMode) => {
     setColorModeState(newMode);
     saveStoredColorMode(newMode);
-    applyThemeToDom(themeId, newMode);
+    applyThemeToDom(themeId, newMode, true);
   }, [themeId]);
 
   const toggleColorMode = useCallback(() => {
@@ -57,9 +58,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTheme('kurdish-gold');
   }, [setTheme]);
 
-  // Apply to DOM on first mount and on state changes
+  // Apply CSS variables to DOM on mount (without forced reflow) and on state changes
   useEffect(() => {
-    applyThemeToDom(themeId, colorMode);
+    const shouldDisableTransitions = !isInitialMountRef.current;
+    isInitialMountRef.current = false;
+    applyThemeToDom(themeId, colorMode, shouldDisableTransitions);
   }, [themeId, colorMode]);
 
   const value = useMemo(
